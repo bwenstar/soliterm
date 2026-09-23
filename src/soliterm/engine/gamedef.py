@@ -85,6 +85,11 @@ class GameDef:
         """
         return None
 
+    def is_dead_end(self, g: Solitaire) -> bool:
+        """True when the game can't be won any more however the cards are
+        moved, though some still can be. The default never says so."""
+        return False
+
     def no_hint_reason(self, g: Solitaire) -> Optional[str]:
         """Why there is no hint, when the game can say better than the
         generic message does (see Solitaire.no_hint_reason)."""

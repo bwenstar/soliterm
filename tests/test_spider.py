@@ -203,6 +203,41 @@ def test_the_hint_wont_split_a_run_to_fill_a_column(table):
     assert reason != g.deal_blocked_reason()
 
 
+def short_of_cards(g, t, extra=()):
+    """Seven suits done, ten cards in the stock, a lone KS, 5S and 9S on the
+    table, plus any extra cards on the 9S."""
+    for fid in g.ids_of("foundation")[:7]:
+        g.slots[fid].cards = [up(r, "S") for r in range(13, 0, -1)]
+    for sid, rank in zip(t, (13, 5, 9)):
+        g.slots[sid].cards = [up(rank, "S")]
+    g.slots[t[2]].cards += list(extra)
+    stock = [Card(r, "S", False) for r in (1, 2, 3, 4, 6, 7, 8, 10, 11, 12)]
+    g.slots[g.ids_of("stock")[0]].cards = stock
+
+
+def test_too_few_cards_to_fill_the_columns_is_a_dead_end(table):
+    # three cards can never fill ten columns, so the stock can never be
+    # dealt and only undo gets you out, though the cards still move about
+    g, t = table
+    short_of_cards(g, t)
+    assert sum(len(s.cards) for s in g.slots) == 104
+    assert g.legal_moves()
+    assert not g.can_deal()
+    reason = g.deal_blocked_reason()
+    assert "undo" in reason and "fill the" not in reason
+    assert g.hint() is None
+    assert g.no_hint_reason() == reason
+    assert g.is_stuck()
+
+
+def test_ten_cards_on_the_table_can_still_fill_the_columns(table):
+    g, t = table
+    short_of_cards(g, t, [up(r, "H") for r in (12, 3, 11, 2, 6, 1, 7)])
+    assert not g.is_stuck()
+    assert "fill the" in g.deal_blocked_reason()
+    assert g.hint() is not None
+
+
 @pytest.mark.parametrize("suits", SUITS)
 def test_following_the_hint_never_comes_back_to_a_position(suits):
     g = deal("spider", 3, suits=suits)

@@ -249,7 +249,11 @@ class Solitaire:
         return self.deal_is_productive()
 
     def is_stuck(self) -> bool:
-        return not self.is_won() and not self.has_any_move()
+        """Not won, and nothing left to do that could still win it: either
+        no move at all, or a dead end the game spots (GameDef.is_dead_end)."""
+        if self.is_won():
+            return False
+        return self.gamedef.is_dead_end(self) or not self.has_any_move()
 
     # -- slot queries ----------------------------------------------------- #
 
@@ -467,6 +471,8 @@ class Solitaire:
         deal comes back as (stock, stock, 0). See best_move() and
         setup_move() for why following it never loops.
         """
+        if self.gamedef.is_dead_end(self):
+            return None                  # no move can save it; undo can
         mv = self.best_move()
         if mv is not None:
             return mv

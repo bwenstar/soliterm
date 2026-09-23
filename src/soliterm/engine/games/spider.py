@@ -79,6 +79,9 @@ class Spider(GameDef):
     def deal_blocked_reason(self, g):
         if g.empty(self.stock):
             return "the stock is empty - nothing left to deal"
+        if self.is_dead_end(g):
+            return ("there aren't enough cards left to fill every column "
+                    "- undo until there are")
         # stock has cards, so the block must be an empty column
         n_empty = sum(1 for t in self.tableau if g.empty(t))
         cols = "column" if n_empty == 1 else "columns"
@@ -115,7 +118,15 @@ class Spider(GameDef):
                 best = (src, dst, n)
         return best
 
+    def is_dead_end(self, g):
+        # Fewer cards on the table than columns: they can never fill all ten,
+        # so the stock can never be dealt and the game never won.
+        on_table = sum(len(g.cards(t)) for t in self.tableau)
+        return not g.empty(self.stock) and on_table < len(self.tableau)
+
     def no_hint_reason(self, g):
+        if self.is_dead_end(g):
+            return self.deal_blocked_reason(g)
         if g.empty(self.stock) or all(not g.empty(t) for t in self.tableau):
             return None
         return ("nothing scores from here - move part of a run into the "
