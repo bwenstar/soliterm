@@ -85,6 +85,42 @@ class Spider(GameDef):
         return (f"fill the {n_empty} empty {cols} before dealing "
                 "- Spider won't deal onto an empty column")
 
+    def fallback_move(self, g):
+        """Fill an empty column so the stock can be dealt again.
+
+        Putting a card in an empty column rarely scores, so the generic hint
+        goes quiet just when filling the gap and dealing is the way on. Only
+        a fill that costs nothing is offered, never one that splits a run:
+        the next hint would put the run back together and empty the column
+        again. Lifting a whole column into the gap just moves the gap.
+        """
+        if g.empty(self.stock):
+            return None
+        empty = [t for t in self.tableau if g.empty(t)]
+        if not empty:
+            return None
+        base = g.progress()
+        best = None
+        best_rank = None
+        for (src, dst, n) in g.legal_moves():
+            if dst != empty[0] or n == len(g.cards(src)):
+                continue
+            sim = g.clone()
+            if not sim.attempt_move(src, dst, n) or sim.progress() < base:
+                continue
+            # as best_move: fewest cards, then from the deepest column
+            rank = -n * 10 + len(g.cards(src))
+            if best_rank is None or rank > best_rank:
+                best_rank = rank
+                best = (src, dst, n)
+        return best
+
+    def no_hint_reason(self, g):
+        if g.empty(self.stock) or all(not g.empty(t) for t in self.tableau):
+            return None
+        return ("nothing scores from here - move part of a run into the "
+                "empty column so you can deal")
+
     def after_move(self, g, src, cards, dst):
         if g.kind(src) == "tableau":
             g.flip_top(src)

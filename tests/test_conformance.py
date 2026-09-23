@@ -99,19 +99,19 @@ def test_every_hint_is_a_legal_move(key, opts):
     for _ in legal_walk(g, rng, 80):
         before = g.serialize()
         hint = g.hint()
-        mv = g.best_move()
+        mv = g.hint_move()
         assert g.serialize() == before           # asking changes nothing
         if hint is None:
+            assert mv is None
             continue
         src, dst, desc = hint
         assert isinstance(desc, str) and desc
         if src == dst:                           # "deal from the stock"
-            assert mv is None
+            assert mv == (src, dst, 0)
+            assert g.best_move() is None
             assert g.kind(src) == "stock"
             assert g.clone().deal()
         else:
-            if mv is None:                       # a move that sets one up
-                mv = g.setup_move()
             assert (src, dst) == mv[:2]
             assert mv in g.legal_moves()
             assert g.clone().attempt_move(*mv)

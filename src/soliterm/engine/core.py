@@ -458,24 +458,36 @@ class Solitaire:
                 best = (src, dst, n)
         return best
 
-    def hint(self) -> Optional[Tuple[int, int, str]]:
-        """A progress-making move as (src, dst, description) for the UI.
+    def hint_move(self) -> Optional[Tuple[int, int, int]]:
+        """The move hint() suggests, as (src, dst, n), or None.
 
-        Falls back to suggesting a productive deal when no move advances the
-        game, and then to a move that sets up one that does. See best_move()
-        and setup_move() for why following the hint never loops.
+        A move that advances the game comes first, then a deal if dealing
+        would change the board, then a move that sets up one that advances,
+        and last whatever the game itself offers (GameDef.fallback_move). A
+        deal comes back as (stock, stock, 0). See best_move() and
+        setup_move() for why following it never loops.
         """
         mv = self.best_move()
-        if mv is None and self.deal_is_productive():
+        if mv is not None:
+            return mv
+        if self.deal_is_productive():
             stock = self.ids_of("stock")
             if stock:
-                return (stock[0], stock[0], "Deal from the stock")
-        if mv is None:
-            mv = self.setup_move()
+                return (stock[0], stock[0], 0)
+        mv = self.setup_move()
         if mv is not None:
-            src, dst, n = mv
-            return (src, dst, self._describe_move(src, dst, n))
-        return None
+            return mv
+        return self.gamedef.fallback_move(self)
+
+    def hint(self) -> Optional[Tuple[int, int, str]]:
+        """What hint_move() suggests, as (src, dst, description) for the UI."""
+        mv = self.hint_move()
+        if mv is None:
+            return None
+        src, dst, n = mv
+        if src == dst:
+            return (src, dst, "Deal from the stock")
+        return (src, dst, self._describe_move(src, dst, n))
 
     def no_hint_reason(self) -> str:
         """What to tell the player when hint() has nothing to suggest.
@@ -483,6 +495,9 @@ class Solitaire:
         hint() offers a deal whenever one would change the board, so by the
         time it gives up dealing is no help and is never suggested here.
         """
+        reason = self.gamedef.no_hint_reason(self)
+        if reason:
+            return reason
         if self.legal_moves():
             reason = "no move clearly helps from here - your call"
             return reason + (", or undo" if self.can_undo() else "")

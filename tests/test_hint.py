@@ -100,15 +100,15 @@ def test_following_the_hint_never_comes_back_to_a_position(key):
     seen = set()
     deals = 0
     for _ in range(400):
-        mv = g.best_move()
-        if mv is None and g.deal_is_productive() and deals < 80:
-            g.deal()
+        mv = g.hint_move()
+        if mv is None:
+            break
+        if mv[0] == mv[1]:                       # a deal
+            if deals == 80:
+                break
+            assert g.deal()
             deals += 1
             continue
-        if mv is None:
-            mv = g.setup_move()
-            if mv is None:
-                break
         state = board_state(g)
         assert state not in seen, "the hint revisited a position"
         seen.add(state)

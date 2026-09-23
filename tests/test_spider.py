@@ -170,6 +170,56 @@ def test_a_deal_can_be_undone_and_redone():
     assert g.redo() and g.serialize() == dealt
 
 
+# -- the hint when an empty column blocks the deal --------------------------------
+
+def blocked_deal(g, t, first):
+    """Ten cards in the stock, first in column 0, a card nothing builds on in
+    each of the next eight, and the last column empty."""
+    g.slots[g.ids_of("stock")[0]].cards = [Card(r, "C", False) for r in range(1, 11)]
+    g.slots[t[0]].cards = first
+    loose = [up(13, "S"), up(13, "H"), up(11, "S"), up(11, "H"),
+             up(7, "S"), up(7, "H"), up(2, "S"), up(2, "H")]
+    for sid, card in zip(t[1:9], loose):
+        g.slots[sid].cards = [card]
+    assert not g.can_deal() and g.best_move() is None
+
+
+def test_the_hint_fills_an_empty_column_so_you_can_deal(table):
+    g, t = table
+    blocked_deal(g, t, [up(9, "S"), up(4, "H")])
+    assert g.hint() == (t[0], t[9], "Move 4♥ to the empty column")
+    assert g.attempt_move(t[0], t[9], 1)
+    stock = g.ids_of("stock")[0]
+    assert g.hint() == (stock, stock, "Deal from the stock")
+
+
+def test_the_hint_wont_split_a_run_to_fill_a_column(table):
+    # splitting 5H-4H would only be undone by the next hint, round and round
+    g, t = table
+    blocked_deal(g, t, [up(5, "H"), up(4, "H")])
+    assert g.hint() is None
+    reason = g.no_hint_reason()
+    assert "empty column" in reason and "run" in reason
+    assert reason != g.deal_blocked_reason()
+
+
+@pytest.mark.parametrize("suits", SUITS)
+def test_following_the_hint_never_comes_back_to_a_position(suits):
+    g = deal("spider", 3, suits=suits)
+    seen = set()
+    for _ in range(400):
+        mv = g.hint_move()
+        if mv is None:
+            break
+        if mv[0] == mv[1]:
+            assert g.deal()
+            continue
+        state = board_state(g)
+        assert state not in seen, "the hint revisited a position"
+        seen.add(state)
+        assert g.attempt_move(*mv), f"hinted move {mv} was illegal"
+
+
 @pytest.mark.parametrize("suits", SUITS)
 @pytest.mark.parametrize("seed", range(6))
 def test_random_play_keeps_every_card(seed, suits):

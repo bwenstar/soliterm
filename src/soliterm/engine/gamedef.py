@@ -76,6 +76,20 @@ class GameDef:
     def hint(self, g: Solitaire) -> Optional[Tuple[int, int, str]]:
         return None
 
+    def fallback_move(self, g: Solitaire) -> Optional[Tuple[int, int, int]]:
+        """A move for the hint when nothing else helps, as (src, dst, n).
+
+        Only asked once no move advances the game, dealing would change
+        nothing and no move sets one up. Following it must never lead back
+        round to the same position. The default has nothing to offer.
+        """
+        return None
+
+    def no_hint_reason(self, g: Solitaire) -> Optional[str]:
+        """Why there is no hint, when the game can say better than the
+        generic message does (see Solitaire.no_hint_reason)."""
+        return None
+
     def can_deal(self, g: Solitaire) -> bool:
         return bool(g.ids_of("stock")) and not g.empty(g.ids_of("stock")[0])
 
