@@ -185,6 +185,34 @@ def test_unseeded_new_games_differ():
     assert len(seeds) >= 2
 
 
+def test_a_fixed_seed_only_fixes_the_first_deal():
+    g = deal("klondike", 5)
+    hands = [board(g)]
+    for _ in range(3):
+        g.new_game()
+        hands.append(board(g))
+    assert len({str(h) for h in hands}) == 4
+    assert hands[0] == board(deal("klondike", 5))
+
+
+def test_the_deals_after_a_fixed_seed_are_reproducible():
+    a, b = deal("klondike", 5), deal("klondike", 5)
+    for _ in range(3):
+        a.new_game()
+        b.new_game()
+        assert board(a) == board(b)
+        assert a.current_seed == b.current_seed
+
+
+def test_restart_replays_a_new_deal_made_under_a_fixed_seed():
+    g = deal("klondike", 5)
+    g.new_game()
+    hand = board(g)
+    g.deal()
+    g.restart()
+    assert board(g) == hand
+
+
 # -- stuck detection ------------------------------------------------------------------
 
 @pytest.mark.parametrize("key", GAME_ORDER)

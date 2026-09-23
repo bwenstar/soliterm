@@ -59,6 +59,9 @@ class Solitaire:
         self.gamedef = gamedef
         self.seed = seed
         self.options = gamedef.sanitize_options(options)
+        # A fixed seed picks the first deal and seeds the run of deals after
+        # it, so a seeded session replays exactly but a new deal is new.
+        self._deal_seeds = random.Random(seed) if seed is not None else None
         self.rng = random.Random(seed)
         self.slots: List[Slot] = []
         self._current_row = 0
@@ -71,7 +74,7 @@ class Solitaire:
         self.current_seed = seed     # the concrete seed of the deal in play
         self._undo: List[bytes] = []
         self._redo: List[bytes] = []
-        self.new_game()
+        self.new_game(seed)
 
     # Score is clamped at 0: AisleRiot never displays a negative score, and
     # taking a card back off a foundation should not push the total below zero.
@@ -116,14 +119,15 @@ class Solitaire:
     def new_game(self, seed: Optional[int] = None) -> None:
         """Deal a new game.
 
-        With an explicit `seed` (or a fixed self.seed from --seed) the deal is
-        reproducible. Otherwise a concrete random seed is chosen and remembered
-        as `current_seed`, so the exact hand can be replayed via restart().
+        With an explicit `seed` the deal is reproducible. Otherwise a concrete
+        seed is chosen, from the run seeded by self.seed (--seed) if there is
+        one or at random if not, and remembered as `current_seed`, so the
+        exact hand can be replayed via restart().
         """
         if seed is not None:
             deal_seed = seed
-        elif self.seed is not None:
-            deal_seed = self.seed
+        elif self._deal_seeds is not None:
+            deal_seed = self._deal_seeds.randrange(1, 2 ** 31)
         else:
             # no fixed seed: pick a concrete one so this deal can be replayed
             deal_seed = random.randrange(1, 2 ** 31)
@@ -156,6 +160,7 @@ class Solitaire:
         g.seed = self.seed
         g.current_seed = self.current_seed
         g.options = dict(self.options)
+        g._deal_seeds = None
         g.rng = random.Random()
         g.slots = [Slot(s.sid, s.kind, s.expand, list(s.cards), s.row)
                    for s in self.slots]

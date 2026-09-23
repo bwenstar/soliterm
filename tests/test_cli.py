@@ -292,6 +292,15 @@ def test_a_scripted_text_session(cli):
     assert sum(line.startswith("Hint: ") for line in lines) == 1
 
 
+def test_n_in_text_mode_deals_a_new_hand_under_seed(cli):
+    first = without_status(render_text(deal("klondike", 5), symbols=False))
+    rc, lines = cli("--text", "--ascii", "--no-color", "--game", "klondike",
+                    "--seed", "5", stdin="n\nq\n")
+    out = "\n".join(lines)
+    assert out.count(first) == 1
+    assert "new deal" in lines
+
+
 def test_text_mode_survives_a_bad_option_in_the_config(cli):
     cfg = store.load_config()
     store.set_game_options(cfg, "spider", {"suits": 3})

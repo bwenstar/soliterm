@@ -167,6 +167,16 @@ def test_the_hint_key_shows_the_hint(tui):
     assert f"Hint: {desc}" in scr.frames[1]
 
 
+def test_n_deals_a_new_hand_and_shift_n_replays_it_under_seed(tui):
+    seeded = deal("klondike", 5)
+    first = seeded.serialize()
+    seeded.new_game()
+    second = seeded.serialize()
+    assert second != first
+    scr = tui(["n", "d", "N"], seed=5)
+    assert scr.uis[0].game.serialize() == second
+
+
 # -- recording results -------------------------------------------------------------
 
 def test_quitting_before_moving_records_nothing(tui):
