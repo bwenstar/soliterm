@@ -1,0 +1,207 @@
+"""Drawing the board with BoardUI: card art, both views, the code skin,
+monochrome, and layouts that have to squeeze onto small screens.
+
+The hit map ((y, x) -> (slot, card index)) is what clicks go through, so most
+checks here are about which cards end up clickable.
+"""
+
+import pytest
+
+import aisle_camo
+import aisle_tui
+from aisle import GAME_ORDER, Card
+from helpers import FakeScr, clear_board, deal
+
+
+def draw(g, h=40, w=120, symbols=False, view="expanded", code_skin=False, hint=None):
+    scr = FakeScr(h, w)
+    ui = aisle_tui.BoardUI(scr, g, symbols=symbols, has_color=False, view=view)
+    ui.code_skin = code_skin
+    cursor = g.ids_of("tableau")[0] if g.ids_of("tableau") else 0
+    ui.draw(None, 1, cursor, hint, 1.0, "x")
+    return ui, scr
+
+
+def clickable(ui, sid):
+    """Card indexes of slot sid that have at least one hit cell."""
+    return {idx for (s, idx) in ui.hit.values() if s == sid}
+
+
+# -- card art ----------------------------------------------------------------------
+
+@pytest.mark.parametrize("key", GAME_ORDER)
+def test_every_game_draws_card_boxes(key):
+    ui, scr = draw(deal(key, 3))
+    assert "+--" in scr.text()
+
+
+def test_unicode_mode_draws_box_borders():
+    ui, scr = draw(deal("klondike", 1), symbols=True)
+    assert "┌" in scr.text() and "│" in scr.text()
+
+
+@pytest.fixture
+def fanned_column():
+    """A Klondike board with just KS QH JS 10H down the first column."""
+    g = deal("klondike", 1)
+    clear_board(g)
+    col = g.ids_of("tableau")[0]
+    g.slots[col].cards = [Card(13, "S", True), Card(12, "H", True),
+                          Card(11, "S", True), Card(10, "H", True)]
+    return g, col
+
+
+def test_covered_cards_show_their_rank(fanned_column):
+    g, col = fanned_column
+    ui, scr = draw(g)
+    for label in ("KS", "QH", "JS", "10H"):
+        assert label in scr.text()
+
+
+def test_every_card_in_a_roomy_column_is_clickable(fanned_column):
+    g, col = fanned_column
+    ui, scr = draw(g)
+    assert clickable(ui, col) == {0, 1, 2, 3}
+
+
+def test_every_card_in_a_short_waste_fan_is_clickable():
+    g = deal("fortythieves", 1)
+    waste = g.ids_of("waste")[0]
+    g.slots[waste].cards = [Card((i % 13) + 1, "SHDC"[i % 4], True) for i in range(5)]
+    ui, scr = draw(g, h=30, w=120)
+    assert len(clickable(ui, waste)) == 5
+
+
+# -- squeezing onto the screen ------------------------------------------------------
+
+@pytest.mark.parametrize("h, w", [(24, 100), (24, 110)])
+def test_a_tall_column_keeps_its_top_card_clickable(h, w):
+    g = deal("spider", 1)
+    col = g.ids_of("tableau")[0]
+    g.slots[col].cards = [Card((i % 13) + 1, "S", True) for i in range(34)]
+    ui, scr = draw(g, h=h, w=w)
+    top = len(g.slots[col].cards) - 1
+    rows = [y for (y, x), (sid, idx) in ui.hit.items() if sid == col and idx == top]
+    assert rows
+    assert max(rows) < h - 3               # clear of the status bar
+
+
+def test_a_long_waste_leaves_the_foundations_on_screen():
+    g = deal("fortythieves", 1)
+    waste = g.ids_of("waste")[0]
+    g.slots[waste].cards = [Card((i % 13) + 1, "SHDC"[i % 4], True) for i in range(40)]
+    ui, scr = draw(g, h=40, w=80)
+    on_screen = {sid for (y, x), (sid, idx) in ui.hit.items() if x < 80}
+    for f in g.ids_of("foundation"):
+        assert f in on_screen
+
+
+def test_thirteen_columns_fit_in_80_columns():
+    g = deal("bakersdozen", 1)
+    ui, scr = draw(g, h=40, w=80)
+    cols = set(g.ids_of("tableau"))
+    on = {sid for (y, x), (sid, idx) in ui.hit.items() if sid in cols and x < 80}
+    assert on == cols
+    assert aisle_tui.MIN_CARD_W <= ui._cw <= aisle_tui.MAX_CARD_W
+
+
+def test_a_tiny_terminal_gets_a_message_instead_of_a_board():
+    ui, scr = draw(deal("klondike", 1), h=8, w=30)
+    assert "Terminal too small." in scr.text()
+    assert not ui.hit
+
+
+# -- expanded and legacy views -----------------------------------------------------------
+
+@pytest.fixture
+def dealt_klondike():
+    g = deal("klondike", 5)
+    g.deal()
+    return g
+
+
+def test_expanded_draws_boxes_and_legacy_draws_cells(dealt_klondike):
+    g = dealt_klondike
+    ui_e, scr_e = draw(g, h=36, symbols=True, view="expanded", hint=g.hint())
+    ui_l, scr_l = draw(g, h=36, symbols=True, view="legacy", hint=g.hint())
+    assert ui_e.card_h == 4 and "┌" in scr_e.text()
+    assert ui_l.card_h == 1 and "┌" not in scr_l.text() and "[" in scr_l.text()
+
+
+def test_both_views_have_the_same_click_targets(dealt_klondike):
+    g = dealt_klondike
+    ui_e, _ = draw(g, h=36, symbols=True, view="expanded", hint=g.hint())
+    ui_l, _ = draw(g, h=36, symbols=True, view="legacy", hint=g.hint())
+    assert set(ui_e.hit.values()) == set(ui_l.hit.values())
+
+
+def test_set_view_switches_geometry_and_rejects_garbage():
+    ui, _ = draw(deal("klondike", 5))
+    ui.set_view("legacy")
+    assert ui.view == "legacy" and ui.card_h == 1
+    ui.set_view("expanded")
+    assert ui.view == "expanded" and ui.card_h == 4
+    ui.set_view("nonsense")
+    assert ui.view == "expanded"
+
+
+@pytest.mark.parametrize("view", ["expanded", "legacy"])
+@pytest.mark.parametrize("key", GAME_ORDER)
+def test_every_game_draws_in_both_views(key, view):
+    g = deal(key, 2)
+    ui, _ = draw(g, h=36, symbols=True, view=view, hint=g.hint())
+    assert ui.hit
+
+
+# -- monochrome ------------------------------------------------------------------------
+
+@pytest.mark.parametrize("key", GAME_ORDER)
+def test_monochrome_uses_no_colour_pairs(key):
+    g = deal(key, 2)
+    ui = aisle_tui.BoardUI(FakeScr(), g, symbols=True, has_color=False)
+    assert ui.CP(1) == 0 and ui.CP(8) == 0
+    cursor = g.ids_of("tableau")[0] if g.ids_of("tableau") else 0
+    ui.draw(None, 1, cursor, g.hint(), 5.0, "colour off")
+    ui.code_skin = True
+    ui.draw(None, 1, cursor, None, 5.0, "mono code skin")
+
+
+# -- code skin -------------------------------------------------------------------------------
+
+def test_code_lines_are_repeatable_and_read_as_source():
+    a = aisle_camo.code_lines(120, seed=1)
+    assert a == aisle_camo.code_lines(120, seed=1)
+    assert len(a) == 120
+    joined = "\n".join(a)
+    assert "def " in joined and "import" in joined
+
+
+@pytest.mark.parametrize("key", GAME_ORDER)
+def test_the_code_skin_keeps_the_board_clickable(key):
+    g = deal(key, 3)
+    ui, _ = draw(g, h=40, w=140, code_skin=True, hint=g.hint())
+    assert ui.hit
+    assert min(x for (_, x) in ui.hit) >= ui._gutter
+    for sid, idx in ui.hit.values():
+        assert 0 <= sid < len(g.slots)
+
+
+def test_the_code_skin_looks_like_an_editor(dealt_klondike):
+    # 44 rows leaves room for source above and below the board
+    ui, scr = draw(dealt_klondike, h=44, w=100, code_skin=True)
+    screen = scr.text()
+    assert "solver.py" in screen           # editor header
+    assert "def " in screen                # source around the board
+    assert "  1  " in screen               # line-number gutter
+    assert "board snapshot" in screen
+    assert "+--" in screen                 # and the cards themselves
+
+
+def test_the_code_skin_moves_the_board_into_the_file():
+    ui = aisle_tui.BoardUI(FakeScr(), deal("klondike", 1), symbols=False, has_color=False)
+    off = ui.compute_positions()
+    ui.code_skin = True
+    on = ui.compute_positions()
+    sid = next(iter(on))
+    assert on[sid][1] > off[sid][1]        # indented further right
+    assert on[sid][0] >= off[sid][0]       # and no higher
