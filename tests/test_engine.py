@@ -24,6 +24,32 @@ def test_fresh_deal_has_every_card_and_is_not_won(key, seed):
     assert not g.is_won()
 
 
+# -- options --------------------------------------------------------------------
+
+# Values a hand-edited or out-of-date config.json could hold.
+@pytest.mark.parametrize("bad", [3, "2", None, 2.0, True, [4]])
+def test_a_bad_spider_suits_option_falls_back_to_the_default(bad):
+    g = deal("spider", 1, suits=bad)
+    assert g.options == engine.Spider.default_options()
+    assert card_count(g) == 104
+
+
+@pytest.mark.parametrize("bad", [0, -1, 7, "3", 3.0, None])
+def test_a_bad_klondike_draw_option_falls_back_to_the_default(bad):
+    g = deal("klondike", 1, draw=bad)
+    assert g.options == engine.Klondike.default_options()
+    stock = g.ids_of("stock")[0]
+    before = len(g.cards(stock))
+    assert g.deal()
+    assert len(g.cards(stock)) == before - g.options["draw"]
+
+
+def test_good_options_are_kept_and_unknown_ones_dropped():
+    g = deal("spider", 1, suits=2, colour="blue")
+    assert g.options == {"suits": 2}
+    assert deal("freecell", 1, draw=3).options == {}
+
+
 # -- random play ----------------------------------------------------------------
 
 @pytest.mark.parametrize("seed", range(15))

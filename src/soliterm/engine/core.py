@@ -58,9 +58,7 @@ class Solitaire:
                  options: Optional[dict] = None):
         self.gamedef = gamedef
         self.seed = seed
-        self.options = dict(gamedef.default_options())
-        if options:
-            self.options.update(options)
+        self.options = gamedef.sanitize_options(options)
         self.rng = random.Random(seed)
         self.slots: List[Slot] = []
         self._current_row = 0

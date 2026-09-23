@@ -25,6 +25,26 @@ class GameDef:
         """List of (option_key, label, [allowed values]) for the Options UI."""
         return []
 
+    @classmethod
+    def sanitize_options(cls, options: Optional[dict]) -> dict:
+        """The options to play with: the defaults, overridden by every value
+        in `options` that option_spec() allows.
+
+        Options come from config.json, which may be hand-edited or older than
+        the game, so anything unexpected is dropped rather than trusted: an
+        unknown key goes, and a value that is not one of the allowed ones (in
+        type as well, so "3" or 3.0 is not 3) falls back to the default.
+        """
+        opts = dict(cls.default_options())
+        given = options or {}
+        for key, _label, allowed in cls.option_spec():
+            if key not in given:
+                continue
+            value = given[key]
+            if any(type(value) is type(a) and value == a for a in allowed):
+                opts[key] = value
+        return opts
+
     # ---- setup ---- #
     def deal(self, g: Solitaire) -> None:
         raise NotImplementedError

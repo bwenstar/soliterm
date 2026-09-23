@@ -292,6 +292,15 @@ def test_a_scripted_text_session(cli):
     assert sum(line.startswith("Hint: ") for line in lines) == 1
 
 
+def test_text_mode_survives_a_bad_option_in_the_config(cli):
+    cfg = store.load_config()
+    store.set_game_options(cfg, "spider", {"suits": 3})
+    store.save_config(cfg)
+    rc, lines = cli("--text", "--game", "spider", stdin="q\n")
+    assert rc == 0
+    assert lines[-1] == "bye"
+
+
 # -- the full-screen game or text mode -------------------------------------------------
 
 # the terminal types the stubbed terminfo knows: xterm can draw the game,
