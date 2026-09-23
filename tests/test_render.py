@@ -87,6 +87,29 @@ def test_a_tall_column_keeps_its_top_card_clickable(h, w):
     assert max(rows) < h - 3               # clear of the status bar
 
 
+def column_text(ui, scr, sid):
+    """The screen text down the column slot sid is drawn in."""
+    x = ui.slot_origin[sid][1]
+    return [line[x:x + ui._cw] for line in scr.text().splitlines()]
+
+
+RUN = [Card(r, "SH"[r % 2], True) for r in range(13, 3, -1)]    # KS QH ... 4H
+
+
+# at 80x24 a Klondike column has 8 rows for its covered cards
+@pytest.mark.parametrize("down, up", [(6, 7), (0, 9), (4, 9)])
+def test_a_squeezed_column_still_shows_every_face_up_rank(down, up):
+    g = deal("klondike", 1)
+    clear_board(g)
+    col = g.ids_of("tableau")[0]
+    g.slots[col].cards = [Card(1, "C", False)] * down + RUN[:up]
+    ui, scr = draw(g, h=24, w=80)
+    text = "\n".join(column_text(ui, scr, col))
+    for card in RUN[:up]:
+        assert str(card) in text
+    assert clickable(ui, col) >= set(range(down, down + up))
+
+
 def test_a_long_waste_leaves_the_foundations_on_screen():
     g = deal("fortythieves", 1)
     waste = g.ids_of("waste")[0]

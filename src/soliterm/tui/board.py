@@ -268,10 +268,9 @@ class BoardUI:
                         selected_n, hint_src, hint_dst):
         """A tableau column: covered cards peek above the full-size top card."""
         n = len(slot.cards)
-        peek = self._down_peek(sy, n)
         sel_start = n - selected_n if sel_here else n
-        # precompute each card's top row (rounded) so cards stack consistently
-        ys = [sy + int(round(i * peek)) for i in range(n)]
+        # each card's top row, so cards stack consistently
+        ys = [sy + dy for dy in self._down_rows(slot.cards, sy)]
         for i, card in enumerate(slot.cards):
             cy = ys[i]
             is_top = i == n - 1
@@ -281,8 +280,14 @@ class BoardUI:
             is_cur = cur_here and is_top
             attr = self.card_attr(card, is_sel, is_hint and not is_sel,
                                   cursor=is_cur)
-            # full box for the top card, just the peek (border+label) for covered
-            self._blit_card(cy, sx, card, cw, is_top, attr)
+            # full box for the top card, just the peek (border+label) for
+            # covered ones, and a face-up card's label alone when only one
+            # row of it shows
+            lines = self._card_rows(card, cw, is_top)
+            if not is_top and card.face_up and ys[i + 1] - cy == 1:
+                lines = lines[-1:]
+            for dy, line in enumerate(lines):
+                self.safe_add(cy + dy, sx, line, attr)
             # clickable band: from this card's top row to the next card's top
             # (its exposed strip), or the full box for the top card. Later cards
             # overwrite earlier rows in the hit map, so each exposed strip maps
@@ -312,32 +317,51 @@ class BoardUI:
     def _columns_in_row(self, row: int) -> List[int]:
         return [s.sid for s in self.game.slots if s.row == row]
 
-    def _down_peek(self, sy: int, n: int) -> float:
-        """Rows each COVERED card shows in a down-column (its 'peek').
+    def _down_rows(self, cards: List[Card], sy: int) -> List[int]:
+        """Each card's top row in a down-column, counted from the column top.
 
-        Normally PEEK_Y rows (the top border + the rank label - so every card's
-        identity is visible and individually clickable). For a tall pile (a long
-        Spider / Yukon column) that would run past the status bar, the peek
-        shrinks - below 1 if necessary, so cards overlap more tightly and the
-        full-size top card always stays on screen and clickable.
+        A covered card shows PEEK_Y rows (the top border and the rank label)
+        when there's room. A tall pile (a long Spider / Yukon column) that
+        would run past the status bar squeezes its face-down cards to a row
+        each first, since they have no rank to show, then the face-up ones to
+        a row showing just the label, then lets the face-down cards overlap
+        more tightly still. Only when even that won't fit do face-up cards go
+        below a row each, over face-down cards hidden entirely. The full-size
+        top card always stays on screen and clickable.
         """
-        if n <= 1:
-            return float(self.peek_y)
+        covered = cards[:-1]
+        if not covered:
+            return [0] * len(cards)
         h = self.stdscr.getmaxyx()[0]
         # rows available from the column top down to just above the status bar,
         # reserving card_h for the full-size top card
-        avail = (h - 3) - sy - self.card_h
-        if avail < 1:
-            return 0.0
-        return max(0.0, min(float(self.peek_y), avail / (n - 1)))
+        avail = max(0, (h - 3) - sy - self.card_h)
+        up = sum(1 for c in covered if c.face_up)
+        down = len(covered) - up
+        py = self.peek_y
+        if (up + down) * py <= avail:
+            step_up = step_down = float(py)
+        elif up * py + down <= avail:
+            step_up, step_down = float(py), 1.0
+        elif up + down <= avail:
+            step_up = step_down = 1.0
+        elif up <= avail:
+            step_up, step_down = 1.0, (avail - up) / down
+        else:
+            step_up, step_down = avail / up, 0.0
+        rows, at = [0], 0.0
+        for c in covered:
+            at += step_up if c.face_up else step_down
+            # floor, not round, so a face-up card after a squeezed run of
+            # face-down ones still gets its whole row
+            rows.append(int(at + 1e-9))
+        return rows
 
     def _slot_height(self, sid: int, sy: int) -> int:
         """Screen rows the slot's rendering occupies (for row stacking)."""
         slot = self.game.slots[sid]
         if slot.expand == "down" and len(slot.cards) > 1:
-            n = len(slot.cards)
-            peek = self._down_peek(sy, n)
-            return int(round((n - 1) * peek)) + self.card_h
+            return self._down_rows(slot.cards, sy)[-1] + self.card_h
         return self.card_h
 
     def compute_positions(self) -> Dict[int, Tuple[int, int]]:
