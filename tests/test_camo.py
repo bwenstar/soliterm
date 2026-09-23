@@ -4,7 +4,7 @@ import io
 
 import pytest
 
-from soliterm import camo, cli
+from soliterm import camo, textmode
 from helpers import deal
 
 TELLS = ("♠", "♥", "♦", "♣", "[##]", "score=", "Foundation")
@@ -37,7 +37,7 @@ def test_the_output_reads_as_work_not_cards():
 @pytest.mark.parametrize("cmd", ["b", "boss"])
 def test_the_text_mode_boss_command_prints_work_instead_of_the_board(cmd, capsys):
     g = deal("klondike", 1)
-    assert cli.run_text(g, True, "klondike", stream=io.StringIO(f"{cmd}\nq\n")) == 0
+    assert textmode.run_text(g, True, "klondike", stream=io.StringIO(f"{cmd}\nq\n")) == 0
     out = capsys.readouterr().out.splitlines()
     assert out[-1] == "bye"
     # everything after the first board's status line is the disguise

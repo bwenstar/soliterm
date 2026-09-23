@@ -4,7 +4,7 @@ import random
 
 import pytest
 
-from soliterm import cli
+from soliterm import textmode
 from soliterm.engine import GAME_ORDER, Card
 from helpers import board_state, clear_board, deal, legal_walk
 
@@ -118,7 +118,7 @@ def test_a_rejected_move_changes_nothing(klondike):
 def test_malformed_text_commands_are_rejected(cmd):
     g = deal("klondike", 3)
     before = g.serialize()
-    ok, msg = cli.apply_text_command(g, cmd)
+    ok, msg = textmode.apply_text_command(g, cmd)
     assert ok is False
     assert msg.startswith("bad command")
     assert untouched(g, before)
@@ -129,7 +129,7 @@ def test_malformed_text_commands_are_rejected(cmd):
 def test_text_moves_on_missing_slots_or_counts_do_nothing(cmd):
     g = deal("klondike", 3)
     before = g.serialize()
-    ok, msg = cli.apply_text_command(g, cmd)
+    ok, msg = textmode.apply_text_command(g, cmd)
     assert ok is False
     assert untouched(g, before)
 

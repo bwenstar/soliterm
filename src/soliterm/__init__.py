@@ -7,7 +7,8 @@ keyfile. The runtime is standard library only.
 
 Modules:
   engine     the slot/card engine; engine.games holds one module per game
-  cli        argument parsing, the text mode, and the entry point (main)
+  cli        argument parsing and the entry point (main)
+  textmode   the pipe-friendly text mode (plain board, command loop)
   tui        the curses front-end
   store      config and statistics under the XDG directories
   aisleriot  reads and writes GNOME AisleRiot's statistics keyfile

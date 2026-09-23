@@ -11,8 +11,9 @@ import pytest
 import soliterm
 from soliterm import aisleriot as ar
 from soliterm import store
-from soliterm.cli import main, render_text
+from soliterm.cli import main
 from soliterm.engine import GAME_ORDER, GAMES
+from soliterm.textmode import render_text
 from helpers import deal
 
 
