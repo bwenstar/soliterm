@@ -30,9 +30,8 @@ class BakersDozen(GameDef):
         g.update_status()
 
     def can_pickup(self, g, sid, n):
-        if g.kind(sid) == "tableau":
-            return n == 1
-        return False
+        # a foundation's top card is still in play, as in AisleRiot
+        return n == 1 and g.kind(sid) in ("tableau", "foundation")
 
     def tableau_adjacent(self, upper, lower):
         return lower.rank == upper.rank - 1     # build down by rank, any suit
@@ -41,6 +40,8 @@ class BakersDozen(GameDef):
         k = g.kind(dst)
         c = cards[0]
         if k == "foundation":
+            if g.kind(src) == "foundation":
+                return False               # sliding an Ace along gets you nothing
             top = g.top(dst)
             return (c.rank == ACE) if top is None else self.same_suit_up(top, c)
         if k == "tableau":

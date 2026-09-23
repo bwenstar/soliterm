@@ -90,7 +90,7 @@ def test_a_foundation_only_takes_the_next_card_of_its_suit(klondike):
     assert g.attempt_move(w, f[0]) is True
 
 
-@pytest.mark.parametrize("key", ["klondike", "freecell", "eightoff"])
+@pytest.mark.parametrize("key", ["klondike", "freecell", "eightoff", "bakersdozen"])
 def test_a_card_cannot_go_from_one_foundation_to_another(key):
     g = deal(key, 3)
     clear_board(g)
@@ -134,6 +134,22 @@ def test_canfield_foundation_cards_can_come_back_down():
     assert [str(c) for c in g.cards(t[0])] == ["7H", "6S"]
     assert g.cards(f[0]) == [Card(5, "S", True)]
     assert g.score == 2
+
+
+def test_bakers_dozen_foundation_cards_can_come_back_down():
+    g = deal("bakersdozen", 3)
+    clear_board(g)
+    f, t = g.ids_of("foundation"), g.ids_of("tableau")
+    g.slots[f[0]].cards = [Card(1, "S", True), Card(2, "S", True)]
+    g.slots[t[0]].cards = [Card(3, "H", True)]
+    g.score = 2
+    assert g.can_pickup(f[0], 1)
+    assert g.attempt_move(f[0], t[1], 1) is False     # an empty column stays empty
+    assert (f[0], t[0], 1) in g.legal_moves()
+    assert g.attempt_move(f[0], t[0], 1)
+    assert [str(c) for c in g.cards(t[0])] == ["3H", "2S"]
+    assert [str(c) for c in g.cards(f[0])] == ["AS"]
+    assert g.score == 1
 
 
 def test_a_card_can_only_be_moved_once(klondike):
