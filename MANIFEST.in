@@ -1,0 +1,5 @@
+# Ship the whole test suite in the sdist, not just the test_*.py files
+# setuptools picks up by default: conftest.py is what points every test at
+# a throwaway home, so the tests must never travel without it.
+include CHANGELOG.md
+recursive-include tests *.py
