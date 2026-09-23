@@ -268,9 +268,10 @@ class App:
     def camouflage_screen(self):
         """Hide the game behind live-scrolling fake 'work' output.
 
-        Looks like an active build/test/log session. ANY key returns to the
-        game exactly where it was left. The theme comes from the config
-        ('camo_theme'); cycle it live with Tab while in camo mode.
+        Looks like an active build/test/log session. Any key returns to the
+        game exactly where it was left; the mouse and a resized window don't.
+        The theme comes from the config ('camo_theme'); cycle it live with
+        Tab while in camo mode.
         """
         stdscr, cfg = self.stdscr, self.cfg
         theme = cfg.get("camo_theme", camo.DEFAULT_THEME)
@@ -303,6 +304,16 @@ class App:
                 slept = 0.0
                 while slept < 0.22:
                     k = stdscr.getch()
+                    if k == curses.KEY_MOUSE:
+                        # a click to focus the window, the wheel or the
+                        # pointer passing over must not give the game away
+                        try:
+                            curses.getmouse()
+                        except curses.error:
+                            pass
+                        continue
+                    if k == curses.KEY_RESIZE:
+                        break         # draw the disguise again at the new size
                     if k != -1:
                         if BOSS_ACTIONS.get(k) == "next_disguise":
                             # cycle theme without leaving camo

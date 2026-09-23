@@ -32,6 +32,13 @@ class Mouse:
         self.y, self.x, self.bstate = y, x, bstate
 
 
+class Resize:
+    """The terminal changing size to h rows by w columns."""
+
+    def __init__(self, h, w):
+        self.h, self.w = h, w
+
+
 class ScriptedScr(FakeScr):
     def __init__(self, h, w, keys, uis):
         super().__init__(h, w)
@@ -62,6 +69,10 @@ class ScriptedScr(FakeScr):
         if isinstance(k, Mouse):
             self.mouse = (0, k.x, k.y, 0, k.bstate)
             return curses.KEY_MOUSE
+        if isinstance(k, Resize):
+            self.h, self.w = k.h, k.w
+            self.erase()
+            return curses.KEY_RESIZE
         return ord(k) if isinstance(k, str) else k
 
 
@@ -384,6 +395,22 @@ def test_the_boss_key_hides_the_board_until_a_key_is_pressed(tui, key):
     camo = scr.frames[1]
     assert camo.strip() and "Score" not in camo and "+--" not in camo
     assert "Score" in scr.frames[2]
+
+
+def test_only_a_key_ends_boss_mode_not_the_mouse_or_a_resize(tui):
+    scr = tui(["b",
+               Mouse(9, 40, curses.REPORT_MOUSE_POSITION),
+               Mouse(9, 40, curses.BUTTON4_PRESSED),
+               Mouse(9, 40, curses.BUTTON1_PRESSED),     # clicking to focus the window
+               Resize(30, 100),
+               "z"])
+    assert "Score" in scr.frames[0]
+    hidden = scr.frames[1:6]
+    assert all(frame.strip() and "Score" not in frame for frame in hidden)
+    assert "Score" in scr.frames[6]
+    # the disguise is drawn again to fill the new size
+    assert len(scr.frames[5].split("\n")) == 30
+    assert max(len(line) for line in scr.frames[5].split("\n")) > 80
 
 
 def test_tab_in_boss_mode_switches_and_saves_the_disguise(tui):
