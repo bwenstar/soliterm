@@ -32,6 +32,8 @@ START_MESSAGE = "? help  h hint  m menu. Click or use arrows + Enter."
 # the pointer, button or not.
 MOUSE_MASK = (curses.BUTTON1_PRESSED | curses.BUTTON1_RELEASED |
               curses.BUTTON1_CLICKED | curses.BUTTON1_DOUBLE_CLICKED)
+# what counts as clicking a menu or banner choice
+LEFT_CLICK = curses.BUTTON1_PRESSED | curses.BUTTON1_CLICKED
 
 
 class App:
@@ -736,8 +738,11 @@ class App:
                     _, mx, my, _, bstate = curses.getmouse()
                 except curses.error:
                     continue
+                # only a left click on a choice's text takes it, never the
+                # pointer passing over it, the wheel or a stray release
                 row = my - 12
-                if 0 <= row < len(choices):
+                if (bstate & LEFT_CLICK and 0 <= row < len(choices)
+                        and 6 <= mx < 6 + len("> " + choices[row][1])):
                     return choices[row][0]
 
 

@@ -25,6 +25,13 @@ class Click:
         self.sid, self.idx, self.bstate = sid, idx, bstate
 
 
+class Mouse:
+    """A raw mouse event at screen cell (y, x), for the screens without cards."""
+
+    def __init__(self, y, x, bstate=curses.BUTTON1_CLICKED):
+        self.y, self.x, self.bstate = y, x, bstate
+
+
 class ScriptedScr(FakeScr):
     def __init__(self, h, w, keys, uis):
         super().__init__(h, w)
@@ -51,6 +58,9 @@ class ScriptedScr(FakeScr):
             assert cells, f"card {k.idx} of slot {k.sid} is not on screen"
             y, x = cells[0]
             self.mouse = (0, x, y, 0, k.bstate)
+            return curses.KEY_MOUSE
+        if isinstance(k, Mouse):
+            self.mouse = (0, k.x, k.y, 0, k.bstate)
             return curses.KEY_MOUSE
         return ord(k) if isinstance(k, str) else k
 
@@ -219,14 +229,19 @@ def test_quitting_mid_game_records_a_loss(tui):
     assert store.get_stat("klondike") == {"wins": 0, "total": 1, "best": 0, "worst": 0}
 
 
-def test_finishing_a_game_records_the_win_and_shows_the_banner(tui):
+def near_won():
+    """Klondike with A-Q home in every suit and the four kings on the tableau."""
     g = deal("klondike", 1)
     fids, tids = g.ids_of("foundation"), g.ids_of("tableau")
     clear_board(g)
     for i, suit in enumerate("SHDC"):
         g.slots[fids[i]].cards = [up(r, suit) for r in range(1, 13)]
         g.slots[tids[i]].cards = [up(13, suit)]
-    scr = tui(["a", "m", "q"], game=g)
+    return g
+
+
+def test_finishing_a_game_records_the_win_and_shows_the_banner(tui):
+    scr = tui(["a", "m", "q"], game=near_won())
     assert scr.rc == 0
     assert "YOU WIN" in scr.frames[1]
     s = store.get_stat("klondike")
@@ -240,6 +255,31 @@ def test_playing_again_from_the_menu_does_not_double_aisleriot_stats(tui, keyfil
     tui(["d", "m", ENTER, "v", "d", "q"])
     assert ar.read_stat("klondike.scm") == {"wins": 10, "total": 42,
                                             "best": 120, "worst": 900}
+
+
+# the banner's choices sit on rows 12-14 from column 6, marker included
+BANNER_ROW = {"same": 12, "new": 13, "menu": 14}
+
+
+def test_the_banner_ignores_the_pointer_the_wheel_and_other_buttons(tui):
+    new = BANNER_ROW["new"]
+    scr = tui(["a",
+               Mouse(new, 8, curses.REPORT_MOUSE_POSITION),
+               Mouse(BANNER_ROW["same"], 8, curses.BUTTON4_PRESSED),
+               Mouse(BANNER_ROW["menu"], 8, curses.BUTTON3_PRESSED),
+               Mouse(new, 8, curses.BUTTON1_RELEASED),
+               Mouse(new, 40, curses.BUTTON1_CLICKED),     # right of the label
+               "m"], game=near_won())
+    assert all("YOU WIN" in frame for frame in scr.frames[1:7])
+    assert "choose a game" in scr.frames[7]
+    assert len(scr.uis) == 1
+
+
+@pytest.mark.parametrize("bstate", [curses.BUTTON1_CLICKED, curses.BUTTON1_PRESSED])
+def test_a_left_click_on_a_banner_choice_takes_it(tui, bstate):
+    scr = tui(["a", Mouse(BANNER_ROW["new"], 8, bstate)], game=near_won())
+    assert "YOU WIN" in scr.frames[1]
+    assert "new deal" in scr.frames[2]
 
 
 # -- the menu ------------------------------------------------------------------------
