@@ -93,6 +93,32 @@ def test_a_foundation_only_takes_the_next_card_of_its_suit(klondike):
     assert g.attempt_move(w, f[0]) is True
 
 
+@pytest.mark.parametrize("key", ["klondike", "freecell", "eightoff"])
+def test_a_card_cannot_go_from_one_foundation_to_another(key):
+    g = deal(key, 3)
+    clear_board(g)
+    f = g.ids_of("foundation")
+    g.slots[f[0]].cards = [Card(1, "S", True)]
+    g.score = 1
+    for i in range(6):
+        assert g.attempt_move(f[i % 2], f[1 - i % 2], 1) is False
+    assert g.cards(f[0]) == [Card(1, "S", True)]
+    assert g.score == 1
+    assert not any(g.kind(dst) == "foundation" for _, dst, _ in g.legal_moves())
+
+
+def test_klondike_with_only_an_ace_to_shuffle_between_foundations_is_stuck():
+    g = deal("klondike", 3)
+    clear_board(g)
+    f, t = g.ids_of("foundation"), g.ids_of("tableau")
+    g.slots[f[0]].cards = [Card(1, "S", True)]
+    g.slots[t[0]].cards = [Card(5, "H", False), Card(5, "D", True)]
+    g.slots[t[1]].cards = [Card(9, "C", False), Card(5, "S", True)]
+    g.moves = 5
+    assert g.legal_moves() == []
+    assert g.is_stuck()
+
+
 def test_a_card_can_only_be_moved_once(klondike):
     g, w, f, t = klondike
     g.slots[w].cards = [Card(1, "S", True)]
@@ -160,14 +186,11 @@ def board_changing_actions(g):
 
 def check_against_brute_force(g):
     found = board_changing_actions(g)
-    # Sliding a card from one foundation to another isn't counted either way.
-    real = [a for a in found
-            if not (a[0] == "move" and g.kind(a[1]) == g.kind(a[2]) == "foundation")]
     if not found:
         assert not g.has_any_move(), "claims a move where none exists"
         assert g.is_won() or g.is_stuck()
-    if real:
-        assert g.has_any_move(), f"says no moves but {real[0]} works"
+    else:
+        assert g.has_any_move(), f"says no moves but {found[0]} works"
         assert not g.is_stuck()
 
 

@@ -71,7 +71,9 @@ class Klondike(GameDef):
     def can_drop(self, g, src, cards, dst):
         k = g.kind(dst)
         if k == "foundation":
-            if len(cards) != 1:
+            # a foundation card can come back to the tableau, but moving it
+            # to another foundation gets you nothing
+            if len(cards) != 1 or g.kind(src) == "foundation":
                 return False
             top = g.top(dst)
             c = cards[0]

@@ -54,7 +54,7 @@ class EightOff(GameDef):
         if k == "freecell":
             return len(cards) == 1 and g.empty(dst)
         if k == "foundation":
-            if len(cards) != 1:
+            if len(cards) != 1 or g.kind(src) == "foundation":
                 return False
             top = g.top(dst)
             return (cards[0].rank == ACE) if top is None else self.same_suit_up(top, cards[0])

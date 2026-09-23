@@ -14,11 +14,6 @@ def foundation_cards(g):
     return sum(len(g.cards(f)) for f in g.ids_of("foundation"))
 
 
-def not_between_foundations(g, move):
-    src, dst, n = move
-    return not (g.kind(src) == "foundation" and g.kind(dst) == "foundation")
-
-
 def check_faces(g):
     """Stock face down, waste and foundations face up, and every tableau
     column is face-down cards under a face-up top."""
@@ -159,7 +154,7 @@ def test_random_play_keeps_the_cards_faces_and_score_straight(seed, draw):
     g = deal("klondike", seed, draw=draw)
     cards = card_multiset(g)
     rng = random.Random(seed * 7919 + 13)
-    for _ in legal_walk(g, rng, 200, allow=not_between_foundations):
+    for _ in legal_walk(g, rng, 200):
         assert card_multiset(g) == cards
         check_faces(g)
         # one point per card on the foundations
