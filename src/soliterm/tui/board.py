@@ -23,7 +23,7 @@ from ..engine import SUIT_SYMBOL, Card, Solitaire
 CARD_H = 4          # full card box height in rows
 PEEK_Y = 2          # rows a covered card shows in a down-fan when there's room
 PEEK_X = 4          # cols a covered card shows in a right-fan (border + label)
-MIN_CARD_W = 5      # narrowest card (interior fits "10S")
+MIN_CARD_W = 5      # narrowest card (interior fits "10S" with no margin)
 MAX_CARD_W = 8      # widest card (lots of horizontal room)
 COL_GAP = 1         # blank columns between piles in a row
 ROW_GAP = 1         # blank rows between slot-rows
@@ -128,8 +128,8 @@ class BoardUI:
             self.card_h = 1           # one row per card
             self.peek_y = 1           # covered cards step down one row
             self.peek_x = 1           # waste fan steps one column
-            self.min_cw = 4           # "[A♠]" / "[10S]" compact cell
-            self.max_cw = 4
+            self.min_cw = 5           # "[ A♠]" / "[10♠]" compact cell
+            self.max_cw = 5
         else:
             self.card_h = CARD_H
             self.peek_y = PEEK_Y
@@ -205,8 +205,11 @@ class BoardUI:
             rows = [top] + [back] * (self.card_h - 2) + [bot]
         else:
             label = card.label(self.symbols)
-            # label hugs the top-left like a real card index
-            line1 = gl["v"] + (" " + label).ljust(inner) + gl["v"]
+            # label hugs the top-left like a real card index, with a margin
+            # when there's room for one (a ten fills the narrowest card)
+            if len(label) < inner:
+                label = " " + label
+            line1 = gl["v"] + label.ljust(inner) + gl["v"]
             mid = gl["v"] + " " * inner + gl["v"]
             # echo the suit bottom-right on a full card for a card-y look
             suit = (SUIT_SYMBOL[card.suit] if self.symbols else card.suit)

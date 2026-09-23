@@ -106,6 +106,24 @@ def test_thirteen_columns_fit_in_80_columns():
     assert tui.MIN_CARD_W <= ui._cw <= tui.MAX_CARD_W
 
 
+@pytest.mark.parametrize("symbols", [False, True])
+@pytest.mark.parametrize("view", ["expanded", "legacy"])
+def test_a_ten_fits_inside_the_narrowest_card(view, symbols):
+    g = deal("klondike", 1)
+    clear_board(g)
+    a, b = g.ids_of("tableau")[:2]
+    g.slots[a].cards = [Card(10, "H", True)]
+    g.slots[b].cards = [Card(10, "S", True)]
+    ui, scr = draw(g, w=45, symbols=symbols, view=view)
+    assert ui._cw == ui.min_cw
+    xa, xb = ui.slot_origin[a][1], ui.slot_origin[b][1]
+    ten = Card(10, "H", True).label(symbols)
+    row = next(line for line in scr.text().splitlines() if ten in line)
+    # the box closes after the ten, and the gap to the next column stays
+    assert row[xa + ui._cw - 1] in "|│]"
+    assert row[xa + ui._cw:xb].strip() == ""
+
+
 def test_a_tiny_terminal_gets_a_message_instead_of_a_board():
     ui, scr = draw(deal("klondike", 1), h=8, w=30)
     assert "Terminal too small." in scr.text()
