@@ -116,6 +116,26 @@ def test_klondike_with_only_an_ace_to_shuffle_between_foundations_is_stuck():
     assert g.is_stuck()
 
 
+def test_canfield_foundation_cards_can_come_back_down():
+    # all but the base card a foundation starts from, as in AisleRiot
+    g = deal("canfield", 3)
+    clear_board(g)
+    g.base_val = 5
+    f, t = g.ids_of("foundation"), g.ids_of("tableau")
+    g.slots[f[0]].cards = [Card(5, "S", True), Card(6, "S", True)]
+    g.slots[f[1]].cards = [Card(5, "H", True)]
+    g.slots[t[0]].cards = [Card(7, "H", True)]
+    g.slots[t[1]].cards = [Card(6, "C", True)]
+    g.score = 3
+    assert not g.can_pickup(f[1], 1)
+    assert g.attempt_move(f[1], t[1], 1) is False
+    assert (f[0], t[0], 1) in g.legal_moves()
+    assert g.attempt_move(f[0], t[0], 1)
+    assert [str(c) for c in g.cards(t[0])] == ["7H", "6S"]
+    assert g.cards(f[0]) == [Card(5, "S", True)]
+    assert g.score == 2
+
+
 def test_a_card_can_only_be_moved_once(klondike):
     g, w, f, t = klondike
     g.slots[w].cards = [Card(1, "S", True)]

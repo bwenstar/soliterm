@@ -50,6 +50,10 @@ class Canfield(GameDef):
         k = g.kind(sid)
         if k in ("waste", "reserve"):
             return n == 1
+        if k == "foundation":
+            # still in play, bar the base card each foundation starts from
+            top = g.top(sid)
+            return n == 1 and top is not None and top.rank != g.base_val
         if k == "tableau":
             run = g.cards(sid)[len(g.cards(sid)) - n:]
             for a, b in zip(run, run[1:]):
