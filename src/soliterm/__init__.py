@@ -15,3 +15,6 @@ Modules:
 """
 
 __version__ = "1.0.0.dev0"
+
+# The product name as players see it (titles, banners, --version).
+APP_NAME = "Soliterm"

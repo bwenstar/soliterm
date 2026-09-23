@@ -13,7 +13,7 @@ import curses
 import time
 from typing import Dict, List, Optional, Tuple
 
-from . import camo, engine, store
+from . import APP_NAME, camo, engine, store
 from .engine import GAME_ORDER, GAMES, SUIT_SYMBOL, Card, Solitaire
 
 
@@ -379,7 +379,7 @@ class BoardUI:
         if self.code_skin:
             self._draw_code_skin()
         else:
-            title = f"AisleRiot CLI  -  {g.gamedef.name}"
+            title = f"{APP_NAME}  -  {g.gamedef.name}"
             self.safe_add(0, 2, title, chrome | curses.A_BOLD)
             self.safe_add(1, 2, g.gamedef.blurb, chrome)
 
@@ -512,8 +512,8 @@ def run(stdscr, start_key: Optional[str] = None, seed: Optional[int] = None,
         items = GAME_ORDER + extra
         while True:
             stdscr.erase()
-            safe_add(1, 4, "AisleRiot CLI  -  choose a game", CP(4) | curses.A_BOLD)
-            safe_add(2, 4, "a command-line replica of GNOME Solitaire", CP(4))
+            safe_add(1, 4, f"{APP_NAME}  -  choose a game", CP(4) | curses.A_BOLD)
+            safe_add(2, 4, "solitaire for your terminal, AisleRiot-compatible", CP(4))
             for i, key in enumerate(GAME_ORDER):
                 cls = GAMES[key]
                 marker = "> " if i == sel else "  "
@@ -621,7 +621,7 @@ def run(stdscr, start_key: Optional[str] = None, seed: Optional[int] = None,
     # ---- help overlay ---- #
     def help_screen():
         lines = [
-            "AisleRiot CLI - controls",
+            f"{APP_NAME} - controls",
             "",
             "  Arrow keys          move the cursor between slots",
             "  Enter / Space       pick up the cursor's run; press again to drop",

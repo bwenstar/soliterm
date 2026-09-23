@@ -1,4 +1,4 @@
-"""soliterm.camo - camouflage ("boss") mode output for the AisleRiot CLI.
+"""soliterm.camo - camouflage ("boss") mode output for Soliterm.
 
 Generates realistic-looking developer "work" output - compiler builds, test
 runs, container builds, server logs - so the game can be hidden behind a screen

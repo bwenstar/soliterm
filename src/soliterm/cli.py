@@ -1,4 +1,4 @@
-"""soliterm.cli - launcher + pipe-friendly text mode for the AisleRiot CLI replica.
+"""soliterm.cli - the launcher and the pipe-friendly text mode.
 
   soliterm                              # curses TUI (menu, keyboard + mouse)
   soliterm --game freecell              # jump straight into a game
@@ -17,7 +17,7 @@ import sys
 import time
 from typing import List, Optional, Tuple
 
-from . import camo, engine, store
+from . import APP_NAME, __version__, camo, engine, store
 from .engine import GAME_ORDER, GAMES, Card, Solitaire
 
 
@@ -184,7 +184,7 @@ def run_text(g: Solitaire, symbols: bool, game_key: str, stream=None,
     out = sys.stdout
     inp = stream if stream is not None else sys.stdin
     start = time.time()
-    print(f"AisleRiot CLI - {g.gamedef.name} (text mode). Type h for help.\n", file=out)
+    print(f"{APP_NAME} - {g.gamedef.name} (text mode). Type h for help.\n", file=out)
     print(render_text(g, symbols, color), file=out)
     recorded = False
     for raw in inp:
@@ -226,9 +226,10 @@ def run_text(g: Solitaire, symbols: bool, game_key: str, stream=None,
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
-        prog="aisle",
-        description="Command-line AisleRiot: a multi-game Solitaire collection.",
+        prog="soliterm",
+        description=f"{APP_NAME}: solitaire for your terminal, AisleRiot-compatible.",
     )
+    p.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     p.add_argument("--game", choices=GAME_ORDER, default=None,
                    help="game to start (default: menu in the TUI)")
     p.add_argument("--seed", type=int, default=None, help="reproducible shuffle")

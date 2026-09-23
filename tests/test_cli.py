@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+import soliterm
 from soliterm import aisleriot as ar
 from soliterm import store
 from soliterm.cli import main, render_text
@@ -31,6 +32,23 @@ def stats_row(lines, key):
     row = [line for line in lines if line.startswith(name + " ")]
     assert len(row) == 1, f"no single stats line for {name}"
     return row[0][len(name):].split()
+
+
+# -- --version and --help ---------------------------------------------------------------
+
+def test_version_prints_the_command_and_package_version(capsys):
+    with pytest.raises(SystemExit) as exc:
+        main(["--version"])
+    assert exc.value.code == 0
+    assert capsys.readouterr().out == f"soliterm {soliterm.__version__}\n"
+
+
+def test_help_uses_the_soliterm_name(capsys):
+    with pytest.raises(SystemExit):
+        main(["--help"])
+    out = capsys.readouterr().out
+    assert out.startswith("usage: soliterm ")
+    assert "Soliterm" in out and "AisleRiot CLI" not in out
 
 
 # -- --list ----------------------------------------------------------------------------
@@ -127,6 +145,7 @@ def test_a_scripted_text_session(cli):
                     stdin=f"hint\n{src} {dst} {n}\nu\nq\n")
     assert rc == 0
     out = "\n".join(lines)
+    assert lines[0] == "Soliterm - Klondike (text mode). Type h for help."
     assert lines[-1] == "bye"
     assert "\033[" not in out                         # --no-color
     assert not any(s in out for s in ("♠", "♥", "♦", "♣"))   # --ascii

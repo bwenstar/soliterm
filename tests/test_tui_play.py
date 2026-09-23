@@ -201,6 +201,15 @@ def test_q_on_the_menu_exits(tui):
     assert not scr.uis
 
 
+def test_the_menu_the_board_and_the_help_are_titled_soliterm(tui):
+    scr = tui([ENTER, "?", "z", "m", "q"], start_key=None)
+    menu, board, help_screen = scr.frames[:3]
+    assert "Soliterm  -  choose a game" in menu
+    assert "Soliterm  -  Klondike" in board
+    assert "Soliterm - controls" in help_screen
+    assert not any("AisleRiot CLI" in frame for frame in scr.frames)
+
+
 def test_the_menu_starts_the_chosen_game_and_remembers_it(tui):
     scr = tui([curses.KEY_DOWN, ENTER, "m", "q"], start_key=None)
     assert scr.rc == 0
