@@ -12,7 +12,9 @@ prints a screenful. Themes: build, test, docker, logs, mixed.
 from __future__ import annotations
 
 import os
+import platform
 import random
+import sys
 import time
 from typing import Iterator, List
 
@@ -20,9 +22,20 @@ THEMES = ["build", "test", "docker", "logs", "mixed"]
 DEFAULT_THEME = "build"
 
 
-def _user() -> str:
-    name = os.environ.get("USER") or os.environ.get("LOGNAME") or "dev"
-    return name.split("@", 1)[0]        # drop any domain suffix for clean paths
+def _home() -> str:
+    """A home directory in this platform's style, for the fake paths.
+
+    It is built from $USER alone, never looked up: with USER unset (as it
+    usually is on Windows) the paths say ~ rather than name anyone.
+    """
+    name = os.environ.get("USER", "").split("@", 1)[0]   # drop any domain
+    if not name:
+        return "~"
+    if sys.platform == "darwin":
+        return f"/Users/{name}"
+    if sys.platform == "win32":
+        return f"C:/Users/{name}"
+    return f"/home/{name}"
 
 
 _PROJECTS = ["api-gateway", "payments-svc", "render-core", "data-pipeline",
@@ -38,7 +51,7 @@ def _build_scene(rng: random.Random) -> Iterator[str]:
     proj = rng.choice(_PROJECTS)
     jobs = rng.choice([4, 8, 12, 16])
     yield f"$ make -j{jobs} all"
-    yield f"make[1]: Entering directory '/home/{_user()}/work/{proj}/src'"
+    yield f"make[1]: Entering directory '{_home()}/work/{proj}/src'"
     flags = "-std=gnu17 -O2 -g -Wall -Wextra -Iinclude -MMD -MP -fPIC"
     mods = list(_MODULES)
     rng.shuffle(mods)
@@ -59,7 +72,7 @@ def _build_scene(rng: random.Random) -> Iterator[str]:
             yield f"src/{m}.c:{line}:{col}: warning: {warn} [{flag}]"
     yield (f"gcc -O2 -o build/{proj} build/*.o "
            "-lpthread -lm -lssl -lcrypto -ldl")
-    yield f"make[1]: Leaving directory '/home/{_user()}/work/{proj}/src'"
+    yield f"make[1]: Leaving directory '{_home()}/work/{proj}/src'"
     yield "$ "
 
 
@@ -67,7 +80,8 @@ def _test_scene(rng: random.Random) -> Iterator[str]:
     yield "$ pytest -q"
     yield ("============================= test session starts "
            "=============================")
-    yield ("platform linux -- Python 3.12.3, pytest-8.1.1, pluggy-1.4.0")
+    yield (f"platform {sys.platform} -- Python {platform.python_version()}, "
+           "pytest-8.1.1, pluggy-1.4.0")
     total = rng.randint(90, 340)
     yield f"collected {total} items"
     yield ""

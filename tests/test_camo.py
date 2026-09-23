@@ -2,6 +2,7 @@
 
 import io
 import os
+import platform
 import re
 import sys
 
@@ -98,3 +99,34 @@ def test_on_a_terminal_the_boss_clears_the_board_and_fills_the_screen(monkeypatc
     assert len(boss.splitlines()) == 57 + 1           # a screenful, then "bye"
     for tell in TELLS:
         assert tell not in boss
+
+
+def build_dirs(n=80):
+    """The directories make says it enters and leaves in the build theme."""
+    text = "\n".join(camo.screenful("build", n, seed=1))
+    return re.findall(r"directory '([^']*)'", text)
+
+
+@pytest.mark.parametrize("plat,home", [
+    ("linux", "/home/tester/"), ("darwin", "/Users/tester/"),
+    ("win32", "C:/Users/tester/"),
+])
+def test_the_build_output_has_this_platforms_home(plat, home, monkeypatch):
+    monkeypatch.setattr(sys, "platform", plat)
+    dirs = build_dirs()
+    assert dirs and all(d.startswith(home + "work/") for d in dirs)
+
+
+def test_without_user_set_the_paths_name_nobody(monkeypatch):
+    monkeypatch.delenv("USER")
+    monkeypatch.setenv("LOGNAME", "someone")
+    dirs = build_dirs()
+    assert dirs and all(d.startswith("~/work/") for d in dirs)
+
+
+def test_the_test_run_banner_is_for_this_python(monkeypatch):
+    monkeypatch.setattr(sys, "platform", "darwin")
+    banner = [line for line in camo.screenful("test", 5, seed=1)
+              if line.startswith("platform ")]
+    assert banner and banner[0].startswith(
+        f"platform darwin -- Python {platform.python_version()}, ")
