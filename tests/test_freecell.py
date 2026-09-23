@@ -29,3 +29,40 @@ def test_freecell_foundation_cards_are_out_of_play(freecell):
     assert all(g.kind(src) != "foundation" for src, _, _ in g.legal_moves())
     assert [str(x) for x in g.cards(f[0])] == ["AS", "2S"]
     assert g.score == 2
+
+
+@pytest.fixture
+def eightoff():
+    g = deal("eightoff", 1)
+    clear_board(g)
+    return g, g.ids_of("freecell"), g.ids_of("tableau")
+
+
+def test_eightoff_moves_a_group_of_free_cells_plus_one(eightoff):
+    # one free cell and two empty columns: two cards at most, since an
+    # empty column only takes a King and can't hold part of the group
+    g, c, t = eightoff
+    for i in range(7):
+        g.slots[c[i]].cards = [up(2 + i, "C")]
+    for x in t[3:]:
+        g.slots[x].cards = [up(9, "S")]
+    g.slots[t[0]].cards = [up(5, "D"), up(13, "H"), up(12, "H"), up(11, "H")]
+    assert not g.can_pickup(t[0], 3)
+    assert g.default_pickup(t[0]) == 2
+    assert g.attempt_move(t[0], t[1], 3) is False
+    assert max(n for _, _, n in g.legal_moves()) == 1
+    g.slots[t[0]].cards = [up(5, "D"), up(13, "H"), up(12, "H")]
+    assert g.attempt_move(t[0], t[1], 2)
+    assert [str(x) for x in g.cards(t[1])] == ["KH", "QH"]
+
+
+def test_eightoff_group_grows_with_the_free_cells(eightoff):
+    g, c, t = eightoff
+    for x in t[2:]:
+        g.slots[x].cards = [up(9, "S")]
+    g.slots[t[0]].cards = [up(5, "D")] + [up(r, "H") for r in range(13, 3, -1)]
+    assert g.default_pickup(t[0]) == 9          # eight free cells, plus one
+    assert g.attempt_move(t[0], t[1], 10) is False
+    assert g.attempt_move(t[0], t[1], 9) is False     # a Queen can't lead
+    g.slots[t[0]].cards = [up(5, "D")] + [up(r, "H") for r in range(13, 4, -1)]
+    assert g.attempt_move(t[0], t[1], 9)

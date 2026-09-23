@@ -30,15 +30,18 @@ class EightOff(GameDef):
     def _free(self, g):
         return sum(1 for c in self.cells if g.empty(c))
 
-    def _max_supermove(self, g, dst):
-        empty_cols = sum(1 for t in self.tableau if g.empty(t) and t != dst)
-        return (self._free(g) + 1) * (2 ** empty_cols)
+    def _max_group(self, g):
+        # AisleRiot's rule: one card more than there are free cells. Empty
+        # columns don't add to it, as they only take a King.
+        return self._free(g) + 1
 
     def can_pickup(self, g, sid, n):
         k = g.kind(sid)
         if k in ("freecell", "foundation"):
             return n == 1
         if k == "tableau":
+            if n > self._max_group(g):
+                return False
             run = g.cards(sid)[len(g.cards(sid)) - n:]
             for a, b in zip(run, run[1:]):
                 if not (a.suit == b.suit and b.rank == a.rank - 1):
@@ -59,7 +62,7 @@ class EightOff(GameDef):
             top = g.top(dst)
             return (cards[0].rank == ACE) if top is None else self.same_suit_up(top, cards[0])
         if k == "tableau":
-            if len(cards) > self._max_supermove(g, dst):
+            if len(cards) > self._max_group(g):
                 return False
             top = g.top(dst)
             if top is None:
