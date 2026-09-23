@@ -57,9 +57,13 @@ class ScriptedScr(FakeScr):
         self.frames = []          # the screen each time a key was read
         self.mouse = None
         self.spare = 0
+        self.delay = -1           # how long getch waits for a key, in ms; -1 for ever
 
     def nodelay(self, flag):
-        pass
+        self.delay = 0 if flag else -1
+
+    def timeout(self, ms):
+        self.delay = ms
 
     def getch(self):
         self.frames.append(self.text())
@@ -72,6 +76,7 @@ class ScriptedScr(FakeScr):
         if isinstance(k, Later):
             soliterm.tui.app.clock.now += k.seconds
             k = k.k
+        assert k != -1 or self.delay >= 0, "no key is coming and getch would wait for ever"
         if isinstance(k, type) and issubclass(k, BaseException):
             raise k                   # e.g. KeyboardInterrupt, for Ctrl-C
         if isinstance(k, Click):
@@ -416,6 +421,12 @@ def test_the_clock_runs_from_the_first_move_and_stops_behind_other_screens(tui, 
     scr = tui([Later(30, "d"), Later(10, "?"), Later(60, "z"), "s", Later(60, "z"),
                "b", Later(60, "z")])
     assert times(scr) == ["0:00", "0:00", "0:10", "0:10", "0:10"]
+
+
+def test_the_clock_on_the_status_line_ticks(tui, game_clock):
+    # no key for a second at a time, and the board is drawn again each time
+    scr = tui(["d", Later(1, -1), Later(1, -1)])
+    assert times(scr) == ["0:00", "0:00", "0:01", "0:02"]
 
 
 def test_the_clock_the_banner_and_the_statistics_agree_on_the_time(tui, game_clock):

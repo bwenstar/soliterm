@@ -474,8 +474,15 @@ class App:
         A terminal sends Alt+key as Esc and the key together. An Esc with
         another key already queued behind it is not the Esc key, and neither
         half should act: Alt+n would otherwise deal a new hand.
+
+        With no key for a second it returns -1 too, so play() draws the
+        board again and the clock on the status line ticks.
         """
-        k = self.stdscr.getch()
+        self.stdscr.timeout(1000)
+        try:
+            k = self.stdscr.getch()
+        finally:
+            self.stdscr.timeout(-1)       # the other screens wait for a key
         if k != 27:
             return k
         self.stdscr.nodelay(True)

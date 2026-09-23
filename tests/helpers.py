@@ -109,6 +109,9 @@ class FakeScr:
     def keypad(self, flag):
         pass
 
+    def timeout(self, ms):
+        pass
+
     def addnstr(self, y, x, text, n, attr=0):
         try:
             text.encode(self.encoding)
