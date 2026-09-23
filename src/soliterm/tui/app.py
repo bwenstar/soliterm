@@ -12,6 +12,7 @@ Statistics use AisleRiot's Wins/Total/Percentage/Best/Worst model.
 from __future__ import annotations
 
 import curses
+import os
 import time
 from typing import Callable, List, Optional, Tuple
 
@@ -371,9 +372,26 @@ class App:
                 if self.finish(False):
                     continue
                 return False
-            outcome = self.handle_key(self.stdscr.getch())
+            outcome = self.handle_key(self.read_key())
             if outcome is not None:
                 return outcome == QUIT
+
+    def read_key(self) -> int:
+        """The next key on the play screen, or -1 for an Alt combination.
+
+        A terminal sends Alt+key as Esc and the key together. An Esc with
+        another key already queued behind it is not the Esc key, and neither
+        half should act: Alt+n would otherwise deal a new hand.
+        """
+        k = self.stdscr.getch()
+        if k != 27:
+            return k
+        self.stdscr.nodelay(True)
+        try:
+            follow = self.stdscr.getch()
+        finally:
+            self.stdscr.nodelay(False)
+        return 27 if follow == -1 else -1
 
     def start_game(self, key: str) -> None:
         """Deal a game of `key` and set the play screen up for it."""
@@ -820,6 +838,10 @@ def run(stdscr, start_key: Optional[str] = None, seed: Optional[int] = None,
 
 def main(start_key: Optional[str] = None, seed: Optional[int] = None,
          color: bool = True) -> int:
+    # After an Esc, ncurses waits ESCDELAY ms (a whole second by default) to
+    # see whether a key sequence follows, so the Esc key felt dead. It reads
+    # the variable when curses starts; a value the player set is kept.
+    os.environ.setdefault("ESCDELAY", "25")
     try:
         return curses.wrapper(run, start_key, seed, color)
     except curses.error as exc:

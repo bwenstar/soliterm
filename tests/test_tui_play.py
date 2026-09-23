@@ -6,6 +6,7 @@ time the game asked for a key.
 """
 
 import curses
+import os
 
 import pytest
 
@@ -238,6 +239,38 @@ def test_the_terminal_is_not_asked_to_report_pointer_motion(tui):
 def test_ncurses_does_not_hold_clicks_back_to_wait_for_a_double_click(tui):
     # the play screen spots double-clicks itself
     assert tui([]).intervals == [0]
+
+
+ESC = 27
+
+
+def test_esc_acts_at_once(tui):
+    # nothing queued behind the Esc (the -1), so it is the Esc key
+    scr = tui([ENTER, ESC, -1])
+    before, picked, after = scr.uis[0].selections[:3]
+    assert before is None and picked is not None and after is None
+
+
+def test_alt_and_a_key_does_not_act_as_esc_then_the_key(tui):
+    # a terminal sends Alt+n as Esc then n, both at once
+    scr = tui(["d", ENTER, ESC, "n"])
+    assert not any("new deal" in frame for frame in scr.frames)
+    assert "Moves 1" in scr.frames[-1]
+    assert scr.uis[0].selections[-1] is not None
+
+
+def test_the_escape_delay_is_short_unless_the_player_set_one(monkeypatch):
+    seen = []
+    monkeypatch.setattr(curses, "wrapper",
+                        lambda fn, *args: seen.append(os.environ.get("ESCDELAY")) or 0)
+    # set before it is taken away, so the one main() puts in goes afterwards
+    monkeypatch.setenv("ESCDELAY", "")
+    monkeypatch.delenv("ESCDELAY")
+    assert soliterm.tui.main() == 0
+    assert int(seen[-1]) <= 50
+    monkeypatch.setenv("ESCDELAY", "300")
+    soliterm.tui.main()
+    assert seen[-1] == "300"
 
 
 # -- recording results -------------------------------------------------------------
