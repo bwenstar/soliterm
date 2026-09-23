@@ -115,6 +115,12 @@ class GameDef:
     def status(self, g: Solitaire) -> str:
         return ""
 
+    def fan_limit(self, g: Solitaire, sid: int) -> Optional[int]:
+        """Most cards a "right" slot fans out, as AisleRiot's partially
+        extended slots do, or None to show as many as the board has room
+        for."""
+        return None
+
     # ---- shared helpers ---- #
     @staticmethod
     def alt_color_down(upper: Card, lower: Card) -> bool:

@@ -28,6 +28,7 @@ MAX_CARD_W = 8      # widest card (lots of horizontal room)
 COL_GAP = 1         # blank columns between piles in a row
 ROW_GAP = 1         # blank rows between slot-rows
 MAX_RIGHT_FAN = 6   # most cards shown in a right-expanding fan (waste/reserve)
+                    # unless the game fans fewer (see fan_shown)
 MIN_COLS = 40       # below this width/height the board can't lay out cleanly
 MIN_ROWS = 14
 
@@ -236,8 +237,7 @@ class BoardUI:
                 for s in sids:
                     need += w + COL_GAP
                     if s.expand == "right":
-                        shown = min(len(s.cards), MAX_RIGHT_FAN)
-                        need += max(0, shown - 1) * peek_x
+                        need += max(0, self.fan_shown(s) - 1) * peek_x
                 if need > screen_w:
                     ok = False
                     break
@@ -300,7 +300,7 @@ class BoardUI:
         """A waste/reserve fan: cards overlap leftward, top card full-width."""
         peek_x = min(self.peek_x, cw - 1)
         cards = slot.cards
-        start = max(0, len(cards) - MAX_RIGHT_FAN)
+        start = len(cards) - self.fan_shown(slot)
         last = len(cards) - 1
         for i in range(start, len(cards)):
             card = cards[i]
@@ -314,6 +314,11 @@ class BoardUI:
             self._register_hit(sy, cx, self.card_h, width, sid, i)
 
     # -- layout -- #
+    def fan_shown(self, slot) -> int:
+        """How many of a right-fanned slot's cards the board shows."""
+        limit = self.game.gamedef.fan_limit(self.game, slot.sid)
+        return min(len(slot.cards), limit or MAX_RIGHT_FAN)
+
     def _columns_in_row(self, row: int) -> List[int]:
         return [s.sid for s in self.game.slots if s.row == row]
 
@@ -387,8 +392,7 @@ class BoardUI:
                 slot = self.game.slots[sid]
                 x += self._cw + COL_GAP
                 if slot.expand == "right":
-                    shown = min(len(slot.cards), MAX_RIGHT_FAN)
-                    x += max(0, shown - 1) * peek_x
+                    x += max(0, self.fan_shown(slot) - 1) * peek_x
                 row_h = max(row_h, self._slot_height(sid, y))
             y += row_h + ROW_GAP
         return positions

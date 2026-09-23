@@ -73,6 +73,38 @@ def test_every_card_in_a_short_waste_fan_is_clickable():
     assert len(clickable(ui, waste)) == 5
 
 
+def waste_row(ui, scr, waste):
+    """The screen text across the waste's label row, from the waste on."""
+    y, x = ui.slot_origin[waste]
+    return scr.text().splitlines()[y + 1][x:]
+
+
+def test_klondike_drawing_three_fans_the_last_three_cards():
+    # as AisleRiot does, and it keeps them fanned through an undo
+    g = deal("klondike", 1, draw=3)
+    waste = g.ids_of("waste")[0]
+    g.deal()
+    g.deal()
+    g.undo()
+    g.redo()
+    cards = g.cards(waste)
+    assert len(cards) == 6
+    ui, scr = draw(g)
+    assert clickable(ui, waste) == {3, 4, 5}
+    row = waste_row(ui, scr, waste)
+    assert all(str(c) in row for c in cards[3:])
+    assert not any(str(c) in row for c in cards[:3])
+
+
+def test_klondike_drawing_one_shows_only_the_top_of_the_waste():
+    g = deal("klondike", 1)
+    waste = g.ids_of("waste")[0]
+    g.deal()
+    g.deal()
+    ui, scr = draw(g)
+    assert clickable(ui, waste) == {1}
+
+
 # -- squeezing onto the screen ------------------------------------------------------
 
 @pytest.mark.parametrize("h, w", [(24, 100), (24, 110)])
