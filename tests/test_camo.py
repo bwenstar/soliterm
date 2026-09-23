@@ -7,7 +7,7 @@ import pytest
 from soliterm import camo, textmode
 from helpers import deal
 
-TELLS = ("♠", "♥", "♦", "♣", "[##]", "score=", "Foundation")
+TELLS = ("♠", "♥", "♦", "♣", "[###]", "score=", "Foundation")
 
 
 @pytest.mark.parametrize("theme", camo.THEMES)

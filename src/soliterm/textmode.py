@@ -8,12 +8,13 @@ a terminal, and when curses is not available. The command grammar
 
 from __future__ import annotations
 
+import re
 import sys
 import time
 from typing import List, Optional, Tuple
 
 from . import APP_NAME, camo, store
-from .engine import Card, Solitaire
+from .engine import Card, Slot, Solitaire
 
 
 # --------------------------------------------------------------------------- #
@@ -23,71 +24,75 @@ from .engine import Card, Solitaire
 # ANSI colours for text mode. We draw a face-up card like a real card: a white
 # card face with red text for hearts/diamonds and black text for spades/clubs,
 # so black suits read as black (not white) on any terminal background. Escape
-# codes wrap only the card token and never change its visible width, so column
-# alignment is unaffected.
+# codes wrap only the card token and never change its visible width; columns
+# are padded on the visible width (see _pad), so alignment is unaffected.
 _ANSI = {
     "red":   "\033[1;31;47m",   # bold red on white
     "black": "\033[30;47m",     # black on white
     "back":  "\033[37;44m",     # white on blue (face-down back)
     "reset": "\033[0m",
 }
+_ANSI_RE = re.compile(r"\033\[[0-9;]*m")
+
+# Every card token is this wide, so '[10S]' and '[ 9S]' take the same room.
+_CELL_W = 5
+# Most cards a right-fanned waste (Golf, Canfield, Forty Thieves) shows. Four
+# keeps the widest top row, Forty Thieves', inside 80 columns.
+_FAN = 4
 
 
 def _cell(card: Optional[Card], symbols: bool, color: bool = False) -> str:
     if card is None:
-        return "[  ]"
+        return "[   ]"
     if not card.face_up:
-        token = "[##]"
+        token = "[###]"
         return f"{_ANSI['back']}{token}{_ANSI['reset']}" if color else token
-    token = f"[{card.label(symbols):>2}]"
+    token = f"[{card.label(symbols):>3}]"
     if not color:
         return token
     paint = _ANSI["red"] if card.is_red else _ANSI["black"]
     return f"{paint}{token}{_ANSI['reset']}"
 
 
+def _width(text: str) -> int:
+    return len(_ANSI_RE.sub("", text))
+
+
+def _pad(text: str, width: int) -> str:
+    """Right-align text in a column, measuring what the terminal shows."""
+    return " " * (width - _width(text)) + text
+
+
+def _column(s: Slot, symbols: bool, color: bool) -> List[str]:
+    """The lines a slot draws under its tag, top to bottom."""
+    if s.expand == "down":
+        return [_cell(c, symbols, color) for c in s.cards] or [_cell(None, symbols)]
+    if s.expand == "right":
+        return [" ".join(_cell(c, symbols, color) for c in s.cards[-_FAN:])
+                or _cell(None, symbols)]
+    lines = [_cell(s.top, symbols, color)]
+    if s.kind == "stock":
+        lines.append(f"({len(s.cards)})")      # the count sits under the pile
+    return lines
+
+
 def render_text(g: Solitaire, symbols: bool = True, color: bool = False) -> str:
     lines: List[str] = []
     lines.append(f"=== {g.gamedef.name} ===")
-    # group slots by row
-    rows = sorted({s.row for s in g.slots})
-    # number tableau/cell/etc slots 1-based for the command interface
-    for row in rows:
-        sids = [s.sid for s in g.slots if s.row == row]
-        # header line of slot tags
-        tags = []
-        for sid in sids:
-            s = g.slots[sid]
-            tag = {"stock": "stk", "waste": "wst", "foundation": "fnd",
-                   "tableau": f"#{sid}", "reserve": "rsv", "freecell": "cel"}.get(s.kind, str(sid))
-            tags.append(f"{tag:>4}")
-        lines.append(" ".join(tags))
-        # show the slots; expand "down" slots vertically
-        max_h = max((len(g.slots[sid].cards) for sid in sids
-                     if g.slots[sid].expand == "down"), default=0)
-        if max_h == 0:
-            # single-line row (stock/waste/foundations/cells)
-            cells = []
-            for sid in sids:
-                s = g.slots[sid]
-                if s.expand == "right":
-                    inner = " ".join(_cell(c, symbols, color) for c in s.cards[-6:]) or "[  ]"
-                    cells.append(inner)
-                else:
-                    extra = f"({len(s.cards)})" if s.kind == "stock" else ""
-                    cells.append(_cell(s.top, symbols, color) + extra)
-            lines.append(" ".join(f"{c:>4}" for c in cells))
-        else:
-            for r in range(max_h):
-                cells = []
-                for sid in sids:
-                    s = g.slots[sid]
-                    if s.expand == "down":
-                        cells.append(_cell(s.cards[r], symbols, color) if r < len(s.cards)
-                                     else ("[  ]" if r == 0 and not s.cards else "    "))
-                    else:
-                        cells.append((_cell(s.top, symbols, color) if r == 0 else "    "))
-                lines.append(" ".join(f"{c:>4}" for c in cells))
+    for row in sorted({s.row for s in g.slots}):
+        slots = [s for s in g.slots if s.row == row]
+        tags = [{"stock": "stk", "waste": "wst", "foundation": "fnd",
+                 "tableau": f"#{s.sid}", "reserve": "rsv",
+                 "freecell": "cel"}.get(s.kind, str(s.sid)) for s in slots]
+        cols = [_column(s, symbols, color) for s in slots]
+        # each column is as wide as its widest line, so a slot's cards
+        # always sit right under its tag
+        widths = [max([_CELL_W, len(t)] + [_width(x) for x in c])
+                  for t, c in zip(tags, cols)]
+        lines.append(" ".join(_pad(t, w) for t, w in zip(tags, widths)))
+        for r in range(max(len(c) for c in cols)):
+            lines.append(" ".join(_pad(c[r] if r < len(c) else "", w)
+                                  for c, w in zip(cols, widths)).rstrip())
         lines.append("")
     won = "  *** YOU WIN! ***" if g.is_won() else ""
     lines.append(f"score={g.score} moves={g.moves} | {g.status}{won}")
