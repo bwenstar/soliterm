@@ -212,3 +212,45 @@ def play_text(key, script, seed=1):
 def test_leaving_a_started_deal_counts_as_a_loss(script, lost, capsys):
     _, s = play_text("klondike", script)
     assert (s["wins"], s["total"]) == (0, lost)
+
+
+def one_card_from_won(g):
+    """Every Klondike card home but the king of spades, which is on a column."""
+    fids, tids = g.ids_of("foundation"), g.ids_of("tableau")
+    clear_board(g)
+    for f, suit in zip(fids, "SHDC"):
+        g.slots[f].cards = [Card(r, suit, True) for r in range(1, 14)]
+    g.slots[fids[0]].cards.pop()
+    g.slots[tids[0]].cards = [Card(13, "S", True)]
+    return tids[0]
+
+
+class Clock:
+    """Stands in for the time module in textmode; tests move it by hand."""
+    def __init__(self):
+        self.now = 1000.0
+
+    def monotonic(self):
+        return self.now
+
+    time = monotonic
+
+
+@pytest.mark.parametrize("again,total", [("n", 2), ("N", 1)])
+@pytest.mark.parametrize("secs,shown", [(10.4, 10), (10.6, 11)])
+def test_a_win_is_timed_from_its_own_deal(again, total, secs, shown, monkeypatch, capsys):
+    clock = Clock()
+    monkeypatch.setattr(textmode, "time", clock)
+    g = deal("klondike", 1)
+
+    def script():
+        clock.now += 100               # time spent on the deal given up
+        yield "d\n"
+        yield again + "\n"
+        clock.now += secs
+        yield f"f {one_card_from_won(g)}\n"
+
+    assert textmode.run_text(g, False, "klondike", stream=script()) == 0
+    s = store.get_stat("klondike")
+    assert (s["wins"], s["total"], s["best"], s["worst"]) == (1, total, shown, shown)
+    assert f"in {store.fmt_time(shown)} " in capsys.readouterr().out

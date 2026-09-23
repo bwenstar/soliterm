@@ -246,15 +246,19 @@ def run_text(g: Solitaire, symbols: bool, game_key: str, stream=None,
     out = sys.stdout
     inp = stream if stream is not None else sys.stdin
     g.symbols = symbols               # hints name cards as the board does
-    start = time.time()
+    start = time.monotonic()            # one clock per deal
     recorded = False
+
+    def seconds() -> int:
+        """This deal's time in whole seconds, as it is printed and stored."""
+        return round(time.monotonic() - start)
 
     def give_up() -> None:
         # A deal left unfinished after a move counts as a loss, as in the TUI
         # and AisleRiot; one nobody touched does not count at all.
         nonlocal recorded
         if not recorded and not g.is_won() and g.moves > 0:
-            store.record_result(game_key, False, time.time() - start)
+            store.record_result(game_key, False, seconds())
             recorded = True
 
     print(f"{APP_NAME} - {g.gamedef.name} (text mode). Type h for help.\n", file=out)
@@ -271,12 +275,12 @@ def run_text(g: Solitaire, symbols: bool, game_key: str, stream=None,
         if msg == "__newdeal__":
             give_up()
             g.new_game()
-            recorded = False
+            start, recorded = time.monotonic(), False
             msg = "new deal"
         elif msg == "__restart__":
             # the same hand again: AisleRiot does not count a restart
             g.restart()
-            recorded = False
+            start, recorded = time.monotonic(), False
             msg = "restarted this deal"
         if msg == "__print__":
             print(render_text(g, symbols, color), file=out)
@@ -295,9 +299,10 @@ def run_text(g: Solitaire, symbols: bool, game_key: str, stream=None,
         print(render_text(g, symbols, color), file=out)
         if g.is_won() and not recorded:
             recorded = True
-            store.record_result(game_key, True, time.time() - start)
+            secs = seconds()
+            store.record_result(game_key, True, secs)
             print("Congratulations - you won!", file=out)
-            print(f"Score {g.score} in {store.fmt_time(time.time() - start)} "
+            print(f"Score {g.score} in {store.fmt_time(secs)} "
                   f"({g.moves} moves).", file=out)
             return 0
     give_up()                           # the input ran out mid-game
