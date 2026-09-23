@@ -41,6 +41,13 @@ class Resize:
         self.h, self.w = h, w
 
 
+class Later:
+    """Key k, pressed once the game_clock has moved on by seconds."""
+
+    def __init__(self, seconds, k):
+        self.seconds, self.k = seconds, k
+
+
 class ScriptedScr(FakeScr):
     def __init__(self, h, w, keys, uis):
         super().__init__(h, w)
@@ -61,6 +68,9 @@ class ScriptedScr(FakeScr):
             assert self.spare < 20, "the UI kept asking for keys after q"
             return ord("q")
         k = self.keys.pop(0)
+        if isinstance(k, Later):
+            soliterm.tui.app.clock.now += k.seconds
+            k = k.k
         if isinstance(k, type) and issubclass(k, BaseException):
             raise k                   # e.g. KeyboardInterrupt, for Ctrl-C
         if isinstance(k, Click):
@@ -131,6 +141,28 @@ def tui(monkeypatch):
         return scr
 
     return run
+
+
+class FakeClock:
+    def __init__(self):
+        self.now = 1000.0
+
+    def __call__(self):
+        return self.now
+
+
+@pytest.fixture
+def game_clock(monkeypatch):
+    """Stop the clock the TUI reads, so only Later() in a script moves it."""
+    fake = FakeClock()
+    monkeypatch.setattr(soliterm.tui.app, "clock", fake)
+    return fake
+
+
+def times(scr):
+    """The time on the status line of every frame that shows the board."""
+    return [line.split("Time ")[1].split()[0]
+            for frame in scr.frames for line in frame.split("\n") if "Time " in line]
 
 
 def board(key, first, second, **options):
@@ -374,6 +406,16 @@ def test_the_boss_key_still_works_on_a_small_terminal(tui):
     scr = tui(["b", "z"], h=20, w=38)
     assert "Terminal too small" not in scr.frames[1]
     assert "Terminal too small" in scr.frames[2]
+
+
+# -- the clock ---------------------------------------------------------------------
+
+def test_the_clock_runs_from_the_first_move_and_stops_behind_other_screens(tui, game_clock):
+    # half a minute looking before the first move, ten seconds of play,
+    # then a minute each in the help, the statistics and boss mode
+    scr = tui([Later(30, "d"), Later(10, "?"), Later(60, "z"), "s", Later(60, "z"),
+               "b", Later(60, "z")])
+    assert times(scr) == ["0:00", "0:00", "0:10", "0:10", "0:10"]
 
 
 # -- recording results -------------------------------------------------------------

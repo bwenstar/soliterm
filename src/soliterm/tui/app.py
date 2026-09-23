@@ -12,9 +12,11 @@ Statistics use AisleRiot's Wins/Total/Percentage/Best/Worst model.
 from __future__ import annotations
 
 import curses
+import functools
 import os
 import time
-from typing import Callable, List, Optional, Tuple
+from contextlib import contextmanager
+from typing import Callable, Iterator, List, Optional, Tuple
 
 from .. import APP_NAME, camo, engine, store
 from ..engine import GAME_ORDER, GAMES, Solitaire
@@ -43,7 +45,59 @@ LEFT_CLICK = curses.BUTTON1_PRESSED | curses.BUTTON1_CLICKED
 # double-click. ncurses is left to report every press straight away, since
 # its own double-click wait would hold each single click back as long.
 DOUBLE_CLICK_S = 0.4
-clock = time.monotonic      # what the double-click timer reads
+clock = time.monotonic      # what the double-click timer and the game clock read
+
+
+class GameClock:
+    """The time a game has been played, kept the way AisleRiot keeps it.
+
+    It sets off at the first move rather than at the deal, and stands still
+    while another screen (help, statistics, boss mode, a dialog) hides the
+    board.
+    """
+
+    def __init__(self) -> None:
+        self.holds = 0              # screens open on top of the board
+        self.reset()
+
+    def reset(self) -> None:
+        self.started = False
+        self.banked = 0.0           # seconds run before the last stop
+        self.since: Optional[float] = None    # clock() when it last set off
+
+    def start(self) -> None:
+        if not self.started:
+            self.started = True
+            if not self.holds:
+                self.since = clock()
+
+    def elapsed(self) -> float:
+        if self.since is None:
+            return self.banked
+        return self.banked + clock() - self.since
+
+    @contextmanager
+    def paused(self) -> Iterator[None]:
+        """Stop the clock while a with block shows another screen."""
+        if self.since is not None:
+            self.banked += clock() - self.since
+            self.since = None
+        self.holds += 1
+        try:
+            yield
+        finally:
+            self.holds -= 1
+            if self.started and not self.holds:
+                self.since = clock()
+
+
+def hides_the_board(screen):
+    """Stop the game clock while the screen a method shows is up."""
+    @functools.wraps(screen)
+    def show(self, *args, **kwargs):
+        with self.clock.paused():
+            return screen(self, *args, **kwargs)
+    return show
 
 
 class App:
@@ -75,7 +129,7 @@ class App:
         self.color_capable = False
         self.has_color = False
         # per-game state, reset by start_game()
-        self.start = 0.0
+        self.clock = GameClock()
         self.selected: Optional[int] = None
         self.selected_n = 1
         self.selected_exact = False   # True when the player split by clicking a card
@@ -229,6 +283,7 @@ class App:
                 return items[sel]
 
     # ---- statistics dialog (AisleRiot fields) ---- #
+    @hides_the_board
     def stats_screen(self, focus_key: Optional[str] = None):
         self.wait_for_key(lambda: self.draw_stats(focus_key))
 
@@ -259,6 +314,7 @@ class App:
         stdscr.refresh()
 
     # ---- options dialog ---- #
+    @hides_the_board
     def options_screen(self, key: str) -> dict:
         stdscr, cfg, CP, safe_add = self.stdscr, self.cfg, self.CP, self.safe_add
         cls = GAMES[key]
@@ -296,6 +352,7 @@ class App:
                 return opts
 
     # ---- help overlay ---- #
+    @hides_the_board
     def help_screen(self):
         lines = [
             f"{APP_NAME} - controls",
@@ -315,6 +372,7 @@ class App:
         self.wait_for_key(draw)
 
     # ---- camouflage / boss mode ---- #
+    @hides_the_board
     def camouflage_screen(self):
         """Hide the game behind live-scrolling fake 'work' output.
 
@@ -403,6 +461,8 @@ class App:
                 outcome = self.handle_key(self.read_key())
                 if outcome is not None:
                     return outcome == QUIT
+                if self.game.moves > 0:
+                    self.clock.start()
         except KeyboardInterrupt:
             # Ctrl-C, wherever in the game it comes, leaves the way q does
             self.maybe_record_loss()
@@ -433,7 +493,7 @@ class App:
         self.cfg["last_game"] = key
         store.save_config(self.cfg)
         self.ui = self.new_board()
-        self.start = time.time()
+        self.clock.reset()
         self.selected = None
         self.selected_n = 1
         self.selected_exact = False
@@ -461,7 +521,7 @@ class App:
         return self.game.ids_of("tableau")[0] if self.game.ids_of("tableau") else 0
 
     def elapsed(self) -> float:
-        return time.time() - self.start
+        return self.clock.elapsed()
 
     def draw(self) -> None:
         self.ui.draw(self.selected, self.selected_n, self.cursor, self.hint,
@@ -564,7 +624,7 @@ class App:
     def reset_for(self, new_game_fn: Callable[[], object]):
         """Run a (re)deal and reset the per-game UI state."""
         new_game_fn()
-        self.start = time.time()
+        self.clock.reset()
         self.recorded = False
         self.selected = None
         self.selected_exact = False
@@ -838,6 +898,7 @@ class App:
         return None
 
     # ---- end of game ---- #
+    @hides_the_board
     def end_banner(self, elapsed: float, won: bool) -> str:
         """Show the end-of-game banner with choices. Returns one of:
         'same' (replay this deal), 'new' (fresh deal), 'menu'."""
