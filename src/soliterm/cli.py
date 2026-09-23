@@ -243,7 +243,8 @@ def _run(args: argparse.Namespace) -> int:
     if not args.text and sys.stdout.isatty() and sys.stdin.isatty():
         tui, why = _load_tui()
         if tui is not None:
-            return tui.main(start_key=args.game, seed=args.seed, color=color)
+            return tui.main(start_key=args.game, seed=args.seed, color=color,
+                            symbols=symbols)
         print(f"soliterm: {why}", file=sys.stderr)
 
     # text mode

@@ -7,12 +7,13 @@ time the game asked for a key.
 
 import curses
 import os
+import sys
 
 import pytest
 
 import soliterm.tui
 from soliterm import aisleriot as ar
-from soliterm import engine, store
+from soliterm import cli, engine, store
 from soliterm.engine import Card
 from helpers import FakeScr, clear_board, deal
 
@@ -106,7 +107,7 @@ def tui(monkeypatch):
     monkeypatch.setattr(curses, "curs_set", lambda n: None)
 
     def run(keys, start_key="klondike", game=None, seed=None, color=True,
-            color_capable=True, h=40, w=120):
+            color_capable=True, h=40, w=120, **kwargs):
         scr = ScriptedScr(h, w, keys, uis)
         monkeypatch.setattr(curses, "mousemask",
                             lambda mask: masks.append(mask) or (mask, 0))
@@ -125,7 +126,7 @@ def tui(monkeypatch):
                 return pending.pop() if pending else real(key, seed=seed, options=options)
 
             monkeypatch.setattr(engine, "new_solitaire", new_solitaire)
-        scr.rc = soliterm.tui.run(scr, start_key, seed, color)
+        scr.rc = soliterm.tui.run(scr, start_key, seed, color, **kwargs)
         scr.uis, scr.pairs, scr.masks, scr.intervals = uis, pairs, masks, intervals
         return scr
 
@@ -295,6 +296,34 @@ def test_a_terminal_that_cannot_hide_the_cursor_still_plays(tui, monkeypatch):
     assert scr.rc == 0
     assert "Soliterm  -  Klondike" in scr.frames[0]
     assert "Moves 1" in scr.frames[1]
+
+
+def test_ascii_on_the_command_line_reaches_the_tui(monkeypatch):
+    seen = {}
+    monkeypatch.setattr(soliterm.tui, "main", lambda **kw: seen.update(kw) or 0)
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+    # whatever TERM the tests run under, curses can draw here
+    monkeypatch.setattr(cli, "_terminal_problem", lambda: None)
+    assert cli.main(["--game", "klondike", "--ascii"]) == 0
+    assert seen["symbols"] is False
+    cli.main(["--game", "klondike"])
+    assert seen["symbols"] is True
+
+
+def test_ascii_draws_the_cards_in_plain_characters(tui):
+    scr = tui(["x", "q"], symbols=False)
+    for frame in scr.frames[:2]:                  # both views
+        assert not any(ch in frame for ch in "┌│▒░♠♥♦♣")
+    assert "+------+" in scr.frames[0]
+    assert "#" in scr.frames[1]
+    assert store.load_config()["symbols"] is True     # the flag is not saved
+
+
+def test_the_game_names_cards_the_way_the_board_does(tui):
+    # a game that can name its cards either way is told which to use
+    scr = tui([], symbols=False)
+    assert scr.uis[0].game.symbols is False
 
 
 # -- a terminal too small for the board -----------------------------------------------

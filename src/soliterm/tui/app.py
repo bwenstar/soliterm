@@ -55,12 +55,18 @@ class App:
     ui: BoardUI
 
     def __init__(self, stdscr, start_key: Optional[str] = None,
-                 seed: Optional[int] = None, color: bool = True):
+                 seed: Optional[int] = None, color: bool = True,
+                 symbols: Optional[bool] = None):
         self.stdscr = stdscr
         self.start_key = start_key
         self.seed = seed
         self.color = color
         self.cfg = store.load_config()
+        # suit symbols and box-drawing cards, or plain letters (--ascii);
+        # None means the saved setting
+        if symbols is None:
+            symbols = bool(self.cfg.get("symbols", True))
+        self.symbols = symbols
         # Separate the terminal's colour CAPABILITY from the player's
         # PREFERENCE so colour can be toggled live (even if launched with
         # --no-color). setup_curses() fills both in; `has_color` is the live
@@ -416,7 +422,7 @@ class App:
         """Deal a game of `key` and set the play screen up for it."""
         opts = {**GAMES[key].default_options(), **store.game_options(self.cfg, key)}
         self.key = key
-        self.game = engine.new_solitaire(key, seed=self.seed, options=opts)
+        self.game = self.new_game(opts)
         self.cfg["last_game"] = key
         store.save_config(self.cfg)
         self.ui = self.new_board()
@@ -431,8 +437,15 @@ class App:
         self.message = START_MESSAGE
         self.recorded = False
 
+    def new_game(self, opts: dict) -> Solitaire:
+        """Deal a game of self.key with the given options."""
+        game = engine.new_solitaire(self.key, seed=self.seed, options=opts)
+        # so a hint names the cards the way the board draws them
+        game.symbols = self.symbols
+        return game
+
     def new_board(self) -> BoardUI:
-        ui = BoardUI(self.stdscr, self.game, self.cfg.get("symbols", True),
+        ui = BoardUI(self.stdscr, self.game, self.symbols,
                      self.has_color, view=self.cfg.get("view", "expanded"))
         ui.code_skin = bool(self.cfg.get("code_skin", False))
         return ui
@@ -743,7 +756,7 @@ class App:
     def do_options(self):
         self.maybe_record_loss()
         newopts = self.options_screen(self.key)
-        self.game = engine.new_solitaire(self.key, seed=self.seed, options=newopts)
+        self.game = self.new_game(newopts)
         self.ui = self.new_board()
         self.reset_for(lambda: None)   # game already dealt by new_solitaire
         self.message = "options applied"
@@ -878,18 +891,18 @@ class App:
 
 
 def run(stdscr, start_key: Optional[str] = None, seed: Optional[int] = None,
-        color: bool = True):
-    return App(stdscr, start_key, seed, color).run()
+        color: bool = True, symbols: Optional[bool] = None):
+    return App(stdscr, start_key, seed, color, symbols).run()
 
 
 def main(start_key: Optional[str] = None, seed: Optional[int] = None,
-         color: bool = True) -> int:
+         color: bool = True, symbols: Optional[bool] = None) -> int:
     # After an Esc, ncurses waits ESCDELAY ms (a whole second by default) to
     # see whether a key sequence follows, so the Esc key felt dead. It reads
     # the variable when curses starts; a value the player set is kept.
     os.environ.setdefault("ESCDELAY", "25")
     try:
-        return curses.wrapper(run, start_key, seed, color)
+        return curses.wrapper(run, start_key, seed, color, symbols)
     except curses.error as exc:
         import sys
         print(f"curses error: {exc}", file=sys.stderr)

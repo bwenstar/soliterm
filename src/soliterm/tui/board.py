@@ -45,7 +45,6 @@ class BoardUI:
         self.stdscr = stdscr
         self.game = game
         self.symbols = symbols
-        game.symbols = symbols      # so hints name cards as this board draws them
         self.has_color = has_color
         # hit map: (y, x) cell -> (slot_id, card_index) for click/drag mapping
         self.hit: Dict[Tuple[int, int], Tuple[int, int]] = {}
