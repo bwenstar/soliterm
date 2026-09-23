@@ -115,3 +115,11 @@ def test_text_mode_deals_spider_with_a_bad_saved_option(monkeypatch, capsys):
     monkeypatch.setattr(sys, "stdin", io.StringIO("q\n"))
     assert main(["--text", "--no-color", "--seed", "1"]) == 0
     assert "Spider" in capsys.readouterr().out
+
+
+def test_a_last_game_that_no_longer_exists_falls_back_to_klondike(monkeypatch, capsys):
+    write_config({"last_game": "pyramid"})
+    assert store.load_config()["last_game"] == "klondike"
+    monkeypatch.setattr(sys, "stdin", io.StringIO("q\n"))
+    assert main(["--text", "--no-color", "--seed", "1"]) == 0
+    assert "Klondike" in capsys.readouterr().out

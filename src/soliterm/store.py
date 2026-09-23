@@ -200,7 +200,10 @@ def load_config() -> dict:
     if data:
         # each key is checked on its own: one of the wrong type (a hand
         # edit, say) falls back to its default and the others still load
-        if isinstance(data.get("last_game"), str):
+        # a game this version doesn't have (renamed, or from a newer
+        # version) would have nothing to deal
+        from .engine import GAMES  # local import to avoid a cycle at module load
+        if isinstance(data.get("last_game"), str) and data["last_game"] in GAMES:
             cfg["last_game"] = data["last_game"]
         for key in ("symbols", "sync_aisleriot", "merged_into_aisleriot"):
             if isinstance(data.get(key), bool):
