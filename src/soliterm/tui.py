@@ -1,5 +1,4 @@
-#!/usr/bin/env python3
-"""aisle_tui - the curses front-end for `aisle` (keyboard + mouse).
+"""soliterm.tui - the curses front-end (keyboard + mouse).
 
 Layout mirrors AisleRiot's board: slots are positioned on a grid derived from
 each game's slot rows; cards in "down" slots fan vertically, "right" slots fan
@@ -14,10 +13,8 @@ import curses
 import time
 from typing import Dict, List, Optional, Tuple
 
-import aisle
-from aisle import Card, Solitaire, GAMES, GAME_ORDER, SUIT_SYMBOL
-import aisle_store as store
-import aisle_camo
+from . import camo, engine, store
+from .engine import GAME_ORDER, GAMES, SUIT_SYMBOL, Card, Solitaire
 
 
 # Geometry of a rendered card. Cards are drawn as multi-line boxes that overlap
@@ -63,7 +60,7 @@ class BoardUI:
         # code-skin play mode: wrap the live board in plausible source so the
         # screen reads as a code editor while the game stays fully playable.
         self.code_skin = False
-        self._code = aisle_camo.code_lines(200, seed=1)
+        self._code = camo.code_lines(200, seed=1)
         self._gutter = 5            # width of the " 12  " line-number gutter
         # how far down / right the board sits inside the file when skinned
         self._code_top = 7
@@ -662,10 +659,10 @@ def run(stdscr, start_key: Optional[str] = None, seed: Optional[int] = None,
         game exactly where it was left. The theme comes from the config
         ('camo_theme'); cycle it live with Tab/space while in camo mode.
         """
-        theme = cfg.get("camo_theme", aisle_camo.DEFAULT_THEME)
-        if theme not in aisle_camo.THEMES:
-            theme = aisle_camo.DEFAULT_THEME
-        gen = aisle_camo.stream(theme)
+        theme = cfg.get("camo_theme", camo.DEFAULT_THEME)
+        if theme not in camo.THEMES:
+            theme = camo.DEFAULT_THEME
+        gen = camo.stream(theme)
         h, w = stdscr.getmaxyx()
         buf: List[str] = []
         # Make a key wait briefly so the screen scrolls on its own, like a
@@ -695,11 +692,11 @@ def run(stdscr, start_key: Optional[str] = None, seed: Optional[int] = None,
                     if k != -1:
                         if k in (ord("\t"),):
                             # cycle theme without leaving camo
-                            idx = aisle_camo.THEMES.index(theme)
-                            theme = aisle_camo.THEMES[(idx + 1) % len(aisle_camo.THEMES)]
+                            idx = camo.THEMES.index(theme)
+                            theme = camo.THEMES[(idx + 1) % len(camo.THEMES)]
                             cfg["camo_theme"] = theme
                             store.save_config(cfg)
-                            gen = aisle_camo.stream(theme)
+                            gen = camo.stream(theme)
                             buf = []
                             break
                         return        # any other key exits camo mode
@@ -712,7 +709,7 @@ def run(stdscr, start_key: Optional[str] = None, seed: Optional[int] = None,
     def play(key: str):
         nonlocal has_color           # the colour toggle ('v') flips this live
         opts = {**GAMES[key].default_options(), **store.game_options(cfg, key)}
-        game = aisle.new_solitaire(key, seed=seed, options=opts)
+        game = engine.new_solitaire(key, seed=seed, options=opts)
         cfg["last_game"] = key
         store.save_config(cfg)
         ui = BoardUI(stdscr, game, cfg.get("symbols", True), has_color,
@@ -980,7 +977,7 @@ def run(stdscr, start_key: Optional[str] = None, seed: Optional[int] = None,
             if k in (ord("o"), ord("O")):
                 maybe_record_loss()
                 newopts = options_screen(key)
-                game = aisle.new_solitaire(key, seed=seed, options=newopts)
+                game = engine.new_solitaire(key, seed=seed, options=newopts)
                 ui = BoardUI(stdscr, game, cfg.get("symbols", True), has_color,
                              view=cfg.get("view", "expanded"))
                 ui.code_skin = bool(cfg.get("code_skin", False))
@@ -1106,8 +1103,8 @@ def main(start_key: Optional[str] = None, seed: Optional[int] = None,
 
 
 if __name__ == "__main__":
-    # aisle_tui is the curses view, not the entry point: the launcher
-    # (aisle_cli) sets up config, colour, stats sharing, and text-mode
-    # fallback. Defer to it so there is one supported way to start the game.
-    import aisle_cli
-    raise SystemExit(aisle_cli.main())
+    # tui is the curses view, not the entry point: the launcher (cli) sets
+    # up config, colour, stats sharing, and text-mode fallback. Defer to it
+    # so there is one supported way to start the game.
+    from . import cli
+    raise SystemExit(cli.main())

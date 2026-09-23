@@ -3,7 +3,7 @@ never loop."""
 
 import pytest
 
-from aisle import GAME_ORDER, Card
+from soliterm.engine import GAME_ORDER, Card
 from helpers import clear_board, deal
 
 

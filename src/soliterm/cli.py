@@ -1,11 +1,12 @@
-#!/usr/bin/env python3
-"""aisle_cli - launcher + pipe-friendly text mode for the AisleRiot CLI replica.
+"""soliterm.cli - launcher + pipe-friendly text mode for the AisleRiot CLI replica.
 
-  python3 aisle_cli.py                  # curses TUI (menu, keyboard + mouse)
-  python3 aisle_cli.py --game freecell  # jump straight into a game
-  python3 aisle_cli.py --list           # list the games
-  python3 aisle_cli.py --stats          # print statistics and exit
-  python3 aisle_cli.py --text --game golf --seed 1   # scriptable text mode
+  soliterm                              # curses TUI (menu, keyboard + mouse)
+  soliterm --game freecell              # jump straight into a game
+  soliterm --list                       # list the games
+  soliterm --stats                      # print statistics and exit
+  soliterm --text --game golf --seed 1  # scriptable text mode
+
+`python -m soliterm` does the same without the console script.
 """
 
 from __future__ import annotations
@@ -16,10 +17,8 @@ import sys
 import time
 from typing import List, Optional, Tuple
 
-import aisle
-from aisle import Card, Solitaire, GAMES, GAME_ORDER
-import aisle_store as store
-import aisle_camo
+from . import camo, engine, store
+from .engine import GAME_ORDER, GAMES, Card, Solitaire
 
 
 # --------------------------------------------------------------------------- #
@@ -201,8 +200,8 @@ def run_text(g: Solitaire, symbols: bool, game_key: str, stream=None,
             continue
         if msg == "__boss__":
             # print a screenful of plausible 'work' output instead of the board
-            theme = aisle_camo.DEFAULT_THEME
-            for cl in aisle_camo.screenful(theme, lines=40):
+            theme = camo.DEFAULT_THEME
+            for cl in camo.screenful(theme, lines=40):
                 print(cl, file=out)
             continue
         if msg == TEXT_HELP:
@@ -299,18 +298,18 @@ def main(argv: Optional[List[str]] = None) -> int:
     if use_curses:
         try:
             import curses  # noqa: F401
-            import aisle_tui
+            from . import tui
         except Exception:
             use_curses = False
 
     if use_curses:
-        import aisle_tui
-        return aisle_tui.main(start_key=args.game, seed=args.seed, color=color)
+        from . import tui
+        return tui.main(start_key=args.game, seed=args.seed, color=color)
 
     # text mode
     key = args.game or cfg.get("last_game", "klondike")
     opts = {**GAMES[key].default_options(), **store.game_options(cfg, key)}
-    g = aisle.new_solitaire(key, seed=args.seed, options=opts)
+    g = engine.new_solitaire(key, seed=args.seed, options=opts)
     return run_text(g, symbols, key, color=text_color)
 
 

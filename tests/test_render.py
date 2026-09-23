@@ -7,15 +7,14 @@ checks here are about which cards end up clickable.
 
 import pytest
 
-import aisle_camo
-import aisle_tui
-from aisle import GAME_ORDER, Card
+from soliterm import camo, tui
+from soliterm.engine import GAME_ORDER, Card
 from helpers import FakeScr, clear_board, deal
 
 
 def draw(g, h=40, w=120, symbols=False, view="expanded", code_skin=False, hint=None):
     scr = FakeScr(h, w)
-    ui = aisle_tui.BoardUI(scr, g, symbols=symbols, has_color=False, view=view)
+    ui = tui.BoardUI(scr, g, symbols=symbols, has_color=False, view=view)
     ui.code_skin = code_skin
     cursor = g.ids_of("tableau")[0] if g.ids_of("tableau") else 0
     ui.draw(None, 1, cursor, hint, 1.0, "x")
@@ -102,7 +101,7 @@ def test_thirteen_columns_fit_in_80_columns():
     cols = set(g.ids_of("tableau"))
     on = {sid for (y, x), (sid, idx) in ui.hit.items() if sid in cols and x < 80}
     assert on == cols
-    assert aisle_tui.MIN_CARD_W <= ui._cw <= aisle_tui.MAX_CARD_W
+    assert tui.MIN_CARD_W <= ui._cw <= tui.MAX_CARD_W
 
 
 def test_a_tiny_terminal_gets_a_message_instead_of_a_board():
@@ -158,7 +157,7 @@ def test_every_game_draws_in_both_views(key, view):
 @pytest.mark.parametrize("key", GAME_ORDER)
 def test_monochrome_uses_no_colour_pairs(key):
     g = deal(key, 2)
-    ui = aisle_tui.BoardUI(FakeScr(), g, symbols=True, has_color=False)
+    ui = tui.BoardUI(FakeScr(), g, symbols=True, has_color=False)
     assert ui.CP(1) == 0 and ui.CP(8) == 0
     cursor = g.ids_of("tableau")[0] if g.ids_of("tableau") else 0
     ui.draw(None, 1, cursor, g.hint(), 5.0, "colour off")
@@ -169,8 +168,8 @@ def test_monochrome_uses_no_colour_pairs(key):
 # -- code skin -------------------------------------------------------------------------------
 
 def test_code_lines_are_repeatable_and_read_as_source():
-    a = aisle_camo.code_lines(120, seed=1)
-    assert a == aisle_camo.code_lines(120, seed=1)
+    a = camo.code_lines(120, seed=1)
+    assert a == camo.code_lines(120, seed=1)
     assert len(a) == 120
     joined = "\n".join(a)
     assert "def " in joined and "import" in joined
@@ -198,7 +197,7 @@ def test_the_code_skin_looks_like_an_editor(dealt_klondike):
 
 
 def test_the_code_skin_moves_the_board_into_the_file():
-    ui = aisle_tui.BoardUI(FakeScr(), deal("klondike", 1), symbols=False, has_color=False)
+    ui = tui.BoardUI(FakeScr(), deal("klondike", 1), symbols=False, has_color=False)
     off = ui.compute_positions()
     ui.code_skin = True
     on = ui.compute_positions()

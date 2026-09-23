@@ -26,22 +26,17 @@ classifiers = [
 dependencies = []
 
 [project.scripts]
-aisle = "aisle_cli:main"
+soliterm = "soliterm.cli:main"
 
-[tool.setuptools]
-# Flat single-file modules (no package directory).
-py-modules = [
-    "aisle",
-    "aisle_cli",
-    "aisle_tui",
-    "aisle_store",
-    "aisle_aisleriot",
-    "aisle_camo",
-]
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+soliterm = ["py.typed"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-# The runtime is flat top-level modules, so put the checkout on sys.path
-# (and tests/ for the shared helpers module).
-pythonpath = [".", "tests"]
+# Import the package straight from src/ without installing it (and tests/
+# for the shared helpers module).
+pythonpath = ["src", "tests"]
 addopts = "-ra"

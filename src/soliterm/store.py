@@ -1,5 +1,4 @@
-#!/usr/bin/env python3
-"""aisle_store - config + AisleRiot-style statistics persistence.
+"""soliterm.store - config + AisleRiot-style statistics persistence.
 
 AisleRiot keeps PER-GAME statistics (not a score leaderboard): Wins, Total
 games, win Percentage, and Best/Worst *winning time*. We persist the same set,
@@ -13,7 +12,7 @@ import os
 import time
 from typing import Dict, Optional
 
-import aisle_aisleriot as ar
+from . import aisleriot as ar
 
 APP_DIR_NAME = "aisle-cli"
 
@@ -239,10 +238,10 @@ def reset_stats() -> int:
     too (other AisleRiot games and all non-Statistic keys are left untouched).
     Local JSON is always cleared. Returns the count of games that had a record.
     """
-    import aisle  # local import to avoid a cycle at module load
+    from .engine import GAME_ORDER  # local import to avoid a cycle at module load
     cleared = 0
     if syncing():
-        for game_key in aisle.GAME_ORDER:
+        for game_key in GAME_ORDER:
             sect = ar.GAME_TO_SECTION.get(game_key)
             if sect is None:
                 continue

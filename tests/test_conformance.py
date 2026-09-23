@@ -6,7 +6,7 @@ import random
 
 import pytest
 
-from aisle import GAME_ORDER, GAMES
+from soliterm.engine import GAME_ORDER, GAMES
 from helpers import EXPECTED_CARDS, board_state, card_multiset, deal, legal_walk, random_op
 
 

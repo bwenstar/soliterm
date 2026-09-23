@@ -1,14 +1,17 @@
 """The command line: --list, --stats, --reset-stats and a scripted text session."""
 
 import io
+import os
+import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
-import aisle_aisleriot as ar
-import aisle_cli
-import aisle_store as store
-from aisle import GAME_ORDER, GAMES
+from soliterm import aisleriot as ar
+from soliterm import store
+from soliterm.cli import main, render_text
+from soliterm.engine import GAME_ORDER, GAMES
 from helpers import deal
 
 
@@ -17,7 +20,7 @@ def cli(monkeypatch, capsys):
     """Returns run(*args, stdin="") -> (exit code, stdout lines)."""
     def run(*args, stdin=""):
         monkeypatch.setattr(sys, "stdin", io.StringIO(stdin))
-        rc = aisle_cli.main(list(args))
+        rc = main(list(args))
         return rc, capsys.readouterr().out.splitlines()
     return run
 
@@ -114,11 +117,11 @@ def test_a_scripted_text_session(cli):
     # replay the session on the same hand to know what each board should be
     g = deal("klondike", 1)
     src, dst, n = g.best_move()
-    boards = [aisle_cli.render_text(g, symbols=False)]
+    boards = [render_text(g, symbols=False)]
     assert g.attempt_move(src, dst, n)
-    boards.append(aisle_cli.render_text(g, symbols=False))
+    boards.append(render_text(g, symbols=False))
     assert g.undo()
-    boards.append(aisle_cli.render_text(g, symbols=False))
+    boards.append(render_text(g, symbols=False))
 
     rc, lines = cli("--text", "--ascii", "--no-color", "--seed", "1",
                     stdin=f"hint\n{src} {dst} {n}\nu\nq\n")
@@ -141,3 +144,17 @@ def test_a_scripted_text_session(cli):
     assert status == ["score=0 moves=0", "score=0 moves=0",
                       "score=0 moves=1", "score=0 moves=0"]
     assert sum(line.startswith("Hint: ") for line in lines) == 1
+
+
+# -- entry points ----------------------------------------------------------------------
+
+def test_python_m_soliterm_runs_the_command_line():
+    # a child process, so point it at the checkout's src/ (the isolated
+    # HOME from conftest is already in the environment it inherits)
+    src = str(Path(__file__).resolve().parents[1] / "src")
+    env = dict(os.environ, PYTHONPATH=os.pathsep.join(
+        p for p in (src, os.environ.get("PYTHONPATH")) if p))
+    r = subprocess.run([sys.executable, "-m", "soliterm", "--list"],
+                       capture_output=True, text=True, env=env, timeout=60)
+    assert r.returncode == 0, r.stderr
+    assert [line.split()[0] for line in r.stdout.splitlines()[1:]] == GAME_ORDER

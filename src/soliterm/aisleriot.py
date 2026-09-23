@@ -1,5 +1,4 @@
-#!/usr/bin/env python3
-"""aisle_aisleriot - bridge to the installed GNOME AisleRiot statistics.
+"""soliterm.aisleriot - bridge to the installed GNOME AisleRiot statistics.
 
 AisleRiot (the `/usr/games/sol` binary) stores per-game statistics in a GLib
 GKeyFile at $XDG_CONFIG_HOME/gnome-games/aisleriot (default ~/.config/...).

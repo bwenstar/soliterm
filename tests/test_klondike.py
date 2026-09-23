@@ -4,7 +4,7 @@ import random
 
 import pytest
 
-from aisle import Card
+from soliterm.engine import Card
 from helpers import card_multiset, clear_board, deal, legal_walk
 
 DRAWS = [1, 3]

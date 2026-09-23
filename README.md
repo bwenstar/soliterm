@@ -20,17 +20,17 @@ python3 aisle.pyz                 # menu → pick a game (curses TUI)
 ./aisle.pyz --game freecell       # or run it directly (it's executable)
 ```
 
-**B. Install with pip** (gives you an `aisle` command on your PATH):
+**B. Install with pip** (gives you a `soliterm` command on your PATH):
 
 ```sh
-pip install aisle_cli-1.0.0-py3-none-any.whl    # or:  pip install .
-aisle                              # then just run "aisle"
+pip install .                      # from a checkout
+soliterm                           # then just run "soliterm"
 ```
 
 **C. From source** (no install):
 
 ```sh
-python3 aisle_cli.py              # the entry point
+PYTHONPATH=src python3 -m soliterm
 ```
 
 Common flags (all three forms): `--game NAME`, `--seed N`, `--list`,

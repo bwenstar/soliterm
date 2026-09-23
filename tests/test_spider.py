@@ -7,7 +7,7 @@ import random
 
 import pytest
 
-from aisle import Card
+from soliterm.engine import Card
 from helpers import board_state, card_multiset, clear_board, deal, legal_walk
 
 SUITS = {1: "S", 2: "SH", 4: "SHDC"}

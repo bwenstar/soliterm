@@ -1,5 +1,4 @@
-#!/usr/bin/env python3
-"""aisle - a command-line replica of GNOME AisleRiot (`/usr/games/sol`).
+"""soliterm.engine - a command-line replica of GNOME AisleRiot (`/usr/games/sol`).
 
 AisleRiot is a collection of solitaire card games sharing one engine: a set of
 "slots" holding cards, and per-game rule modules that answer a handful of
@@ -12,8 +11,8 @@ the games' rules, the statistics dialog). No GPL source code is copied.
 Engine: this module (Slot / Solitaire / GameDef and helpers).
 Games:  Klondike, Spider, FreeCell, Golf, Yukon, Canfield, Forty Thieves,
         Bakers Dozen, Eight Off.
-UI:     aisle_tui.py provides the curses front-end (keyboard + mouse); this
-        module also has a pipe-friendly text mode for scripting and testing.
+UI:     tui.py provides the curses front-end (keyboard + mouse) and cli.py
+        a pipe-friendly text mode for scripting and testing.
 
 This file is self-contained and has no third-party dependencies.
 """

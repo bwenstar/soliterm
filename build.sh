@@ -12,17 +12,14 @@ DIST=dist
 rm -rf "$DIST" build *.egg-info
 mkdir -p "$DIST"
 
-# The standard-library modules that make up the runtime (not the tests).
-RUNTIME=(aisle.py aisle_cli.py aisle_tui.py aisle_store.py \
-         aisle_aisleriot.py aisle_camo.py)
-
 # ---- 1. zipapp: a single runnable .pyz, no install needed -------------------
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
-cp "${RUNTIME[@]}" "$STAGE"/
+cp -r src/soliterm "$STAGE"/
+find "$STAGE" -name __pycache__ -prune -exec rm -rf {} +
 cat > "$STAGE/__main__.py" <<'PY'
 import sys
-from aisle_cli import main
+from soliterm.cli import main
 sys.exit(main())
 PY
 python3 -m zipapp "$STAGE" -p "/usr/bin/env python3" -o "$DIST/aisle.pyz"
@@ -40,7 +37,7 @@ fi
 
 # ---- 3. clean source archive ------------------------------------------------
 SRCZIP="$DIST/aisle-cli-src.zip"
-zip -qr "$SRCZIP" "${RUNTIME[@]}" tests \
+zip -qr "$SRCZIP" src tests \
     README.md LICENSE pyproject.toml build.sh -x '*__pycache__*'
 echo "built $SRCZIP"
 

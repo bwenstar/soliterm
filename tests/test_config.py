@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-import aisle_store as store
+from soliterm import store
 
 
 def test_ui_preferences_are_unset_until_saved():

@@ -5,8 +5,8 @@ import random
 
 import pytest
 
-import aisle
-from aisle import GAME_ORDER, Card
+from soliterm import engine
+from soliterm.engine import GAME_ORDER, Card
 from helpers import EXPECTED_CARDS, card_count, card_multiset, clear_board, deal, random_op
 
 
@@ -140,7 +140,7 @@ def test_score_never_goes_below_zero():
 # -- restart and new deals ------------------------------------------------------
 
 def test_restart_replays_the_same_hand():
-    g = aisle.new_solitaire("klondike")          # no fixed seed
+    g = engine.new_solitaire("klondike")          # no fixed seed
     snap, seed = board(g), g.current_seed
     g.deal()
     g.deal()
@@ -151,7 +151,7 @@ def test_restart_replays_the_same_hand():
 
 
 def test_unseeded_new_games_differ():
-    g = aisle.new_solitaire("klondike")
+    g = engine.new_solitaire("klondike")
     seeds = set()
     for _ in range(6):
         g.new_game()

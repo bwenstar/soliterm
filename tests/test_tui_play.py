@@ -1,4 +1,4 @@
-"""Drive the real curses loop, aisle_tui.run(), with scripted keys and clicks.
+"""Drive the real curses loop, soliterm.tui.run(), with scripted keys and clicks.
 
 The curses calls that need a real terminal are stubbed out, and the window is
 a FakeScr that plays back a key script and remembers what was on screen each
@@ -9,10 +9,9 @@ import curses
 
 import pytest
 
-import aisle
-import aisle_store as store
-import aisle_tui
-from aisle import Card
+import soliterm.tui
+from soliterm import engine, store
+from soliterm.engine import Card
 from helpers import FakeScr, clear_board, deal
 
 ENTER = "\n"
@@ -57,20 +56,20 @@ class ScriptedScr(FakeScr):
 
 @pytest.fixture
 def tui(monkeypatch):
-    """Returns run(keys, ...) which plays a script through aisle_tui.run().
+    """Returns run(keys, ...) which plays a script through soliterm.tui.run().
 
     Pass game= to start play on a board built by hand. The returned screen
     has .frames, .rc, .uis (every BoardUI made) and .pairs (init_pair calls).
     """
     uis, pairs = [], []
 
-    class RecordingBoardUI(aisle_tui.BoardUI):
+    class RecordingBoardUI(soliterm.tui.BoardUI):
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
             self.initial_has_color = self.has_color
             uis.append(self)
 
-    monkeypatch.setattr(aisle_tui, "BoardUI", RecordingBoardUI)
+    monkeypatch.setattr(soliterm.tui, "BoardUI", RecordingBoardUI)
 
     def run(keys, start_key="klondike", game=None, seed=None, color=True,
             color_capable=True, h=40, w=120):
@@ -84,14 +83,14 @@ def tui(monkeypatch):
         monkeypatch.setattr(curses, "color_pair", lambda n: n << 8)
         monkeypatch.setattr(curses, "getmouse", lambda: scr.mouse)
         if game is not None:
-            real = aisle.new_solitaire
+            real = engine.new_solitaire
             pending = [game]
 
             def new_solitaire(key, seed=None, options=None):
                 return pending.pop() if pending else real(key, seed=seed, options=options)
 
-            monkeypatch.setattr(aisle, "new_solitaire", new_solitaire)
-        scr.rc = aisle_tui.run(scr, start_key, seed, color)
+            monkeypatch.setattr(engine, "new_solitaire", new_solitaire)
+        scr.rc = soliterm.tui.run(scr, start_key, seed, color)
         scr.uis, scr.pairs = uis, pairs
         return scr
 

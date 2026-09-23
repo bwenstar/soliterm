@@ -2,8 +2,8 @@
 
 import os
 
-import aisle_aisleriot as ar
-import aisle_store as store
+from soliterm import aisleriot as ar
+from soliterm import store
 
 
 def test_store_and_keyfile_paths_live_under_the_test_home(isolated_home):

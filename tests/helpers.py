@@ -2,7 +2,7 @@
 
 from collections import Counter
 
-import aisle
+from soliterm import engine
 
 # Cards in a full deal of each game.
 EXPECTED_CARDS = {"klondike": 52, "spider": 104, "freecell": 52, "eightoff": 52,
@@ -12,7 +12,7 @@ EXPECTED_CARDS = {"klondike": 52, "spider": 104, "freecell": 52, "eightoff": 52,
 
 def deal(key, seed=1, **options):
     """A seeded game; options go in as keywords, e.g. deal("spider", suits=2)."""
-    return aisle.new_solitaire(key, seed=seed, options=options or None)
+    return engine.new_solitaire(key, seed=seed, options=options or None)
 
 
 def card_count(g):

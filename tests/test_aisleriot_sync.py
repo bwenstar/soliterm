@@ -7,8 +7,8 @@ never touched.
 import json
 import os
 
-import aisle_aisleriot as ar
-import aisle_store as store
+from soliterm import aisleriot as ar
+from soliterm import store
 
 KEYFILE = """\
 [Aisleriot Config]
