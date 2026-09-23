@@ -38,3 +38,10 @@ py-modules = [
     "aisle_aisleriot",
     "aisle_camo",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# The runtime is flat top-level modules, so put the checkout on sys.path
+# (and tests/ for the shared helpers module).
+pythonpath = [".", "tests"]
+addopts = "-ra"
