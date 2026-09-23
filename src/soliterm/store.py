@@ -107,7 +107,7 @@ def set_game_options(cfg: dict, game_key: str, options: dict) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Statistics  (per game key: wins, total, best, worst — times in seconds)
+# Statistics  (per game key: wins, total, best, worst, with times in seconds)
 # --------------------------------------------------------------------------- #
 
 EMPTY_STAT = {"wins": 0, "total": 0, "best": 0, "worst": 0}
