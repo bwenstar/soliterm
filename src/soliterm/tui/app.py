@@ -116,6 +116,23 @@ class App:
             except curses.error:
                 pass
 
+    def wait_for_key(self, draw: Callable[[], None]) -> int:
+        """Show a screen until a key is pressed, and return that key.
+
+        The mouse doesn't count and a resize draws the screen again, so the
+        pointer passing over it or a retiled window can't dismiss it.
+        """
+        while True:
+            draw()
+            k = self.stdscr.getch()
+            if k == curses.KEY_MOUSE:
+                try:
+                    curses.getmouse()
+                except curses.error:
+                    pass
+            elif k not in (-1, curses.KEY_RESIZE):
+                return k
+
     # ---- top loop ---- #
     def run(self) -> int:
         self.setup_curses()
@@ -185,6 +202,9 @@ class App:
 
     # ---- statistics dialog (AisleRiot fields) ---- #
     def stats_screen(self, focus_key: Optional[str] = None):
+        self.wait_for_key(lambda: self.draw_stats(focus_key))
+
+    def draw_stats(self, focus_key: Optional[str]):
         stdscr, CP, safe_add = self.stdscr, self.CP, self.safe_add
         stdscr.erase()
         safe_add(1, 4, "Statistics", CP(4) | curses.A_BOLD)
@@ -209,7 +229,6 @@ class App:
             y += 1
         safe_add(y + 1, 4, "Press any key to continue.", CP(4))
         stdscr.refresh()
-        stdscr.getch()
 
     # ---- options dialog ---- #
     def options_screen(self, key: str) -> dict:
@@ -258,11 +277,14 @@ class App:
             "  Foundations build up by suit; tableau rules vary by game.",
             "  Press any key to continue.",
         ]
-        self.stdscr.erase()
-        for i, ln in enumerate(lines):
-            self.safe_add(1 + i, 2, ln, curses.A_BOLD if i == 0 else 0)
-        self.stdscr.refresh()
-        self.stdscr.getch()
+
+        def draw():
+            self.stdscr.erase()
+            for i, ln in enumerate(lines):
+                self.safe_add(1 + i, 2, ln, curses.A_BOLD if i == 0 else 0)
+            self.stdscr.refresh()
+
+        self.wait_for_key(draw)
 
     # ---- camouflage / boss mode ---- #
     def camouflage_screen(self):

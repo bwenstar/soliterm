@@ -21,6 +21,7 @@ NAMES = {curses.KEY_UP: "Arrow", curses.KEY_DOWN: "Arrow",
 
 def help_screen():
     scr = FakeScr(24, 80)
+    scr.getch = lambda: ord(" ")      # the key that closes it
     App(scr).help_screen()
     return scr.text()
 

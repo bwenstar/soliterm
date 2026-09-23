@@ -380,6 +380,21 @@ def test_v_after_no_color_turns_colour_on(tui):
     assert store.load_config()["color"] is True
 
 
+@pytest.mark.parametrize("key, title", [("?", "Soliterm - controls"),
+                                        ("s", "Statistics")])
+def test_help_and_stats_stay_up_until_a_key_is_pressed(tui, key, title):
+    scr = tui([key,
+               Mouse(9, 9, curses.REPORT_MOUSE_POSITION),
+               Mouse(9, 9, curses.BUTTON1_RELEASED),
+               Mouse(9, 9, curses.BUTTON4_PRESSED),
+               Resize(30, 100),
+               "z"])
+    assert all(title in frame for frame in scr.frames[1:6])
+    assert "Score" in scr.frames[6]
+    # drawn again after the resize
+    assert len(scr.frames[5].split("\n")) == 30
+
+
 def test_the_help_screen_lists_the_toggles(tui):
     scr = tui(["?", "z"])
     assert "toggle colour" in scr.frames[1]
