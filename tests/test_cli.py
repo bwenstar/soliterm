@@ -294,13 +294,33 @@ def test_a_scripted_text_session(cli):
 
 # -- the full-screen game or text mode -------------------------------------------------
 
+# the terminal types the stubbed terminfo knows: xterm can draw the game,
+# while dumb and a glass teletype can't move the cursor
+TERMINFO = {"xterm": {"cup": b"\x1b[%i%p1%d;%p2%dH"}, "dumb": {}, "glass": {}}
+
+
 @pytest.fixture
 def terminal(monkeypatch):
     """Returns run(*args): main() as if on a terminal, with both front ends
-    stubbed out. run.started lists the ones started ("tui" or "text")."""
+    stubbed out. run.started lists the ones started ("tui" or "text").
+
+    curses looks the terminal type up in TERMINFO, not the real database:
+    it only does so once per process, and the database may not be there.
+    """
+    import curses
+
     import soliterm.cli as cli_mod
     import soliterm.tui as tui_mod
     started = []
+    looked_up = []
+
+    def setupterm(term=None, fd=-1):
+        if term not in TERMINFO:
+            raise curses.error("setupterm: could not find terminal")
+        looked_up[:] = [term]
+
+    monkeypatch.setattr(curses, "setupterm", setupterm)
+    monkeypatch.setattr(curses, "tigetstr", lambda cap: TERMINFO[looked_up[0]].get(cap))
     monkeypatch.setenv("TERM", "xterm")
     monkeypatch.setattr(tui_mod, "main", lambda **kw: started.append("tui") or 0)
     monkeypatch.setattr(cli_mod, "run_text", lambda *a, **kw: started.append("text") or 0)
@@ -377,15 +397,71 @@ def test_a_bug_in_the_full_screen_game_is_not_hidden(terminal, monkeypatch):
     assert terminal.started == []
 
 
+@pytest.mark.parametrize("term", [None, "", "dumb"])
+def test_without_a_terminal_type_text_mode_says_why(terminal, monkeypatch, capsys, term):
+    if term is None:
+        monkeypatch.delenv("TERM")
+    else:
+        monkeypatch.setenv("TERM", term)
+    assert terminal("--game", "golf") == 0
+    assert terminal.started == ["text"]
+    err = capsys.readouterr().err
+    assert len(err.splitlines()) == 1
+    assert "TERM" in err and "text mode" in err
+
+
+def test_an_unknown_terminal_type_means_text_mode(terminal, monkeypatch, capsys):
+    # say, ssh from a terminal the far end has no terminfo entry for
+    monkeypatch.setenv("TERM", "xterm-kitty")
+    assert terminal("--game", "golf") == 0
+    assert terminal.started == ["text"]
+    err = capsys.readouterr().err
+    assert len(err.splitlines()) == 1
+    assert "TERM=xterm-kitty" in err and "text mode" in err
+
+
+def test_a_terminal_that_cannot_move_the_cursor_means_text_mode(terminal, monkeypatch,
+                                                                capsys):
+    monkeypatch.setenv("TERM", "glass")
+    assert terminal("--game", "golf") == 0
+    assert terminal.started == ["text"]
+    err = capsys.readouterr().err
+    assert len(err.splitlines()) == 1
+    assert "TERM=glass" in err and "text mode" in err
+
+
+def test_the_windows_console_needs_no_terminal_type(terminal, monkeypatch, capsys):
+    monkeypatch.delenv("TERM")
+    monkeypatch.setattr(os, "name", "nt")
+    try:
+        terminal("--game", "golf")
+    finally:
+        monkeypatch.setattr(os, "name", "posix")
+    assert terminal.started == ["tui"]
+    assert capsys.readouterr().err == ""
+
+
+def test_curses_itself_turns_down_an_unknown_terminal_type():
+    # the real terminfo lookup, in a process of its own
+    code = "from soliterm import cli; print(cli._terminal_problem())"
+    r = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
+                       env=dict(child_env(), TERM="no-such-terminal"), timeout=60)
+    assert r.returncode == 0, r.stderr
+    assert "TERM=no-such-terminal" in r.stdout
+
+
 # -- entry points ----------------------------------------------------------------------
 
-def test_python_m_soliterm_runs_the_command_line():
-    # a child process, so point it at the checkout's src/ (the isolated
-    # HOME from conftest is already in the environment it inherits)
+def child_env():
+    """The environment for a child process: this one (with the isolated
+    HOME from conftest), pointed at the checkout's src/."""
     src = str(Path(__file__).resolve().parents[1] / "src")
-    env = dict(os.environ, PYTHONPATH=os.pathsep.join(
+    return dict(os.environ, PYTHONPATH=os.pathsep.join(
         p for p in (src, os.environ.get("PYTHONPATH")) if p))
+
+
+def test_python_m_soliterm_runs_the_command_line():
     r = subprocess.run([sys.executable, "-m", "soliterm", "--list"],
-                       capture_output=True, text=True, env=env, timeout=60)
+                       capture_output=True, text=True, env=child_env(), timeout=60)
     assert r.returncode == 0, r.stderr
     assert [line.split()[0] for line in r.stdout.splitlines()[1:]] == GAME_ORDER

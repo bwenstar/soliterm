@@ -82,8 +82,11 @@ The zipapp builds with the standard library alone. `--wheel` runs
 
 ## Text mode
 
-`--text` (or any non-TTY / piped stdin) runs a scriptable REPL. Slots are
-addressed by the `#N` tags shown on the board:
+`--text` (or any non-TTY / piped stdin) runs a scriptable REPL. It is also
+what you get, with a line on stderr saying why, when curses can't run: no
+`curses` module (on Windows, `pip install windows-curses` adds one) or a
+`TERM` that is unset, `dumb` or unknown here. Slots are addressed by the
+`#N` tags shown on the board:
 
 ```
 d                deal           a       autoplay

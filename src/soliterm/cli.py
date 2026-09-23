@@ -125,9 +125,10 @@ def reset_stats(yes: bool) -> int:
 def _load_tui() -> Tuple[Any, str]:
     """The curses front end, or None and a line on why text mode it is.
 
-    Only a module that isn't there counts (curses on a Windows Python, say,
-    or one left out of a package). Any other error in the front end is a
-    bug and is raised, not hidden behind text mode.
+    Text mode it is when a module isn't there (curses on a Windows Python,
+    say, or one left out of a package) or curses can't draw on this
+    terminal. Any other error in the front end is a bug and is raised, not
+    hidden behind text mode.
     """
     try:
         from . import tui
@@ -136,7 +137,37 @@ def _load_tui() -> Tuple[Any, str]:
         if os.name == "nt" and exc.name in ("curses", "_curses"):
             why += "; pip install windows-curses adds curses to Python on Windows"
         return None, why
+    problem = _terminal_problem()
+    if problem:
+        return None, problem
     return tui, ""
+
+
+def _terminal_problem() -> Optional[str]:
+    """Why curses can't draw the game on this terminal, or None if it can.
+
+    Asked before the game starts: on a terminal type it doesn't know, or
+    one that can't move the cursor, curses gives up with an error where
+    text mode would have done.
+    """
+    if os.name == "nt":
+        return None     # the Windows console needs no TERM
+    import curses
+    term = os.environ.get("TERM", "")
+    rest = ("so playing in text mode; set TERM to your terminal's type "
+            "(xterm-256color suits most) for the full-screen game")
+    if not term:
+        return f"TERM isn't set, {rest}"
+    if term == "dumb":
+        return f"TERM=dumb can't move the cursor, {rest}"
+    try:
+        # fd 1, which curses draws on whatever sys.stdout is
+        curses.setupterm(term, 1)
+    except curses.error:
+        return f"TERM={term} isn't a terminal type known here, {rest}"
+    if not curses.tigetstr("cup"):
+        return f"TERM={term} can't move the cursor, {rest}"
+    return None
 
 
 def main(argv: Optional[List[str]] = None) -> int:
