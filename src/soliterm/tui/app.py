@@ -18,6 +18,7 @@ from typing import Callable, List, Optional, Tuple
 from .. import APP_NAME, camo, engine, store
 from ..engine import GAME_ORDER, GAMES, Solitaire
 from .board import BoardUI
+from .keys import BOSS_ACTIONS, PLAY_ACTIONS, help_lines
 
 # What a play-screen handler returns to leave the game in play: back to the
 # menu, or out of the program. None means keep playing.
@@ -236,24 +237,7 @@ class App:
         lines = [
             f"{APP_NAME} - controls",
             "",
-            "  Arrow keys          move the cursor between slots",
-            "  Enter / Space       pick up the cursor's run; press again to drop",
-            "  Mouse click         click a card to pick it up; click a target",
-            "                      to drop. Click a card mid-stack to split the",
-            "                      pile and lift it plus the cards below it.",
-            "  Mouse double-click   send a card to a foundation; deal on stock",
-            "  Esc                 cancel the current selection / clear hint",
-            "  d                   deal from the stock (where applicable)",
-            "  a                   autoplay safe cards to the foundations",
-            "  f                   send the selected/cursor card to a foundation",
-            "  h                   show a hint (highlights a legal move)",
-            "  b / F2              boss mode: hide the game behind 'work' output",
-            "                      (any key returns; Tab cycles the disguise)",
-            "  c                   code skin: keep playing inside a code file",
-            "  v                   toggle colour on / off (monochrome)",
-            "  x                   toggle view: full cards <-> compact cells",
-            "  n  new deal   N  restart this deal   u  undo   r  redo",
-            "  o  options    s  statistics   ?  help   m  menu   q  quit",
+            *help_lines(),
             "",
             "  Foundations build up by suit; tableau rules vary by game.",
             "  Press any key to continue.",
@@ -270,7 +254,7 @@ class App:
 
         Looks like an active build/test/log session. ANY key returns to the
         game exactly where it was left. The theme comes from the config
-        ('camo_theme'); cycle it live with Tab/space while in camo mode.
+        ('camo_theme'); cycle it live with Tab while in camo mode.
         """
         stdscr, cfg = self.stdscr, self.cfg
         theme = cfg.get("camo_theme", camo.DEFAULT_THEME)
@@ -304,7 +288,7 @@ class App:
                 while slept < 0.22:
                     k = stdscr.getch()
                     if k != -1:
-                        if k in (ord("\t"),):
+                        if BOSS_ACTIONS.get(k) == "next_disguise":
                             # cycle theme without leaving camo
                             idx = camo.THEMES.index(theme)
                             theme = camo.THEMES[(idx + 1) % len(camo.THEMES)]
@@ -498,61 +482,14 @@ class App:
 
     # ---- play-screen keys ---- #
     def handle_key(self, k: int) -> Optional[str]:
-        """Act on one key read on the play screen.
+        """Act on one key read on the play screen, as KEYMAP says.
 
         Returns MENU or QUIT when the key leaves the game, None otherwise.
         """
-        if k == curses.KEY_RESIZE:
-            return self.do_redraw()
-        if k in (ord("q"), ord("Q")):
-            return self.do_quit()
-        if k in (ord("m"), ord("M")):
-            return self.do_menu()
-        if k == ord("?"):
-            return self.do_help()
-        if k in (ord("b"), ord("B"), curses.KEY_F2):
-            return self.do_boss()
-        if k in (ord("c"), ord("C")):
-            return self.do_code_skin()
-        if k in (ord("v"), ord("V")):
-            return self.do_color()
-        if k in (ord("x"), ord("X")):
-            return self.do_view()
-        if k == 27:
-            return self.do_cancel()
-        if k in (curses.KEY_UP, ord("k")):
-            return self.do_up()
-        if k in (curses.KEY_DOWN, ord("j")):
-            return self.do_down()
-        if k == curses.KEY_LEFT:
-            return self.do_left()
-        if k in (curses.KEY_RIGHT, ord("l")):
-            return self.do_right()
-        if k in (ord("h"), ord("H")):
-            return self.do_hint()
-        if k in (curses.KEY_ENTER, 10, 13, ord(" ")):
-            return self.do_select()
-        if k in (ord("d"), ord("D")):
-            return self.do_deal()
-        if k in (ord("a"), ord("A")):
-            return self.do_autoplay()
-        if k in (ord("f"), ord("F")):
-            return self.do_foundation()
-        if k in (ord("u"), ord("U")):
-            return self.do_undo()
-        if k in (ord("r"), ord("R")):
-            return self.do_redo()
-        if k == ord("n"):
-            return self.do_new_deal()
-        if k == ord("N"):
-            return self.do_restart()
-        if k in (ord("o"), ord("O")):
-            return self.do_options()
-        if k in (ord("s"), ord("S")):
-            return self.do_stats()
-        if k == curses.KEY_MOUSE:
-            return self.do_mouse()
-        return None
+        action = PLAY_ACTIONS.get(k)
+        if action is None:
+            return None
+        return getattr(self, "do_" + action)()
 
     def do_redraw(self):
         # terminal resized: nothing to do, the next frame redraws at the new
