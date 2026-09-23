@@ -30,6 +30,31 @@ def clear_board(g):
         s.cards = []
 
 
+def random_op(g, rng):
+    """Make one random player action on g.
+
+    Mostly moves (sane and silly pickup sizes alike), plus deals, autoplay,
+    clicks, undo and redo, so random play pokes every code path.
+    """
+    ns = len(g.slots)
+    r = rng.random()
+    if r < 0.16 and g.can_deal():
+        g.deal()
+    elif r < 0.28:
+        g.autoplay()
+    elif r < 0.38:
+        g.undo()
+    elif r < 0.45:
+        g.redo()
+    elif r < 0.54:
+        g.double_click(rng.randrange(ns))
+    elif r < 0.61:
+        g.click(rng.randrange(ns))
+    else:
+        g.attempt_move(rng.randrange(ns), rng.randrange(ns),
+                       rng.choice([None, 1, 2, 3, 5, 13]))
+
+
 class FakeScr:
     """Just enough of a curses window for BoardUI.
 
@@ -64,3 +89,4 @@ class FakeScr:
 
     def text(self):
         return "\n".join("".join(row).rstrip() for row in self.grid)
+
