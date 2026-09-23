@@ -62,6 +62,7 @@ class App:
         self.selected: Optional[int] = None
         self.selected_n = 1
         self.selected_exact = False   # True when the player split by clicking a card
+        self.pressed: Optional[int] = None   # the slot the left button went down on
         self.cursor = 0
         self.hint: Optional[Tuple[int, int, str]] = None
         self.message = ""
@@ -346,6 +347,7 @@ class App:
         self.selected = None
         self.selected_n = 1
         self.selected_exact = False
+        self.pressed = None
         self.cursor = self.first_cursor()
         self.hint = None
         self.message = START_MESSAGE
@@ -468,6 +470,7 @@ class App:
         self.recorded = False
         self.selected = None
         self.selected_exact = False
+        self.pressed = None
         self.hint = None
         self.cursor = self.first_cursor()
 
@@ -657,6 +660,15 @@ class App:
             # should shift the cursor or wipe the hint
             return None
         target = self.ui.hit_test(y, x)
+        if bstate & curses.BUTTON1_RELEASED:
+            # A release only counts as the end of a press made on this board.
+            # The click that started the game on the menu or the end banner
+            # lets go over the new deal, and that must not touch it.
+            pressed, self.pressed = self.pressed, None
+            if pressed is None:
+                return None
+        elif bstate & curses.BUTTON1_PRESSED:
+            self.pressed = target[0] if target else None
         if target is None:
             return None
         tsid, tidx = target

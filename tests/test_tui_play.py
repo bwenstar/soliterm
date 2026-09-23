@@ -70,8 +70,8 @@ def tui(monkeypatch):
     """Returns run(keys, ...) which plays a script through soliterm.tui.run().
 
     Pass game= to start play on a board built by hand. The returned screen
-    has .frames, .rc, .uis (every BoardUI made), .pairs (init_pair calls)
-    and .masks (mousemask calls).
+    has .frames, .rc, .uis (every BoardUI made, each with .selections),
+    .pairs (init_pair calls) and .masks (mousemask calls).
     """
     uis, pairs, masks = [], [], []
 
@@ -79,7 +79,12 @@ def tui(monkeypatch):
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
             self.initial_has_color = self.has_color
+            self.selections = []      # the selected slot at every draw
             uis.append(self)
+
+        def draw(self, selected_slot, *args):
+            self.selections.append(selected_slot)
+            return super().draw(selected_slot, *args)
 
     monkeypatch.setattr(soliterm.tui.app, "BoardUI", RecordingBoardUI)
 
@@ -298,6 +303,26 @@ def test_the_menu_the_board_and_the_help_are_titled_soliterm(tui):
     assert "Soliterm  -  Klondike" in board
     assert "Soliterm - controls" in help_screen
     assert not any("AisleRiot CLI" in frame for frame in scr.frames)
+
+
+def test_the_release_of_the_click_on_the_menu_does_nothing_on_the_board(tui):
+    klondike = 4        # the first game on the menu
+    scr = tui([Mouse(klondike, 8, curses.BUTTON1_PRESSED),
+               Mouse(klondike, 8, curses.BUTTON1_RELEASED), "q"], start_key=None)
+    assert scr.uis[0].hit_test(klondike, 8) is not None
+    assert "Moves 0" in scr.frames[2]
+    assert scr.uis[0].selections[-1] is None
+    assert store.get_stat("klondike")["total"] == 0
+
+
+def test_the_release_of_the_click_on_the_banner_does_nothing_on_the_new_deal(tui):
+    new = BANNER_ROW["new"]
+    scr = tui(["a", Mouse(new, 12, curses.BUTTON1_PRESSED),
+               Mouse(new, 12, curses.BUTTON1_RELEASED)], game=near_won())
+    ui = scr.uis[0]
+    assert ui.hit_test(new, 12) is not None
+    assert "new deal" in scr.frames[3]
+    assert ui.selections[-1] is None
 
 
 def test_the_menu_starts_the_chosen_game_and_remembers_it(tui):
