@@ -155,6 +155,18 @@ def test_canfield_reserve_top_stays_face_up(action):
     assert top is None or top.face_up
 
 
+@pytest.mark.parametrize("seed", [1, 3, 7])
+def test_canfield_scores_the_base_card_it_deals(seed):
+    # a point for each card on the foundations, so a win is worth 52
+    g = deal("canfield", seed)
+    assert sum(len(g.cards(f)) for f in g.ids_of("foundation")) == 1
+    assert g.score == 1
+    g.restart()
+    assert g.score == 1
+    g.new_game()
+    assert g.score == 1
+
+
 # -- winning ------------------------------------------------------------------------
 
 def test_klondike_autoplay_finishes_a_won_game():

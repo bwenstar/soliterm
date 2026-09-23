@@ -30,6 +30,7 @@ class Canfield(GameDef):
         # one card to the first foundation sets the base rank
         g.deal_from_deck(self.foundations[0], 1, face_up=True)
         g.base_val = g.top(self.foundations[0]).rank
+        g.score = 1                        # that card counts like any other
         # rest to stock
         while g.deck:
             g.deal_from_deck(self.stock, 1, face_up=False)
