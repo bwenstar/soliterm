@@ -511,3 +511,22 @@ def test_python_m_soliterm_runs_the_command_line():
                        capture_output=True, text=True, env=child_env(), timeout=60)
     assert r.returncode == 0, r.stderr
     assert [line.split()[0] for line in r.stdout.splitlines()[1:]] == GAME_ORDER
+
+
+@pytest.mark.parametrize("args,stdin", [
+    (["--text", "--ascii", "--seed", "1"], "p\n" * 200),
+    (["--list"], ""),
+    (["--stats"], ""),
+], ids=["text", "list", "stats"])
+def test_output_to_a_reader_that_went_away_ends_quietly(args, stdin):
+    # like piping into head: the far end of stdout is already closed
+    r, w = os.pipe()
+    os.close(r)
+    try:
+        p = subprocess.run([sys.executable, "-m", "soliterm", *args], input=stdin,
+                           stdout=w, stderr=subprocess.PIPE, text=True,
+                           env=child_env(), timeout=60)
+    finally:
+        os.close(w)
+    assert p.stderr == ""
+    assert p.returncode == 141

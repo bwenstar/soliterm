@@ -12,9 +12,10 @@
 from __future__ import annotations
 
 import argparse
+import functools
 import os
 import sys
-from typing import Any, List, Optional, Tuple
+from typing import Any, Callable, List, Optional, Tuple
 
 from . import APP_NAME, __version__, engine, migrate, store
 from . import aisleriot as ar
@@ -182,6 +183,29 @@ def _terminal_problem() -> Optional[str]:
     return None
 
 
+def _quiet_on_broken_pipe(main: Callable[..., int]) -> Callable[..., int]:
+    """End quietly when whoever reads our output stops reading.
+
+    Output piped into head, or a pager quit early, closes the pipe: the next
+    write raises BrokenPipeError, and so does Python's own flush at exit.
+    Pointing stdout at devnull leaves that last flush nowhere to fail.
+    """
+    @functools.wraps(main)
+    def run(*args, **kwargs) -> int:
+        try:
+            rc = main(*args, **kwargs)
+            sys.stdout.flush()          # so a late EPIPE comes up here
+            return rc
+        except BrokenPipeError:
+            try:
+                os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
+            except (OSError, ValueError):
+                pass
+            return 141                  # what a shell shows for SIGPIPE
+    return run
+
+
+@_quiet_on_broken_pipe
 def main(argv: Optional[List[str]] = None) -> int:
     args = build_parser().parse_args(argv)
     # before anything reads the config or the stats
