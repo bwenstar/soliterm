@@ -114,3 +114,32 @@ def test_two_games_recording_at_once_lose_nothing():
         p.join(30)
     assert [p.exitcode for p in procs] == [0, 0, 0, 0]
     assert store.get_stat("golf") == stat(100, 100, 42, 42)
+
+
+# -- values of the wrong type ----------------------------------------------------------
+
+BAD_STATS = """{
+  "golf": {"wins": "x", "total": 4, "best": null, "worst": 1e400},
+  "spider": [1, 2],
+  "klondike": {"wins": true, "total": -3, "best": 2.5, "worst": 90.0},
+  "freecell": {"wins": 2, "total": 3, "best": 50, "worst": 70}
+}"""
+
+
+def test_a_stat_of_the_wrong_type_reads_as_zero_on_its_own():
+    write(store.stats_path(), BAD_STATS)
+    assert store.get_stat("golf") == stat(0, 4, 0, 0)
+    assert store.get_stat("spider") == stat(0, 0, 0, 0)
+    assert store.get_stat("klondike") == stat(0, 0, 0, 90)
+    assert store.get_stat("freecell") == stat(2, 3, 50, 70)
+
+
+def test_recording_over_bad_stats_works():
+    write(store.stats_path(), BAD_STATS)
+    assert store.record_result("golf", won=True, seconds=42) == stat(1, 5, 42, 42)
+
+
+def test_clearing_bad_stats_works():
+    write(store.stats_path(), BAD_STATS.replace('"total": 4', '"total": "4"'))
+    assert store.reset_stats() == 1
+    assert store.get_stat("freecell") == stat(0, 0, 0, 0)

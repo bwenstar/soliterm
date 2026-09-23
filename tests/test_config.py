@@ -1,10 +1,14 @@
 """Config persistence, including the UI preferences the TUI toggles save."""
 
+import io
 import json
+import os
+import sys
 
 import pytest
 
 from soliterm import store
+from soliterm.cli import main
 
 
 def test_ui_preferences_are_unset_until_saved():
@@ -63,3 +67,51 @@ def test_an_unreadable_config_falls_back_to_the_defaults(text):
     with open(store.config_path(), "w", encoding="utf-8") as fh:
         fh.write(text)
     assert store.load_config() == store.DEFAULT_CONFIG
+
+
+def write_config(data):
+    os.makedirs(store.config_dir(), exist_ok=True)
+    with open(store.config_path(), "w", encoding="utf-8") as fh:
+        json.dump(data, fh)
+
+
+def test_a_config_value_of_the_wrong_type_falls_back_on_its_own():
+    write_config({"last_game": 7, "symbols": "no", "options": [],
+                  "sync_aisleriot": 0, "merged_into_aisleriot": "yes",
+                  "color": "off", "code_skin": 1, "camo_theme": 5,
+                  "view": "legacy"})
+    cfg = store.load_config()
+    assert cfg == {**store.DEFAULT_CONFIG, "view": "legacy"}
+
+
+def test_json_booleans_still_load():
+    write_config({"symbols": False, "sync_aisleriot": False,
+                  "merged_into_aisleriot": True, "color": False, "code_skin": True})
+    cfg = store.load_config()
+    assert cfg["symbols"] is False and cfg["sync_aisleriot"] is False
+    assert cfg["merged_into_aisleriot"] is True
+    assert cfg["color"] is False and cfg["code_skin"] is True
+
+
+@pytest.mark.parametrize("saved", [
+    {"suits": 3}, {"suits": "2"}, {"suits": True}, {"suits": 2.5}, {"colour": 2},
+])
+def test_a_saved_option_the_game_does_not_offer_is_dropped(saved):
+    write_config({"options": {"spider": saved}})
+    assert store.game_options(store.load_config(), "spider") == {}
+
+
+def test_good_options_survive_next_to_bad_ones():
+    write_config({"options": {"klondike": {"draw": 3, "speed": "fast"},
+                              "spider": {"suits": 7}, "golf": {"draw": 3}}})
+    cfg = store.load_config()
+    assert store.game_options(cfg, "klondike") == {"draw": 3}
+    assert store.game_options(cfg, "spider") == {}
+    assert store.game_options(cfg, "golf") == {}
+
+
+def test_text_mode_deals_spider_with_a_bad_saved_option(monkeypatch, capsys):
+    write_config({"last_game": "spider", "options": {"spider": {"suits": 3}}})
+    monkeypatch.setattr(sys, "stdin", io.StringIO("q\n"))
+    assert main(["--text", "--no-color", "--seed", "1"]) == 0
+    assert "Spider" in capsys.readouterr().out

@@ -198,22 +198,23 @@ def load_config() -> dict:
     cfg["options"] = {}
     data = _read_json(config_path())
     if data:
+        # each key is checked on its own: one of the wrong type (a hand
+        # edit, say) falls back to its default and the others still load
         if isinstance(data.get("last_game"), str):
             cfg["last_game"] = data["last_game"]
-        cfg["symbols"] = bool(data.get("symbols", True))
+        for key in ("symbols", "sync_aisleriot", "merged_into_aisleriot"):
+            if isinstance(data.get(key), bool):
+                cfg[key] = data[key]
         if isinstance(data.get("options"), dict):
             cfg["options"] = data["options"]
-        cfg["sync_aisleriot"] = bool(data.get("sync_aisleriot", True))
-        cfg["merged_into_aisleriot"] = bool(data.get("merged_into_aisleriot", False))
         # optional UI-preference keys, only present once set by the player:
         #   color      - colour on/off (the 'v' toggle)
         #   code_skin  - play wrapped in source (the 'c' toggle)
         #   camo_theme - boss-mode disguise theme
         #   view       - board view: "expanded" cards or "legacy" cells
-        if "color" in data:
-            cfg["color"] = bool(data["color"])
-        if "code_skin" in data:
-            cfg["code_skin"] = bool(data["code_skin"])
+        for key in ("color", "code_skin"):
+            if isinstance(data.get(key), bool):
+                cfg[key] = data[key]
         if isinstance(data.get("camo_theme"), str):
             cfg["camo_theme"] = data["camo_theme"]
         if data.get("view") in ("expanded", "legacy"):
@@ -226,7 +227,7 @@ def save_config(cfg: dict) -> bool:
     on_disk = _read_json(config_path())
     if on_disk is None:
         return False
-    if not cfg.get("merged_into_aisleriot") and on_disk.get("merged_into_aisleriot"):
+    if not cfg.get("merged_into_aisleriot") and on_disk.get("merged_into_aisleriot") is True:
         # a copy loaded before the merge (the TUI keeps one for the whole
         # session) must not clear the flag
         cfg["merged_into_aisleriot"] = True
@@ -234,9 +235,18 @@ def save_config(cfg: dict) -> bool:
 
 
 def game_options(cfg: dict, game_key: str) -> dict:
+    """The player's saved options for a game, leaving out any the game doesn't
+    offer or with a value it doesn't allow, so its defaults are used instead.
+    """
+    from .engine import GAMES  # local import to avoid a cycle at module load
     opts = cfg.get("options", {})
-    val = opts.get(game_key)
-    return dict(val) if isinstance(val, dict) else {}
+    val = opts.get(game_key) if isinstance(opts, dict) else None
+    if not isinstance(val, dict) or game_key not in GAMES:
+        return {}
+    allowed = {okey: values for okey, _label, values in GAMES[game_key].option_spec()}
+    # compare types too: JSON true would pass for 1, and 2.0 for 2
+    return {k: v for k, v in val.items()
+            if any(type(v) is type(a) and v == a for a in allowed.get(k, ()))}
 
 
 def set_game_options(cfg: dict, game_key: str, options: dict) -> None:
@@ -256,10 +266,20 @@ EMPTY_STAT = {"wins": 0, "total": 0, "best": 0, "worst": 0}
 META_KEY = "_meta"
 
 
+def _count(value: object) -> int:
+    """A stored count or time in seconds: a whole number, 0 or more.
+    Anything else (a string, null, a fraction, a negative) reads as 0."""
+    if isinstance(value, bool):
+        return 0
+    if isinstance(value, float) and value.is_integer():
+        value = int(value)
+    return value if isinstance(value, int) and value > 0 else 0
+
+
 def _norm(s: Optional[dict]) -> dict:
     out = dict(EMPTY_STAT)
     if isinstance(s, dict):
-        out.update({k: int(s.get(k, 0)) for k in EMPTY_STAT})
+        out.update({k: _count(s.get(k, 0)) for k in EMPTY_STAT})
     return out
 
 
@@ -473,8 +493,8 @@ def _reset_stats() -> int:
             if played and played[-1]:
                 cleared += 1
     else:
-        cleared = sum(1 for v in load_stats().values()
-                      if isinstance(v, dict) and v.get("total", 0) > 0)
+        stats = load_stats()
+        cleared = sum(1 for k in GAME_ORDER if _norm(stats.get(k))["total"] > 0)
     save_stats({})
     return cleared
 
