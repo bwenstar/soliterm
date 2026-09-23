@@ -73,7 +73,7 @@ def draw_code_backdrop(ui, notes: Dict[int, str],
     """
     h, w = ui.stdscr.getmaxyx()
     dim = ui.CP(4)
-    code_attr = ui.CP(2) if ui.has_color else 0   # plain source text
+    code_attr = 0              # source text in the terminal's own colours
     # editor-style header / tab bar
     ui.safe_add(0, 0, " solver.py  -  ~/work/render-core/engine "
                 .ljust(w - 1), ui.CP(5) if ui.has_color else curses.A_REVERSE)

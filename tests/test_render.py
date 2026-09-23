@@ -5,6 +5,8 @@ The hit map ((y, x) -> (slot, card index)) is what clicks go through, so most
 checks here are about which cards end up clickable.
 """
 
+import curses
+
 import pytest
 
 from soliterm import camo, tui
@@ -194,6 +196,34 @@ def test_the_code_skin_looks_like_an_editor(dealt_klondike):
     assert "  1  " in screen               # line-number gutter
     assert "board snapshot" in screen
     assert "+--" in screen                 # and the cards themselves
+
+
+class AttrScr(FakeScr):
+    """A FakeScr that also keeps the attribute every cell was drawn with."""
+
+    def erase(self):
+        super().erase()
+        self.attrs = [[0] * self.w for _ in range(self.h)]
+
+    def addnstr(self, y, x, text, n, attr=0):
+        super().addnstr(y, x, text, n, attr)
+        for i in range(min(len(text), n)):
+            if 0 <= y < self.h and 0 <= x + i < self.w:
+                self.attrs[y][x + i] = attr
+
+
+def test_the_code_skin_source_is_in_the_terminal_colours(monkeypatch):
+    # not on the white of a card face, which shows as bars on a dark screen
+    monkeypatch.setattr(curses, "color_pair", lambda n: n << 8)
+    scr = AttrScr(44, 100)
+    ui = tui.BoardUI(scr, deal("klondike", 1), symbols=False, has_color=True)
+    ui.code_skin = True
+    ui.draw(None, 1, 0, None, 1.0, "")
+    source = [(y, line) for y, line in enumerate(scr.text().splitlines())
+              if line[ui._gutter:].startswith(("import", "def ", "from "))]
+    assert source
+    for y, line in source:
+        assert set(scr.attrs[y][ui._gutter:len(line)]) == {0}
 
 
 def test_the_code_skin_moves_the_board_into_the_file():
