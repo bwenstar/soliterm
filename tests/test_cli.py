@@ -292,6 +292,91 @@ def test_a_scripted_text_session(cli):
     assert sum(line.startswith("Hint: ") for line in lines) == 1
 
 
+# -- the full-screen game or text mode -------------------------------------------------
+
+@pytest.fixture
+def terminal(monkeypatch):
+    """Returns run(*args): main() as if on a terminal, with both front ends
+    stubbed out. run.started lists the ones started ("tui" or "text")."""
+    import soliterm.cli as cli_mod
+    import soliterm.tui as tui_mod
+    started = []
+    monkeypatch.setenv("TERM", "xterm")
+    monkeypatch.setattr(tui_mod, "main", lambda **kw: started.append("tui") or 0)
+    monkeypatch.setattr(cli_mod, "run_text", lambda *a, **kw: started.append("text") or 0)
+
+    def run(*args):
+        # at call time: pytest hands the test a new sys.stdout
+        monkeypatch.setattr(sys, "stdin", TtyInput(""))
+        monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+        return main(list(args))
+
+    run.started = started
+    return run
+
+
+def failing_tui_import(monkeypatch, exc):
+    """Make `from . import tui` in the command line raise `exc`."""
+    import builtins
+    real_import = builtins.__import__
+
+    def fake(name, globals=None, locals=None, fromlist=(), level=0):
+        if level == 1 and fromlist and "tui" in fromlist:
+            raise exc
+        return real_import(name, globals, locals, fromlist, level)
+
+    monkeypatch.setattr(builtins, "__import__", fake)
+
+
+def test_a_terminal_gets_the_full_screen_game(terminal, capsys):
+    assert terminal("--game", "golf") == 0
+    assert terminal.started == ["tui"]
+    assert capsys.readouterr().err == ""
+
+
+def test_without_curses_text_mode_says_why(terminal, monkeypatch, capsys):
+    # the front end is loaded afresh, and its own `import curses` fails
+    import soliterm
+    monkeypatch.delattr(soliterm, "tui")
+    monkeypatch.delitem(sys.modules, "soliterm.tui")
+    monkeypatch.setitem(sys.modules, "curses", None)
+    assert terminal("--game", "golf") == 0
+    assert terminal.started == ["text"]
+    err = capsys.readouterr().err
+    assert len(err.splitlines()) == 1
+    assert "text mode" in err and "curses" in err
+    assert "windows-curses" not in err
+
+
+def test_without_curses_on_windows_suggests_windows_curses(terminal, monkeypatch, capsys):
+    exc = ModuleNotFoundError("No module named '_curses'", name="_curses")
+    failing_tui_import(monkeypatch, exc)
+    monkeypatch.setattr(os, "name", "nt")
+    try:
+        terminal("--game", "golf")
+    finally:
+        monkeypatch.setattr(os, "name", "posix")
+    assert terminal.started == ["text"]
+    err = capsys.readouterr().err
+    assert "pip install windows-curses" in err and "text mode" in err
+
+
+def test_a_module_missing_from_the_package_is_named(terminal, monkeypatch, capsys):
+    exc = ModuleNotFoundError("No module named 'soliterm.camo'", name="soliterm.camo")
+    failing_tui_import(monkeypatch, exc)
+    assert terminal("--game", "golf") == 0
+    assert terminal.started == ["text"]
+    err = capsys.readouterr().err
+    assert "soliterm.camo" in err and "windows-curses" not in err
+
+
+def test_a_bug_in_the_full_screen_game_is_not_hidden(terminal, monkeypatch):
+    failing_tui_import(monkeypatch, NameError("name 'curses' is not defined"))
+    with pytest.raises(NameError):
+        terminal("--game", "golf")
+    assert terminal.started == []
+
+
 # -- entry points ----------------------------------------------------------------------
 
 def test_python_m_soliterm_runs_the_command_line():

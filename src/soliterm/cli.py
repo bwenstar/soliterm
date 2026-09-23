@@ -14,7 +14,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
-from typing import List, Optional
+from typing import Any, List, Optional, Tuple
 
 from . import APP_NAME, __version__, engine, migrate, store
 from . import aisleriot as ar
@@ -122,6 +122,23 @@ def reset_stats(yes: bool) -> int:
     return 0
 
 
+def _load_tui() -> Tuple[Any, str]:
+    """The curses front end, or None and a line on why text mode it is.
+
+    Only a module that isn't there counts (curses on a Windows Python, say,
+    or one left out of a package). Any other error in the front end is a
+    bug and is raised, not hidden behind text mode.
+    """
+    try:
+        from . import tui
+    except ImportError as exc:
+        why = f"can't load the full-screen game ({exc}), so playing in text mode"
+        if os.name == "nt" and exc.name in ("curses", "_curses"):
+            why += "; pip install windows-curses adds curses to Python on Windows"
+        return None, why
+    return tui, ""
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     args = build_parser().parse_args(argv)
     # before anything reads the config or the stats
@@ -156,17 +173,11 @@ def _run(args: argparse.Namespace) -> int:
     else:
         color = text_color = args.color
 
-    use_curses = not args.text and sys.stdout.isatty() and sys.stdin.isatty()
-    if use_curses:
-        try:
-            import curses  # noqa: F401
-            from . import tui
-        except Exception:
-            use_curses = False
-
-    if use_curses:
-        from . import tui
-        return tui.main(start_key=args.game, seed=args.seed, color=color)
+    if not args.text and sys.stdout.isatty() and sys.stdin.isatty():
+        tui, why = _load_tui()
+        if tui is not None:
+            return tui.main(start_key=args.game, seed=args.seed, color=color)
+        print(f"soliterm: {why}", file=sys.stderr)
 
     # text mode
     key = args.game or cfg.get("last_game", "klondike")
