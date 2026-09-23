@@ -250,7 +250,8 @@ def _run(args: argparse.Namespace) -> int:
     key = args.game or cfg.get("last_game", "klondike")
     opts = {**GAMES[key].default_options(), **store.game_options(cfg, key)}
     g = engine.new_solitaire(key, seed=args.seed, options=opts)
-    return run_text(g, symbols, key, color=text_color)
+    return run_text(g, symbols, key, color=text_color,
+                    camo_theme=cfg.get("camo_theme"))
 
 
 if __name__ == "__main__":

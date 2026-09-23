@@ -1,10 +1,14 @@
 """Boss mode output: fake 'work' that must never give the game away."""
 
 import io
+import os
+import re
+import sys
 
 import pytest
 
-from soliterm import camo, textmode
+from soliterm import camo, store, textmode
+from soliterm.cli import main
 from helpers import deal
 
 TELLS = ("♠", "♥", "♦", "♣", "[###]", "score=", "Foundation")
@@ -46,3 +50,51 @@ def test_the_text_mode_boss_command_prints_work_instead_of_the_board(cmd, capsys
     assert len(boss) >= 40
     for tell in TELLS:
         assert not any(tell in line for line in boss)
+
+
+def boss_lines(out):
+    """What a text session printed between its last board and "bye"."""
+    lines = out.splitlines()
+    assert lines[-1] == "bye"
+    status = max(i for i, line in enumerate(lines) if line.startswith("score="))
+    return lines[status + 1:-1]
+
+
+LOG_LINE = re.compile(r"^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d (INFO|DEBUG|WARN)")
+
+
+def test_the_text_mode_boss_uses_the_chosen_theme(monkeypatch, capsys):
+    cfg = store.load_config()
+    cfg["camo_theme"] = "logs"
+    store.save_config(cfg)
+    monkeypatch.setattr(sys, "stdin", io.StringIO("b\nq\n"))
+    assert main(["--text", "--game", "golf", "--seed", "7", "--ascii"]) == 0
+    boss = boss_lines(capsys.readouterr().out)
+    assert boss and all(LOG_LINE.match(line) for line in boss)
+
+
+def test_an_unknown_theme_in_text_mode_gets_the_default(capsys):
+    g = deal("golf", 7)
+    textmode.run_text(g, False, "golf", stream=io.StringIO("b\nq\n"),
+                      camo_theme="nonsense-theme")
+    boss = boss_lines(capsys.readouterr().out)
+    assert boss[0].startswith("$ make -j")
+
+
+class Terminal(io.StringIO):
+    def isatty(self):
+        return True
+
+
+def test_on_a_terminal_the_boss_clears_the_board_and_fills_the_screen(monkeypatch):
+    out = Terminal()
+    monkeypatch.setattr(sys, "stdout", out)
+    monkeypatch.setattr(textmode.shutil, "get_terminal_size",
+                        lambda fallback=(80, 24): os.terminal_size((100, 57)))
+    g = deal("golf", 7)
+    textmode.run_text(g, False, "golf", stream=io.StringIO("b\nq\n"))
+    board, clear, boss = out.getvalue().partition("\x1b[H\x1b[2J\x1b[3J")
+    assert clear and "score=" in board
+    assert len(boss.splitlines()) == 57 + 1           # a screenful, then "bye"
+    for tell in TELLS:
+        assert tell not in boss

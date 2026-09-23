@@ -9,6 +9,7 @@ a terminal, and when curses is not available. The command grammar
 from __future__ import annotations
 
 import re
+import shutil
 import sys
 import time
 from typing import List, Optional, Tuple
@@ -254,18 +255,30 @@ def _can_write(out, text: str) -> bool:
 
 
 def run_text(g: Solitaire, symbols: bool, game_key: str, stream=None,
-             color: bool = False) -> int:
+             color: bool = False, camo_theme: Optional[str] = None) -> int:
     out = sys.stdout
     inp = stream if stream is not None else sys.stdin
     # a cp1252 or ASCII stdout has no suit symbols; letters beat a crash
     symbols = symbols and _can_write(out, "".join(SUIT_SYMBOL.values()))
     g.symbols = symbols               # hints name cards as the board does
+    theme = camo_theme if camo_theme in camo.THEMES else camo.DEFAULT_THEME
     start = time.monotonic()            # one clock per deal
     recorded = False
 
     def seconds() -> int:
         """This deal's time in whole seconds, as it is printed and stored."""
         return round(time.monotonic() - start)
+
+    def boss() -> None:
+        # A screenful of plausible 'work' output instead of the board. On a
+        # terminal, wipe the screen and its scrollback and fill the height,
+        # so no card is left in view; a pipe just gets a block of lines.
+        rows = 40
+        if out.isatty():
+            out.write("\x1b[H\x1b[2J\x1b[3J")
+            rows = shutil.get_terminal_size().lines
+        for line in camo.screenful(theme, lines=rows):
+            print(line, file=out)
 
     def give_up() -> None:
         # A deal left unfinished after a move counts as a loss, as in the TUI
@@ -302,10 +315,7 @@ def run_text(g: Solitaire, symbols: bool, game_key: str, stream=None,
                 print(render_text(g, symbols, color), file=out)
                 continue
             if msg == "__boss__":
-                # print a screenful of plausible 'work' output instead of the board
-                theme = camo.DEFAULT_THEME
-                for cl in camo.screenful(theme, lines=40):
-                    print(cl, file=out)
+                boss()
                 continue
             if msg == TEXT_HELP:
                 print(msg, file=out)
