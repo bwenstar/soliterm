@@ -180,3 +180,15 @@ def test_menu_and_quit_hand_back_what_to_do_next():
     app, a, b = klondike_app([up(5, "H")], [up(4, "S")])
     assert press(app, "m") == MENU
     assert press(app, "Q") == QUIT
+
+
+def test_moving_the_mouse_or_the_wheel_leaves_the_cursor_and_hint_alone():
+    app, a, b = klondike_app([up(5, "H")], [up(4, "S")])
+    press(app, "h")
+    cursor, hint = app.cursor, app.hint
+    assert hint is not None and cursor == b
+    y, x = cell_of(app, a, 0)
+    for bstate in (curses.REPORT_MOUSE_POSITION, curses.BUTTON4_PRESSED,
+                   curses.BUTTON3_PRESSED):
+        app.mouse_at(y, x, bstate)
+    assert (app.cursor, app.hint, app.selected) == (cursor, hint, None)

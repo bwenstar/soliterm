@@ -60,9 +60,10 @@ def tui(monkeypatch):
     """Returns run(keys, ...) which plays a script through soliterm.tui.run().
 
     Pass game= to start play on a board built by hand. The returned screen
-    has .frames, .rc, .uis (every BoardUI made) and .pairs (init_pair calls).
+    has .frames, .rc, .uis (every BoardUI made), .pairs (init_pair calls)
+    and .masks (mousemask calls).
     """
-    uis, pairs = [], []
+    uis, pairs, masks = [], [], []
 
     class RecordingBoardUI(soliterm.tui.BoardUI):
         def __init__(self, *args, **kwargs):
@@ -76,7 +77,8 @@ def tui(monkeypatch):
             color_capable=True, h=40, w=120):
         scr = ScriptedScr(h, w, keys, uis)
         monkeypatch.setattr(curses, "curs_set", lambda n: None)
-        monkeypatch.setattr(curses, "mousemask", lambda mask: (mask, 0))
+        monkeypatch.setattr(curses, "mousemask",
+                            lambda mask: masks.append(mask) or (mask, 0))
         monkeypatch.setattr(curses, "has_colors", lambda: color_capable)
         monkeypatch.setattr(curses, "start_color", lambda: None)
         monkeypatch.setattr(curses, "use_default_colors", lambda: None)
@@ -92,7 +94,7 @@ def tui(monkeypatch):
 
             monkeypatch.setattr(engine, "new_solitaire", new_solitaire)
         scr.rc = soliterm.tui.run(scr, start_key, seed, color)
-        scr.uis, scr.pairs = uis, pairs
+        scr.uis, scr.pairs, scr.masks = uis, pairs, masks
         return scr
 
     return run
@@ -196,6 +198,13 @@ def test_n_deals_a_new_hand_and_shift_n_replays_it_under_seed(tui):
     assert second != first
     scr = tui(["n", "d", "N"], seed=5)
     assert scr.uis[0].game.serialize() == second
+
+
+def test_the_terminal_is_not_asked_to_report_pointer_motion(tui):
+    scr = tui([])
+    assert scr.masks
+    assert not any(m & curses.REPORT_MOUSE_POSITION for m in scr.masks)
+    assert all(m & curses.BUTTON1_PRESSED for m in scr.masks)
 
 
 # -- recording results -------------------------------------------------------------

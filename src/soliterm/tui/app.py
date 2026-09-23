@@ -27,6 +27,12 @@ QUIT = "quit"
 
 START_MESSAGE = "? help  h hint  m menu. Click or use arrows + Enter."
 
+# The mouse events the game asks for: the left button only. Asking for
+# REPORT_MOUSE_POSITION as well would have the terminal report every move of
+# the pointer, button or not.
+MOUSE_MASK = (curses.BUTTON1_PRESSED | curses.BUTTON1_RELEASED |
+              curses.BUTTON1_CLICKED | curses.BUTTON1_DOUBLE_CLICKED)
+
 
 class App:
     """One curses session: the menu, the dialogs and the game in play."""
@@ -63,7 +69,7 @@ class App:
         curses.curs_set(0)
         self.stdscr.keypad(True)
         try:
-            curses.mousemask(curses.ALL_MOUSE_EVENTS | curses.REPORT_MOUSE_POSITION)
+            curses.mousemask(MOUSE_MASK)
         except curses.error:
             pass
         # We always initialise the colour pairs when the terminal supports
@@ -644,6 +650,10 @@ class App:
 
     def mouse_at(self, y: int, x: int, bstate: int):
         """Act on a mouse event at screen cell (y, x) with button state bstate."""
+        if not bstate & MOUSE_MASK:
+            # the pointer moving, the wheel or another button: none of them
+            # should shift the cursor or wipe the hint
+            return None
         target = self.ui.hit_test(y, x)
         if target is None:
             return None
