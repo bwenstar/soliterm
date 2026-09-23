@@ -10,6 +10,7 @@ shows.
 from __future__ import annotations
 
 import curses
+import locale
 from typing import Dict, List, Optional, Tuple
 
 from .. import APP_NAME, camo, store
@@ -35,6 +36,22 @@ _GLYPHS = {
     True:  dict(tl="┌", tr="┐", bl="└", br="┘", h="─", v="│", back="▒"),
     False: dict(tl="+", tr="+", bl="+", br="+", h="-", v="|", back="#"),
 }
+# the legacy view's card back is the one unicode glyph not in _GLYPHS
+_UNICODE = "".join(_GLYPHS[True].values()) + "░" + "".join(SUIT_SYMBOL.values())
+
+
+def can_draw_unicode(stdscr) -> bool:
+    """True if the terminal's encoding has the card art and the suits.
+
+    Under LC_ALL=C curses can't encode them and refuses every string they
+    are in, which leaves the board blank, so the cards fall back to ASCII.
+    """
+    enc = getattr(stdscr, "encoding", None) or locale.getpreferredencoding(False)
+    try:
+        _UNICODE.encode(enc)
+    except (LookupError, UnicodeEncodeError):
+        return False
+    return True
 
 
 class BoardUI:

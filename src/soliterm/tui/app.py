@@ -18,7 +18,7 @@ from typing import Callable, List, Optional, Tuple
 
 from .. import APP_NAME, camo, engine, store
 from ..engine import GAME_ORDER, GAMES, Solitaire
-from .board import BoardUI
+from .board import BoardUI, can_draw_unicode
 from .keys import BOSS_ACTIONS, PLAY_ACTIONS, help_lines
 
 # What a play-screen handler returns to leave the game in play: back to the
@@ -63,10 +63,11 @@ class App:
         self.color = color
         self.cfg = store.load_config()
         # suit symbols and box-drawing cards, or plain letters (--ascii);
-        # None means the saved setting
+        # None means the saved setting. A terminal that can't show them
+        # gets the letters whatever was asked for.
         if symbols is None:
             symbols = bool(self.cfg.get("symbols", True))
-        self.symbols = symbols
+        self.symbols = symbols and can_draw_unicode(stdscr)
         # Separate the terminal's colour CAPABILITY from the player's
         # PREFERENCE so colour can be toggled live (even if launched with
         # --no-color). setup_curses() fills both in; `has_color` is the live

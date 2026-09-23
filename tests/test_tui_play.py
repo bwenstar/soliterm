@@ -326,6 +326,33 @@ def test_the_game_names_cards_the_way_the_board_does(tui):
     assert scr.uis[0].game.symbols is False
 
 
+def test_a_terminal_that_cannot_show_unicode_gets_plain_cards(tui, monkeypatch):
+    # LC_ALL=C: curses refuses every string with a box corner or a suit in it,
+    # which left the board blank but for the slot names
+    monkeypatch.setattr(FakeScr, "encoding", "ascii")
+    scr = tui(["x", "q"])
+    for frame in scr.frames[:2]:                  # both views
+        assert "+------+" in frame or "#" in frame
+    assert "+------+" in scr.frames[0]
+    assert any(ui.symbols is False for ui in scr.uis)
+    assert store.load_config()["symbols"] is True
+
+
+def test_the_locale_decides_when_the_window_does_not_say(monkeypatch):
+    import locale
+    from soliterm.tui.board import can_draw_unicode
+
+    class Window:
+        encoding = None
+
+    monkeypatch.setattr(locale, "getpreferredencoding", lambda *a: "ANSI_X3.4-1968")
+    assert not can_draw_unicode(Window())
+    monkeypatch.setattr(locale, "getpreferredencoding", lambda *a: "UTF-8")
+    assert can_draw_unicode(Window())
+    Window.encoding = "latin-1"               # has no box corners
+    assert not can_draw_unicode(Window())
+
+
 # -- a terminal too small for the board -----------------------------------------------
 
 def test_keys_make_no_hidden_moves_while_the_board_does_not_fit(tui):

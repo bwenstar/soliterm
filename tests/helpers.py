@@ -1,5 +1,6 @@
 """Helpers shared by the test modules (import them with `from helpers import`)."""
 
+import curses
 from collections import Counter
 
 from soliterm import engine
@@ -90,6 +91,8 @@ class FakeScr:
     Keeps a character grid so a test can read the screen back as text.
     """
 
+    encoding = "utf-8"        # what curses took from the locale
+
     def __init__(self, h=40, w=140):
         self.h, self.w = h, w
         self.erase()
@@ -107,6 +110,11 @@ class FakeScr:
         pass
 
     def addnstr(self, y, x, text, n, attr=0):
+        try:
+            text.encode(self.encoding)
+        except UnicodeEncodeError:
+            # as curses does: the whole string is refused, not just the glyph
+            raise curses.error("addnwstr() returned ERR") from None
         if not 0 <= y < self.h:
             return
         for i, ch in enumerate(text[:n]):
