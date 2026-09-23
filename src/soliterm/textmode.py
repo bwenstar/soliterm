@@ -127,6 +127,7 @@ so stk#0 is 0, fnd#4 is 4 and #9 is 9:
   hint / ?         suggest a legal move (shows the slot ids to use)
   b / boss         boss mode: print fake 'work' output to hide the game
   u  undo   r  redo   n  new deal
+  N / restart      start this deal over
   h / help         this help
   q                quit
 """
@@ -171,7 +172,8 @@ def _missing_slot(g: Solitaire, *sids: int) -> str:
 
 
 def apply_text_command(g: Solitaire, cmd: str) -> Tuple[bool, str]:
-    cmd = cmd.strip().lower()
+    raw = cmd.strip()
+    cmd = raw.lower()
     if not cmd:
         return False, ""
     if cmd in ("q", "quit", "exit"):
@@ -196,6 +198,11 @@ def apply_text_command(g: Solitaire, cmd: str) -> Tuple[bool, str]:
     if cmd in ("r", "redo"):
         ok = g.redo()
         return ok, "" if ok else "nothing to redo"
+    # the one place case matters, as in the TUI: N replays this deal, n
+    # deals a new one
+    if raw == "N" or cmd == "restart":
+        g.restart()
+        return True, "restarted this deal"
     if cmd in ("n", "new"):
         g.new_game()
         return True, "new deal"

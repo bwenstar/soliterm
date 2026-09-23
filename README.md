@@ -92,7 +92,7 @@ what you get, with a line on stderr saying why, when curses can't run: no
 d                deal           a       autoplay
 <src> <dst>      move a run     u / r   undo / redo
 <src> <dst> <n>  move n cards   hint    suggest a move
-f <slot>         to foundation  n       new deal     q  quit
+f <slot>         to foundation  n / N   new deal / restart   q  quit
 ```
 
 ## Statistics & AisleRiot sharing

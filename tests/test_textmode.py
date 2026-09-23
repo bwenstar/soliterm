@@ -5,7 +5,7 @@ import re
 import pytest
 
 from soliterm import textmode
-from soliterm.engine import GAME_ORDER, Card
+from soliterm.engine import GAME_ORDER, Card, new_solitaire
 from soliterm.textmode import render_text
 from helpers import board_state, clear_board, deal
 
@@ -161,3 +161,30 @@ def test_a_slot_that_does_not_exist_is_named(cmd):
     g = deal("klondike", 1)
     ok, msg = textmode.apply_text_command(g, cmd)
     assert (ok, msg) == (False, "no slot 99 (slots are 0-12)")
+
+
+@pytest.mark.parametrize("cmd", ["N", "restart", "Restart"])
+def test_capital_n_and_restart_start_this_deal_over(cmd):
+    g = new_solitaire("golf")
+    seed, start = g.current_seed, board_state(g)
+    assert g.deal()
+    assert textmode.apply_text_command(g, cmd) == (True, "restarted this deal")
+    assert (g.current_seed, board_state(g), g.moves) == (seed, start, 0)
+
+
+def test_small_n_still_deals_a_new_hand():
+    g = new_solitaire("golf")
+    seed = g.current_seed
+    assert textmode.apply_text_command(g, "n") == (True, "new deal")
+    assert g.current_seed != seed
+
+
+def test_letters_whose_case_means_nothing_work_in_either_case():
+    g = deal("golf", 1)
+    assert textmode.apply_text_command(g, "D") == (True, "")
+    assert textmode.apply_text_command(g, "U") == (True, "")
+    assert textmode.apply_text_command(g, "Q") == (True, "__quit__")
+
+
+def test_the_help_lists_restart():
+    assert "N / restart" in textmode.TEXT_HELP
