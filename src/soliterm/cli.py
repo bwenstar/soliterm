@@ -26,6 +26,17 @@ from .textmode import run_text
 # CLI
 # --------------------------------------------------------------------------- #
 
+def seed_arg(text: str) -> int:
+    """--seed: a whole number from 0 up (the engine refuses negative seeds)."""
+    try:
+        seed = int(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"invalid seed: {text!r}") from None
+    if seed < 0:
+        raise argparse.ArgumentTypeError(f"seed must be 0 or more, not {seed}")
+    return seed
+
+
 def build_parser() -> argparse.ArgumentParser:
     # allow_abbrev=False: a prefix like --r must not mean --reset-stats
     p = argparse.ArgumentParser(
@@ -36,7 +47,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     p.add_argument("--game", choices=GAME_ORDER, default=None,
                    help="game to start (default: menu in the TUI)")
-    p.add_argument("--seed", type=int, default=None, help="reproducible shuffle")
+    p.add_argument("--seed", type=seed_arg, default=None, metavar="N",
+                   help="reproducible shuffle (N is 0 or more)")
     p.add_argument("--text", action="store_true",
                    help="force text mode (no curses); reads commands from stdin")
     p.add_argument("--ascii", action="store_true",

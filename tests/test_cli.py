@@ -64,6 +64,15 @@ def test_help_uses_the_soliterm_name(capsys):
     assert "Soliterm" in out and "AisleRiot CLI" not in out
 
 
+@pytest.mark.parametrize("args", [["--seed", "-5"], ["--seed=-1"]])
+def test_a_negative_seed_is_an_argument_error(capsys, args):
+    with pytest.raises(SystemExit) as exc:
+        main(["--text", *args])
+    assert exc.value.code == 2
+    err = capsys.readouterr().err
+    assert "--seed" in err and "0 or more" in err
+
+
 # -- --list ----------------------------------------------------------------------------
 
 def test_list_names_every_game_in_menu_order(cli):

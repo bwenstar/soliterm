@@ -213,6 +213,17 @@ def test_restart_replays_a_new_deal_made_under_a_fixed_seed():
     assert board(g) == hand
 
 
+def test_a_negative_seed_is_refused():
+    # random.Random(-5) shuffles exactly like Random(5), so -5 would be a
+    # second name for seed 5's deal
+    with pytest.raises(ValueError):
+        deal("golf", -5)
+    g = deal("golf", 5)
+    with pytest.raises(ValueError):
+        g.new_game(seed=-1)
+    assert board(g) == board(deal("golf", 5))
+
+
 # -- stuck detection ------------------------------------------------------------------
 
 @pytest.mark.parametrize("key", GAME_ORDER)

@@ -123,8 +123,13 @@ class Solitaire:
         seed is chosen, from the run seeded by self.seed (--seed) if there is
         one or at random if not, and remembered as `current_seed`, so the
         exact hand can be replayed via restart().
+
+        Seeds are whole numbers from 0 up. A negative one is refused, since
+        random.Random ignores the sign and -5 would deal seed 5's hand.
         """
         if seed is not None:
+            if seed < 0:
+                raise ValueError(f"seed must be 0 or more, not {seed}")
             deal_seed = seed
         elif self._deal_seeds is not None:
             deal_seed = self._deal_seeds.randrange(1, 2 ** 31)
