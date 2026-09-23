@@ -190,6 +190,22 @@ def test_the_help_lists_restart():
     assert "N / restart" in textmode.TEXT_HELP
 
 
+@pytest.mark.parametrize("encoding,suits", [
+    ("cp1252", "SHDC"), ("latin-1", "SHDC"), ("ascii", "SHDC"), ("utf-8", "♠♥♦♣"),
+])
+def test_suits_fall_back_to_letters_when_stdout_cannot_show_them(
+        encoding, suits, monkeypatch):
+    raw = io.BytesIO()
+    out = io.TextIOWrapper(raw, encoding=encoding)
+    monkeypatch.setattr("sys.stdout", out)
+    g = deal("klondike", 1)
+    assert textmode.run_text(g, True, "klondike", stream=io.StringIO("q\n")) == 0
+    out.flush()
+    board = raw.getvalue().decode(encoding)
+    shown = {m[-1] for m in re.findall(r"\[ *(?:10|[A2-9JQK])(.)\]", board)}
+    assert shown and shown <= set(suits)
+
+
 # -- results ----------------------------------------------------------------------------
 
 def play_text(key, script, seed=1):

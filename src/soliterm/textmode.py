@@ -14,7 +14,7 @@ import time
 from typing import List, Optional, Tuple
 
 from . import APP_NAME, camo, store
-from .engine import Card, Slot, Solitaire
+from .engine import SUIT_SYMBOL, Card, Slot, Solitaire
 
 
 # --------------------------------------------------------------------------- #
@@ -241,10 +241,24 @@ def apply_text_command(g: Solitaire, cmd: str) -> Tuple[bool, str]:
     return False, f"bad command: {cmd!r} (try h)"
 
 
+def _can_write(out, text: str) -> bool:
+    """Whether out's encoding has every character of text."""
+    encoding = getattr(out, "encoding", None)
+    if not encoding:                    # a str buffer such as StringIO
+        return True
+    try:
+        text.encode(encoding)
+    except (UnicodeError, LookupError):
+        return False
+    return True
+
+
 def run_text(g: Solitaire, symbols: bool, game_key: str, stream=None,
              color: bool = False) -> int:
     out = sys.stdout
     inp = stream if stream is not None else sys.stdin
+    # a cp1252 or ASCII stdout has no suit symbols; letters beat a crash
+    symbols = symbols and _can_write(out, "".join(SUIT_SYMBOL.values()))
     g.symbols = symbols               # hints name cards as the board does
     start = time.monotonic()            # one clock per deal
     recorded = False
