@@ -500,3 +500,5 @@ class Solitaire:
                 new_slots.append(Slot(sid, kind, expand, cards, int(row or 0)))
         if new_slots:
             self.slots = sorted(new_slots, key=lambda s: s.sid)
+        # the status line describes the board, so it has to follow it back
+        self.update_status()

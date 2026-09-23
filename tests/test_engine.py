@@ -92,6 +92,25 @@ def test_a_failed_click_keeps_the_redo_stack():
     assert g.redo()
 
 
+@pytest.mark.parametrize("key", GAME_ORDER)
+def test_undo_and_redo_bring_the_status_line_along(key):
+    g = deal(key, 1)
+    rng = random.Random(1)
+    statuses = [g.status]
+    for _ in range(6):
+        if g.can_deal():
+            g.deal()
+        else:
+            g.attempt_move(*rng.choice(g.legal_moves()))
+        statuses.append(g.status)
+    for want in reversed(statuses[:-1]):
+        assert g.undo()
+        assert g.status == want == g.gamedef.status(g)
+    for want in statuses[1:]:
+        assert g.redo()
+        assert g.status == want == g.gamedef.status(g)
+
+
 def test_autoplay_that_moves_nothing_adds_no_undo_step():
     g = deal("klondike", 1)
     for s in g.slots:
