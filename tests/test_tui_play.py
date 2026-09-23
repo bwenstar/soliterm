@@ -70,7 +70,7 @@ def tui(monkeypatch):
             self.initial_has_color = self.has_color
             uis.append(self)
 
-    monkeypatch.setattr(soliterm.tui, "BoardUI", RecordingBoardUI)
+    monkeypatch.setattr(soliterm.tui.app, "BoardUI", RecordingBoardUI)
 
     def run(keys, start_key="klondike", game=None, seed=None, color=True,
             color_capable=True, h=40, w=120):

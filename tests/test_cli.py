@@ -404,7 +404,8 @@ def test_without_curses_text_mode_says_why(terminal, monkeypatch, capsys):
     # the front end is loaded afresh, and its own `import curses` fails
     import soliterm
     monkeypatch.delattr(soliterm, "tui")
-    monkeypatch.delitem(sys.modules, "soliterm.tui")
+    for name in [m for m in sys.modules if m.split(".")[:2] == ["soliterm", "tui"]]:
+        monkeypatch.delitem(sys.modules, name)
     monkeypatch.setitem(sys.modules, "curses", None)
     assert terminal("--game", "golf") == 0
     assert terminal.started == ["text"]
