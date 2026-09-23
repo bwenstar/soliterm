@@ -64,6 +64,9 @@ class FortyThieves(GameDef):
         return False
 
     def on_double_click(self, g, sid):
+        if g.kind(sid) == "foundation":
+            # as in AisleRiot: send up every card that can go, safe or not
+            return self._send_up(g, safe_only=False) > 0
         if g.kind(sid) not in ("tableau", "waste"):
             return False
         c = g.top(sid)
@@ -89,6 +92,11 @@ class FortyThieves(GameDef):
         return not g.empty(self.stock)
 
     def autoplay(self, g):
+        return self._send_up(g, safe_only=True)
+
+    def _send_up(self, g, safe_only):
+        """Move cards up to the foundations until none will go, and return
+        how many went. With safe_only, only those autoplay counts as safe."""
         n = 0
         again = True
         while again:
@@ -96,7 +104,7 @@ class FortyThieves(GameDef):
             for sid in self.tableau + [self.waste]:
                 c = g.top(sid)
                 if (c and self.foundation_for(g, c) is not None
-                        and self.safe_to_autoplay(g, c)):
+                        and (not safe_only or self.safe_to_autoplay(g, c))):
                     fid = self.foundation_for(g, c)
                     g.slots[fid].cards.append(g.slots[sid].cards.pop())
                     g.score += 1

@@ -113,6 +113,9 @@ class Klondike(GameDef):
         return super().deal_blocked_reason(g)
 
     def on_double_click(self, g, sid):
+        if g.kind(sid) == "foundation":
+            # as in AisleRiot: send up every card that can go, safe or not
+            return self._send_up(g, safe_only=False) > 0
         if g.kind(sid) not in ("tableau", "waste"):
             return False
         c = g.top(sid)
@@ -149,6 +152,11 @@ class Klondike(GameDef):
         return text
 
     def autoplay(self, g):
+        return self._send_up(g, safe_only=True)
+
+    def _send_up(self, g, safe_only):
+        """Move cards up to the foundations until none will go, and return
+        how many went. With safe_only, only those autoplay counts as safe."""
         n = 0
         again = True
         while again:
@@ -157,7 +165,8 @@ class Klondike(GameDef):
                 c = g.top(sid)
                 if c and c.face_up:
                     fid = self.foundation_for(g, c)
-                    if fid is not None and self.safe_to_autoplay(g, c):
+                    if fid is not None and (not safe_only
+                                            or self.safe_to_autoplay(g, c)):
                         g.slots[fid].cards.append(g.slots[sid].cards.pop())
                         self._post_take(g, sid)
                         g.score += 1

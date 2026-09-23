@@ -256,6 +256,30 @@ def test_autoplay_finishes_a_board_with_every_column_in_order(key):
     assert g.is_won()
 
 
+# -- double click -------------------------------------------------------------------
+
+@pytest.mark.parametrize("key, blocker", [("klondike", up(2, "C")),
+                                          ("fortythieves", up(2, "D"))],
+                         ids=["klondike", "fortythieves"])
+def test_double_clicking_a_foundation_sends_up_all_it_can(key, blocker):
+    # unlike autoplay it doesn't wait for the two that could want the 3D
+    g = deal(key, 1)
+    clear_board(g)
+    f, t = g.ids_of("foundation"), g.ids_of("tableau")
+    g.slots[f[0]].cards = [up(1, "D"), up(2, "D")]
+    g.slots[t[0]].cards = [up(4, "D"), up(3, "D")]
+    g.slots[t[1]].cards = [up(13, "H"), blocker]
+    g.score = 2
+    assert g.autoplay() == 0
+    assert g.double_click(f[1])
+    assert labels(g, f[0]) == ["AD", "2D", "3D", "4D"]
+    assert not g.cards(t[0])
+    assert g.score == 4
+    assert g.undo() and labels(g, t[0]) == ["4D", "3D"]
+    g.slots[t[0]].cards = [up(9, "S")]
+    assert g.double_click(f[0]) is False
+
+
 # -- score clamp --------------------------------------------------------------------
 
 def test_score_never_goes_below_zero():
