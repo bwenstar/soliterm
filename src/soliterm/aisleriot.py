@@ -78,7 +78,9 @@ def _read_text() -> str:
     make the next write replace all of AisleRiot's settings and stats.
     """
     try:
-        with open(keyfile_path(), "r", encoding="utf-8") as fh:
+        # newline="": no newline translation, so "\r\n" and a lone "\r"
+        # come back exactly as they are in the file
+        with open(keyfile_path(), "r", encoding="utf-8", newline="") as fh:
             return fh.read()
     except FileNotFoundError:
         return ""
@@ -121,7 +123,7 @@ def _write_text(text: str, expect: Optional[str] = None) -> bool:
         try:
             if mode is not None:
                 os.chmod(tmp, mode)
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            with os.fdopen(fd, "w", encoding="utf-8", newline="") as fh:
                 fh.write(text)
                 fh.flush()
                 os.fsync(fh.fileno())
@@ -170,7 +172,7 @@ def read_stat(section: str) -> Optional[Dict[str, int]]:
 
 def _stat_in(text: str, section: str) -> Optional[Dict[str, int]]:
     current = None
-    for line in text.splitlines():
+    for line in text.split("\n"):
         head = _is_header(line)
         if head is not None:
             current = head
@@ -252,13 +254,15 @@ def update_stat(section: str,
 
 def _with_stat(text: str, section: str, stat: Dict[str, int]) -> str:
     """`text` with the section's Statistic line set to `stat`."""
-    # Preserve the file's exact trailing newline: splitlines() drops the
-    # final-newline artifact without eroding real blank lines, and we restore
-    # the terminator verbatim when rejoining. (The file is a Linux GNOME config
-    # and always uses '\n'; _read_text normalises line endings anyway.)
-    lines = text.splitlines()
+    # GLib ends a line at "\n" and nowhere else. splitlines() would also
+    # break at "\r", "\x0c", "\u2028" and others, which can sit inside a
+    # value, and the rejoined file would have a newline in their place.
+    # Lines in a CRLF file keep their "\r", and lines we add get one too.
+    lines = text.split("\n")
     final = "\n" if text.endswith("\n") else ""   # keep "no trailing newline" as-is
-    eol = "\n"
+    if final or lines == [""]:
+        lines.pop()
+    cr = "\r" if "\r\n" in text else ""
 
     new_line = _format_statistic(stat)
     in_section = False
@@ -278,18 +282,18 @@ def _with_stat(text: str, section: str, stat: Dict[str, int]) -> str:
             stat_idx = i
 
     if stat_idx is not None:
-        lines[stat_idx] = new_line
+        lines[stat_idx] = new_line + ("\r" if lines[stat_idx].endswith("\r") else "")
     elif header_idx is not None:
         # insert right after the section header
-        lines.insert(header_idx + 1, new_line)
+        lines.insert(header_idx + 1, new_line + cr)
     else:
         # section doesn't exist: append a fresh one (blank-line separated)
         if lines and lines[-1].strip() != "":
-            lines.append("")
-        lines.append(f"[{section}]")
-        lines.append(new_line)
+            lines.append(cr)
+        lines.append(f"[{section}]" + cr)
+        lines.append(new_line + cr)
 
-    return eol.join(lines) + final
+    return "\n".join(lines) + final
 
 
 def all_known_stats() -> Dict[str, Dict[str, int]]:

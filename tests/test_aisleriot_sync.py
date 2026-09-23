@@ -87,6 +87,37 @@ def test_a_missing_section_is_appended(keyfile):
                                 "[golf.scm]\nStatistic=1;2;3;4;\n")
 
 
+def test_a_crlf_keyfile_keeps_its_line_endings(keyfile):
+    path = keyfile(KEYFILE.replace("\n", "\r\n"))
+    assert ar.read_stat("spider.scm") == stat(20, 112, 591, 1966)
+    ar.write_stat("spider.scm", stat(21, 113, 480, 1966))
+    ar.write_stat("golf.scm", stat(1, 1, 42, 42))
+    want = (KEYFILE.replace("20;112;591;1966", "21;113;480;1966")
+            + "\n[golf.scm]\nStatistic=1;1;42;42;\n")
+    assert path.read_bytes() == want.replace("\n", "\r\n").encode()
+
+
+# GLib ends a line at "\n" only; the other breaks str.splitlines() knows are
+# ordinary characters inside a value
+ODD_BREAKS = "\r\x0b\x0c\x1c\x1d\x1e\x85\u2028\u2029"
+
+
+def test_only_newlines_end_a_line(keyfile):
+    keyfile("[Aisleriot Config]\n"
+            "Note=a" + "".join(b + "[golf.scm]" + b + "Statistic=9;9;9;9;" for b in ODD_BREAKS)
+            + "\n")
+    assert ar.read_stat("golf.scm") is None
+
+
+def test_odd_line_breaks_in_other_values_are_kept(keyfile):
+    text = f"[Aisleriot Config]\nTheme=a{ODD_BREAKS}b\n\n[spider.scm]\nStatistic=1;1;1;1;\n"
+    path = keyfile(text)
+    ar.write_stat("spider.scm", stat(2, 2, 2, 2))
+    ar.write_stat("golf.scm", stat(1, 1, 42, 42))
+    assert path.read_bytes().decode("utf-8") == (
+        text.replace("1;1;1;1;", "2;2;2;2;") + "\n[golf.scm]\nStatistic=1;1;42;42;\n")
+
+
 def test_writes_leave_no_temp_files_behind(keyfile):
     path = keyfile(KEYFILE)
     ar.write_stat("spider.scm", stat(21, 113, 480, 1966))
