@@ -7,8 +7,15 @@ never touched.
 import json
 import os
 
+import pytest
+
 from soliterm import aisleriot as ar
 from soliterm import store
+
+# chmod can take read access away from us, but not from root, and not on
+# Windows
+needs_permissions = pytest.mark.skipif(
+    os.name != "posix" or os.geteuid() == 0, reason="needs POSIX file modes, not root")
 
 KEYFILE = """\
 [Aisleriot Config]
@@ -96,6 +103,24 @@ def test_a_failed_write_leaves_the_keyfile_intact(keyfile, monkeypatch):
     assert ar.write_stat("spider.scm", stat(21, 113, 480, 1966)) is False
     assert path.read_text() == KEYFILE
     assert os.listdir(path.parent) == ["aisleriot"]
+
+
+def test_rewriting_the_keyfile_keeps_its_mode(keyfile):
+    path = keyfile(KEYFILE)
+    os.chmod(path, 0o644)
+    ar.write_stat("spider.scm", stat(21, 113, 480, 1966))
+    assert os.stat(path).st_mode & 0o777 == 0o644
+
+
+@needs_permissions
+def test_an_unreadable_keyfile_is_never_written(keyfile):
+    path = keyfile(KEYFILE)
+    os.chmod(path, 0)
+    try:
+        assert ar.write_stat("golf.scm", stat(1, 1, 42, 42)) is False
+    finally:
+        os.chmod(path, 0o644)
+    assert path.read_text() == KEYFILE
 
 
 # -- syncing with the store ----------------------------------------------------------
@@ -192,6 +217,20 @@ def test_saving_the_config_never_clears_the_old_merge_flag():
     store.save_config(cfg)
     with open(store.config_path(), encoding="utf-8") as fh:
         assert json.load(fh)["merged_into_aisleriot"] is True
+
+
+@needs_permissions
+def test_an_unreadable_keyfile_leaves_the_results_local(keyfile):
+    path = keyfile(KEYFILE)
+    os.chmod(path, 0)
+    try:
+        store.record_result("golf", won=True, seconds=42)
+        assert store.get_stat("golf") == stat(1, 1, 42, 42)
+        store.reset_stats()
+    finally:
+        os.chmod(path, 0o644)
+    assert path.read_text() == KEYFILE
+    assert any("can't read" in n for n in store.notices())
 
 
 def test_reset_zeroes_only_the_games_we_manage(keyfile):

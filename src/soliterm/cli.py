@@ -70,7 +70,15 @@ def print_stats() -> None:
 
 def main(argv: Optional[List[str]] = None) -> int:
     args = build_parser().parse_args(argv)
+    try:
+        return _run(args)
+    finally:
+        # anything that kept the stats from being shared or saved as usual
+        for msg in store.notices():
+            print(f"soliterm: {msg}", file=sys.stderr)
 
+
+def _run(args: argparse.Namespace) -> int:
     if args.list:
         print_list(); return 0
     if args.reset_stats:

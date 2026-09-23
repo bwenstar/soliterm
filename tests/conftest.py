@@ -8,6 +8,8 @@ time, so setting the environment here is enough.
 
 import pytest
 
+from soliterm import store
+
 
 @pytest.fixture(autouse=True)
 def isolated_home(tmp_path, monkeypatch):
@@ -20,6 +22,8 @@ def isolated_home(tmp_path, monkeypatch):
     monkeypatch.setenv("USER", "tester")
     monkeypatch.setenv("LOGNAME", "tester")
     monkeypatch.delenv("NO_COLOR", raising=False)
+    # the store's notices are per run; start each test with none
+    monkeypatch.setattr(store, "_notices", [])
     return home
 
 

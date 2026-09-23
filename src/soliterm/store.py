@@ -10,11 +10,25 @@ from __future__ import annotations
 import json
 import os
 import time
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 from . import aisleriot as ar
 
 APP_DIR_NAME = "aisle-cli"
+
+# Things the player should hear about (say, a keyfile we could not read),
+# collected here for the command line to print when the game is over.
+_notices: List[str] = []
+
+
+def notices() -> List[str]:
+    """What went wrong with the stats files so far in this run, in order."""
+    return list(_notices)
+
+
+def _notice(msg: str) -> None:
+    if msg not in _notices:
+        _notices.append(msg)
 
 
 def _xdg(env: str, default_rel: str) -> str:
@@ -138,6 +152,25 @@ def syncing() -> bool:
     return bool(cfg.get("sync_aisleriot", True)) and ar.available()
 
 
+def _unreadable_keyfile() -> None:
+    _notice(f"can't read {ar.keyfile_path()}, so statistics are not shared "
+            "with AisleRiot this time; they are kept here")
+
+
+def _can_sync() -> bool:
+    """syncing(), unless the keyfile is there but can't be read.
+
+    Then sharing is skipped and results stay in the local stats, so nothing
+    is ever written over a keyfile we could not read first.
+    """
+    if not syncing():
+        return False
+    if not ar.readable():
+        _unreadable_keyfile()
+        return False
+    return True
+
+
 def load_stats() -> dict:
     try:
         with open(stats_path(), "r", encoding="utf-8") as fh:
@@ -196,7 +229,11 @@ def get_stat(game_key: str) -> dict:
     if syncing():
         sect = ar.GAME_TO_SECTION.get(game_key)
         if sect is not None:
-            shared = ar.read_stat(sect)
+            try:
+                shared = ar.read_stat(sect)
+            except OSError:
+                _unreadable_keyfile()
+                shared = None
             if shared is not None:
                 return _norm(shared)
     return _norm(load_stats().get(game_key))
@@ -223,7 +260,7 @@ def record_result(game_key: str, won: bool, seconds: float) -> dict:
                 s["worst"] = secs
         return s
 
-    if syncing():
+    if _can_sync():
         _merge_local_into_aisleriot_once()
         sect = ar.GAME_TO_SECTION.get(game_key)
         if sect is not None:
@@ -293,7 +330,7 @@ def reset_stats() -> int:
     """
     from .engine import GAME_ORDER  # local import to avoid a cycle at module load
     cleared = 0
-    if syncing():
+    if _can_sync():
         for game_key in GAME_ORDER:
             sect = ar.GAME_TO_SECTION.get(game_key)
             if sect is None:

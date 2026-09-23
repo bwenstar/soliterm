@@ -71,11 +71,26 @@ def available() -> bool:
 # --------------------------------------------------------------------------- #
 
 def _read_text() -> str:
+    """The keyfile's text, or "" when there is no keyfile yet.
+
+    Only a missing file reads as empty. Any other error (no permission, an
+    I/O error) is raised: taking an unreadable keyfile for an empty one would
+    make the next write replace all of AisleRiot's settings and stats.
+    """
     try:
         with open(keyfile_path(), "r", encoding="utf-8") as fh:
             return fh.read()
-    except OSError:
+    except FileNotFoundError:
         return ""
+
+
+def readable() -> bool:
+    """False if the keyfile is there but can't be read."""
+    try:
+        _read_text()
+    except OSError:
+        return False
+    return True
 
 
 def _write_text(text: str) -> bool:
@@ -83,14 +98,21 @@ def _write_text(text: str) -> bool:
 
     The file is shared with a live program (AisleRiot), so we write a temp file
     in the same directory and os.replace() it onto the target: a crash or full
-    disk can never leave the keyfile truncated or half-written.
+    disk can never leave the keyfile truncated or half-written. The temp file
+    takes the keyfile's mode, so a replaced keyfile keeps its permissions.
     """
     import tempfile
     try:
         d = gnome_games_dir()
         os.makedirs(d, exist_ok=True)
+        try:
+            mode: Optional[int] = os.stat(keyfile_path()).st_mode & 0o7777
+        except OSError:
+            mode = None
         fd, tmp = tempfile.mkstemp(dir=d, prefix=".aisleriot.", suffix=".tmp")
         try:
+            if mode is not None:
+                os.chmod(tmp, mode)
             with os.fdopen(fd, "w", encoding="utf-8") as fh:
                 fh.write(text)
                 fh.flush()
@@ -127,7 +149,10 @@ def _parse_statistic(value: str) -> Optional[Dict[str, int]]:
 
 
 def read_stat(section: str) -> Optional[Dict[str, int]]:
-    """The (wins,total,best,worst) dict for a section, or None if not present."""
+    """The (wins,total,best,worst) dict for a section, or None if not present.
+
+    Raises OSError if the keyfile exists but can't be read.
+    """
     current = None
     for line in _read_text().splitlines():
         head = _is_header(line)
@@ -164,8 +189,12 @@ def write_stat(section: str, stat: Dict[str, int]) -> bool:
 
     Only the targeted Statistic line changes; all other keys, sections,
     comments, ordering, and trailing whitespace are kept byte-for-byte.
+    Returns False, and writes nothing, if the keyfile can't be read.
     """
-    text = _read_text()
+    try:
+        text = _read_text()
+    except OSError:
+        return False
     # Preserve the file's exact trailing newline: splitlines() drops the
     # final-newline artifact without eroding real blank lines, and we restore
     # the terminator verbatim when rejoining. (The file is a Linux GNOME config

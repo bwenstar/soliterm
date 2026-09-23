@@ -96,6 +96,19 @@ def test_stats_read_through_to_aisleriot(cli, keyfile):
     assert stats_row(lines, "freecell") == ["3", "4", "75%", "1:15", "5:00"]
 
 
+@pytest.mark.skipif(os.name != "posix" or os.geteuid() == 0,
+                    reason="needs POSIX file modes, not root")
+def test_stats_with_an_unreadable_keyfile_say_so(keyfile, capsys):
+    path = keyfile(f"[{ar.GAME_TO_SECTION['golf']}]\nStatistic=3;4;75;300;\n")
+    os.chmod(path, 0)
+    try:
+        assert main(["--stats"]) == 0
+    finally:
+        os.chmod(path, 0o644)
+    err = capsys.readouterr().err
+    assert "can't read" in err and ar.keyfile_path() in err
+
+
 # -- --reset-stats ---------------------------------------------------------------------
 
 # "y" on stdin in case clearing ever asks first.
