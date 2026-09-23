@@ -1,0 +1,85 @@
+name: Bug report
+description: Something in Soliterm doesn't work the way it should
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this. If it's a security
+        problem, please use the private process in SECURITY.md instead.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what you got instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to reproduce it
+      description: |
+        Starting from `soliterm --game NAME --seed N` makes it much easier
+        to see the same deal you did.
+      placeholder: |
+        1. soliterm --game spider --seed 42
+        2. Move the 7 of hearts onto the 8 of spades
+        3. Press u
+    validations:
+      required: true
+  - type: dropdown
+    id: game
+    attributes:
+      label: Game
+      options:
+        - Not game specific
+        - Klondike
+        - Spider
+        - FreeCell
+        - Eight Off
+        - Golf
+        - Yukon
+        - Bakers Dozen
+        - Forty Thieves
+        - Canfield
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Mode
+      options:
+        - Full-screen (curses)
+        - Text mode (--text or piped)
+        - Both
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Soliterm version
+      description: The output of `soliterm --version`.
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How you installed it
+      options:
+        - pip or pipx
+        - soliterm.pyz
+        - From a git checkout
+        - Other
+  - type: input
+    id: platform
+    attributes:
+      label: OS, terminal and Python version
+      placeholder: Ubuntu 24.04, GNOME Terminal, Python 3.12
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Error output or screenshot
+      description: A traceback, or a screenshot if it's a drawing problem.
+      render: text

@@ -1,0 +1,21 @@
+name: Feature request
+description: An idea for something Soliterm could do
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What you'd like
+      description: What would you like to be able to do, and why?
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: How it might work
+      description: Keys, flags or screens you have in mind, if any.
+  - type: textarea
+    id: other
+    attributes:
+      label: Anything else
+      description: Other programs that do this well, or ways you work around it now.

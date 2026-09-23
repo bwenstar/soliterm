@@ -1,0 +1,42 @@
+name: New game
+description: Suggest a solitaire game for Soliterm to add
+labels: ["new game"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        CONTRIBUTING.md has a section on adding a game if you'd like to
+        write it yourself.
+  - type: input
+    id: name
+    attributes:
+      label: Game name
+      placeholder: Tri Peaks
+    validations:
+      required: true
+  - type: textarea
+    id: rules
+    attributes:
+      label: Rules
+      description: |
+        The deal, how cards move, how you win and how it's scored. A link
+        to a good rules page helps, but please sum them up here too.
+    validations:
+      required: true
+  - type: dropdown
+    id: aisleriot
+    attributes:
+      label: Is it in GNOME AisleRiot?
+      description: If it is, Soliterm should follow AisleRiot's rules and share its statistics.
+      options:
+        - "Yes"
+        - "No"
+        - Not sure
+    validations:
+      required: true
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Helping out
+      options:
+        - label: I'd like to write it myself
