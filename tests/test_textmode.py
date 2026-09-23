@@ -1,10 +1,11 @@
 """Text mode: the board it prints and the commands it takes."""
 
+import io
 import re
 
 import pytest
 
-from soliterm import textmode
+from soliterm import store, textmode
 from soliterm.engine import GAME_ORDER, Card, new_solitaire
 from soliterm.textmode import render_text
 from helpers import board_state, clear_board, deal
@@ -162,19 +163,20 @@ def test_a_slot_that_does_not_exist_is_named(cmd):
 
 
 @pytest.mark.parametrize("cmd", ["N", "restart", "Restart"])
-def test_capital_n_and_restart_start_this_deal_over(cmd):
+def test_capital_n_and_restart_start_this_deal_over(cmd, capsys):
     g = new_solitaire("golf")
     seed, start = g.current_seed, board_state(g)
-    assert g.deal()
-    assert textmode.apply_text_command(g, cmd) == (True, "restarted this deal")
+    textmode.run_text(g, False, "golf", stream=io.StringIO(f"d\n{cmd}\nq\n"))
     assert (g.current_seed, board_state(g), g.moves) == (seed, start, 0)
+    assert "restarted this deal" in capsys.readouterr().out.splitlines()
 
 
-def test_small_n_still_deals_a_new_hand():
+def test_small_n_still_deals_a_new_hand(capsys):
     g = new_solitaire("golf")
     seed = g.current_seed
-    assert textmode.apply_text_command(g, "n") == (True, "new deal")
+    textmode.run_text(g, False, "golf", stream=io.StringIO("n\nq\n"))
     assert g.current_seed != seed
+    assert "new deal" in capsys.readouterr().out.splitlines()
 
 
 def test_letters_whose_case_means_nothing_work_in_either_case():
@@ -186,3 +188,27 @@ def test_letters_whose_case_means_nothing_work_in_either_case():
 
 def test_the_help_lists_restart():
     assert "N / restart" in textmode.TEXT_HELP
+
+
+# -- results ----------------------------------------------------------------------------
+
+def play_text(key, script, seed=1):
+    """Runs a text session on a seeded deal; returns the game and its stats."""
+    g = deal(key, seed)
+    assert textmode.run_text(g, False, key, stream=io.StringIO(script)) == 0
+    return g, store.get_stat(key)
+
+
+@pytest.mark.parametrize("script,lost", [
+    ("d\nq\n", 1),          # quit after a move
+    ("d\n", 1),              # the input ran out after a move
+    ("d\nn\nq\n", 1),       # the deal walked away from counts, the new one does not
+    ("d\nn\nd\nq\n", 2),    # both deals were played
+    ("q\n", 0),              # never moved
+    ("n\nq\n", 0),
+    ("d\nN\nq\n", 0),       # starting the same deal over is not a loss
+    ("d\nN\nd\nq\n", 1),
+])
+def test_leaving_a_started_deal_counts_as_a_loss(script, lost, capsys):
+    _, s = play_text("klondike", script)
+    assert (s["wins"], s["total"]) == (0, lost)

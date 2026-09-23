@@ -199,13 +199,12 @@ def apply_text_command(g: Solitaire, cmd: str) -> Tuple[bool, str]:
         ok = g.redo()
         return ok, "" if ok else "nothing to redo"
     # the one place case matters, as in the TUI: N replays this deal, n
-    # deals a new one
+    # deals a new one. run_text deals, since leaving a deal can count in
+    # the stats.
     if raw == "N" or cmd == "restart":
-        g.restart()
-        return True, "restarted this deal"
+        return True, "__restart__"
     if cmd in ("n", "new"):
-        g.new_game()
-        return True, "new deal"
+        return True, "__newdeal__"
 
     parts = cmd.replace(",", " ").split()
     try:
@@ -248,17 +247,37 @@ def run_text(g: Solitaire, symbols: bool, game_key: str, stream=None,
     inp = stream if stream is not None else sys.stdin
     g.symbols = symbols               # hints name cards as the board does
     start = time.time()
+    recorded = False
+
+    def give_up() -> None:
+        # A deal left unfinished after a move counts as a loss, as in the TUI
+        # and AisleRiot; one nobody touched does not count at all.
+        nonlocal recorded
+        if not recorded and not g.is_won() and g.moves > 0:
+            store.record_result(game_key, False, time.time() - start)
+            recorded = True
+
     print(f"{APP_NAME} - {g.gamedef.name} (text mode). Type h for help.\n", file=out)
     print(render_text(g, symbols, color), file=out)
-    recorded = False
     for raw in inp:
         line = raw.strip()
         if not line:
             continue
         ok, msg = apply_text_command(g, line)
         if msg == "__quit__":
+            give_up()
             print("bye", file=out)
             return 0
+        if msg == "__newdeal__":
+            give_up()
+            g.new_game()
+            recorded = False
+            msg = "new deal"
+        elif msg == "__restart__":
+            # the same hand again: AisleRiot does not count a restart
+            g.restart()
+            recorded = False
+            msg = "restarted this deal"
         if msg == "__print__":
             print(render_text(g, symbols, color), file=out)
             continue
@@ -281,4 +300,5 @@ def run_text(g: Solitaire, symbols: bool, game_key: str, stream=None,
             print(f"Score {g.score} in {store.fmt_time(time.time() - start)} "
                   f"({g.moves} moves).", file=out)
             return 0
+    give_up()                           # the input ran out mid-game
     return 0
