@@ -55,6 +55,35 @@ def random_op(g, rng):
                        rng.choice([None, 1, 2, 3, 5, 13]))
 
 
+def board_state(g):
+    """The cards on the board, slot by slot, ignoring score and counters."""
+    return tuple(tuple(s.cards) for s in g.slots)
+
+
+def legal_walk(g, rng, steps, allow=None):
+    """Random play that mostly makes legal moves; yields after every step.
+
+    allow(g, (src, dst, n)) can veto moves the caller wants to stay away from.
+    """
+    for _ in range(steps):
+        r = rng.random()
+        if r < 0.10 and g.can_deal():
+            g.deal()
+        elif r < 0.16:
+            g.undo()
+        elif r < 0.20:
+            g.redo()
+        elif r < 0.26:
+            g.autoplay()
+        else:
+            moves = [m for m in g.legal_moves() if allow is None or allow(g, m)]
+            if moves:
+                g.attempt_move(*rng.choice(moves))
+            elif g.can_deal():
+                g.deal()
+        yield
+
+
 class FakeScr:
     """Just enough of a curses window for BoardUI.
 
@@ -89,4 +118,5 @@ class FakeScr:
 
     def text(self):
         return "\n".join("".join(row).rstrip() for row in self.grid)
+
 
