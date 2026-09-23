@@ -71,9 +71,10 @@ def tui(monkeypatch):
 
     Pass game= to start play on a board built by hand. The returned screen
     has .frames, .rc, .uis (every BoardUI made, each with .selections),
-    .pairs (init_pair calls) and .masks (mousemask calls).
+    .pairs (init_pair calls), .masks (mousemask calls) and .intervals
+    (mouseinterval calls).
     """
-    uis, pairs, masks = [], [], []
+    uis, pairs, masks, intervals = [], [], [], []
 
     class RecordingBoardUI(soliterm.tui.BoardUI):
         def __init__(self, *args, **kwargs):
@@ -94,6 +95,7 @@ def tui(monkeypatch):
         monkeypatch.setattr(curses, "curs_set", lambda n: None)
         monkeypatch.setattr(curses, "mousemask",
                             lambda mask: masks.append(mask) or (mask, 0))
+        monkeypatch.setattr(curses, "mouseinterval", intervals.append)
         monkeypatch.setattr(curses, "has_colors", lambda: color_capable)
         monkeypatch.setattr(curses, "start_color", lambda: None)
         monkeypatch.setattr(curses, "use_default_colors", lambda: None)
@@ -109,7 +111,7 @@ def tui(monkeypatch):
 
             monkeypatch.setattr(engine, "new_solitaire", new_solitaire)
         scr.rc = soliterm.tui.run(scr, start_key, seed, color)
-        scr.uis, scr.pairs, scr.masks = uis, pairs, masks
+        scr.uis, scr.pairs, scr.masks, scr.intervals = uis, pairs, masks, intervals
         return scr
 
     return run
@@ -220,6 +222,11 @@ def test_the_terminal_is_not_asked_to_report_pointer_motion(tui):
     assert scr.masks
     assert not any(m & curses.REPORT_MOUSE_POSITION for m in scr.masks)
     assert all(m & curses.BUTTON1_PRESSED for m in scr.masks)
+
+
+def test_ncurses_does_not_hold_clicks_back_to_wait_for_a_double_click(tui):
+    # the play screen spots double-clicks itself
+    assert tui([]).intervals == [0]
 
 
 # -- recording results -------------------------------------------------------------

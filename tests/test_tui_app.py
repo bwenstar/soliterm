@@ -7,6 +7,7 @@ at a time and look at the board, the selection and the message in between.
 
 import curses
 
+import soliterm.tui.app
 from soliterm import store
 from soliterm.engine import Card
 from soliterm.tui.app import MENU, QUIT, App
@@ -231,3 +232,32 @@ def test_dragging_a_card_onto_a_target_moves_it():
     app.mouse_at(y, x, curses.BUTTON1_RELEASED)
     assert names(app, a) == ["5H", "4S"]
     assert app.selected is None and app.cursor == a
+
+
+def double_click_board(monkeypatch):
+    """An ace to send home, and a clock the test moves on by hand."""
+    app, a, b = klondike_app([up(1, "S")], [up(4, "S")])
+    now = [100.0]
+    monkeypatch.setattr(soliterm.tui.app, "clock", lambda: now[0])
+    app.draw()
+    return app, a, now
+
+
+def test_two_clicks_in_quick_succession_are_a_double_click(monkeypatch):
+    app, a, now = double_click_board(monkeypatch)
+    slow_click(app, a, 0)
+    assert app.selected == a
+    now[0] += 0.3
+    slow_click(app, a, 0)
+    assert names(app, a) == []
+    assert any(names(app, f) == ["AS"] for f in app.game.ids_of("foundation"))
+    assert app.selected is None
+
+
+def test_two_clicks_far_apart_pick_up_and_put_down(monkeypatch):
+    app, a, now = double_click_board(monkeypatch)
+    slow_click(app, a, 0)
+    now[0] += 0.6
+    slow_click(app, a, 0)
+    assert names(app, a) == ["AS"]
+    assert app.selected is None

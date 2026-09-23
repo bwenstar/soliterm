@@ -34,6 +34,11 @@ MOUSE_MASK = (curses.BUTTON1_PRESSED | curses.BUTTON1_RELEASED |
               curses.BUTTON1_CLICKED | curses.BUTTON1_DOUBLE_CLICKED)
 # what counts as clicking a menu or banner choice
 LEFT_CLICK = curses.BUTTON1_PRESSED | curses.BUTTON1_CLICKED
+# A second click on the same slot this soon after the first is a
+# double-click. ncurses is left to report every press straight away, since
+# its own double-click wait would hold each single click back as long.
+DOUBLE_CLICK_S = 0.4
+clock = time.monotonic      # what the double-click timer reads
 
 
 class App:
@@ -63,6 +68,7 @@ class App:
         self.selected_n = 1
         self.selected_exact = False   # True when the player split by clicking a card
         self.pressed: Optional[int] = None   # the slot the left button went down on
+        self.last_click: Optional[Tuple[int, float]] = None   # (slot, clock())
         self.cursor = 0
         self.hint: Optional[Tuple[int, int, str]] = None
         self.message = ""
@@ -73,6 +79,7 @@ class App:
         self.stdscr.keypad(True)
         try:
             curses.mousemask(MOUSE_MASK)
+            curses.mouseinterval(0)
         except curses.error:
             pass
         # We always initialise the colour pairs when the terminal supports
@@ -348,6 +355,7 @@ class App:
         self.selected_n = 1
         self.selected_exact = False
         self.pressed = None
+        self.last_click = None
         self.cursor = self.first_cursor()
         self.hint = None
         self.message = START_MESSAGE
@@ -471,6 +479,7 @@ class App:
         self.selected = None
         self.selected_exact = False
         self.pressed = None
+        self.last_click = None
         self.hint = None
         self.cursor = self.first_cursor()
 
@@ -684,6 +693,12 @@ class App:
         self.hint = None
         dbl = bstate & curses.BUTTON1_DOUBLE_CLICKED
         clicked = bstate & LEFT_CLICK
+        now = clock()
+        if clicked and self.last_click is not None:
+            last_sid, last_time = self.last_click
+            dbl = dbl or (last_sid == tsid and now - last_time <= DOUBLE_CLICK_S)
+        # the click after a double-click starts afresh
+        self.last_click = None if dbl else (tsid, now)
         if dbl:
             # double-clicking the stock is the natural "just deal"
             # gesture; elsewhere it sends the card to a foundation
