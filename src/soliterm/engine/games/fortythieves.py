@@ -42,6 +42,13 @@ class FortyThieves(GameDef):
     def tableau_adjacent(self, upper, lower):
         return upper.suit == lower.suit and lower.rank == upper.rank - 1
 
+    def _max_group(self, g, src, dst):
+        # AisleRiot's rule: cards really move one at a time, so a group can
+        # only go as a short cut for shuffling it through empty columns. Each
+        # one doubles the size, but not the column it leaves or lands in.
+        free = sum(1 for t in self.tableau if t not in (src, dst) and g.empty(t))
+        return 2 ** free
+
     def can_drop(self, g, src, cards, dst):
         k = g.kind(dst)
         c = cards[0]
@@ -51,6 +58,8 @@ class FortyThieves(GameDef):
             top = g.top(dst)
             return (c.rank == ACE) if top is None else self.same_suit_up(top, c)
         if k == "tableau":
+            if len(cards) > self._max_group(g, src, dst):
+                return False
             top = g.top(dst)
             if top is None:
                 return True
