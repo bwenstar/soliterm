@@ -7,7 +7,7 @@ import random
 
 import pytest
 
-from soliterm.engine import Card
+from soliterm.engine import Card, Spider
 from helpers import board_state, card_multiset, clear_board, deal, legal_walk
 
 SUITS = {1: "S", 2: "SH", 4: "SHDC"}
@@ -118,6 +118,13 @@ def test_only_a_same_suit_run_lifts_as_a_group(table):
     assert names(g, t[1]) == ["9D", "8S", "7S"]
     assert names(g, t[0]) == ["9H"]
     assert g.score == 1                              # 8S-7S is still in suit
+
+
+def test_the_one_line_summary_gets_the_building_rule_right():
+    # it shows in --list, the menu and over the board, and any suit builds
+    # down (see the tests above); only moving a group needs one suit
+    assert "in suit" not in Spider.blurb
+    assert "any suit" in Spider.blurb
 
 
 def test_a_face_down_card_is_never_part_of_a_run(table):

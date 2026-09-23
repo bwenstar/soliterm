@@ -9,7 +9,7 @@ from ..gamedef import GameDef
 class Spider(GameDef):
     key = "spider"
     name = "Spider"
-    blurb = "Build down in suit; clear K-to-A runs. 1, 2, or 4 suits."
+    blurb = "Build down in any suit; move same-suit runs; clear K-to-A."
 
     @classmethod
     def default_options(cls):
