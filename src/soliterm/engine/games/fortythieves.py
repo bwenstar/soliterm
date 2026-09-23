@@ -84,7 +84,6 @@ class FortyThieves(GameDef):
         fid = self.foundation_for(g, c)
         if fid is not None:
             g.slots[fid].cards.append(g.slots[sid].cards.pop())
-            g.score += 1
             return True
         dst = self._tableau_place(g, sid, c)
         if dst is None:
@@ -103,11 +102,12 @@ class FortyThieves(GameDef):
                 return t
         return None
 
-    def after_move(self, g, src, cards, dst):
-        if g.kind(dst) == "foundation":
-            g.score += 1
-        elif g.kind(src) == "foundation":
-            g.score -= 1
+    def post_move(self, g):
+        # As AisleRiot scores it, worked out afresh from the foundations: 5
+        # for each card and 60 more for each finished suit, 1000 for a win.
+        g.score = sum(5 * len(g.cards(f)) + (60 if len(g.cards(f)) == 13 else 0)
+                      for f in self.foundations)
+        g.update_status()
 
     def is_won(self, g):
         return sum(len(g.cards(f)) for f in self.foundations) == 104
@@ -131,7 +131,6 @@ class FortyThieves(GameDef):
                         and (not safe_only or self.safe_to_autoplay(g, c))):
                     fid = self.foundation_for(g, c)
                     g.slots[fid].cards.append(g.slots[sid].cards.pop())
-                    g.score += 1
                     n += 1
                     again = True
         return n

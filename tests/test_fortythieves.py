@@ -67,3 +67,37 @@ def test_the_column_a_group_leaves_is_not_free(table):
     run_to_move(g, t, 2, 0)
     g.slots[t[0]].cards = [up(10, "S"), up(9, "S")]     # the whole column
     assert g.attempt_move(t[0], t[1], 2) is False
+
+
+# -- the score ----------------------------------------------------------------------
+
+def test_a_card_up_scores_five_and_a_finished_suit_sixty_more(table):
+    g, f, t = table
+    g.slots[t[0]].cards = [up(r, "S") for r in range(13, 0, -1)]
+    for i in range(12):
+        assert g.attempt_move(t[0], f[0], 1)
+        assert g.score == 5 * (i + 1)
+    assert g.attempt_move(t[0], f[0], 1)
+    assert g.score == 5 * 13 + 60
+    assert g.undo() and g.score == 60
+
+
+def test_double_click_and_autoplay_score_the_same_way(table):
+    g, f, t = table
+    g.slots[t[0]].cards = [up(2, "H"), up(1, "H")]
+    assert g.double_click(t[0])
+    assert g.score == 5
+    g.slots[f[1]].cards = [up(1, "H")]
+    assert g.autoplay() == 1
+    assert g.score == 15
+
+
+def test_a_won_game_scores_a_thousand(table):
+    g, f, t = table
+    for i, fid in enumerate(f):
+        g.slots[fid].cards = [up(r, "SHDC"[i % 4]) for r in range(1, 14)]
+    g.slots[f[0]].cards.pop()
+    g.slots[t[0]].cards = [up(13, "S")]
+    assert g.attempt_move(t[0], f[0], 1)
+    assert g.is_won()
+    assert g.score == 1000
