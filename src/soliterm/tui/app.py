@@ -454,15 +454,13 @@ class App:
                         continue
                     return False
                 # stuck: no productive move and the player has actually started
-                if self.game.moves > 0 and not self.recorded and self.game.is_stuck():
+                if self.clock.started and not self.recorded and self.game.is_stuck():
                     if self.finish(False):
                         continue
                     return False
                 outcome = self.handle_key(self.read_key())
                 if outcome is not None:
                     return outcome == QUIT
-                if self.game.moves > 0:
-                    self.clock.start()
         except KeyboardInterrupt:
             # Ctrl-C, wherever in the game it comes, leaves the way q does
             self.maybe_record_loss()
@@ -624,9 +622,12 @@ class App:
             self.message = self.game.deal_blocked_reason()
 
     def maybe_record_loss(self):
-        # A started-but-unfinished game counts as a loss (AisleRiot does the
-        # same: any game you start moving in counts in the total).
-        if not self.recorded and not self.game.is_won() and self.game.moves > 0:
+        # A game left unfinished counts as a loss once it is under way, as in
+        # AisleRiot: from the first move, even if undo takes every move back.
+        # Restarting the deal (N) is the exception. AisleRiot's Restart deals
+        # the same hand again without touching the statistics, and the next
+        # game on that hand counts from its own first move.
+        if not self.recorded and not self.game.is_won() and self.clock.started:
             store.record_result(self.key, False, self.seconds())
             self.recorded = True
 
@@ -671,7 +672,10 @@ class App:
             return None
         if action not in SMALL_SCREEN_ACTIONS and not self.ui.fits():
             return None
-        return getattr(self, "do_" + action)()
+        outcome = getattr(self, "do_" + action)()
+        if self.game.moves > 0:
+            self.clock.start()        # the game is under way
+        return outcome
 
     def do_redraw(self):
         # terminal resized: nothing to do, the next frame redraws at the new
@@ -825,8 +829,8 @@ class App:
         self.message = "new deal"
 
     def do_restart(self):
-        # restart THIS deal (replay the same shuffle); no loss recorded
-        # since it's the same hand continuing
+        # restart THIS deal (replay the same shuffle); no loss recorded,
+        # as in AisleRiot (see maybe_record_loss)
         self.reset_for(self.game.restart)
         self.message = "restarted this deal"
 

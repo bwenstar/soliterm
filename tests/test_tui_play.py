@@ -450,6 +450,19 @@ def test_quitting_mid_game_records_a_loss(tui):
     assert store.get_stat("klondike") == {"wins": 0, "total": 1, "best": 0, "worst": 0}
 
 
+def test_undoing_every_move_still_counts_the_game(tui):
+    # AisleRiot counts a game from its first move, however many are taken back
+    scr = tui(["d", "d", "d", "u", "u", "u", "q"])
+    assert "Moves 0" in scr.frames[-1]
+    assert store.get_stat("klondike")["total"] == 1
+
+
+def test_restarting_the_deal_does_not_count_it(tui):
+    # nor does AisleRiot's Restart, which deals the same hand again
+    tui(["d", "N", "q"])
+    assert store.get_stat("klondike")["total"] == 0
+
+
 def near_won():
     """Klondike with A-Q home in every suit and the four kings on the tableau."""
     g = deal("klondike", 1)
