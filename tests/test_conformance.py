@@ -110,6 +110,8 @@ def test_every_hint_is_a_legal_move(key, opts):
             assert g.kind(src) == "stock"
             assert g.clone().deal()
         else:
+            if mv is None:                       # a move that sets one up
+                mv = g.setup_move()
             assert (src, dst) == mv[:2]
             assert mv in g.legal_moves()
             assert g.clone().attempt_move(*mv)

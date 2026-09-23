@@ -395,10 +395,16 @@ class Solitaire:
         bounded and a returned move strictly increases it, following best_move()
         can never cycle. Returns None when no move makes progress.
         """
-        base = self.progress()
+        found = self._most_progress(self.legal_moves(), self.progress())
+        return None if found is None else found[0]
+
+    def _most_progress(self, moves: List[Tuple[int, int, int]], base: int
+                       ) -> Optional[Tuple[Tuple[int, int, int], int]]:
+        """The move in `moves` that takes progress furthest above `base`, with
+        its gain, or None if none of them gets above it."""
         best = None
         best_rank = -1
-        for (src, dst, n) in self.legal_moves():
+        for (src, dst, n) in moves:
             sim = self.clone()
             if not sim.attempt_move(src, dst, n):
                 continue
@@ -410,6 +416,45 @@ class Solitaire:
             rank = gain * 1000 - n * 10 + len(self.cards(src))
             if rank > best_rank:
                 best_rank = rank
+                best = ((src, dst, n), gain)
+        return best
+
+    def setup_move(self) -> Optional[Tuple[int, int, int]]:
+        """A move that gains nothing itself but opens up one that does.
+
+        Parking a card in a free cell, or moving a king aside to get at the
+        ace under it, scores nothing on its own, so best_move() never offers
+        it. This looks one move further: it keeps the first move whose best
+        follow-up (a move to or from one of the two piles it changed) leaves
+        the board ahead of where it started. Moves to an empty slot are the
+        same whichever empty slot of that kind they use, so only one is tried.
+
+        Meant for when best_move() has nothing, and then following it stays
+        loop-free too: the setup move can't raise progress, so the follow-up
+        it was picked for raises it by more and best_move() takes that next,
+        leaving the board ahead of where the pair started.
+        """
+        base = self.progress()
+        best = None
+        best_rank = -1
+        tried_empty = set()
+        for (src, dst, n) in self.legal_moves():
+            if self.empty(dst):
+                alike = (src, n, self.kind(dst))
+                if alike in tried_empty:
+                    continue
+                tried_empty.add(alike)
+            sim = self.clone()
+            if not sim.attempt_move(src, dst, n):
+                continue
+            follow = [m for m in sim.legal_moves()
+                      if m[0] in (src, dst) or m[1] in (src, dst)]
+            found = sim._most_progress(follow, base)
+            if found is None:
+                continue
+            rank = found[1] * 1000 - n * 10 + len(self.cards(src))
+            if rank > best_rank:
+                best_rank = rank
                 best = (src, dst, n)
         return best
 
@@ -417,16 +462,19 @@ class Solitaire:
         """A progress-making move as (src, dst, description) for the UI.
 
         Falls back to suggesting a productive deal when no move advances the
-        game. See best_move() for the loop-free guarantee.
+        game, and then to a move that sets up one that does. See best_move()
+        and setup_move() for why following the hint never loops.
         """
         mv = self.best_move()
-        if mv is not None:
-            src, dst, n = mv
-            return (src, dst, self._describe_move(src, dst, n))
-        if self.deal_is_productive():
+        if mv is None and self.deal_is_productive():
             stock = self.ids_of("stock")
             if stock:
                 return (stock[0], stock[0], "Deal from the stock")
+        if mv is None:
+            mv = self.setup_move()
+        if mv is not None:
+            src, dst, n = mv
+            return (src, dst, self._describe_move(src, dst, n))
         return None
 
     def no_hint_reason(self) -> str:

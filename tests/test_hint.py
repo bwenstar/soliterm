@@ -5,7 +5,7 @@ import pytest
 
 from soliterm.engine import GAME_ORDER, Card
 from soliterm.textmode import apply_text_command
-from helpers import clear_board, deal
+from helpers import board_state, clear_board, deal
 
 
 @pytest.fixture
@@ -91,6 +91,64 @@ def test_best_move_is_legal_with_its_pickup_size(key, seed):
     mv = g.best_move()
     if mv is not None:
         assert g.clone().attempt_move(*mv)
+
+
+@pytest.mark.parametrize("key", GAME_ORDER)
+def test_following_the_hint_never_comes_back_to_a_position(key):
+    # the moves that only set up the next one included
+    g = deal(key, 7)
+    seen = set()
+    deals = 0
+    for _ in range(400):
+        mv = g.best_move()
+        if mv is None and g.deal_is_productive() and deals < 80:
+            g.deal()
+            deals += 1
+            continue
+        if mv is None:
+            mv = g.setup_move()
+            if mv is None:
+                break
+        state = board_state(g)
+        assert state not in seen, "the hint revisited a position"
+        seen.add(state)
+        assert g.attempt_move(*mv), f"hinted move {mv} was illegal"
+
+
+# -- a move that sets up the next one ------------------------------------------
+
+def test_a_card_is_parked_when_that_frees_a_foundation_play():
+    g = deal("freecell", 1)
+    clear_board(g)
+    f, t = g.ids_of("foundation"), g.ids_of("tableau")
+    g.slots[f[0]].cards = [Card(r, "S", True) for r in range(1, 5)]
+    g.slots[t[0]].cards = [Card(5, "S", True), Card(9, "H", True)]
+    # nothing else on the board can build or go up
+    others = [Card(13, s, True) for s in "SHDC"] + [Card(7, s, True) for s in "SHD"]
+    for sid, card in zip(t[1:], others):
+        g.slots[sid].cards = [card]
+    assert g.best_move() is None
+    src, dst, desc = g.hint()
+    assert (src, g.kind(dst)) == (t[0], "freecell")
+    assert desc == "Move 9♥ to a free cell"
+    assert g.attempt_move(src, dst, 1)
+    mv = g.best_move()
+    assert mv is not None and mv[:2] == (t[0], f[0])
+
+
+def test_a_king_is_moved_aside_to_free_the_ace_under_it():
+    # Yukon moves any face-up group, and only a king opens an empty column
+    g = deal("yukon", 1)
+    clear_board(g)
+    t = g.ids_of("tableau")
+    g.slots[t[0]].cards = [Card(1, "C", True), Card(13, "D", True), Card(5, "S", True)]
+    assert g.best_move() is None
+    src, dst, desc = g.hint()
+    assert src == t[0] and g.kind(dst) == "tableau"
+    assert desc == "Move K♦ to the empty column"
+    assert g.attempt_move(src, dst, 2)
+    mv = g.best_move()
+    assert mv is not None and mv[0] == t[0] and g.kind(mv[1]) == "foundation"
 
 
 # -- when there is nothing to hint ------------------------------------------------
