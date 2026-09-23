@@ -261,49 +261,56 @@ def run_text(g: Solitaire, symbols: bool, game_key: str, stream=None,
             store.record_result(game_key, False, seconds())
             recorded = True
 
-    print(f"{APP_NAME} - {g.gamedef.name} (text mode). Type h for help.\n", file=out)
-    print(render_text(g, symbols, color), file=out)
-    for raw in inp:
-        line = raw.strip()
-        if not line:
-            continue
-        ok, msg = apply_text_command(g, line)
-        if msg == "__quit__":
-            give_up()
-            print("bye", file=out)
-            return 0
-        if msg == "__newdeal__":
-            give_up()
-            g.new_game()
-            start, recorded = time.monotonic(), False
-            msg = "new deal"
-        elif msg == "__restart__":
-            # the same hand again: AisleRiot does not count a restart
-            g.restart()
-            start, recorded = time.monotonic(), False
-            msg = "restarted this deal"
-        if msg == "__print__":
-            print(render_text(g, symbols, color), file=out)
-            continue
-        if msg == "__boss__":
-            # print a screenful of plausible 'work' output instead of the board
-            theme = camo.DEFAULT_THEME
-            for cl in camo.screenful(theme, lines=40):
-                print(cl, file=out)
-            continue
-        if msg == TEXT_HELP:
-            print(msg, file=out)
-            continue
-        if msg:
-            print(msg, file=out)
+    try:
+        print(f"{APP_NAME} - {g.gamedef.name} (text mode). Type h for help.\n",
+              file=out)
         print(render_text(g, symbols, color), file=out)
-        if g.is_won() and not recorded:
-            recorded = True
-            secs = seconds()
-            store.record_result(game_key, True, secs)
-            print("Congratulations - you won!", file=out)
-            print(f"Score {g.score} in {store.fmt_time(secs)} "
-                  f"({g.moves} moves).", file=out)
-            return 0
-    give_up()                           # the input ran out mid-game
-    return 0
+        for raw in inp:
+            line = raw.strip()
+            if not line:
+                continue
+            ok, msg = apply_text_command(g, line)
+            if msg == "__quit__":
+                give_up()
+                print("bye", file=out)
+                return 0
+            if msg == "__newdeal__":
+                give_up()
+                g.new_game()
+                start, recorded = time.monotonic(), False
+                msg = "new deal"
+            elif msg == "__restart__":
+                # the same hand again: AisleRiot does not count a restart
+                g.restart()
+                start, recorded = time.monotonic(), False
+                msg = "restarted this deal"
+            if msg == "__print__":
+                print(render_text(g, symbols, color), file=out)
+                continue
+            if msg == "__boss__":
+                # print a screenful of plausible 'work' output instead of the board
+                theme = camo.DEFAULT_THEME
+                for cl in camo.screenful(theme, lines=40):
+                    print(cl, file=out)
+                continue
+            if msg == TEXT_HELP:
+                print(msg, file=out)
+                continue
+            if msg:
+                print(msg, file=out)
+            print(render_text(g, symbols, color), file=out)
+            if g.is_won() and not recorded:
+                recorded = True
+                secs = seconds()
+                store.record_result(game_key, True, secs)
+                print("Congratulations - you won!", file=out)
+                print(f"Score {g.score} in {store.fmt_time(secs)} "
+                      f"({g.moves} moves).", file=out)
+                return 0
+        give_up()                       # the input ran out mid-game
+        return 0
+    except KeyboardInterrupt:
+        # Ctrl-C leaves like q does, minus the traceback
+        give_up()
+        print(file=sys.stderr)
+        return 130

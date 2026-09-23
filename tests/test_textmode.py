@@ -254,3 +254,16 @@ def test_a_win_is_timed_from_its_own_deal(again, total, secs, shown, monkeypatch
     s = store.get_stat("klondike")
     assert (s["wins"], s["total"], s["best"], s["worst"]) == (1, total, shown, shown)
     assert f"in {store.fmt_time(shown)} " in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("before,lost", [(["d\n"], 1), (["p\n"], 0)])
+def test_ctrl_c_leaves_quietly_and_counts_like_quitting(before, lost, capsys):
+    def script():
+        yield from before
+        raise KeyboardInterrupt
+
+    g = deal("klondike", 1)
+    assert textmode.run_text(g, False, "klondike", stream=script()) == 130
+    s = store.get_stat("klondike")
+    assert (s["wins"], s["total"]) == (0, lost)
+    assert "Traceback" not in capsys.readouterr().err
