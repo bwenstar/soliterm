@@ -298,6 +298,10 @@ def _unreadable_keyfile() -> None:
 
 
 def _unwritable_keyfile() -> None:
+    if not os.path.isdir(ar.gnome_games_dir()):
+        # AisleRiot hasn't been run yet. Nothing is wrong: the results wait
+        # here until it has made its config.
+        return
     _notice(f"couldn't write {ar.keyfile_path()}; results it is missing are "
             "kept here and added to it next time")
 
@@ -548,6 +552,7 @@ def reset_stats() -> int:
 def _reset_stats() -> int:
     from .engine import GAME_ORDER  # local import to avoid a cycle at module load
     cleared = 0
+    stats = load_stats()
     if _can_sync():
         for game_key in GAME_ORDER:
             sect = ar.GAME_TO_SECTION.get(game_key)
@@ -562,10 +567,10 @@ def _reset_stats() -> int:
             if ar.update_stat(sect, clear) is None and played and played[-1]:
                 _notice(f"couldn't write {ar.keyfile_path()}, so AisleRiot "
                         "still has some of the statistics cleared here")
-            if played and played[-1]:
+            # ours may have games the keyfile hasn't been given yet
+            if (played and played[-1]) or _norm(stats.get(game_key))["total"] > 0:
                 cleared += 1
     else:
-        stats = load_stats()
         cleared = sum(1 for k in GAME_ORDER if _norm(stats.get(k))["total"] > 0)
     meta = dict(_meta(load_stats()))
     meta.pop("unsynced", None)      # games not yet shared are cleared too

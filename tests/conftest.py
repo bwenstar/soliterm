@@ -8,6 +8,7 @@ time, so setting the environment here is enough.
 
 import pytest
 
+from soliterm import aisleriot as ar
 from soliterm import store
 
 
@@ -24,6 +25,8 @@ def isolated_home(tmp_path, monkeypatch):
     monkeypatch.delenv("NO_COLOR", raising=False)
     # the store's notices are per run; start each test with none
     monkeypatch.setattr(store, "_notices", [])
+    # AisleRiot may be installed here; a test that wants it says so
+    monkeypatch.setattr(ar, "installed", lambda: False)
     return home
 
 
@@ -31,8 +34,8 @@ def isolated_home(tmp_path, monkeypatch):
 def keyfile(isolated_home):
     """Write a fake AisleRiot keyfile into the test home; returns its path.
 
-    Creating it also creates ~/.config/gnome-games, which is what makes the
-    store treat AisleRiot as installed and start syncing.
+    The keyfile being there is what makes the store treat AisleRiot as
+    installed and start syncing.
     """
     path = isolated_home / ".config" / "gnome-games" / "aisleriot"
 

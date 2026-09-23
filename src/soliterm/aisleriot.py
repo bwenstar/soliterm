@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import os
 import re
+import shutil
 from typing import Callable, Dict, List, Optional
 
 # Our game keys -> AisleRiot section names. AisleRiot's config sections use the
@@ -57,14 +58,21 @@ def keyfile_path() -> str:
     return os.path.join(gnome_games_dir(), "aisleriot")
 
 
-def available() -> bool:
-    """True if AisleRiot's config location exists (so we should sync with it).
+def installed() -> bool:
+    """True if the AisleRiot program (sol, or aisleriot) is on the PATH."""
+    return any(shutil.which(name) for name in ("sol", "aisleriot"))
 
-    Based purely on the (possibly XDG-overridden) config path, so test harnesses
-    that point XDG_CONFIG_HOME at a temp dir don't accidentally engage with the
-    real AisleRiot file.
+
+def available() -> bool:
+    """True if there is an AisleRiot to share stats with: its keyfile is
+    there, or the program is installed and will make one once it has run.
+
+    An empty gnome-games folder isn't enough, as other GNOME games keep
+    their settings there too. The keyfile is looked for at the (possibly
+    XDG-overridden) config path, so test harnesses that point
+    XDG_CONFIG_HOME at a temp dir never reach the real AisleRiot file.
     """
-    return os.path.isdir(gnome_games_dir()) or os.path.exists(keyfile_path())
+    return os.path.exists(keyfile_path()) or installed()
 
 
 # --------------------------------------------------------------------------- #
@@ -110,6 +118,8 @@ def _write_text(text: str, expect: Optional[str] = None) -> bool:
     in the same directory and os.replace() it onto the target: a crash or full
     disk can never leave the keyfile truncated or half-written. The temp file
     takes the keyfile's mode, so a replaced keyfile keeps its permissions.
+    The gnome-games folder is AisleRiot's to make: if it isn't there yet,
+    nothing is written.
 
     With `expect`, the keyfile is read once more right before it is replaced,
     and _Changed is raised (with nothing written) if it no longer holds
@@ -118,7 +128,6 @@ def _write_text(text: str, expect: Optional[str] = None) -> bool:
     import tempfile
     try:
         d = gnome_games_dir()
-        os.makedirs(d, exist_ok=True)
         try:
             mode: Optional[int] = os.stat(keyfile_path()).st_mode & 0o7777
         except OSError:

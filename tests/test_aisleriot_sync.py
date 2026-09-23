@@ -6,6 +6,7 @@ never touched.
 
 import json
 import os
+import shutil
 
 import pytest
 
@@ -372,7 +373,8 @@ def test_a_game_missing_from_the_keyfile_builds_on_our_record(keyfile):
     assert store.load_stats()["golf"] == stat(2, 3, 30, 90)
 
 
-def test_a_deleted_keyfile_is_rebuilt_from_our_record(keyfile):
+def test_a_deleted_keyfile_is_rebuilt_from_our_record(keyfile, monkeypatch):
+    monkeypatch.setattr(ar, "installed", lambda: True)
     path = keyfile(AR_KLONDIKE)
     store.record_result("klondike", won=False, seconds=5)
     os.remove(path)
@@ -504,3 +506,53 @@ def test_without_aisleriot_stats_stay_in_local_json():
     assert store.load_stats()["freecell"] == s
     assert not os.path.exists(ar.keyfile_path())
 
+
+# -- is AisleRiot there? -------------------------------------------------------------
+
+# the real check; conftest hides whatever AisleRiot this machine has
+REAL_INSTALLED = ar.installed
+
+
+def on_path(monkeypatch, *names):
+    monkeypatch.setattr(ar, "installed", REAL_INSTALLED)
+    monkeypatch.setattr(shutil, "which",
+                        lambda name: f"/usr/games/{name}" if name in names else None)
+
+
+def test_an_empty_gnome_games_folder_is_not_aisleriot():
+    # other GNOME games keep their settings there too
+    os.makedirs(ar.gnome_games_dir())
+    assert not ar.available() and not store.syncing()
+    store.record_result("golf", won=True, seconds=42)
+    assert os.listdir(ar.gnome_games_dir()) == []
+
+
+@pytest.mark.parametrize("program", ["sol", "aisleriot"])
+def test_aisleriot_on_the_path_is_found(monkeypatch, program):
+    on_path(monkeypatch, program)
+    assert ar.installed() and ar.available() and store.syncing()
+    on_path(monkeypatch)
+    assert not ar.installed() and not ar.available()
+
+
+def test_results_wait_for_aisleriot_to_make_its_config(monkeypatch):
+    on_path(monkeypatch, "sol")
+    assert store.record_result("golf", won=True, seconds=42) == stat(1, 1, 42, 42)
+    # that folder is AisleRiot's to make, and nothing has gone wrong
+    assert not os.path.exists(ar.gnome_games_dir())
+    assert store.notices() == []
+    assert store.get_stat("golf") == stat(1, 1, 42, 42)
+    # AisleRiot is run for the first time and saves its settings
+    os.makedirs(ar.gnome_games_dir())
+    with open(ar.keyfile_path(), "w", encoding="utf-8") as fh:
+        fh.write("[Aisleriot Config]\nRecent=golf;\n")
+    store.record_result("golf", won=False, seconds=5)
+    assert ar.read_stat("golf.scm") == stat(1, 2, 42, 42)
+    assert store.get_stat("golf") == stat(1, 2, 42, 42)
+
+
+def test_a_reset_before_aisleriot_has_run_counts_our_games(monkeypatch):
+    on_path(monkeypatch, "sol")
+    store.record_result("golf", won=True, seconds=42)
+    assert store.reset_stats() == 1
+    assert store.get_stat("golf") == stat(0, 0, 0, 0)
