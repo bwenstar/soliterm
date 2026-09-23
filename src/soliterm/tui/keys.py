@@ -52,7 +52,7 @@ KEYMAP: Tuple[Binding, ...] = (
     bind("fF", "foundation", "f", "send the selected/cursor card to a foundation"),
     bind("hH", "hint", "h", "show a hint (highlights a legal move)"),
     bind(("b", "B", curses.KEY_F2), "boss", "b / F2",
-         "boss mode: hide the game behind 'work' output"),
+         "boss mode: hide the game behind 'work', on any screen"),
     bind("\t", "next_disguise", "Tab (boss mode)",
          "cycle the disguise; any other key goes back", mode="boss"),
     bind("cC", "code_skin", "c", "code skin: keep playing inside a code file"),

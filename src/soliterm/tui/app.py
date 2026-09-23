@@ -200,7 +200,8 @@ class App:
         """Show a screen until a key is pressed, and return that key.
 
         The mouse doesn't count and a resize draws the screen again, so the
-        pointer passing over it or a retiled window can't dismiss it.
+        pointer passing over it or a retiled window can't dismiss it. The
+        boss key hides it and comes back to it.
         """
         while True:
             draw()
@@ -210,8 +211,20 @@ class App:
                     curses.getmouse()
                 except curses.error:
                     pass
+            elif self.boss_key(k):
+                continue
             elif k not in (-1, curses.KEY_RESIZE):
                 return k
+
+    def boss_key(self, k: int) -> bool:
+        """If k is the boss key, go into boss mode until a key is pressed.
+
+        Every screen passes its keys through here first, so the boss key
+        works everywhere, not only on the board."""
+        if PLAY_ACTIONS.get(k) != "boss":
+            return False
+        self.camouflage_screen()
+        return True
 
     # ---- top loop ---- #
     def run(self) -> int:
@@ -260,6 +273,8 @@ class App:
                      "Up/Down move - Enter select - mouse click - q quit", CP(4))
             stdscr.refresh()
             key = stdscr.getch()
+            if self.boss_key(key):
+                continue
             if key in (curses.KEY_UP, ord("k")):
                 sel = (sel - 1) % len(items)
             elif key in (curses.KEY_DOWN, ord("j")):
@@ -341,6 +356,8 @@ class App:
                      "Left/Right change - Enter/q accept - Esc cancel", CP(4))
             stdscr.refresh()
             k = self.read_key()
+            if self.boss_key(k):
+                continue
             okey, label, values = spec[sel]
             cur = opts.get(okey, values[0])
             if k in (curses.KEY_UP, ord("k")):
@@ -367,6 +384,8 @@ class App:
             safe_add(3 + len(lines), 6, "y / Enter  yes     n / Esc  no", CP(4))
             self.stdscr.refresh()
             k = self.read_key()
+            if self.boss_key(k):
+                continue
             if k in (ord("y"), ord("Y"), curses.KEY_ENTER, 10, 13):
                 return True
             if k in (ord("n"), ord("N"), ord("q"), ord("Q"), 27):
@@ -1010,6 +1029,8 @@ class App:
                      f"Up/Down + Enter, or {keys}. Click to choose.", CP(4))
             stdscr.refresh()
             k = stdscr.getch()
+            if self.boss_key(k):
+                continue
             if k in (curses.KEY_UP, ord("k")):
                 sel = (sel - 1) % len(choices)
             elif k in (curses.KEY_DOWN, ord("j")):

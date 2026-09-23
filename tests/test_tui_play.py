@@ -770,6 +770,24 @@ def test_the_boss_key_hides_the_board_until_a_key_is_pressed(tui, key):
     assert "Score" in scr.frames[2]
 
 
+@pytest.mark.parametrize("screen, start_key, game, keys", [
+    ("choose a game", None, None, []),
+    ("Statistics", "klondike", None, ["s"]),
+    ("Soliterm - controls", "klondike", None, ["?"]),
+    ("Klondike - options", "klondike", None, ["o"]),
+    ("count as lost", "klondike", None, ["d", "o", curses.KEY_RIGHT, ENTER]),
+    ("YOU WIN", "klondike", near_won, ["a"]),
+    ("No moves left", "golf", one_move_left, ["f"]),
+])
+def test_the_boss_key_works_on_every_screen_and_comes_back_to_it(
+        tui, screen, start_key, game, keys):
+    scr = tui(keys + ["b", "z"], start_key=start_key, game=game and game())
+    shown, hidden, back = scr.frames[len(keys):len(keys) + 3]
+    assert screen in shown
+    assert hidden.strip() and screen not in hidden and "Score" not in hidden
+    assert screen in back
+
+
 def test_only_a_key_ends_boss_mode_not_the_mouse_or_a_resize(tui):
     scr = tui(["b",
                Mouse(9, 40, curses.REPORT_MOUSE_POSITION),
