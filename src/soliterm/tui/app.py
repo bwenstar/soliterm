@@ -664,10 +664,18 @@ class App:
             # A release only counts as the end of a press made on this board.
             # The click that started the game on the menu or the end banner
             # lets go over the new deal, and that must not touch it.
+            # The press has done the click already, so letting go over the
+            # same slot adds nothing; letting go over another slot drops the
+            # cards the press picked up there, which makes a drag.
             pressed, self.pressed = self.pressed, None
-            if pressed is None:
+            if (pressed is None or target is None or target[0] == pressed
+                    or self.selected != pressed):
                 return None
-        elif bstate & curses.BUTTON1_PRESSED:
+            self.cursor = target[0]
+            self.hint = None
+            self.drop_on(target[0])
+            return None
+        if bstate & curses.BUTTON1_PRESSED:
             self.pressed = target[0] if target else None
         if target is None:
             return None
@@ -675,8 +683,7 @@ class App:
         self.cursor = tsid
         self.hint = None
         dbl = bstate & curses.BUTTON1_DOUBLE_CLICKED
-        clicked = bstate & (curses.BUTTON1_CLICKED | curses.BUTTON1_PRESSED |
-                            curses.BUTTON1_RELEASED)
+        clicked = bstate & LEFT_CLICK
         if dbl:
             # double-clicking the stock is the natural "just deal"
             # gesture; elsewhere it sends the card to a foundation

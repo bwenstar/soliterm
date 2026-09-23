@@ -192,3 +192,42 @@ def test_moving_the_mouse_or_the_wheel_leaves_the_cursor_and_hint_alone():
                    curses.BUTTON3_PRESSED):
         app.mouse_at(y, x, bstate)
     assert (app.cursor, app.hint, app.selected) == (cursor, hint, None)
+
+
+def slow_click(app, sid, idx):
+    """Press and, a while later, release the left button over one card."""
+    y, x = cell_of(app, sid, idx)
+    app.mouse_at(y, x, curses.BUTTON1_PRESSED)
+    app.draw()
+    app.mouse_at(y, x, curses.BUTTON1_RELEASED)
+    app.draw()
+
+
+def test_a_slow_click_picks_a_card_up_and_keeps_it():
+    app, a, b = klondike_app([up(5, "H")], [up(4, "S")])
+    app.draw()
+    slow_click(app, b, 0)
+    assert app.selected == b
+    slow_click(app, a, 0)
+    assert names(app, a) == ["5H", "4S"]
+    assert app.selected is None
+
+
+def test_a_slow_click_on_the_stock_deals_once():
+    app = App(KeyScr())
+    app.start_game("klondike")
+    app.draw()
+    stock = app.game.ids_of("stock")[0]
+    slow_click(app, stock, len(app.game.cards(stock)) - 1)
+    assert app.game.moves == 1
+
+
+def test_dragging_a_card_onto_a_target_moves_it():
+    app, a, b = klondike_app([up(5, "H")], [up(4, "S")])
+    app.draw()
+    y, x = cell_of(app, b, 0)
+    app.mouse_at(y, x, curses.BUTTON1_PRESSED)
+    y, x = cell_of(app, a, 0)
+    app.mouse_at(y, x, curses.BUTTON1_RELEASED)
+    assert names(app, a) == ["5H", "4S"]
+    assert app.selected is None and app.cursor == a
