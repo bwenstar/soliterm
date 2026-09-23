@@ -101,8 +101,12 @@ this game reads from and writes to its config keyfile
 AisleRiot's Statistics dialog and vice versa. Disable by setting
 `"sync_aisleriot": false` in `~/.config/aisle-cli/config.json`.
 
-`--stats` prints the table; `--reset-stats` clears it (only the games this
-program manages; other AisleRiot games are left untouched).
+`--stats` prints the table; `--reset-stats` clears it, and that includes
+AisleRiot's own record of these nine games (its other games are left
+untouched). It asks you to type `yes` first, or takes `--yes` when there is
+no terminal to ask on, and keeps a copy of what it clears in
+`aisleriot.soliterm-bak` next to the keyfile and `stats.json.bak` next to
+the local stats.
 
 ## Options
 
@@ -111,7 +115,7 @@ program manages; other AisleRiot games are left untouched).
 --text          force text mode              --ascii     letter suits S/H/D/C
 --color         force colour in text mode    --no-color  disable colour
 --list          list games and exit          --stats     print statistics
---reset-stats   clear statistics
+--reset-stats   clear statistics             --yes       don't ask first
 ```
 
 Colour, code-skin, and other preferences persist in

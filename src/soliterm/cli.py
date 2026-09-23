@@ -17,6 +17,7 @@ import sys
 from typing import List, Optional
 
 from . import APP_NAME, __version__, engine, store
+from . import aisleriot as ar
 from .engine import GAME_ORDER, GAMES
 from .textmode import run_text
 
@@ -26,9 +27,11 @@ from .textmode import run_text
 # --------------------------------------------------------------------------- #
 
 def build_parser() -> argparse.ArgumentParser:
+    # allow_abbrev=False: a prefix like --r must not mean --reset-stats
     p = argparse.ArgumentParser(
         prog="soliterm",
         description=f"{APP_NAME}: solitaire for your terminal, AisleRiot-compatible.",
+        allow_abbrev=False,
     )
     p.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     p.add_argument("--game", choices=GAME_ORDER, default=None,
@@ -42,10 +45,15 @@ def build_parser() -> argparse.ArgumentParser:
                    help="force coloured suits in text mode (red/black on white)")
     p.add_argument("--no-color", dest="color", action="store_false",
                    help="disable coloured output")
-    p.add_argument("--list", action="store_true", help="list the games and exit")
-    p.add_argument("--stats", action="store_true", help="print statistics and exit")
-    p.add_argument("--reset-stats", action="store_true",
-                   help="erase all statistics and exit")
+    once = p.add_mutually_exclusive_group()
+    once.add_argument("--list", action="store_true", help="list the games and exit")
+    once.add_argument("--stats", action="store_true", help="print statistics and exit")
+    once.add_argument("--reset-stats", action="store_true",
+                      help="erase the statistics of every game, AisleRiot's own "
+                           "record of them included, and exit; asks first and "
+                           "keeps a backup")
+    p.add_argument("--yes", action="store_true",
+                   help="with --reset-stats: don't ask first")
     return p
 
 
@@ -68,6 +76,49 @@ def print_stats() -> None:
               f"{pcts:>7}{best:>8}{worst:>8}")
 
 
+def reset_stats(yes: bool) -> int:
+    """--reset-stats: check with the player, back up, then clear."""
+    if not store.any_stats():
+        print("There are no statistics to clear.")
+        return 0
+    sharing = store.syncing()
+    if not yes:
+        if not sys.stdin.isatty():
+            print("soliterm: --reset-stats asks before it erases anything; "
+                  "add --yes to clear the statistics without asking",
+                  file=sys.stderr)
+            return 2
+        where = (f", here and in GNOME AisleRiot ({ar.keyfile_path()})"
+                 if sharing else "")
+        print(f"This erases the statistics of all {len(GAME_ORDER)} games{where}.",
+              file=sys.stderr)
+        print("Type yes to clear them: ", end="", file=sys.stderr, flush=True)
+        try:
+            answer = sys.stdin.readline()
+        except KeyboardInterrupt:
+            answer = ""
+        if not answer.endswith("\n"):
+            print(file=sys.stderr)      # Ctrl-D or Ctrl-C left the line open
+        if answer.strip().lower() != "yes":
+            print("Nothing was cleared.")
+            return 1
+    try:
+        backups = store.backup_stats()
+    except OSError as exc:
+        print(f"soliterm: couldn't back up the statistics ({exc}), "
+              "so nothing was cleared", file=sys.stderr)
+        return 1
+    for path in backups:
+        print(f"Backup saved to {path}")
+    n = store.reset_stats()
+    if sharing:
+        print(f"Statistics cleared for {n} game(s) "
+              "(shared with GNOME AisleRiot).")
+    else:
+        print("Statistics cleared.")
+    return 0
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     args = build_parser().parse_args(argv)
     try:
@@ -82,13 +133,7 @@ def _run(args: argparse.Namespace) -> int:
     if args.list:
         print_list(); return 0
     if args.reset_stats:
-        n = store.reset_stats()
-        if store.syncing():
-            print(f"Statistics cleared for {n} game(s) "
-                  "(shared with GNOME AisleRiot).")
-        else:
-            print("Statistics cleared.")
-        return 0
+        return reset_stats(args.yes)
     if args.stats:
         print_stats(); return 0
 

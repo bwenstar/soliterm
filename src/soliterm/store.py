@@ -10,6 +10,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import shutil
 import tempfile
 import time
 from typing import Dict, Iterator, List, Optional
@@ -536,6 +537,55 @@ def _combined(a: dict, b: dict) -> dict:
         "best": min(bests) if bests else 0,
         "worst": max(a["worst"], b["worst"]),
     }
+
+
+def any_stats() -> bool:
+    """True if a game we manage has a game on record, here or in the keyfile."""
+    from .engine import GAME_ORDER  # local import to avoid a cycle at module load
+    local = load_stats()
+    return any(get_stat(k)["total"] > 0 or _norm(local.get(k))["total"] > 0
+               for k in GAME_ORDER)
+
+
+def backup_stats() -> List[str]:
+    """Copy what reset_stats() would clear to backups beside the originals:
+    the keyfile (when sharing) to aisleriot.soliterm-bak, and stats.json to
+    stats.json.bak. Returns the backups made; raises OSError if one fails.
+    """
+    pairs = [(stats_path(), stats_path() + ".bak")]
+    if _can_sync():
+        pairs.insert(0, (ar.keyfile_path(), ar.keyfile_path() + ".soliterm-bak"))
+    made = []
+    for src, dst in pairs:
+        if _copy_file(src, dst):
+            made.append(dst)
+    return made
+
+
+def _copy_file(src: str, dst: str) -> bool:
+    """Copy `src` over `dst` in one step, keeping its mode. False if there
+    is no `src`; OSError if it can't be copied."""
+    try:
+        fin = open(src, "rb")
+    except FileNotFoundError:
+        return False
+    with fin:
+        fd, tmp = tempfile.mkstemp(dir=os.path.dirname(dst),
+                                   prefix=f".{os.path.basename(dst)}.", suffix=".tmp")
+        try:
+            with os.fdopen(fd, "wb") as fout:
+                shutil.copyfileobj(fin, fout)
+                fout.flush()
+                os.fsync(fout.fileno())
+            shutil.copymode(src, tmp)
+            os.replace(tmp, dst)
+        except BaseException:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+            raise
+    return True
 
 
 def reset_stats() -> int:

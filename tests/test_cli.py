@@ -17,13 +17,25 @@ from soliterm.textmode import render_text
 from helpers import deal
 
 
+class TtyInput(io.StringIO):
+    """Typed input: stdin that says it is a terminal."""
+
+    def isatty(self):
+        return True
+
+
 @pytest.fixture
 def cli(monkeypatch, capsys):
-    """Returns run(*args, stdin="") -> (exit code, stdout lines)."""
-    def run(*args, stdin=""):
-        monkeypatch.setattr(sys, "stdin", io.StringIO(stdin))
+    """Returns run(*args, stdin="", tty=False) -> (exit code, stdout lines).
+
+    What went to stderr is left in run.err.
+    """
+    def run(*args, stdin="", tty=False):
+        monkeypatch.setattr(sys, "stdin", (TtyInput if tty else io.StringIO)(stdin))
         rc = main(list(args))
-        return rc, capsys.readouterr().out.splitlines()
+        out, run.err = capsys.readouterr()
+        return rc, out.splitlines()
+    run.err = ""
     return run
 
 
@@ -111,12 +123,10 @@ def test_stats_with_an_unreadable_keyfile_say_so(keyfile, capsys):
 
 # -- --reset-stats ---------------------------------------------------------------------
 
-# "y" on stdin in case clearing ever asks first.
-
 def test_reset_stats_clears_local_statistics(cli):
     store.record_result("golf", True, 50)
     store.record_result("yukon", False, 50)
-    rc, lines = cli("--reset-stats", stdin="y\n")
+    rc, lines = cli("--reset-stats", "--yes")
     assert rc == 0
     assert any("cleared" in line.lower() for line in lines)
     for key in GAME_ORDER:
@@ -128,12 +138,100 @@ def test_reset_stats_clears_local_statistics(cli):
 def test_reset_stats_clears_the_shared_aisleriot_record(cli, keyfile):
     path = keyfile("[Aisleriot Config]\nTheme=tigullio.svgz\n\n"
                    f"[{ar.GAME_TO_SECTION['canfield']}]\nStatistic=2;9;100;400;\n")
-    rc, lines = cli("--reset-stats", stdin="y\n")
+    rc, lines = cli("--reset-stats", "--yes")
     assert rc == 0
     assert any("cleared" in line.lower() for line in lines)
     assert store.get_stat("canfield")["total"] == 0
     assert ar.read_stat(ar.GAME_TO_SECTION["canfield"])["total"] == 0
     assert "Theme=tigullio.svgz" in path.read_text()
+
+
+@pytest.mark.parametrize("flag", ["--r", "--reset", "--reset-stat"])
+def test_reset_stats_takes_no_abbreviation(cli, flag):
+    store.record_result("golf", True, 50)
+    with pytest.raises(SystemExit) as exc:
+        cli(flag)
+    assert exc.value.code == 2
+    assert store.get_stat("golf")["total"] == 1
+
+
+def test_reset_stats_and_stats_together_is_an_error(cli):
+    store.record_result("golf", True, 50)
+    with pytest.raises(SystemExit) as exc:
+        cli("--stats", "--reset-stats")
+    assert exc.value.code == 2
+    assert store.get_stat("golf")["total"] == 1
+
+
+def test_reset_stats_without_a_terminal_wants_yes(cli, keyfile):
+    path = keyfile(f"[{ar.GAME_TO_SECTION['canfield']}]\nStatistic=2;9;100;400;\n")
+    store.record_result("golf", True, 50)
+    before = path.read_text()
+    rc, lines = cli("--reset-stats", stdin="yes\n")
+    assert rc == 2
+    assert "--yes" in cli.err
+    assert path.read_text() == before
+    assert store.get_stat("golf")["total"] == 1
+    assert not os.path.exists(store.stats_path() + ".bak")
+
+
+def test_reset_stats_on_a_terminal_asks_for_yes(cli, keyfile):
+    path = keyfile(f"[{ar.GAME_TO_SECTION['canfield']}]\nStatistic=2;9;100;400;\n")
+    rc, lines = cli("--reset-stats", stdin="yes\n", tty=True)
+    assert rc == 0
+    assert "yes" in cli.err and ar.keyfile_path() in cli.err
+    assert ar.read_stat(ar.GAME_TO_SECTION["canfield"])["total"] == 0
+
+
+@pytest.mark.parametrize("answer", ["y\n", "no\n", "\n", ""])
+def test_reset_stats_on_a_terminal_clears_nothing_without_yes(cli, keyfile, answer):
+    path = keyfile(f"[{ar.GAME_TO_SECTION['canfield']}]\nStatistic=2;9;100;400;\n")
+    before = path.read_text()
+    rc, lines = cli("--reset-stats", stdin=answer, tty=True)
+    assert rc == 1
+    assert any("nothing" in line.lower() for line in lines)
+    assert path.read_text() == before
+    assert not os.path.exists(str(path) + ".soliterm-bak")
+
+
+def test_reset_stats_backs_up_both_files_first(cli, keyfile):
+    text = ("[Aisleriot Config]\nTheme=tigullio.svgz\n\n"
+            f"[{ar.GAME_TO_SECTION['canfield']}]\nStatistic=2;9;100;400;\n")
+    path = keyfile(text)
+    store.record_result("golf", True, 50)
+    shared, local = path.read_text(), Path(store.stats_path()).read_text()
+    rc, lines = cli("--reset-stats", "--yes")
+    assert rc == 0
+    kept = Path(str(path) + ".soliterm-bak")
+    assert kept.name == "aisleriot.soliterm-bak"
+    assert kept.read_text() == shared
+    assert Path(store.stats_path() + ".bak").read_text() == local
+    out = "\n".join(lines)
+    assert str(kept) in out and store.stats_path() + ".bak" in out
+
+
+def test_reset_stats_clears_nothing_when_the_backup_fails(cli, keyfile, monkeypatch):
+    path = keyfile(f"[{ar.GAME_TO_SECTION['canfield']}]\nStatistic=2;9;100;400;\n")
+    before = path.read_text()
+
+    def no_room(src, dst):
+        raise OSError(28, "No space left on device")
+
+    monkeypatch.setattr(store, "_copy_file", no_room)
+    rc, lines = cli("--reset-stats", "--yes")
+    assert rc == 1
+    assert "nothing was cleared" in cli.err
+    assert path.read_text() == before
+
+
+def test_reset_stats_twice_keeps_the_first_backup(cli, keyfile):
+    path = keyfile(f"[{ar.GAME_TO_SECTION['canfield']}]\nStatistic=2;9;100;400;\n")
+    shared = path.read_text()
+    cli("--reset-stats", "--yes")
+    rc, lines = cli("--reset-stats", "--yes")
+    assert rc == 0
+    assert any("no statistics" in line.lower() for line in lines)
+    assert Path(str(path) + ".soliterm-bak").read_text() == shared
 
 
 # -- text mode -------------------------------------------------------------------------
