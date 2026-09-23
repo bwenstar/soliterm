@@ -22,7 +22,9 @@ try:
 except ImportError:     # Windows: no advisory locks, the lock is a no-op
     fcntl = None  # type: ignore[assignment]
 
-APP_DIR_NAME = "aisle-cli"
+# The folder name under the XDG config and data dirs. Under its old name the
+# game used "aisle-cli"; migrate.py copies those files over on the first run.
+APP_DIR_NAME = "soliterm"
 
 # Things the player should hear about (say, a keyfile we could not read),
 # collected here for the command line to print when the game is over.
@@ -223,6 +225,9 @@ def load_config() -> dict:
             cfg["camo_theme"] = data["camo_theme"]
         if data.get("view") in ("expanded", "legacy"):
             cfg["view"] = data["view"]
+        # where the settings were copied from on the first run (migrate.py)
+        if isinstance(data.get("migrated_from"), dict):
+            cfg["migrated_from"] = data["migrated_from"]
     return cfg
 
 

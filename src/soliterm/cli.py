@@ -16,7 +16,7 @@ import os
 import sys
 from typing import List, Optional
 
-from . import APP_NAME, __version__, engine, store
+from . import APP_NAME, __version__, engine, migrate, store
 from . import aisleriot as ar
 from .engine import GAME_ORDER, GAMES
 from .textmode import run_text
@@ -124,6 +124,8 @@ def reset_stats(yes: bool) -> int:
 
 def main(argv: Optional[List[str]] = None) -> int:
     args = build_parser().parse_args(argv)
+    # before anything reads the config or the stats
+    migrate.ensure()
     if args.no_sync:
         store.disable_sync()
     try:
