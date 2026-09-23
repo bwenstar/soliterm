@@ -20,7 +20,7 @@ from typing import Callable, Iterator, List, Optional, Tuple
 
 from .. import APP_NAME, camo, engine, store
 from ..engine import GAME_ORDER, GAMES, Solitaire
-from .board import BoardUI, can_draw_unicode
+from .board import CODE_GUTTER, BoardUI, can_draw_unicode, draw_code_backdrop
 from .keys import BOSS_ACTIONS, PLAY_ACTIONS, help_lines
 
 # What a play-screen handler returns to leave the game in play: back to the
@@ -128,6 +128,10 @@ class App:
         # "show colour" flag the renderer reads, and flips on toggle.
         self.color_capable = False
         self.has_color = False
+        # what the screen being drawn has put up so far, while the code skin
+        # holds it back (see begin_page), and how far right it came out
+        self.page: Optional[List[Tuple[int, int, str, int]]] = None
+        self.page_dx = 0
         # per-game state, reset by start_game()
         self.clock = GameClock()
         self.selected: Optional[int] = None
@@ -189,12 +193,43 @@ class App:
         return curses.color_pair(n) if self.has_color else 0
 
     def safe_add(self, y, x, text, attr=0):
+        if self.page is not None:
+            self.page.append((y, x, text, attr))
+            return
         h, w = self.stdscr.getmaxyx()
         if 0 <= y < h and 0 <= x < w:
             try:
                 self.stdscr.addnstr(y, x, text, max(0, w - x - 1), attr)
             except curses.error:
                 pass
+
+    def begin_page(self) -> None:
+        """Start drawing a screen other than the board.
+
+        Under the code skin what the screen draws is held back, to be shown
+        by end_page as a comment in the same code file the board sits in,
+        so the menu, the dialogs and the banners don't give the game away
+        either.
+        """
+        self.stdscr.erase()
+        skinned = bool(self.cfg.get("code_skin", False))
+        self.page = [] if skinned else None
+        self.page_dx = CODE_GUTTER if skinned else 0
+
+    def end_page(self) -> None:
+        """Put the screen begun with begin_page on the terminal."""
+        page, self.page = self.page, None
+        if page:
+            h, _w = self.stdscr.getmaxyx()
+            rows = [y for y, _, _, _ in page]
+            top, bottom = min(rows), max(rows)
+            # a comment mark at the gutter down the rows the screen uses,
+            # and its text after it, so the whole block reads as a comment
+            draw_code_backdrop(self, {y: "#" for y in range(top, bottom + 1)},
+                               last_row=max(h - 2, bottom))
+            for y, x, text, attr in page:
+                self.safe_add(y, x + self.page_dx, text, attr)
+        self.stdscr.refresh()
 
     def wait_for_key(self, draw: Callable[[], None]) -> int:
         """Show a screen until a key is pressed, and return that key.
@@ -254,7 +289,7 @@ class App:
         extra = ["__stats__", "__quit__"]
         items = GAME_ORDER + extra
         while True:
-            stdscr.erase()
+            self.begin_page()
             safe_add(1, 4, f"{APP_NAME}  -  choose a game", CP(4) | curses.A_BOLD)
             safe_add(2, 4, "solitaire for your terminal, AisleRiot-compatible", CP(4))
             for i, key in enumerate(GAME_ORDER):
@@ -271,7 +306,7 @@ class App:
                 safe_add(base + j, 6, f"{marker}{label}", attr)
             safe_add(base + len(extra) + 1, 6,
                      "Up/Down move - Enter select - mouse click - q quit", CP(4))
-            stdscr.refresh()
+            self.end_page()
             key = stdscr.getch()
             if self.boss_key(key):
                 continue
@@ -306,8 +341,8 @@ class App:
         self.wait_for_key(lambda: self.draw_stats(focus_key))
 
     def draw_stats(self, focus_key: Optional[str]):
-        stdscr, CP, safe_add = self.stdscr, self.CP, self.safe_add
-        stdscr.erase()
+        CP, safe_add = self.CP, self.safe_add
+        self.begin_page()
         safe_add(1, 4, "Statistics", CP(4) | curses.A_BOLD)
         safe_add(2, 4, "Wins / Total / Percentage / Best & Worst winning time", CP(4))
         if store.syncing():
@@ -329,7 +364,7 @@ class App:
                      f"{pcts:>7}{best:>8}{worst:>8}", attr)
             y += 1
         safe_add(y + 1, 4, "Press any key to continue.", CP(4))
-        stdscr.refresh()
+        self.end_page()
 
     # ---- options dialog ---- #
     @hides_the_board
@@ -338,13 +373,13 @@ class App:
 
         Returns the options chosen with Enter, or None if Esc left them.
         """
-        stdscr, CP, safe_add = self.stdscr, self.CP, self.safe_add
+        CP, safe_add = self.CP, self.safe_add
         cls = GAMES[key]
         spec = cls.option_spec()
         opts = dict(current)
         sel = 0
         while True:
-            stdscr.erase()
+            self.begin_page()
             safe_add(1, 4, f"{cls.name} - options", CP(4) | curses.A_BOLD)
             for i, (okey, label, values) in enumerate(spec):
                 cur = opts.get(okey, values[0])
@@ -354,7 +389,7 @@ class App:
                 safe_add(3 + i, 6, f"{marker}{label:<18} {vals}", attr)
             safe_add(3 + len(spec) + 1, 6,
                      "Left/Right change - Enter/q accept - Esc cancel", CP(4))
-            stdscr.refresh()
+            self.end_page()
             k = self.read_key()
             if self.boss_key(k):
                 continue
@@ -378,11 +413,11 @@ class App:
         """Ask a yes or no question: y or Enter is yes, n, Esc or q is no."""
         CP, safe_add = self.CP, self.safe_add
         while True:
-            self.stdscr.erase()
+            self.begin_page()
             for i, line in enumerate(lines):
                 safe_add(2 + i, 6, line, (CP(6) | curses.A_BOLD) if i == 0 else 0)
             safe_add(3 + len(lines), 6, "y / Enter  yes     n / Esc  no", CP(4))
-            self.stdscr.refresh()
+            self.end_page()
             k = self.read_key()
             if self.boss_key(k):
                 continue
@@ -404,10 +439,10 @@ class App:
         ]
 
         def draw():
-            self.stdscr.erase()
+            self.begin_page()
             for i, ln in enumerate(lines):
                 self.safe_add(1 + i, 2, ln, curses.A_BOLD if i == 0 else 0)
-            self.stdscr.refresh()
+            self.end_page()
 
         self.wait_for_key(draw)
 
@@ -1007,7 +1042,7 @@ class App:
             keys = "u/" + keys
         sel = 0
         while True:
-            stdscr.erase()
+            self.begin_page()
             if won:
                 safe_add(2, 6, "*** YOU WIN! ***", CP(6) | curses.A_BOLD)
             else:
@@ -1027,7 +1062,7 @@ class App:
                 safe_add(12 + i, 6, f"{marker}{label}", attr)
             safe_add(12 + len(choices) + 1, 6,
                      f"Up/Down + Enter, or {keys}. Click to choose.", CP(4))
-            stdscr.refresh()
+            self.end_page()
             k = stdscr.getch()
             if self.boss_key(k):
                 continue
@@ -1052,9 +1087,9 @@ class App:
                     continue
                 # only a left click on a choice's text takes it, never the
                 # pointer passing over it, the wheel or a stray release
-                row = my - 12
+                row, col = my - 12, mx - self.page_dx
                 if (bstate & LEFT_CLICK and 0 <= row < len(choices)
-                        and 6 <= mx < 6 + len("> " + choices[row][1])):
+                        and 6 <= col < 6 + len("> " + choices[row][1])):
                     return choices[row][0]
 
 

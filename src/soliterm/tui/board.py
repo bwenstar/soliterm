@@ -54,6 +54,42 @@ def can_draw_unicode(stdscr) -> bool:
     return True
 
 
+# The code skin's file: the width of its " 12  " line-number gutter, and the
+# source it shows around whatever sits in it
+CODE_GUTTER = 5
+_CODE = camo.code_lines(200, seed=1)
+
+
+def draw_code_backdrop(ui, notes: Dict[int, str],
+                       last_row: Optional[int] = None) -> None:
+    """Paint the code-editor backdrop a skinned screen is drawn on top of.
+
+    A line-number gutter down the left, source lines filling the screen,
+    and a header that reads as an open file. The rows in `notes` are kept
+    for the screen and show only their note, from the gutter on. The file
+    runs to `last_row`, the screen's last row but one unless given. `ui` is
+    the BoardUI or the App; this needs its stdscr, has_color, CP and
+    safe_add.
+    """
+    h, w = ui.stdscr.getmaxyx()
+    dim = ui.CP(4)
+    code_attr = ui.CP(2) if ui.has_color else 0   # plain source text
+    # editor-style header / tab bar
+    ui.safe_add(0, 0, " solver.py  -  ~/work/render-core/engine "
+                .ljust(w - 1), ui.CP(5) if ui.has_color else curses.A_REVERSE)
+    for screen_y in range(1, (h - 2 if last_row is None else last_row) + 1):
+        lineno = screen_y          # 1-based line numbers down the file
+        gutter = f"{lineno:>3}  "
+        ui.safe_add(screen_y, 0, gutter, dim)
+        if screen_y in notes:
+            if notes[screen_y]:
+                ui.safe_add(screen_y, CODE_GUTTER, notes[screen_y], dim)
+            continue
+        # otherwise fill with a stable line of source
+        idx = lineno % len(_CODE)
+        ui.safe_add(screen_y, CODE_GUTTER, _CODE[idx], code_attr)
+
+
 class BoardUI:
     """Renders a Solitaire board and maps screen coords back to (slot, index)."""
 
@@ -72,8 +108,7 @@ class BoardUI:
         # code-skin play mode: wrap the live board in plausible source so the
         # screen reads as a code editor while the game stays fully playable.
         self.code_skin = False
-        self._code = camo.code_lines(200, seed=1)
-        self._gutter = 5            # width of the " 12  " line-number gutter
+        self._gutter = CODE_GUTTER
         # how far down / right the board sits inside the file when skinned
         self._code_top = 7
         self._code_indent = 9
@@ -332,34 +367,17 @@ class BoardUI:
         return positions
 
     def _draw_code_skin(self):
-        """Paint a code-editor backdrop the board will be drawn on top of.
+        """Paint the code-editor backdrop the board will be drawn on top of.
 
-        A line-number gutter down the left, source lines filling the screen,
-        and a header that reads as an open file. The rows where the board sits
-        are left mostly blank (the board overwrites them anyway), wrapped with
-        comment lines so they look like a snapshot embedded in the source.
+        The rows where the board sits are left mostly blank (the board
+        overwrites them anyway), with a comment line on top so they look
+        like a snapshot embedded in the source.
         """
-        h, w = self.stdscr.getmaxyx()
-        dim = self.CP(4)
-        code_attr = self.CP(2) if self.has_color else 0   # plain source text
-        # editor-style header / tab bar
-        self.safe_add(0, 0, " solver.py  -  ~/work/render-core/engine "
-                      .ljust(w - 1), self.CP(5) if self.has_color else curses.A_REVERSE)
         board_rows = self._board_row_span()
-        board_top = min(board_rows) if board_rows else -1
-        for screen_y in range(1, h - 1):
-            lineno = screen_y          # 1-based line numbers down the file
-            gutter = f"{lineno:>3}  "
-            self.safe_add(screen_y, 0, gutter, dim)
-            if screen_y in board_rows:
-                # leave the interior for the board; mark the embedded snapshot
-                if screen_y == board_top:
-                    self.safe_add(screen_y, self._gutter,
-                                  "    # --- board snapshot (live) ---", dim)
-                continue
-            # otherwise fill with a stable line of source
-            idx = lineno % len(self._code)
-            self.safe_add(screen_y, self._gutter, self._code[idx], code_attr)
+        notes = {y: "" for y in board_rows}
+        if board_rows:
+            notes[min(board_rows)] = "    # --- board snapshot (live) ---"
+        draw_code_backdrop(self, notes)
 
     def _board_row_span(self):
         """The set of screen rows the board occupies (for the code skin)."""

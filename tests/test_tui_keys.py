@@ -19,10 +19,12 @@ NAMES = {curses.KEY_UP: "Arrow", curses.KEY_DOWN: "Arrow",
          curses.KEY_MOUSE: "Mouse"}
 
 
-def help_screen():
+def help_screen(code_skin=False):
     scr = FakeScr(24, 80)
     scr.getch = lambda: ord(" ")      # the key that closes it
-    App(scr).help_screen()
+    app = App(scr)
+    app.cfg["code_skin"] = code_skin
+    app.help_screen()
     return scr.text()
 
 
@@ -58,8 +60,9 @@ def test_only_a_resize_goes_unlisted():
     assert [list(b.actions) for b in hidden] == [[curses.KEY_RESIZE]]
 
 
-def test_the_help_screen_shows_every_binding():
-    text = help_screen()
+@pytest.mark.parametrize("code_skin", [False, True])
+def test_the_help_screen_shows_every_binding(code_skin):
+    text = help_screen(code_skin)
     indent = " " * (2 + keys.HELP_KEY_W)
     for b in keys.KEYMAP:
         if not b.label:

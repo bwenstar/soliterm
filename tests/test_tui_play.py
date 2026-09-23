@@ -770,7 +770,9 @@ def test_the_boss_key_hides_the_board_until_a_key_is_pressed(tui, key):
     assert "Score" in scr.frames[2]
 
 
-@pytest.mark.parametrize("screen, start_key, game, keys", [
+# how to reach each screen that isn't the board: a line it shows, the game
+# to start (None for the menu), a board to start on and the keys to get there
+EVERY_SCREEN = [
     ("choose a game", None, None, []),
     ("Statistics", "klondike", None, ["s"]),
     ("Soliterm - controls", "klondike", None, ["?"]),
@@ -778,7 +780,10 @@ def test_the_boss_key_hides_the_board_until_a_key_is_pressed(tui, key):
     ("count as lost", "klondike", None, ["d", "o", curses.KEY_RIGHT, ENTER]),
     ("YOU WIN", "klondike", near_won, ["a"]),
     ("No moves left", "golf", one_move_left, ["f"]),
-])
+]
+
+
+@pytest.mark.parametrize("screen, start_key, game, keys", EVERY_SCREEN)
 def test_the_boss_key_works_on_every_screen_and_comes_back_to_it(
         tui, screen, start_key, game, keys):
     scr = tui(keys + ["b", "z"], start_key=start_key, game=game and game())
@@ -815,6 +820,34 @@ def test_c_toggles_the_code_skin_and_saves_it(tui):
     assert store.load_config()["code_skin"] is True
     tui(["c"])      # the saved skin comes back on, and c turns it off
     assert store.load_config()["code_skin"] is False
+
+
+def code_skin_on():
+    cfg = store.load_config()
+    cfg["code_skin"] = True
+    store.save_config(cfg)
+
+
+@pytest.mark.parametrize("screen, start_key, game, keys", EVERY_SCREEN)
+def test_the_code_skin_keeps_every_screen_inside_the_code_file(
+        tui, screen, start_key, game, keys):
+    code_skin_on()
+    scr = tui(keys, start_key=start_key, game=game and game())
+    rows = scr.frames[len(keys)].split("\n")
+    assert "solver.py" in rows[0]
+    # a line number down every row, and the screen written as a comment
+    assert all(re.match(r" *\d+\b", row) for row in rows[1:-1])
+    shown = [row for row in rows if screen in row]
+    assert shown and all(re.match(r" *\d+  # ", row) for row in shown)
+
+
+def test_a_click_on_a_banner_choice_finds_it_under_the_code_skin(tui):
+    code_skin_on()
+    new = BANNER_ROW["new"]
+    # the skin moves the choices right, past the comment mark
+    scr = tui(["a", Mouse(new, 8), Mouse(new, 18)], game=near_won())
+    assert "YOU WIN" in scr.frames[2]
+    assert "new deal" in scr.frames[3]
 
 
 def test_x_toggles_the_view_and_the_next_game_uses_it(tui):

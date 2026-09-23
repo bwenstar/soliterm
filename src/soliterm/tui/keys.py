@@ -32,7 +32,7 @@ def bind(keys: Iterable[Union[str, int]], action: str, label: str, text: str,
 KEYMAP: Tuple[Binding, ...] = (
     # h is taken by the hint, so the vi-style keys stop at k, j and l
     Binding("Arrow keys, k j l",
-            "move the cursor between slots (k up, j down, l right)",
+            "move between the slots (k up, j down, l right)",
             {curses.KEY_UP: "up", ord("k"): "up",
              curses.KEY_DOWN: "down", ord("j"): "down",
              curses.KEY_LEFT: "left",
@@ -52,7 +52,7 @@ KEYMAP: Tuple[Binding, ...] = (
     bind("fF", "foundation", "f", "send the selected/cursor card to a foundation"),
     bind("hH", "hint", "h", "show a hint (highlights a legal move)"),
     bind(("b", "B", curses.KEY_F2), "boss", "b / F2",
-         "boss mode: hide the game behind 'work', on any screen"),
+         "boss mode: hide any screen behind 'work'"),
     bind("\t", "next_disguise", "Tab (boss mode)",
          "cycle the disguise; any other key goes back", mode="boss"),
     bind("cC", "code_skin", "c", "code skin: keep playing inside a code file"),
