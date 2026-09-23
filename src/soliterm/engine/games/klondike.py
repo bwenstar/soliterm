@@ -13,11 +13,25 @@ class Klondike(GameDef):
 
     @classmethod
     def default_options(cls):
-        return {"draw": 1}
+        return {"draw": 1, "redeals": "standard"}
 
     @classmethod
     def option_spec(cls):
-        return [("draw", "Cards to draw", [1, 3])]
+        return [("draw", "Cards to draw", [1, 3]),
+                ("redeals", "Redeals", ["standard", "none", "unlimited"])]
+
+    def _redeals_left(self, g):
+        """How many more times the waste can go back to the stock, or None
+        for no limit. The standard rule is AisleRiot's: two redeals drawing
+        one card at a time, as many as you like drawing three."""
+        mode = g.options.get("redeals", "standard")
+        if mode == "none":
+            allowed = 0
+        elif mode == "unlimited" or g.options.get("draw", 1) != 1:
+            return None
+        else:
+            allowed = 2
+        return max(0, allowed - g.redeals_done)
 
     def deal(self, g):
         g.reset_slots()
@@ -75,7 +89,7 @@ class Klondike(GameDef):
         if g.empty(sid):
             # recycle waste -> stock
             waste = g.slots[self.waste].cards
-            if not waste:
+            if not waste or self._redeals_left(g) == 0:
                 return False
             g.slots[sid].cards = [c.up(False) for c in reversed(waste)]
             g.slots[self.waste].cards = []
@@ -85,6 +99,16 @@ class Klondike(GameDef):
         for _ in range(min(draw, len(g.cards(sid)))):
             g.slots[self.waste].cards.append(g.slots[sid].cards.pop().up(True))
         return True
+
+    def can_deal(self, g):
+        if not g.empty(self.stock):
+            return True
+        return not g.empty(self.waste) and self._redeals_left(g) != 0
+
+    def deal_blocked_reason(self, g):
+        if not g.empty(self.waste):
+            return "no redeals left - the waste can't go back to the stock"
+        return super().deal_blocked_reason(g)
 
     def on_double_click(self, g, sid):
         if g.kind(sid) not in ("tableau", "waste"):
@@ -116,7 +140,11 @@ class Klondike(GameDef):
         return sum(len(g.cards(s)) for s in g.ids_of("foundation")) == 52
 
     def status(self, g):
-        return f"Stock: {len(g.cards(self.stock))}  Waste: {len(g.cards(self.waste))}"
+        text = f"Stock: {len(g.cards(self.stock))}  Waste: {len(g.cards(self.waste))}"
+        left = self._redeals_left(g)
+        if left is not None:
+            text += f"  Redeals left: {left}"
+        return text
 
     def autoplay(self, g):
         n = 0

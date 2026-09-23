@@ -70,6 +70,89 @@ def test_an_empty_stock_turns_the_waste_back_over(draw):
     assert g.redeals_done == 1
 
 
+def turn_over(g):
+    """Deal the stock out, then click it once more to turn the waste back
+    over. Returns what that last click did."""
+    stock = g.ids_of("stock")[0]
+    while g.cards(stock):
+        assert g.deal()
+    return g.deal()
+
+
+def test_drawing_one_turns_the_stock_over_twice_at_most():
+    # AisleRiot's single card deals: three times through the deck
+    g = deal("klondike", 1, draw=1)
+    assert "Redeals left: 2" in g.status
+    assert turn_over(g) and turn_over(g)
+    assert "Redeals left: 0" in g.status
+    assert turn_over(g) is False
+    assert g.redeals_done == 2
+    assert g.cards(g.ids_of("waste")[0])
+    assert not g.can_deal()
+    assert not g.deal_is_productive()
+    assert "redeal" in g.deal_blocked_reason()
+
+
+def test_drawing_three_redeals_as_often_as_you_like():
+    g = deal("klondike", 1, draw=3)
+    for _ in range(5):
+        assert turn_over(g)
+    assert g.redeals_done == 5
+    assert "Redeals" not in g.status
+
+
+@pytest.mark.parametrize("draw", DRAWS)
+def test_no_redeals_means_one_pass_through_the_stock(draw):
+    g = deal("klondike", 1, draw=draw, redeals="none")
+    assert "Redeals left: 0" in g.status
+    assert turn_over(g) is False
+    assert g.redeals_done == 0
+    assert not g.can_deal()
+
+
+def test_unlimited_redeals_drawing_one():
+    g = deal("klondike", 1, draw=1, redeals="unlimited")
+    for _ in range(4):
+        assert turn_over(g)
+    assert g.can_deal()
+    assert "Redeals" not in g.status
+
+
+def test_the_waste_left_over_can_be_turned_over_while_redeals_remain():
+    g = deal("klondike", 1)
+    stock = g.ids_of("stock")[0]
+    while g.cards(stock):
+        g.deal()
+    assert g.can_deal()
+
+
+def exhausted(redeals_done):
+    """Nothing moves, the stock is used up and two dead cards sit in the
+    waste."""
+    g = deal("klondike", 1)
+    clear_board(g)
+    t = g.ids_of("tableau")
+    g.slots[g.ids_of("waste")[0]].cards = [Card(5, "C", True), Card(9, "D", True)]
+    g.slots[t[0]].cards = [Card(3, "H", False), Card(7, "S", True)]
+    g.slots[t[1]].cards = [Card(6, "C", True)]
+    g.redeals_done = redeals_done
+    g.moves = 10
+    return g
+
+
+def test_a_used_up_stock_with_nothing_to_move_is_stuck():
+    g = exhausted(2)
+    assert g.legal_moves() == []
+    assert g.is_stuck()
+    assert g.hint() is None
+
+
+def test_a_stock_that_can_still_be_turned_over_is_not_stuck():
+    g = exhausted(1)
+    assert not g.is_stuck()
+    assert g.hint()[2] == "Deal from the stock"
+
+
 @pytest.mark.parametrize("draw", DRAWS)
 @pytest.mark.parametrize("seed", range(10))
 def test_random_play_keeps_the_cards_faces_and_score_straight(seed, draw):
