@@ -457,8 +457,12 @@ def _share(stats: dict, waiting: Dict[str, dict], game_key: str) -> None:
         waiting = {game_key: waiting[game_key]} if game_key in waiting else {}
     left: Dict[str, dict] = {}
     for key, games in waiting.items():
-        def add(cur: Optional[dict], games: dict = games) -> dict:
-            return _combined(_norm(cur), games)
+        def add(cur: Optional[dict], games: dict = games,
+                ours: dict = _norm(stats.get(key))) -> dict:
+            # A game the keyfile has no record of (a fresh keyfile, or sol
+            # saving its own copy over ours) starts from our record, which
+            # counts these games already, rather than from nothing.
+            return ours if cur is None else _combined(_norm(cur), games)
         written = ar.update_stat(ar.GAME_TO_SECTION[key], add)
         if written is None:
             left[key] = games

@@ -251,6 +251,26 @@ def test_an_unreadable_keyfile_leaves_the_results_local(keyfile):
     assert any("can't read" in n for n in store.notices())
 
 
+def test_a_game_missing_from_the_keyfile_builds_on_our_record(keyfile):
+    path = keyfile(AR_KLONDIKE)
+    store.record_result("golf", won=True, seconds=30)
+    store.record_result("golf", won=False, seconds=5)
+    path.write_text(AR_KLONDIKE)        # sol saves its own copy, without golf
+    assert store.get_stat("golf") == stat(1, 2, 30, 30)
+    assert store.record_result("golf", won=True, seconds=90) == stat(2, 3, 30, 90)
+    assert ar.read_stat("golf.scm") == stat(2, 3, 30, 90)
+    assert store.load_stats()["golf"] == stat(2, 3, 30, 90)
+
+
+def test_a_deleted_keyfile_is_rebuilt_from_our_record(keyfile):
+    path = keyfile(AR_KLONDIKE)
+    store.record_result("klondike", won=False, seconds=5)
+    os.remove(path)
+    assert store.record_result("klondike", won=True, seconds=100) == stat(11, 42, 100, 900)
+    assert ar.read_stat("klondike.scm") == stat(11, 42, 100, 900)
+    assert store.load_stats()["klondike"] == stat(11, 42, 100, 900)
+
+
 def share(on):
     cfg = store.load_config()
     cfg["sync_aisleriot"] = on
