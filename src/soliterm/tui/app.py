@@ -139,6 +139,9 @@ class App:
         self.hint: Optional[Tuple[int, int, str]] = None
         self.message = ""
         self.recorded = False
+        # the player took back the move that left no moves: the banner
+        # isn't shown again until they make another
+        self.dead_end_undone = False
 
     def setup_curses(self) -> None:
         try:
@@ -454,7 +457,8 @@ class App:
                         continue
                     return False
                 # stuck: no productive move and the player has actually started
-                if self.clock.started and not self.recorded and self.game.is_stuck():
+                if (self.clock.started and not self.recorded
+                        and not self.dead_end_undone and self.game.is_stuck()):
                     if self.finish(False):
                         continue
                     return False
@@ -508,6 +512,7 @@ class App:
         self.hint = None
         self.message = START_MESSAGE
         self.recorded = False
+        self.dead_end_undone = False
 
     def new_game(self, opts: dict) -> Solitaire:
         """Deal a game of self.key with the given options."""
@@ -636,6 +641,7 @@ class App:
         new_game_fn()
         self.clock.reset()
         self.recorded = False
+        self.dead_end_undone = False
         self.selected = None
         self.selected_exact = False
         self.pressed = None
@@ -644,13 +650,22 @@ class App:
         self.cursor = self.first_cursor()
 
     def finish(self, won: bool) -> bool:
-        """Record the result and show the end banner. Returns True to keep
-        playing (same/new deal chosen) or False to go back to the menu."""
+        """Show the end banner and act on the choice. Returns True to keep
+        playing (undo, same or new deal chosen) or False to go back to the
+        menu.
+
+        A win is recorded at once. A game with no moves left is recorded as
+        lost only when the player gives it up, since Undo plays on."""
         seconds = self.seconds()
-        if not self.recorded:
+        if won and not self.recorded:
             store.record_result(self.key, won, seconds)
             self.recorded = True
         choice = self.end_banner(seconds, won)
+        if choice == "undo":
+            self.do_undo()
+            self.dead_end_undone = True
+            return True
+        self.maybe_record_loss()
         if choice == "same":
             self.reset_for(self.game.restart)
             self.message = "replaying the same deal"
@@ -672,9 +687,12 @@ class App:
             return None
         if action not in SMALL_SCREEN_ACTIONS and not self.ui.fits():
             return None
+        moves = self.game.moves
         outcome = getattr(self, "do_" + action)()
         if self.game.moves > 0:
             self.clock.start()        # the game is under way
+        if self.game.moves > moves:
+            self.dead_end_undone = False
         return outcome
 
     def do_redraw(self):
@@ -915,14 +933,24 @@ class App:
     @hides_the_board
     def end_banner(self, seconds: int, won: bool) -> str:
         """Show the end-of-game banner with choices. Returns one of:
-        'same' (replay this deal), 'new' (fresh deal), 'menu'."""
+        'undo' (take the last move back, when no moves are left), 'same'
+        (replay this deal), 'new' (fresh deal), 'menu'."""
         stdscr, CP, safe_add = self.stdscr, self.CP, self.safe_add
         game = self.game
         s = store.get_stat(self.key)
+        if not self.recorded:
+            # a loss is recorded on leaving the banner, by any choice but
+            # undo, so count it already, as the statistics will
+            s = {**s, "total": s["total"] + 1}
         pct = store.percentage(s)
         choices = [("same", "Replay this deal"),
                    ("new", "New deal"),
                    ("menu", "Back to menu")]
+        keys = "s/n/m"
+        can_undo = not won and game.can_undo()
+        if can_undo:
+            choices.insert(0, ("undo", "Undo move"))
+            keys = "u/" + keys
         sel = 0
         while True:
             stdscr.erase()
@@ -944,13 +972,15 @@ class App:
                 attr = (CP(5) | curses.A_BOLD) if i == sel else 0
                 safe_add(12 + i, 6, f"{marker}{label}", attr)
             safe_add(12 + len(choices) + 1, 6,
-                     "Up/Down + Enter, or s/n/m. Click to choose.", CP(4))
+                     f"Up/Down + Enter, or {keys}. Click to choose.", CP(4))
             stdscr.refresh()
             k = stdscr.getch()
             if k in (curses.KEY_UP, ord("k")):
                 sel = (sel - 1) % len(choices)
             elif k in (curses.KEY_DOWN, ord("j")):
                 sel = (sel + 1) % len(choices)
+            elif k in (ord("u"), ord("U")) and can_undo:
+                return "undo"
             elif k in (ord("s"), ord("S")):
                 return "same"
             elif k in (ord("n"), ord("N")):

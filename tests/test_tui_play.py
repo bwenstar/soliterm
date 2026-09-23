@@ -504,6 +504,58 @@ def test_playing_again_from_the_menu_does_not_double_aisleriot_stats(tui, keyfil
                                             "best": 120, "worst": 900}
 
 
+def one_move_left():
+    """Golf with one move to make, the 6C onto the 5H, and none after it."""
+    g = deal("golf", 1)
+    clear_board(g)
+    t = g.ids_of("tableau")
+    g.slots[g.ids_of("waste")[0]].cards = [up(5, "H")]
+    g.slots[t[0]].cards = [up(13, "S"), up(6, "C")]
+    for sid, rank in zip(t[1:], (9, 10, 11, 12, 9, 10)):
+        g.slots[sid].cards = [up(rank, "SH"[sid % 2])]
+    return g
+
+
+def test_the_no_moves_banner_can_take_the_last_move_back(tui):
+    # f plays the 6C and leaves no moves; u on the banner takes it back
+    scr = tui(["f", "u", "f", "m", "q"], start_key="golf", game=one_move_left())
+    assert "No moves left" in scr.frames[1] and "Undo move" in scr.frames[1]
+    assert "Moves 0" in scr.frames[2] and "No moves left" not in scr.frames[2]
+    assert "No moves left" in scr.frames[3]
+    assert "choose a game" in scr.frames[4]
+    assert store.get_stat("golf")["total"] == 1       # counted once, on m
+
+
+def test_the_no_moves_banner_counts_the_game_it_ends(tui):
+    # the loss is only recorded on leaving the banner, but the numbers on it
+    # should already be what the statistics will say
+    scr = tui(["f", "m"], start_key="golf", game=one_move_left())
+    assert "Wins/Total  : 0/1  (0%)" in scr.frames[1]
+    assert store.get_stat("golf")["total"] == 1
+
+
+@pytest.mark.parametrize("k", ["s", "n", "m", KeyboardInterrupt])
+def test_a_game_with_no_moves_left_counts_once_the_player_gives_it_up(tui, k):
+    tui(["f", k], start_key="golf", game=one_move_left())
+    assert store.get_stat("golf") == {"wins": 0, "total": 1, "best": 0, "worst": 0}
+
+
+def test_a_win_after_taking_back_the_dead_end_counts_as_a_win(tui):
+    # 4D first leaves the 6C and 5S stuck; 6C, 5S, 4D clears the board
+    g = deal("golf", 1)
+    clear_board(g)
+    t = g.ids_of("tableau")
+    g.slots[g.ids_of("waste")[0]].cards = [up(5, "H")]
+    g.slots[t[0]].cards = [up(4, "D")]
+    g.slots[t[1]].cards = [up(5, "S"), up(6, "C")]
+    scr = tui(["f", "u", curses.KEY_RIGHT, "f", "f", curses.KEY_LEFT, "f", "m", "q"],
+              start_key="golf", game=g)
+    assert "No moves left" in scr.frames[1]
+    assert "YOU WIN" in scr.frames[7]
+    assert store.get_stat("golf")["wins"] == 1
+    assert store.get_stat("golf")["total"] == 1
+
+
 # the banner's choices sit on rows 12-14 from column 6, marker included
 BANNER_ROW = {"same": 12, "new": 13, "menu": 14}
 
