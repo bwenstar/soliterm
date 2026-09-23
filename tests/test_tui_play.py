@@ -122,6 +122,8 @@ def tui(monkeypatch):
     # set here rather than in run() so a test can put its own in first
     monkeypatch.setattr(curses, "curs_set", lambda n: None)
     monkeypatch.setattr(curses, "use_default_colors", lambda: None)
+    # a test that wants a light background sets COLORFGBG itself
+    monkeypatch.delenv("COLORFGBG", raising=False)
 
     def run(keys, start_key="klondike", game=None, seed=None, color=None,
             color_capable=True, h=40, w=120, **kwargs):
@@ -722,6 +724,41 @@ def test_the_tui_hears_whether_a_colour_flag_was_given(monkeypatch):
         assert seen["color"] is color
 
 
+def pair_of(attr, scr):
+    """The (fg, bg) of the colour pair in attr, as the tui fixture set it up."""
+    n = (attr >> 8) & 0xFF
+    return next(pair[1:] for pair in scr.pairs if pair[0] == n)
+
+
+# what washes out on a white background
+PALE = {curses.COLOR_YELLOW, curses.COLOR_CYAN, curses.COLOR_WHITE}
+
+
+def test_a_light_terminal_gets_text_that_shows_on_white(tui, monkeypatch):
+    # rxvt and Konsole put "foreground;background" here: black on white
+    monkeypatch.setenv("COLORFGBG", "0;15")
+    scr = tui(["q"])
+    on_the_terminal = [pair[1] for pair in scr.pairs if pair[2] == -1]
+    assert on_the_terminal and not PALE & set(on_the_terminal)
+
+
+def test_a_dark_terminal_keeps_cyan_and_yellow_text(tui, monkeypatch):
+    monkeypatch.setenv("COLORFGBG", "15;0")
+    scr = tui(["q"])
+    on_the_terminal = {pair[1] for pair in scr.pairs if pair[2] == -1}
+    assert on_the_terminal == {curses.COLOR_CYAN, curses.COLOR_YELLOW}
+
+
+def test_a_hinted_card_has_a_background_of_its_own(tui):
+    # so it reads on a light terminal as well as a dark one
+    g = deal("klondike", 1)
+    scr = tui(["h"], game=g)
+    ui = scr.uis[-1]
+    card = g.slots[g.hint()[0]].top
+    fg, bg = pair_of(ui.card_attr(card, False, True), scr)
+    assert bg != -1 and fg != bg
+
+
 def test_v_on_a_mono_terminal_just_says_so(tui):
     scr = tui(["v"], color_capable=False)
     assert "this terminal has no colour support" in scr.frames[1]
@@ -731,7 +768,7 @@ def test_v_on_a_mono_terminal_just_says_so(tui):
 
 def test_v_turns_colour_off_and_on_and_saves_it(tui):
     scr = tui(["v", "v"])
-    assert len(scr.pairs) == 8
+    assert len(scr.pairs) == 9
     ui = scr.uis[0]
     assert ui.initial_has_color
     assert "colour off" in scr.frames[1]
@@ -743,7 +780,7 @@ def test_v_turns_colour_off_and_on_and_saves_it(tui):
 def test_v_after_no_color_turns_colour_on(tui):
     # pairs are set up on capability, so colour can come on later
     scr = tui(["v"], color=False)
-    assert len(scr.pairs) == 8
+    assert len(scr.pairs) == 9
     ui = scr.uis[0]
     assert not ui.initial_has_color
     assert ui.has_color is True

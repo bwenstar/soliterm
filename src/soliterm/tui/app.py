@@ -91,6 +91,16 @@ class GameClock:
                 self.since = clock()
 
 
+def light_background() -> bool:
+    """True if the terminal says its background is white.
+
+    rxvt, Konsole and a few others put the colour numbers of the text and
+    the background in COLORFGBG, as "0;15" or "0;default;15", and 7 or 15
+    last is white. Terminals that don't say are taken to be dark.
+    """
+    return os.environ.get("COLORFGBG", "").split(";")[-1] in ("7", "15")
+
+
 def hides_the_board(screen):
     """Stop the game clock while the screen a method shows is up."""
     @functools.wraps(screen)
@@ -182,6 +192,12 @@ class App:
                 bg = -1
             except curses.error:
                 bg = curses.COLOR_BLACK
+            # cyan and yellow text wash out on white, so a terminal that
+            # says its background is light gets blue and magenta instead
+            if bg == -1 and light_background():
+                chrome, note = curses.COLOR_BLUE, curses.COLOR_MAGENTA
+            else:
+                chrome, note = curses.COLOR_CYAN, curses.COLOR_YELLOW
             # Face-up cards are drawn like real cards: a white card face with the
             # suit colour as the text - red for hearts/diamonds, true black for
             # spades/clubs - so black suits read as black, not white, on any
@@ -189,11 +205,12 @@ class App:
             curses.init_pair(1, curses.COLOR_RED, curses.COLOR_WHITE)     # red card face
             curses.init_pair(2, curses.COLOR_BLACK, curses.COLOR_WHITE)   # black card face
             curses.init_pair(3, curses.COLOR_BLACK, curses.COLOR_GREEN)   # selection
-            curses.init_pair(4, curses.COLOR_CYAN, bg)                    # chrome
+            curses.init_pair(4, chrome, bg)                               # chrome
             curses.init_pair(5, curses.COLOR_BLACK, curses.COLOR_YELLOW)  # cursor
-            curses.init_pair(6, curses.COLOR_YELLOW, bg)                  # hint/msg
+            curses.init_pair(6, note, bg)                                 # message
             curses.init_pair(7, curses.COLOR_WHITE, curses.COLOR_BLUE)    # card back
             curses.init_pair(8, curses.COLOR_WHITE, curses.COLOR_GREEN)   # red card, selected
+            curses.init_pair(9, curses.COLOR_BLACK, curses.COLOR_CYAN)    # hinted card
 
     def CP(self, n):
         return curses.color_pair(n) if self.has_color else 0

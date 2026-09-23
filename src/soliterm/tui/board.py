@@ -167,7 +167,7 @@ class BoardUI:
         if cursor:
             return self.CP(5) | curses.A_BOLD     # black-on-yellow cursor
         if hinted:
-            return self.CP(6) | curses.A_BOLD
+            return self.CP(9) | curses.A_BOLD     # black-on-cyan hint
         if card is None:
             return self.CP(4)                 # empty slot: chrome
         if not card.face_up:
