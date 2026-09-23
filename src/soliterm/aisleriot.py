@@ -21,6 +21,7 @@ comment, and the file's ordering are preserved so AisleRiot's own config
 from __future__ import annotations
 
 import os
+import re
 from typing import Callable, Dict, List, Optional
 
 # Our game keys -> AisleRiot section names. AisleRiot's config sections use the
@@ -147,27 +148,91 @@ def _write_text(text: str, expect: Optional[str] = None) -> bool:
         return False
 
 
+# The keyfile is read here the way GLib reads it, so that we and AisleRiot
+# always see the same numbers. GLib's idea of white space (g_ascii_isspace)
+# leaves out the vertical tab.
+_SPACE = " \t\n\f\r"
+
+
+def _split(text: str) -> List[str]:
+    """`text` in lines as GLib splits it: at "\n" only, dropping the "\r" of
+    a "\r\n". On a last line with no "\n" after it, a "\r" is kept as part
+    of the line.
+    """
+    lines = text.split("\n")
+    return [s[:-1] if s.endswith("\r") and i < len(lines) - 1 else s
+            for i, s in enumerate(lines)]
+
+
 def _is_header(line: str) -> Optional[str]:
-    s = line.strip()
-    if len(s) >= 2 and s.startswith("[") and s.endswith("]"):
+    s = line.lstrip(_SPACE).rstrip(" \t")
+    if len(s) >= 2 and s.startswith("[") and s.endswith("]") and "]" not in s[1:-1]:
         return s[1:-1]
     return None
 
 
-def _parse_statistic(value: str) -> Optional[Dict[str, int]]:
-    parts = [p for p in value.strip().split(";") if p != ""]
-    if len(parts) < 4:
+_ESCAPES = {"s": " ", "n": "\n", "t": "\t", "r": "\r", "\\": "\\", ";": ";"}
+
+
+def _list_items(value: str) -> Optional[List[str]]:
+    """A list value split at its ";"s with escapes undone, or None if it has
+    an escape GLib rejects. As in GLib, a last ";" ends the list rather than
+    starting an empty item.
+    """
+    items: List[str] = []
+    item = ""
+    chars = iter(value)
+    for c in chars:
+        if c == "\\":
+            c = _ESCAPES.get(next(chars, ""), "")
+            if not c:
+                return None
+            item += c           # an escaped ";" stays in the item
+        elif c == ";":
+            items.append(item)
+            item = ""
+        else:
+            item += c
+    if item:
+        items.append(item)
+    return items
+
+
+# what strtol() reads: optional C white space, a sign, decimal digits
+_STRTOL = re.compile(r"[ \t\n\v\f\r]*[+-]?[0-9]+")
+
+
+def _glib_int(item: str) -> Optional[int]:
+    """`item` as g_key_file_get_integer_list() reads it, or None where GLib
+    says it isn't a number (so "+5", "007" and "5 x" pass, "5x" and "0x5"
+    don't, and a blank item is 0).
+    """
+    if not item:
         return None
-    try:
-        wins, total, best, worst = (int(parts[0]), int(parts[1]),
-                                    int(parts[2]), int(parts[3]))
-    except ValueError:
+    m = _STRTOL.match(item)
+    end = m.end() if m else 0
+    if end < len(item) and item[end] not in _SPACE:
         return None
-    return {"wins": wins, "total": total, "best": best, "worst": worst}
+    n = int(item[:end]) if m else 0
+    return n if -2**31 <= n < 2**31 else None
+
+
+def _parse_statistic(value: str) -> Dict[str, int]:
+    """A Statistic value as AisleRiot reads it: four integers, or all zeros if
+    GLib can't read the list or it doesn't hold exactly four.
+    """
+    items = _list_items(value.lstrip(_SPACE))
+    nums = [_glib_int(i) for i in items] if items is not None else []
+    if len(nums) != 4 or None in nums:
+        nums = [0, 0, 0, 0]
+    return {k: n or 0 for k, n in zip(("wins", "total", "best", "worst"), nums)}
 
 
 def read_stat(section: str) -> Optional[Dict[str, int]]:
     """The (wins,total,best,worst) dict for a section, or None if not present.
+
+    As in GLib, the last Statistic line wins, and a section that appears
+    more than once is read as one.
 
     Raises OSError if the keyfile exists but can't be read.
     """
@@ -176,16 +241,15 @@ def read_stat(section: str) -> Optional[Dict[str, int]]:
 
 def _stat_in(text: str, section: str) -> Optional[Dict[str, int]]:
     current = None
-    for line in text.split("\n"):
+    value: Optional[str] = None
+    for line in _split(text):
         head = _is_header(line)
         if head is not None:
             current = head
             continue
-        if current == section and "=" in line:
-            key, _, val = line.partition("=")
-            if key.strip() == "Statistic":
-                return _parse_statistic(val)
-    return None
+        if current == section and _is_statistic_line(line):
+            value = line.lstrip(_SPACE).partition("=")[2]
+    return None if value is None else _parse_statistic(value)
 
 
 def _format_statistic(stat: Dict[str, int]) -> str:
@@ -200,10 +264,11 @@ def _is_statistic_line(line: str) -> bool:
     'Statistic\\t=\\t...' are valid Statistic keys; write_stat must recognise and
     replace them, not insert a duplicate.
     """
-    if "=" not in line:
+    line = line.lstrip(_SPACE)
+    if "=" not in line or line.startswith("#"):
         return False
     key, _, _ = line.partition("=")
-    return key.strip() == "Statistic"
+    return key.rstrip(_SPACE) == "Statistic"
 
 
 def write_stat(section: str, stat: Dict[str, int]) -> bool:
@@ -263,6 +328,7 @@ def _with_stat(text: str, section: str, stat: Dict[str, int]) -> str:
     # value, and the rejoined file would have a newline in their place.
     # Lines in a CRLF file keep their "\r", and lines we add get one too.
     lines = text.split("\n")
+    seen = _split(text)     # the same lines, as GLib reads them
     final = "\n" if text.endswith("\n") else ""   # keep "no trailing newline" as-is
     if final or lines == [""]:
         lines.pop()
@@ -273,30 +339,39 @@ def _with_stat(text: str, section: str, stat: Dict[str, int]) -> str:
     header_idx: Optional[int] = None
     stat_idx: Optional[int] = None
 
-    for i, line in enumerate(lines):
-        head = _is_header(line)
+    for i in range(len(lines)):
+        head = _is_header(seen[i])
         if head is not None:
-            if head == section:
+            in_section = head == section
+            if in_section:
                 header_idx = i
-                in_section = True
-            elif in_section:
-                in_section = False
             continue
-        if in_section and stat_idx is None and _is_statistic_line(line):
-            stat_idx = i
+        if in_section and _is_statistic_line(seen[i]):
+            stat_idx = i        # the last one is the one GLib reads
 
     if stat_idx is not None:
-        lines[stat_idx] = new_line + ("\r" if lines[stat_idx].endswith("\r") else "")
-    elif header_idx is not None:
+        # keep the "\r" of a "\r\n"; one with no "\n" after it was part of
+        # the old value
+        lines[stat_idx] = new_line + ("\r" if seen[stat_idx] != lines[stat_idx] else "")
+        return "\n".join(lines) + final
+
+    if header_idx is not None:
         # insert right after the section header
-        lines.insert(header_idx + 1, new_line + cr)
+        at, new = header_idx + 1, [new_line]
     else:
         # section doesn't exist: append a fresh one (blank-line separated)
+        at = len(lines)
+        new = [f"[{section}]", new_line]
         if lines and lines[-1].strip() != "":
-            lines.append(cr)
-        lines.append(f"[{section}]" + cr)
-        lines.append(new_line + cr)
-
+            new.insert(0, "")
+    if at == len(lines) and not final:
+        # adding to the end of a file with no newline at its end: end the
+        # last line first, and the file after ours. A "\r" on that line is
+        # part of its value, so it keeps it by getting a "\r\n" of its own.
+        if lines and (cr or lines[-1].endswith("\r")):
+            lines[-1] += "\r"
+        final = "\n"
+    lines[at:at] = [s + cr for s in new]
     return "\n".join(lines) + final
 
 

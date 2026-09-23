@@ -128,6 +128,75 @@ def test_a_keyfile_that_is_not_utf8_is_kept_byte_for_byte(keyfile):
     assert path.read_bytes() == raw.replace(b"20;112;", b"20;113;")
 
 
+# -- reading the keyfile the way AisleRiot (GLib) does -----------------------------
+
+def test_the_last_statistic_in_a_section_is_the_one_read_and_written(keyfile):
+    path = keyfile("[spider.scm]\nStatistic=1;1;1;1;\nStatistic=20;112;591;1966;\n")
+    assert ar.read_stat("spider.scm") == stat(20, 112, 591, 1966)
+    ar.write_stat("spider.scm", stat(21, 113, 480, 1966))
+    assert path.read_text() == "[spider.scm]\nStatistic=1;1;1;1;\nStatistic=21;113;480;1966;\n"
+
+
+def test_a_section_written_twice_counts_as_one(keyfile):
+    path = keyfile("[spider.scm]\nStatistic=1;1;1;1;\n\n[golf.scm]\nStatistic=2;2;2;2;\n\n"
+                   "[spider.scm]\nStatistic=20;112;591;1966;\nOptions=2\n")
+    assert ar.read_stat("spider.scm") == stat(20, 112, 591, 1966)
+    ar.write_stat("spider.scm", stat(21, 113, 480, 1966))
+    assert path.read_text().count("Statistic=1;1;1;1;") == 1
+    assert ar.read_stat("spider.scm") == stat(21, 113, 480, 1966)
+
+
+def test_a_statistic_in_an_earlier_copy_of_the_section_still_counts(keyfile):
+    path = keyfile("[spider.scm]\nStatistic=20;112;591;1966;\n\n[spider.scm]\nOptions=2\n")
+    assert ar.read_stat("spider.scm") == stat(20, 112, 591, 1966)
+    ar.write_stat("spider.scm", stat(21, 113, 480, 1966))
+    assert path.read_text() == ("[spider.scm]\nStatistic=21;113;480;1966;\n\n"
+                                "[spider.scm]\nOptions=2\n")
+
+
+@pytest.mark.parametrize("value, want", [
+    ("20;112;591;1966", stat(20, 112, 591, 1966)),     # the last ; is optional
+    ("  +20;0112; 591;1966 ;", stat(20, 112, 591, 1966)),
+    ("20;112;591;1966;5;", stat(0, 0, 0, 0)),           # AisleRiot wants four
+    ("20;112;591;", stat(0, 0, 0, 0)),
+    ("20;;591;1966;", stat(0, 0, 0, 0)),
+    ("20;112;591;1966;   ", stat(0, 0, 0, 0)),          # a fifth, blank value
+    ("2_0;112;591;1966;", stat(0, 0, 0, 0)),
+    ("0x14;112;591;1966;", stat(0, 0, 0, 0)),
+    ("20;112;591;2147483648;", stat(0, 0, 0, 0)),
+    ("20;112;5.9;1966;", stat(0, 0, 0, 0)),
+    ("20; ;591;1966 x;", stat(20, 0, 591, 1966)),       # strtol, then a space: fine
+    ("20;112;\\s591;1966;", stat(20, 112, 591, 1966)),  # \s is an escaped space
+    ("20;112;591\\;1966;", stat(0, 0, 0, 0)),         # \; is a ; inside a value
+    ("20;112;591;1966\\q;", stat(0, 0, 0, 0)),        # no such escape
+    ("20;112;591;1966\\", stat(0, 0, 0, 0)),
+])
+def test_a_statistic_value_reads_as_glib_reads_it(keyfile, value, want):
+    keyfile(f"[spider.scm]\nStatistic={value}\n")
+    assert ar.read_stat("spider.scm") == want
+
+
+def test_a_last_line_with_no_newline_reads_and_writes_as_in_glib(keyfile):
+    # GLib only drops the "\r" of a "\r\n", so on a last line with no
+    # newline after it the "\r" is part of the value
+    path = keyfile("[spider.scm]\r\nStatistic=20;112;591;1966;\r")
+    assert ar.read_stat("spider.scm") == stat(0, 0, 0, 0)
+    ar.write_stat("spider.scm", stat(21, 113, 480, 1966))
+    assert path.read_bytes() == b"[spider.scm]\r\nStatistic=21;113;480;1966;"
+    path = keyfile("[golf.scm]\r\nOptions=2")
+    ar.write_stat("golf.scm", stat(1, 1, 42, 42))
+    ar.write_stat("spider.scm", stat(2, 2, 2, 2))
+    assert path.read_bytes() == (b"[golf.scm]\r\nStatistic=1;1;42;42;\r\nOptions=2\r\n"
+                                 b"\r\n[spider.scm]\r\nStatistic=2;2;2;2;\r\n")
+
+
+def test_a_statistic_aisleriot_reads_as_zeros_counts_from_zero(keyfile):
+    path = keyfile("[spider.scm]\nStatistic=20;112;591;1966;5;\nOptions=2\n")
+    assert store.get_stat("spider") == stat(0, 0, 0, 0)
+    store.record_result("spider", won=False, seconds=5)
+    assert path.read_text() == "[spider.scm]\nStatistic=0;1;0;0;\nOptions=2\n"
+
+
 def test_writes_leave_no_temp_files_behind(keyfile):
     path = keyfile(KEYFILE)
     ar.write_stat("spider.scm", stat(21, 113, 480, 1966))
