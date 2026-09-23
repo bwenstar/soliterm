@@ -325,6 +325,19 @@ def test_text_mode_survives_a_bad_option_in_the_config(cli):
     assert lines[-1] == "bye"
 
 
+@pytest.mark.parametrize("suits", [1, 2])
+def test_a_saved_spider_suits_choice_beats_the_default(cli, suits):
+    cfg = store.load_config()
+    store.set_game_options(cfg, "spider", {"suits": suits})
+    store.save_config(cfg)
+    rc, lines = cli("--text", "--ascii", "--no-color", "--game", "spider",
+                    "--seed", "1", stdin="q\n")
+    out = "\n".join(lines)
+    board = deal("spider", 1, suits=suits)
+    assert without_status(render_text(board, symbols=False)) in out
+    assert without_status(render_text(deal("spider", 1), symbols=False)) not in out
+
+
 # -- the full-screen game or text mode -------------------------------------------------
 
 # the terminal types the stubbed terminfo knows: xterm can draw the game,

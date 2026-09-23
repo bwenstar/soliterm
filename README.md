@@ -51,7 +51,7 @@ The zipapp builds with the standard library alone. `--wheel` runs
 | Key | Game | Notes |
 |-----|------|-------|
 | `klondike` | Klondike | the classic; draw 1 or 3 (option) |
-| `spider` | Spider | 1 / 2 / 4 suits (option) |
+| `spider` | Spider | 4 suits, or 2 or 1 (option) |
 | `freecell` | FreeCell | four free cells, supermoves |
 | `eightoff` | Eight Off | eight cells, build by suit |
 | `golf` | Golf | clear the tableau onto the waste |

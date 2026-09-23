@@ -1,6 +1,7 @@
 """Spider: the two-deck deal, dealing rows, same-suit runs and clearing a suit.
 
-Every test passes suits= itself rather than leaning on the default.
+Every test passes suits= itself rather than leaning on the default, bar the
+one that checks the default.
 """
 
 import random
@@ -39,8 +40,7 @@ def test_the_deck_is_two_decks_worth_of_the_chosen_suits(suits):
 def test_the_deal(seed, suits):
     g = deal("spider", seed, suits=suits)
     lengths = [len(g.cards(t)) for t in columns(g)]
-    assert sorted(lengths) == [5] * 6 + [6] * 4
-    assert sum(lengths) == 54
+    assert lengths == [6, 5, 5, 6, 5, 5, 6, 5, 5, 6]      # AisleRiot's layout
     stock = g.ids_of("stock")[0]
     assert len(g.cards(stock)) == 50
     assert not any(c.face_up for c in g.cards(stock))
@@ -48,6 +48,15 @@ def test_the_deal(seed, suits):
         assert [c.face_up for c in g.cards(t)] == [False] * (len(g.cards(t)) - 1) + [True]
     assert all(not g.cards(f) for f in g.ids_of("foundation"))
     assert not g.is_won()
+
+
+def test_the_default_is_four_suits():
+    # as in AisleRiot; a choice saved in the config still comes first
+    assert Spider.default_options() == {"suits": 4}
+    g = deal("spider", 1)
+    assert g.options == {"suits": 4}
+    assert board_state(g) == board_state(deal("spider", 1, suits=4))
+    assert {s for _, s in card_multiset(g)} == set("SHDC")
 
 
 @pytest.mark.parametrize("suits", SUITS)

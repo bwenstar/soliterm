@@ -13,7 +13,7 @@ class Spider(GameDef):
 
     @classmethod
     def default_options(cls):
-        return {"suits": 1}
+        return {"suits": 4}                   # as AisleRiot has it
 
     @classmethod
     def option_spec(cls):
@@ -21,7 +21,7 @@ class Spider(GameDef):
 
     def deal(self, g):
         g.reset_slots()
-        suits = {1: "S", 2: "SH", 4: "SHDC"}[g.options.get("suits", 1)]
+        suits = {1: "S", 2: "SH", 4: "SHDC"}[g.options.get("suits", 4)]
         g.deck = make_deck(8 // len(suits), suits)
         g.shuffle()
         # 8 foundations (completed suits go here), then 10 columns
@@ -30,7 +30,7 @@ class Spider(GameDef):
         self.tableau = [g.add_slot("tableau", "down") for _ in range(10)]
         self.stock = g.add_slot("stock")
         for col in range(10):
-            n = 6 if col < 4 else 5
+            n = 6 if col % 3 == 0 else 5         # columns 1, 4, 7 and 10 get six
             for row in range(n):
                 g.deal_from_deck(self.tableau[col], 1, face_up=(row == n - 1))
         while g.deck:
