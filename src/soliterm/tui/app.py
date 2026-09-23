@@ -1,5 +1,11 @@
 """soliterm.tui.app - the curses session: menu, dialogs and the play loop.
 
+App holds what the screens share: the config and the colour flags, and for
+the game in play the board, the cursor, the selection, the hint, the clock
+and the message line. Every screen is a method, and the play screen handles
+each key or click in a small method of its own, so a test can drive a game
+on a fake window without a terminal.
+
 Statistics use AisleRiot's Wins/Total/Percentage/Best/Worst model.
 """
 
@@ -7,69 +13,110 @@ from __future__ import annotations
 
 import curses
 import time
-from typing import List, Optional
+from typing import Callable, List, Optional, Tuple
 
 from .. import APP_NAME, camo, engine, store
 from ..engine import GAME_ORDER, GAMES, Solitaire
 from .board import BoardUI
 
+# What a play-screen handler returns to leave the game in play: back to the
+# menu, or out of the program. None means keep playing.
+MENU = "menu"
+QUIT = "quit"
 
-class _Quit(Exception):
-    pass
-
-
-def selected_n_for_hint(g, hint):
-    # used only to highlight a hint's source run; default 1 card
-    return 1
+START_MESSAGE = "? help  h hint  m menu. Click or use arrows + Enter."
 
 
-def run(stdscr, start_key: Optional[str] = None, seed: Optional[int] = None,
-        color: bool = True):
-    curses.curs_set(0)
-    stdscr.keypad(True)
-    try:
-        curses.mousemask(curses.ALL_MOUSE_EVENTS | curses.REPORT_MOUSE_POSITION)
-    except curses.error:
-        pass
-    # Separate the terminal's colour CAPABILITY from the player's PREFERENCE so
-    # colour can be toggled live (even if launched with --no-color). We always
-    # initialise the colour pairs when the terminal supports colour; `has_color`
-    # is the live "show colour" flag the renderer reads, and flips on toggle.
-    color_capable = curses.has_colors()
-    has_color = color_capable and bool(color)
-    cfg = store.load_config()
-    # a saved preference (from a previous toggle) overrides the launch default
-    if "color" in cfg:
-        has_color = color_capable and bool(cfg["color"])
-    if color_capable:
-        curses.start_color()
-        curses.use_default_colors()
-        # Face-up cards are drawn like real cards: a white card face with the
-        # suit colour as the text - red for hearts/diamonds, true black for
-        # spades/clubs - so black suits read as black, not white, on any
-        # terminal background.
-        curses.init_pair(1, curses.COLOR_RED, curses.COLOR_WHITE)     # red card face
-        curses.init_pair(2, curses.COLOR_BLACK, curses.COLOR_WHITE)   # black card face
-        curses.init_pair(3, curses.COLOR_BLACK, curses.COLOR_GREEN)   # selection
-        curses.init_pair(4, curses.COLOR_CYAN, -1)                    # chrome
-        curses.init_pair(5, curses.COLOR_BLACK, curses.COLOR_YELLOW)  # cursor
-        curses.init_pair(6, curses.COLOR_YELLOW, -1)                  # hint/msg
-        curses.init_pair(7, curses.COLOR_WHITE, curses.COLOR_BLUE)    # card back
-        curses.init_pair(8, curses.COLOR_WHITE, curses.COLOR_GREEN)   # red card, selected
+class App:
+    """One curses session: the menu, the dialogs and the game in play."""
 
-    def CP(n):
-        return curses.color_pair(n) if has_color else 0
+    # the game in play, set up by start_game()
+    key: str
+    game: Solitaire
+    ui: BoardUI
 
-    def safe_add(y, x, text, attr=0):
-        h, w = stdscr.getmaxyx()
+    def __init__(self, stdscr, start_key: Optional[str] = None,
+                 seed: Optional[int] = None, color: bool = True):
+        self.stdscr = stdscr
+        self.start_key = start_key
+        self.seed = seed
+        self.color = color
+        self.cfg = store.load_config()
+        # Separate the terminal's colour CAPABILITY from the player's
+        # PREFERENCE so colour can be toggled live (even if launched with
+        # --no-color). setup_curses() fills both in; `has_color` is the live
+        # "show colour" flag the renderer reads, and flips on toggle.
+        self.color_capable = False
+        self.has_color = False
+        # per-game state, reset by start_game()
+        self.start = 0.0
+        self.selected: Optional[int] = None
+        self.selected_n = 1
+        self.selected_exact = False   # True when the player split by clicking a card
+        self.cursor = 0
+        self.hint: Optional[Tuple[int, int, str]] = None
+        self.message = ""
+        self.recorded = False
+
+    def setup_curses(self) -> None:
+        curses.curs_set(0)
+        self.stdscr.keypad(True)
+        try:
+            curses.mousemask(curses.ALL_MOUSE_EVENTS | curses.REPORT_MOUSE_POSITION)
+        except curses.error:
+            pass
+        # We always initialise the colour pairs when the terminal supports
+        # colour, so colour can come on later even if it starts off.
+        self.color_capable = curses.has_colors()
+        self.has_color = self.color_capable and bool(self.color)
+        # a saved preference (from a previous toggle) overrides the launch default
+        if "color" in self.cfg:
+            self.has_color = self.color_capable and bool(self.cfg["color"])
+        if self.color_capable:
+            curses.start_color()
+            curses.use_default_colors()
+            # Face-up cards are drawn like real cards: a white card face with the
+            # suit colour as the text - red for hearts/diamonds, true black for
+            # spades/clubs - so black suits read as black, not white, on any
+            # terminal background.
+            curses.init_pair(1, curses.COLOR_RED, curses.COLOR_WHITE)     # red card face
+            curses.init_pair(2, curses.COLOR_BLACK, curses.COLOR_WHITE)   # black card face
+            curses.init_pair(3, curses.COLOR_BLACK, curses.COLOR_GREEN)   # selection
+            curses.init_pair(4, curses.COLOR_CYAN, -1)                    # chrome
+            curses.init_pair(5, curses.COLOR_BLACK, curses.COLOR_YELLOW)  # cursor
+            curses.init_pair(6, curses.COLOR_YELLOW, -1)                  # hint/msg
+            curses.init_pair(7, curses.COLOR_WHITE, curses.COLOR_BLUE)    # card back
+            curses.init_pair(8, curses.COLOR_WHITE, curses.COLOR_GREEN)   # red card, selected
+
+    def CP(self, n):
+        return curses.color_pair(n) if self.has_color else 0
+
+    def safe_add(self, y, x, text, attr=0):
+        h, w = self.stdscr.getmaxyx()
         if 0 <= y < h and 0 <= x < w:
             try:
-                stdscr.addnstr(y, x, text, max(0, w - x - 1), attr)
+                self.stdscr.addnstr(y, x, text, max(0, w - x - 1), attr)
             except curses.error:
                 pass
 
+    # ---- top loop ---- #
+    def run(self) -> int:
+        self.setup_curses()
+        if self.start_key and self.play(self.start_key):
+            return 0
+        while True:
+            choice = self.chooser()
+            if choice is None or choice == "__quit__":
+                return 0
+            if choice == "__stats__":
+                self.stats_screen()
+                continue
+            if self.play(choice):
+                return 0
+
     # ---- menu ---- #
-    def chooser() -> Optional[str]:
+    def chooser(self) -> Optional[str]:
+        stdscr, cfg, CP, safe_add = self.stdscr, self.cfg, self.CP, self.safe_add
         sel = GAME_ORDER.index(cfg.get("last_game", "klondike")) \
             if cfg.get("last_game") in GAME_ORDER else 0
         extra = ["__stats__", "__quit__"]
@@ -120,13 +167,14 @@ def run(stdscr, start_key: Optional[str] = None, seed: Optional[int] = None,
                 return items[sel]
 
     # ---- statistics dialog (AisleRiot fields) ---- #
-    def stats_screen(focus_key: Optional[str] = None):
+    def stats_screen(self, focus_key: Optional[str] = None):
+        stdscr, CP, safe_add = self.stdscr, self.CP, self.safe_add
         stdscr.erase()
         safe_add(1, 4, "Statistics", CP(4) | curses.A_BOLD)
         safe_add(2, 4, "Wins / Total / Percentage / Best & Worst winning time", CP(4))
         if store.syncing():
             safe_add(3, 4, "(shared with GNOME AisleRiot - sol)",
-                     CP(6) if has_color else 0)
+                     CP(6) if self.has_color else 0)
         y = 4
         header = f"  {'Game':<16}{'Wins':>6}{'Total':>7}{'Win%':>7}{'Best':>8}{'Worst':>8}"
         safe_add(y, 4, header, CP(6) | curses.A_BOLD)
@@ -147,7 +195,8 @@ def run(stdscr, start_key: Optional[str] = None, seed: Optional[int] = None,
         stdscr.getch()
 
     # ---- options dialog ---- #
-    def options_screen(key: str) -> dict:
+    def options_screen(self, key: str) -> dict:
+        stdscr, cfg, CP, safe_add = self.stdscr, self.cfg, self.CP, self.safe_add
         cls = GAMES[key]
         spec = cls.option_spec()
         opts = {**cls.default_options(), **store.game_options(cfg, key)}
@@ -183,7 +232,7 @@ def run(stdscr, start_key: Optional[str] = None, seed: Optional[int] = None,
                 return opts
 
     # ---- help overlay ---- #
-    def help_screen():
+    def help_screen(self):
         lines = [
             f"{APP_NAME} - controls",
             "",
@@ -209,20 +258,21 @@ def run(stdscr, start_key: Optional[str] = None, seed: Optional[int] = None,
             "  Foundations build up by suit; tableau rules vary by game.",
             "  Press any key to continue.",
         ]
-        stdscr.erase()
+        self.stdscr.erase()
         for i, ln in enumerate(lines):
-            safe_add(1 + i, 2, ln, curses.A_BOLD if i == 0 else 0)
-        stdscr.refresh()
-        stdscr.getch()
+            self.safe_add(1 + i, 2, ln, curses.A_BOLD if i == 0 else 0)
+        self.stdscr.refresh()
+        self.stdscr.getch()
 
     # ---- camouflage / boss mode ---- #
-    def camouflage_screen():
+    def camouflage_screen(self):
         """Hide the game behind live-scrolling fake 'work' output.
 
         Looks like an active build/test/log session. ANY key returns to the
         game exactly where it was left. The theme comes from the config
         ('camo_theme'); cycle it live with Tab/space while in camo mode.
         """
+        stdscr, cfg = self.stdscr, self.cfg
         theme = cfg.get("camo_theme", camo.DEFAULT_THEME)
         if theme not in camo.THEMES:
             theme = camo.DEFAULT_THEME
@@ -270,327 +320,430 @@ def run(stdscr, start_key: Optional[str] = None, seed: Optional[int] = None,
             stdscr.nodelay(False)
 
     # ---- play one game ---- #
-    def play(key: str):
-        nonlocal has_color           # the colour toggle ('v') flips this live
-        opts = {**GAMES[key].default_options(), **store.game_options(cfg, key)}
-        game = engine.new_solitaire(key, seed=seed, options=opts)
-        cfg["last_game"] = key
-        store.save_config(cfg)
-        ui = BoardUI(stdscr, game, cfg.get("symbols", True), has_color,
-                     view=cfg.get("view", "expanded"))
-        ui.code_skin = bool(cfg.get("code_skin", False))
+    def play(self, key: str) -> bool:
+        """Play a game of `key` until the player leaves it.
 
-        start = time.time()
-        selected: Optional[int] = None
-        selected_n = 1
-        selected_exact = False        # True when the player split by clicking a card
-        cursor = game.ids_of("tableau")[0] if game.ids_of("tableau") else 0
-        hint = None
-        message = "? help  h hint  m menu. Click or use arrows + Enter."
-        recorded = False
-
-        def order_for_cursor() -> List[int]:
-            return [s.sid for s in game.slots]
-
-        def move_cursor(dr: int, dc: int):
-            nonlocal cursor
-            slots = game.slots
-            cy, cx = ui.slot_origin.get(cursor, (ui.origin_y, 2))
-            best = None
-            bestcost = 1e9
-            for s in slots:
-                if s.sid == cursor:
-                    continue
-                oy, ox = ui.slot_origin.get(s.sid, (0, 0))
-                dy, dx = oy - cy, ox - cx
-                if dr < 0 and dy >= 0:   # want up
-                    continue
-                if dr > 0 and dy <= 0:
-                    continue
-                if dc < 0 and dx >= 0:
-                    continue
-                if dc > 0 and dx <= 0:
-                    continue
-                cost = abs(dy) * (1 if dr else 4) + abs(dx) * (1 if dc else 4)
-                if cost < bestcost:
-                    bestcost, best = cost, s.sid
-            if best is not None:
-                cursor = best
-
-        def select_here(sid: int, card_idx: Optional[int] = None):
-            """Select a run to move.
-
-            With no card_idx (keyboard Enter / clicking the top), grab the
-            largest legal run. With card_idx (clicking a specific card in a
-            fanned column), split the stack: grab from that card to the bottom,
-            so the player can move a sub-run just like in Spider.
-            """
-            nonlocal selected, selected_n, selected_exact, message
-            pile = game.cards(sid)
-            if card_idx is not None and 0 <= card_idx < len(pile):
-                want = len(pile) - card_idx          # from clicked card down
-                if game.can_pickup(sid, want):
-                    selected = sid
-                    selected_n = want
-                    selected_exact = True
-                    message = (f"picked up {want} card(s) from {pile[card_idx]}"
-                               if want > 1 else "")
-                    return
-                # that exact split isn't movable as a unit; fall through to auto
-                message = "those cards can't be lifted together"
-            n = game.default_pickup(sid)
-            if n <= 0:
-                message = "nothing to pick up there"
-                selected = None
-                return
-            selected = sid
-            selected_n = n
-            selected_exact = False
-            message = ""
-
-        def drop_on(sid: int):
-            nonlocal selected, selected_exact, message, hint
-            if selected is None:
-                return
-            ok = game.attempt_move(selected, sid, selected_n)
-            if not ok and not selected_exact:
-                # The default selection grabs the largest movable run, but the
-                # whole run may not legally land here while a SUB-run does (e.g.
-                # the pile top is 4S-3S and you drop on 4H: 4S-3S won't go, but
-                # the 3S alone will). Try smaller sub-runs, largest first, and
-                # use the first that lands legally.
-                for n in range(selected_n - 1, 0, -1):
-                    if game.attempt_move(selected, sid, n):
-                        ok = True
-                        break
-            message = "" if ok else "illegal move"
-            selected = None
-            selected_exact = False
-            hint = None
-
-        def to_foundation(sid: int):
-            nonlocal selected, message, hint
-            if game.double_click(sid):
-                message = ""
-            else:
-                message = "no foundation move for that card"
-            selected = None
-            hint = None
-
-        def maybe_record_loss():
-            # A started-but-unfinished game counts as a loss (AisleRiot does the
-            # same: any game you start moving in counts in the total).
-            nonlocal recorded
-            if not recorded and not game.is_won() and game.moves > 0:
-                store.record_result(key, False, time.time() - start)
-                recorded = True
-
-        def reset_for(new_game_fn):
-            """Run a (re)deal and reset the per-game UI state."""
-            nonlocal start, recorded, selected, selected_exact, hint, cursor, message
-            new_game_fn()
-            start = time.time()
-            recorded = False
-            selected = None
-            selected_exact = False
-            hint = None
-            cursor = game.ids_of("tableau")[0] if game.ids_of("tableau") else 0
-
-        def finish(won: bool) -> bool:
-            """Record the result and show the end banner. Returns True to keep
-            playing (same/new deal chosen) or False to go back to the menu."""
-            nonlocal recorded, message
-            if not recorded:
-                store.record_result(key, won, time.time() - start)
-                recorded = True
-            choice = end_banner(key, game, time.time() - start, won)
-            if choice == "same":
-                reset_for(game.restart)
-                message = "replaying the same deal"
-                return True
-            if choice == "new":
-                reset_for(game.new_game)
-                message = "new deal"
-                return True
-            return False        # menu
-
+        Returns True if they quit the program, False to go back to the menu.
+        """
+        self.start_game(key)
         while True:
-            game.update_status()
-            ui.draw(selected, selected_n, cursor, hint, time.time() - start, message)
-            if game.is_won() and not recorded:
-                if finish(True):
+            self.game.update_status()
+            self.draw()
+            if self.game.is_won() and not self.recorded:
+                if self.finish(True):
                     continue
-                return
+                return False
             # stuck: no productive move and the player has actually started
-            if game.moves > 0 and not recorded and game.is_stuck():
-                if finish(False):
+            if self.game.moves > 0 and not self.recorded and self.game.is_stuck():
+                if self.finish(False):
                     continue
-                return
-            k = stdscr.getch()
-            if k == curses.KEY_RESIZE:
-                # terminal resized: just loop to redraw at the new size (draw()
-                # reads getmaxyx() each frame and re-lays-out / guards on size)
-                continue
-            if k in (ord("q"), ord("Q")):
-                maybe_record_loss()
-                raise _Quit()
-            if k in (ord("m"), ord("M")):
-                maybe_record_loss()
-                return
-            if k == ord("?"):
-                help_screen(); continue
-            if k in (ord("b"), ord("B"), curses.KEY_F2):
-                # boss / camouflage mode: hide the game behind fake work output
-                camouflage_screen()
-                message = ""
-                continue
-            if k in (ord("c"), ord("C")):
-                # code skin: keep playing with the board wrapped in source
-                ui.code_skin = not ui.code_skin
-                cfg["code_skin"] = ui.code_skin
-                store.save_config(cfg)
-                message = ("code skin on" if ui.code_skin else "code skin off")
-                continue
-            if k in (ord("v"), ord("V")):
-                # toggle colour on/off live (persisted as the new default)
-                if not color_capable:
-                    message = "this terminal has no colour support"
-                else:
-                    has_color = not has_color
-                    ui.has_color = has_color
-                    cfg["color"] = has_color
-                    store.save_config(cfg)
-                    message = ("colour on" if has_color else "colour off "
-                               "(monochrome)")
-                continue
-            if k in (ord("x"), ord("X")):
-                # toggle the board view: expanded card boxes <-> legacy cells
-                new_view = "legacy" if ui.view == "expanded" else "expanded"
-                ui.set_view(new_view)
-                cfg["view"] = new_view
-                store.save_config(cfg)
-                message = (f"{new_view} view"
-                           + (" (compact)" if new_view == "legacy"
-                              else " (full cards)"))
-                continue
-            if k == 27:
-                selected = None; hint = None; message = ""; continue
-            if k in (curses.KEY_UP, ord("k")):
-                hint = None; move_cursor(-1, 0); continue
-            if k in (curses.KEY_DOWN, ord("j")):
-                hint = None; move_cursor(1, 0); continue
-            if k == curses.KEY_LEFT:
-                hint = None; move_cursor(0, -1); continue
-            if k in (curses.KEY_RIGHT, ord("l")):
-                hint = None; move_cursor(0, 1); continue
-            if k in (ord("h"), ord("H")):
-                hint = game.hint()
-                if hint is None:
-                    message = game.no_hint_reason()
-                else:
-                    hsrc, hdst, desc = hint
-                    # move the cursor to the suggested source for convenience
-                    cursor = hsrc
-                    message = f"Hint: {desc}"
-                continue
-            if k in (curses.KEY_ENTER, 10, 13, ord(" ")):
-                hint = None
-                if selected is None:
-                    if game.kind(cursor) == "stock":
-                        if not game.click(cursor):
-                            message = game.deal_blocked_reason()
-                    else:
-                        select_here(cursor)
-                else:
-                    if cursor == selected:
-                        selected = None
-                    else:
-                        drop_on(cursor)
-                continue
-            if k in (ord("d"), ord("D")):
-                hint = None
-                if not game.deal():
-                    message = game.deal_blocked_reason()
-                selected = None; continue
-            if k in (ord("a"), ord("A")):
-                hint = None
-                n = game.autoplay()
-                message = f"autoplayed {n}" if n else "nothing to autoplay"
-                selected = None; continue
-            if k in (ord("f"), ord("F")):
-                to_foundation(selected if selected is not None else cursor)
-                continue
-            if k in (ord("u"), ord("U")):
-                message = "" if game.undo() else "nothing to undo"
-                selected = None; hint = None; continue
-            if k in (ord("r"), ord("R")):
-                message = "" if game.redo() else "nothing to redo"
-                selected = None; hint = None; continue
-            if k == ord("n"):
-                # new deal: an abandoned game counts as a loss first
-                maybe_record_loss()
-                reset_for(game.new_game)
-                message = "new deal"
-                continue
-            if k in (ord("N"),):
-                # restart THIS deal (replay the same shuffle); no loss recorded
-                # since it's the same hand continuing
-                reset_for(game.restart)
-                message = "restarted this deal"
-                continue
-            if k in (ord("o"), ord("O")):
-                maybe_record_loss()
-                newopts = options_screen(key)
-                game = engine.new_solitaire(key, seed=seed, options=newopts)
-                ui = BoardUI(stdscr, game, cfg.get("symbols", True), has_color,
-                             view=cfg.get("view", "expanded"))
-                ui.code_skin = bool(cfg.get("code_skin", False))
-                reset_for(lambda: None)   # game already dealt by new_solitaire
-                message = "options applied"; continue
-            if k in (ord("s"), ord("S")):
-                stats_screen(key); continue
-            if k == curses.KEY_MOUSE:
-                try:
-                    _, mx, my, _, bstate = curses.getmouse()
-                except curses.error:
-                    continue
-                target = ui.hit_test(my, mx)
-                if target is None:
-                    continue
-                tsid, tidx = target
-                cursor = tsid
-                hint = None
-                dbl = bstate & curses.BUTTON1_DOUBLE_CLICKED
-                clicked = bstate & (curses.BUTTON1_CLICKED | curses.BUTTON1_PRESSED |
-                                    curses.BUTTON1_RELEASED)
-                if dbl:
-                    # double-clicking the stock is the natural "just deal"
-                    # gesture; elsewhere it sends the card to a foundation
-                    if game.kind(tsid) == "stock":
-                        if not game.click(tsid):
-                            message = game.deal_blocked_reason()
-                    else:
-                        to_foundation(tsid)
-                elif clicked:
-                    if selected is None:
-                        if game.kind(tsid) == "stock":
-                            if not game.click(tsid):
-                                message = game.deal_blocked_reason()
-                        else:
-                            # split the stack at the exact card the user clicked
-                            select_here(tsid, tidx)
-                    else:
-                        if tsid == selected:
-                            selected = None
-                            selected_exact = False
-                        else:
-                            drop_on(tsid)
-                continue
+                return False
+            outcome = self.handle_key(self.stdscr.getch())
+            if outcome is not None:
+                return outcome == QUIT
 
-    def end_banner(key: str, game: Solitaire, elapsed: float, won: bool) -> str:
+    def start_game(self, key: str) -> None:
+        """Deal a game of `key` and set the play screen up for it."""
+        opts = {**GAMES[key].default_options(), **store.game_options(self.cfg, key)}
+        self.key = key
+        self.game = engine.new_solitaire(key, seed=self.seed, options=opts)
+        self.cfg["last_game"] = key
+        store.save_config(self.cfg)
+        self.ui = self.new_board()
+        self.start = time.time()
+        self.selected = None
+        self.selected_n = 1
+        self.selected_exact = False
+        self.cursor = self.first_cursor()
+        self.hint = None
+        self.message = START_MESSAGE
+        self.recorded = False
+
+    def new_board(self) -> BoardUI:
+        ui = BoardUI(self.stdscr, self.game, self.cfg.get("symbols", True),
+                     self.has_color, view=self.cfg.get("view", "expanded"))
+        ui.code_skin = bool(self.cfg.get("code_skin", False))
+        return ui
+
+    def first_cursor(self) -> int:
+        return self.game.ids_of("tableau")[0] if self.game.ids_of("tableau") else 0
+
+    def elapsed(self) -> float:
+        return time.time() - self.start
+
+    def draw(self) -> None:
+        self.ui.draw(self.selected, self.selected_n, self.cursor, self.hint,
+                     self.elapsed(), self.message)
+
+    def move_cursor(self, dr: int, dc: int):
+        ui = self.ui
+        cy, cx = ui.slot_origin.get(self.cursor, (ui.origin_y, 2))
+        best = None
+        bestcost = 1e9
+        for s in self.game.slots:
+            if s.sid == self.cursor:
+                continue
+            oy, ox = ui.slot_origin.get(s.sid, (0, 0))
+            dy, dx = oy - cy, ox - cx
+            if dr < 0 and dy >= 0:   # want up
+                continue
+            if dr > 0 and dy <= 0:
+                continue
+            if dc < 0 and dx >= 0:
+                continue
+            if dc > 0 and dx <= 0:
+                continue
+            cost = abs(dy) * (1 if dr else 4) + abs(dx) * (1 if dc else 4)
+            if cost < bestcost:
+                bestcost, best = cost, s.sid
+        if best is not None:
+            self.cursor = best
+
+    def select_here(self, sid: int, card_idx: Optional[int] = None):
+        """Select a run to move.
+
+        With no card_idx (keyboard Enter / clicking the top), grab the
+        largest legal run. With card_idx (clicking a specific card in a
+        fanned column), split the stack: grab from that card to the bottom,
+        so the player can move a sub-run just like in Spider.
+        """
+        game = self.game
+        pile = game.cards(sid)
+        if card_idx is not None and 0 <= card_idx < len(pile):
+            want = len(pile) - card_idx          # from clicked card down
+            if game.can_pickup(sid, want):
+                self.selected = sid
+                self.selected_n = want
+                self.selected_exact = True
+                self.message = (f"picked up {want} card(s) from {pile[card_idx]}"
+                                if want > 1 else "")
+                return
+            # that exact split isn't movable as a unit; fall through to auto
+            self.message = "those cards can't be lifted together"
+        n = game.default_pickup(sid)
+        if n <= 0:
+            self.message = "nothing to pick up there"
+            self.selected = None
+            return
+        self.selected = sid
+        self.selected_n = n
+        self.selected_exact = False
+        self.message = ""
+
+    def drop_on(self, sid: int):
+        if self.selected is None:
+            return
+        game = self.game
+        ok = game.attempt_move(self.selected, sid, self.selected_n)
+        if not ok and not self.selected_exact:
+            # The default selection grabs the largest movable run, but the
+            # whole run may not legally land here while a SUB-run does (e.g.
+            # the pile top is 4S-3S and you drop on 4H: 4S-3S won't go, but
+            # the 3S alone will). Try smaller sub-runs, largest first, and
+            # use the first that lands legally.
+            for n in range(self.selected_n - 1, 0, -1):
+                if game.attempt_move(self.selected, sid, n):
+                    ok = True
+                    break
+        self.message = "" if ok else "illegal move"
+        self.selected = None
+        self.selected_exact = False
+        self.hint = None
+
+    def to_foundation(self, sid: int):
+        if self.game.double_click(sid):
+            self.message = ""
+        else:
+            self.message = "no foundation move for that card"
+        self.selected = None
+        self.hint = None
+
+    def click_stock(self, sid: int):
+        if not self.game.click(sid):
+            self.message = self.game.deal_blocked_reason()
+
+    def maybe_record_loss(self):
+        # A started-but-unfinished game counts as a loss (AisleRiot does the
+        # same: any game you start moving in counts in the total).
+        if not self.recorded and not self.game.is_won() and self.game.moves > 0:
+            store.record_result(self.key, False, self.elapsed())
+            self.recorded = True
+
+    def reset_for(self, new_game_fn: Callable[[], object]):
+        """Run a (re)deal and reset the per-game UI state."""
+        new_game_fn()
+        self.start = time.time()
+        self.recorded = False
+        self.selected = None
+        self.selected_exact = False
+        self.hint = None
+        self.cursor = self.first_cursor()
+
+    def finish(self, won: bool) -> bool:
+        """Record the result and show the end banner. Returns True to keep
+        playing (same/new deal chosen) or False to go back to the menu."""
+        if not self.recorded:
+            store.record_result(self.key, won, self.elapsed())
+            self.recorded = True
+        choice = self.end_banner(self.elapsed(), won)
+        if choice == "same":
+            self.reset_for(self.game.restart)
+            self.message = "replaying the same deal"
+            return True
+        if choice == "new":
+            self.reset_for(self.game.new_game)
+            self.message = "new deal"
+            return True
+        return False        # menu
+
+    # ---- play-screen keys ---- #
+    def handle_key(self, k: int) -> Optional[str]:
+        """Act on one key read on the play screen.
+
+        Returns MENU or QUIT when the key leaves the game, None otherwise.
+        """
+        if k == curses.KEY_RESIZE:
+            return self.do_redraw()
+        if k in (ord("q"), ord("Q")):
+            return self.do_quit()
+        if k in (ord("m"), ord("M")):
+            return self.do_menu()
+        if k == ord("?"):
+            return self.do_help()
+        if k in (ord("b"), ord("B"), curses.KEY_F2):
+            return self.do_boss()
+        if k in (ord("c"), ord("C")):
+            return self.do_code_skin()
+        if k in (ord("v"), ord("V")):
+            return self.do_color()
+        if k in (ord("x"), ord("X")):
+            return self.do_view()
+        if k == 27:
+            return self.do_cancel()
+        if k in (curses.KEY_UP, ord("k")):
+            return self.do_up()
+        if k in (curses.KEY_DOWN, ord("j")):
+            return self.do_down()
+        if k == curses.KEY_LEFT:
+            return self.do_left()
+        if k in (curses.KEY_RIGHT, ord("l")):
+            return self.do_right()
+        if k in (ord("h"), ord("H")):
+            return self.do_hint()
+        if k in (curses.KEY_ENTER, 10, 13, ord(" ")):
+            return self.do_select()
+        if k in (ord("d"), ord("D")):
+            return self.do_deal()
+        if k in (ord("a"), ord("A")):
+            return self.do_autoplay()
+        if k in (ord("f"), ord("F")):
+            return self.do_foundation()
+        if k in (ord("u"), ord("U")):
+            return self.do_undo()
+        if k in (ord("r"), ord("R")):
+            return self.do_redo()
+        if k == ord("n"):
+            return self.do_new_deal()
+        if k == ord("N"):
+            return self.do_restart()
+        if k in (ord("o"), ord("O")):
+            return self.do_options()
+        if k in (ord("s"), ord("S")):
+            return self.do_stats()
+        if k == curses.KEY_MOUSE:
+            return self.do_mouse()
+        return None
+
+    def do_redraw(self):
+        # terminal resized: nothing to do, the next frame redraws at the new
+        # size (draw() reads getmaxyx() each frame and re-lays-out / guards
+        # on size)
+        return None
+
+    def do_quit(self):
+        self.maybe_record_loss()
+        return QUIT
+
+    def do_menu(self):
+        self.maybe_record_loss()
+        return MENU
+
+    def do_help(self):
+        self.help_screen()
+
+    def do_boss(self):
+        # boss / camouflage mode: hide the game behind fake work output
+        self.camouflage_screen()
+        self.message = ""
+
+    def do_code_skin(self):
+        # code skin: keep playing with the board wrapped in source
+        ui = self.ui
+        ui.code_skin = not ui.code_skin
+        self.cfg["code_skin"] = ui.code_skin
+        store.save_config(self.cfg)
+        self.message = ("code skin on" if ui.code_skin else "code skin off")
+
+    def do_color(self):
+        # toggle colour on/off live (persisted as the new default)
+        if not self.color_capable:
+            self.message = "this terminal has no colour support"
+        else:
+            self.has_color = not self.has_color
+            self.ui.has_color = self.has_color
+            self.cfg["color"] = self.has_color
+            store.save_config(self.cfg)
+            self.message = ("colour on" if self.has_color else "colour off "
+                            "(monochrome)")
+
+    def do_view(self):
+        # toggle the board view: expanded card boxes <-> legacy cells
+        new_view = "legacy" if self.ui.view == "expanded" else "expanded"
+        self.ui.set_view(new_view)
+        self.cfg["view"] = new_view
+        store.save_config(self.cfg)
+        self.message = (f"{new_view} view"
+                        + (" (compact)" if new_view == "legacy"
+                           else " (full cards)"))
+
+    def do_cancel(self):
+        self.selected = None
+        self.hint = None
+        self.message = ""
+
+    def do_up(self):
+        self.hint = None
+        self.move_cursor(-1, 0)
+
+    def do_down(self):
+        self.hint = None
+        self.move_cursor(1, 0)
+
+    def do_left(self):
+        self.hint = None
+        self.move_cursor(0, -1)
+
+    def do_right(self):
+        self.hint = None
+        self.move_cursor(0, 1)
+
+    def do_hint(self):
+        self.hint = self.game.hint()
+        if self.hint is None:
+            self.message = self.game.no_hint_reason()
+        else:
+            hsrc, hdst, desc = self.hint
+            # move the cursor to the suggested source for convenience
+            self.cursor = hsrc
+            self.message = f"Hint: {desc}"
+
+    def do_select(self):
+        self.hint = None
+        if self.selected is None:
+            if self.game.kind(self.cursor) == "stock":
+                self.click_stock(self.cursor)
+            else:
+                self.select_here(self.cursor)
+        elif self.cursor == self.selected:
+            self.selected = None
+        else:
+            self.drop_on(self.cursor)
+
+    def do_deal(self):
+        self.hint = None
+        if not self.game.deal():
+            self.message = self.game.deal_blocked_reason()
+        self.selected = None
+
+    def do_autoplay(self):
+        self.hint = None
+        n = self.game.autoplay()
+        self.message = f"autoplayed {n}" if n else "nothing to autoplay"
+        self.selected = None
+
+    def do_foundation(self):
+        self.to_foundation(self.selected if self.selected is not None else self.cursor)
+
+    def do_undo(self):
+        self.message = "" if self.game.undo() else "nothing to undo"
+        self.selected = None
+        self.hint = None
+
+    def do_redo(self):
+        self.message = "" if self.game.redo() else "nothing to redo"
+        self.selected = None
+        self.hint = None
+
+    def do_new_deal(self):
+        # new deal: an abandoned game counts as a loss first
+        self.maybe_record_loss()
+        self.reset_for(self.game.new_game)
+        self.message = "new deal"
+
+    def do_restart(self):
+        # restart THIS deal (replay the same shuffle); no loss recorded
+        # since it's the same hand continuing
+        self.reset_for(self.game.restart)
+        self.message = "restarted this deal"
+
+    def do_options(self):
+        self.maybe_record_loss()
+        newopts = self.options_screen(self.key)
+        self.game = engine.new_solitaire(self.key, seed=self.seed, options=newopts)
+        self.ui = self.new_board()
+        self.reset_for(lambda: None)   # game already dealt by new_solitaire
+        self.message = "options applied"
+
+    def do_stats(self):
+        self.stats_screen(self.key)
+
+    # ---- play-screen mouse ---- #
+    def do_mouse(self):
+        try:
+            _, mx, my, _, bstate = curses.getmouse()
+        except curses.error:
+            return None
+        return self.mouse_at(my, mx, bstate)
+
+    def mouse_at(self, y: int, x: int, bstate: int):
+        """Act on a mouse event at screen cell (y, x) with button state bstate."""
+        target = self.ui.hit_test(y, x)
+        if target is None:
+            return None
+        tsid, tidx = target
+        self.cursor = tsid
+        self.hint = None
+        dbl = bstate & curses.BUTTON1_DOUBLE_CLICKED
+        clicked = bstate & (curses.BUTTON1_CLICKED | curses.BUTTON1_PRESSED |
+                            curses.BUTTON1_RELEASED)
+        if dbl:
+            # double-clicking the stock is the natural "just deal"
+            # gesture; elsewhere it sends the card to a foundation
+            if self.game.kind(tsid) == "stock":
+                self.click_stock(tsid)
+            else:
+                self.to_foundation(tsid)
+        elif clicked:
+            if self.selected is None:
+                if self.game.kind(tsid) == "stock":
+                    self.click_stock(tsid)
+                else:
+                    # split the stack at the exact card the user clicked
+                    self.select_here(tsid, tidx)
+            elif tsid == self.selected:
+                self.selected = None
+                self.selected_exact = False
+            else:
+                self.drop_on(tsid)
+        return None
+
+    # ---- end of game ---- #
+    def end_banner(self, elapsed: float, won: bool) -> str:
         """Show the end-of-game banner with choices. Returns one of:
         'same' (replay this deal), 'new' (fresh deal), 'menu'."""
-        s = store.get_stat(key)
+        stdscr, CP, safe_add = self.stdscr, self.CP, self.safe_add
+        game = self.game
+        s = store.get_stat(self.key)
         pct = store.percentage(s)
         choices = [("same", "Replay this deal"),
                    ("new", "New deal"),
@@ -640,20 +793,10 @@ def run(stdscr, start_key: Optional[str] = None, seed: Optional[int] = None,
                 if 0 <= row < len(choices):
                     return choices[row][0]
 
-    # ---- top loop ---- #
-    try:
-        if start_key:
-            play(start_key)
-        while True:
-            choice = chooser()
-            if choice is None or choice == "__quit__":
-                return 0
-            if choice == "__stats__":
-                stats_screen()
-                continue
-            play(choice)
-    except _Quit:
-        return 0
+
+def run(stdscr, start_key: Optional[str] = None, seed: Optional[int] = None,
+        color: bool = True):
+    return App(stdscr, start_key, seed, color).run()
 
 
 def main(start_key: Optional[str] = None, seed: Optional[int] = None,
@@ -664,4 +807,3 @@ def main(start_key: Optional[str] = None, seed: Optional[int] = None,
         import sys
         print(f"curses error: {exc}", file=sys.stderr)
         return 1
-
