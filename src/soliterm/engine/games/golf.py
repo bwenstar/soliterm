@@ -22,11 +22,10 @@ class Golf(GameDef):
         for _ in range(5):
             for t in self.tableau:
                 g.deal_from_deck(t, 1, face_up=True)
-        # the remaining 17 cards form the stock (face down); one is turned up
-        # to start the waste.
+        # the remaining 17 cards form the stock (face down). The waste starts
+        # empty, as in AisleRiot: the first click on the stock turns one up.
         while g.deck:
             g.deal_from_deck(self.stock, 1, face_up=False)
-        g.slots[self.waste].cards.append(g.slots[self.stock].cards.pop().up(True))
         g.update_status()
 
     def can_pickup(self, g, sid, n):

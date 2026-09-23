@@ -52,10 +52,7 @@ def test_a_slot_cannot_move_onto_itself(key):
 @pytest.mark.parametrize("key", GAME_ORDER)
 def test_moving_from_an_empty_slot_is_refused(key):
     g = deal(key, 3)
-    src = next((s.sid for s in g.slots if not s.cards), None)
-    if src is None:                     # Golf deals into every slot
-        src = g.ids_of("tableau")[0]
-        g.slots[src].cards = []
+    src = next(s.sid for s in g.slots if not s.cards)
     before = g.serialize()
     for dst in range(len(g.slots)):
         assert g.attempt_move(src, dst) is False

@@ -127,8 +127,8 @@ def deal_digest(g):
 
 
 # The first 16 hex digits of a hash of each slot's cards for seeds 1 and 2. A
-# change here means a seed no longer deals the hand it used to. Spider and Golf
-# are left out on purpose: their opening layouts do not match AisleRiot yet.
+# change here means a seed no longer deals the hand it used to. Spider is left
+# out on purpose: its opening layout does not match AisleRiot yet.
 DEALS = {
     "klondike": ("19ad3b4a4c41a6ee", "108d2b831ab0e22a"),
     "freecell": ("1c20857ef5b1da0b", "a97f37a4def2dac8"),
@@ -137,6 +137,7 @@ DEALS = {
     "bakersdozen": ("ab88db458092bed9", "68206629a1145791"),
     "fortythieves": ("515b7ec5f1f3676a", "96fabcc0b0aab129"),
     "canfield": ("9672abf40f13f3e6", "261302ffa7680263"),
+    "golf": ("b0ca08182dd57848", "0c336749f723a7ee"),
 }
 
 

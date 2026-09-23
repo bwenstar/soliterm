@@ -24,6 +24,18 @@ def test_fresh_deal_has_every_card_and_is_not_won(key, seed):
     assert not g.is_won()
 
 
+def test_golf_waits_for_the_stock_to_start_the_waste():
+    g = deal("golf", 1)
+    stock, waste = g.ids_of("stock")[0], g.ids_of("waste")[0]
+    assert [len(g.cards(t)) for t in g.ids_of("tableau")] == [5] * 7
+    assert len(g.cards(stock)) == 17 and not g.cards(waste)
+    assert g.legal_moves() == []
+    assert not g.is_stuck()
+    assert g.hint()[2] == "Deal from the stock"
+    assert g.deal()
+    assert len(g.cards(stock)) == 16 and g.top(waste).face_up
+
+
 # -- options --------------------------------------------------------------------
 
 # Values a hand-edited or out-of-date config.json could hold.
