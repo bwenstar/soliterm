@@ -23,8 +23,10 @@ def isolated_home(tmp_path, monkeypatch):
     monkeypatch.setenv("USER", "tester")
     monkeypatch.setenv("LOGNAME", "tester")
     monkeypatch.delenv("NO_COLOR", raising=False)
-    # the store's notices are per run; start each test with none
+    monkeypatch.delenv("SOLITERM_NO_AISLERIOT", raising=False)
+    # the store's notices and --no-sync are per run; start each test afresh
     monkeypatch.setattr(store, "_notices", [])
+    monkeypatch.setattr(store, "_no_sync", False)
     # AisleRiot may be installed here; a test that wants it says so
     monkeypatch.setattr(ar, "installed", lambda: False)
     return home

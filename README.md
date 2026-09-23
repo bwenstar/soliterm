@@ -99,7 +99,10 @@ Worst winning time**, per game. When the installed GNOME AisleRiot is present,
 this game reads from and writes to its config keyfile
 (`~/.config/gnome-games/aisleriot`), so a game finished here shows up in
 AisleRiot's Statistics dialog and vice versa. Disable by setting
-`"sync_aisleriot": false` in `~/.config/aisle-cli/config.json`.
+`"sync_aisleriot": false` in `~/.config/aisle-cli/config.json`, or for a
+single run with `--no-sync` (or `SOLITERM_NO_AISLERIOT=1` in the
+environment): the keyfile is then neither read nor written, and the games
+you play wait in the local stats until sharing is on again.
 
 `--stats` prints the table; `--reset-stats` clears it, and that includes
 AisleRiot's own record of these nine games (its other games are left
@@ -116,6 +119,7 @@ the local stats.
 --color         force colour in text mode    --no-color  disable colour
 --list          list games and exit          --stats     print statistics
 --reset-stats   clear statistics             --yes       don't ask first
+--no-sync       leave AisleRiot's stats alone this run
 ```
 
 Colour, code-skin, and other preferences persist in

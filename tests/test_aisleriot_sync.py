@@ -507,6 +507,53 @@ def test_without_aisleriot_stats_stay_in_local_json():
     assert not os.path.exists(ar.keyfile_path())
 
 
+# -- sharing turned off for one run -------------------------------------------------
+
+def keyfile_untouchable(monkeypatch):
+    def refuse(*args, **kwargs):
+        raise AssertionError("the AisleRiot keyfile was opened")
+    monkeypatch.setattr(ar, "_read_text", refuse)
+    monkeypatch.setattr(ar, "_write_text", refuse)
+
+
+@pytest.mark.parametrize("how", ["env", "call"])
+def test_turning_sharing_off_for_a_run_leaves_the_keyfile_alone(keyfile, monkeypatch, how):
+    path = keyfile(KEYFILE)
+    if how == "env":
+        monkeypatch.setenv("SOLITERM_NO_AISLERIOT", "1")
+    else:
+        store.disable_sync()
+    keyfile_untouchable(monkeypatch)
+    assert not store.syncing()
+    assert store.record_result("klondike", won=True, seconds=50) == stat(1, 1, 50, 50)
+    assert store.get_stat("klondike") == stat(1, 1, 50, 50)
+    assert store.get_stat("spider") == stat(0, 0, 0, 0)
+    assert store.any_stats()
+    assert store.backup_stats() == [store.stats_path() + ".bak"]
+    assert store.reset_stats() == 1
+    assert path.read_text() == KEYFILE
+    assert store.notices() == []
+
+
+@pytest.mark.parametrize("value", ["", "0"])
+def test_an_empty_or_zero_no_aisleriot_setting_still_shares(keyfile, monkeypatch, value):
+    keyfile(AR_KLONDIKE)
+    monkeypatch.setenv("SOLITERM_NO_AISLERIOT", value)
+    assert store.syncing()
+    assert store.get_stat("klondike") == stat(10, 40, 120, 900)
+
+
+def test_games_kept_local_for_a_run_are_shared_later_only_once(keyfile):
+    keyfile(AR_KLONDIKE)
+    store.record_result("klondike", won=False, seconds=5)
+    store.disable_sync()
+    store.record_result("klondike", won=True, seconds=100)
+    assert ar.read_stat("klondike.scm") == stat(10, 41, 120, 900)
+    store._no_sync = False          # the next run
+    store.record_result("klondike", won=False, seconds=5)
+    assert ar.read_stat("klondike.scm") == stat(11, 43, 100, 900)
+
+
 # -- is AisleRiot there? -------------------------------------------------------------
 
 # the real check; conftest hides whatever AisleRiot this machine has

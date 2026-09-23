@@ -287,8 +287,28 @@ def _norm(s: Optional[dict]) -> dict:
     return out
 
 
+# Set by --no-sync: the AisleRiot keyfile is left alone for the rest of the run.
+_no_sync = False
+
+
+def disable_sync() -> None:
+    """Keep this run's statistics local: nothing reads or writes the AisleRiot
+    keyfile from now on. Games recorded meanwhile are shared the next time
+    sharing is on, as when sync_aisleriot is turned off in the config."""
+    global _no_sync
+    _no_sync = True
+
+
+def sync_disabled() -> bool:
+    """True if sharing is off for this run: --no-sync, or SOLITERM_NO_AISLERIOT
+    set to anything but "" or "0"."""
+    return _no_sync or os.environ.get("SOLITERM_NO_AISLERIOT", "") not in ("", "0")
+
+
 def syncing() -> bool:
     """True when we should mirror stats with the installed AisleRiot."""
+    if sync_disabled():
+        return False
     cfg = load_config()
     return bool(cfg.get("sync_aisleriot", True)) and ar.available()
 

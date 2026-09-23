@@ -234,6 +234,21 @@ def test_reset_stats_twice_keeps_the_first_backup(cli, keyfile):
     assert Path(str(path) + ".soliterm-bak").read_text() == shared
 
 
+# -- --no-sync -------------------------------------------------------------------------
+
+def test_no_sync_shows_and_clears_only_the_local_stats(cli, keyfile):
+    path = keyfile(f"[{ar.GAME_TO_SECTION['freecell']}]\nStatistic=3;4;75;300;\n")
+    before = path.read_text()
+    rc, lines = cli("--no-sync", "--stats")
+    assert stats_row(lines, "freecell") == ["0", "0", "N/A", "N/A", "N/A"]
+    store.record_result("golf", True, 50)
+    rc, lines = cli("--no-sync", "--reset-stats", "--yes")
+    assert rc == 0
+    assert path.read_text() == before
+    assert not os.path.exists(str(path) + ".soliterm-bak")
+    assert store.load_stats().get("golf") is None
+
+
 # -- text mode -------------------------------------------------------------------------
 
 def without_status(board):

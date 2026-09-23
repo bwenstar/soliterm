@@ -54,6 +54,9 @@ def build_parser() -> argparse.ArgumentParser:
                            "keeps a backup")
     p.add_argument("--yes", action="store_true",
                    help="with --reset-stats: don't ask first")
+    p.add_argument("--no-sync", action="store_true",
+                   help="leave GNOME AisleRiot's statistics alone this time and "
+                        "keep them here only (also SOLITERM_NO_AISLERIOT=1)")
     return p
 
 
@@ -121,6 +124,8 @@ def reset_stats(yes: bool) -> int:
 
 def main(argv: Optional[List[str]] = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.no_sync:
+        store.disable_sync()
     try:
         return _run(args)
     finally:
