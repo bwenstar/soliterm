@@ -13,17 +13,21 @@ ANSI = re.compile(r"\x1b\[[0-9;]*m")
 
 
 def played(key, seed, steps=40):
-    """A game some hint moves in, so there are foundations, fans and 10s about."""
+    """A game some good moves in, so there are foundations, fans and 10s about."""
     g = deal(key, seed)
     for _ in range(steps):
-        h = g.hint()
-        if h is None:
+        mv = g.best_move()
+        if mv is not None:
+            g.attempt_move(*mv)
+        elif not g.deal():
             break
-        if h[0] == h[1]:
-            g.deal()
-        else:
-            g.attempt_move(*g.best_move())
     return g
+
+
+def typed(msg):
+    """The command a hint tells the player to type, or None."""
+    m = re.search(r"type: ([^)]*)\)", msg)
+    return m.group(1) if m else None
 
 
 def blocks(board):
@@ -88,16 +92,10 @@ def test_a_hint_names_the_slots_as_the_board_does(key):
         named = re.findall(r"[a-z]*#\d+", msg)
         assert named == [textmode.slot_tag(g, h[0]), textmode.slot_tag(g, h[1])], msg
         assert set(named) <= tags, msg
-        g.attempt_move(*g.best_move())
+        assert textmode.apply_text_command(g, typed(msg))[0], msg
 
 
 # -- hints ------------------------------------------------------------------------------
-
-def typed(msg):
-    """The command a hint tells the player to type, or None."""
-    m = re.search(r"type: ([^)]*)\)", msg)
-    return m.group(1) if m else None
-
 
 @pytest.mark.parametrize("seed", [1, 2, 3])
 @pytest.mark.parametrize("key", GAME_ORDER)
@@ -115,7 +113,7 @@ def test_typing_a_hint_back_makes_that_move(key, seed):
         want = g.clone()
         if src == dst:
             want.deal()
-        elif mv[:2] == (src, dst):
+        elif mv is not None and mv[:2] == (src, dst):
             want.attempt_move(*mv)
         else:
             want = None                  # a hint that is not the best move
