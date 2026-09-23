@@ -31,8 +31,9 @@ class FreeCell(GameDef):
         return (free + 1) * (2 ** empty_cols)
 
     def can_pickup(self, g, sid, n):
+        # Cards on the foundations are out of play, as in AisleRiot.
         k = g.kind(sid)
-        if k in ("freecell", "foundation"):
+        if k == "freecell":
             return n == 1
         if k == "tableau":
             run = g.cards(sid)[len(g.cards(sid)) - n:]
