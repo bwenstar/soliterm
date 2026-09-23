@@ -4,6 +4,7 @@ import re
 
 import pytest
 
+from soliterm import textmode
 from soliterm.engine import GAME_ORDER
 from soliterm.textmode import render_text
 from helpers import deal
@@ -58,3 +59,33 @@ def test_cards_line_up_under_their_tags(key, seed):
             assert set(ends(row)) <= set(edges), board
         for row in rows:
             assert all(len(t) == 5 for t in re.findall(r"\[[^\]]*\]", row)), board
+
+
+KIND_TAG = {"stock": "stk", "waste": "wst", "foundation": "fnd", "freecell": "cel",
+            "reserve": "rsv", "tableau": ""}
+
+
+@pytest.mark.parametrize("key", GAME_ORDER)
+def test_every_slot_shows_its_id_and_kind(key):
+    g = deal(key, 1)
+    board = render_text(g, symbols=False)
+    shown = {int(sid): kind for kind, sid in re.findall(r"([a-z]*)#(\d+)", board)}
+    assert shown == {s.sid: KIND_TAG[s.kind] for s in g.slots}
+
+
+@pytest.mark.parametrize("key", GAME_ORDER)
+def test_a_hint_names_the_slots_as_the_board_does(key):
+    g = deal(key, 1)
+    tags = set(re.findall(r"[a-z]*#\d+", render_text(g, symbols=False)))
+    for _ in range(30):
+        h = g.hint()
+        if h is None:
+            break
+        if h[0] == h[1]:
+            g.deal()
+            continue
+        msg = textmode._hint_message(g)
+        named = re.findall(r"[a-z]*#\d+", msg)
+        assert named == [textmode.slot_tag(g, h[0]), textmode.slot_tag(g, h[1])], msg
+        assert set(named) <= tags, msg
+        g.attempt_move(*g.best_move())

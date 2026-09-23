@@ -63,6 +63,18 @@ def _pad(text: str, width: int) -> str:
     return " " * (width - _width(text)) + text
 
 
+_KIND_TAG = {"stock": "stk", "waste": "wst", "foundation": "fnd",
+             "reserve": "rsv", "freecell": "cel", "tableau": ""}
+
+
+def slot_tag(g: Solitaire, sid: int) -> str:
+    """How the board labels a slot: its kind and id, e.g. 'fnd#4', '#9'.
+
+    Tableau columns are the common case, so they go without a kind.
+    """
+    return f"{_KIND_TAG.get(g.kind(sid), g.kind(sid)[:3])}#{sid}"
+
+
 def _column(s: Slot, symbols: bool, color: bool) -> List[str]:
     """The lines a slot draws under its tag, top to bottom."""
     if s.expand == "down":
@@ -81,9 +93,7 @@ def render_text(g: Solitaire, symbols: bool = True, color: bool = False) -> str:
     lines.append(f"=== {g.gamedef.name} ===")
     for row in sorted({s.row for s in g.slots}):
         slots = [s for s in g.slots if s.row == row]
-        tags = [{"stock": "stk", "waste": "wst", "foundation": "fnd",
-                 "tableau": f"#{s.sid}", "reserve": "rsv",
-                 "freecell": "cel"}.get(s.kind, str(s.sid)) for s in slots]
+        tags = [slot_tag(g, s.sid) for s in slots]
         cols = [_column(s, symbols, color) for s in slots]
         # each column is as wide as its widest line, so a slot's cards
         # always sit right under its tag
@@ -104,7 +114,8 @@ def render_text(g: Solitaire, symbols: bool = True, color: bool = False) -> str:
 # --------------------------------------------------------------------------- #
 
 TEXT_HELP = """\
-Text-mode commands (slots are addressed by the #N tags shown on the board):
+Text-mode commands. A slot is named by the number in its tag on the board,
+so stk#0 is 0, fnd#4 is 4 and #9 is 9:
   p / .            reprint the board
   d                deal from the stock
   a                autoplay safe cards to foundations
@@ -128,7 +139,8 @@ def _hint_message(g: Solitaire) -> str:
     src, dst, desc = h
     if src == dst:                      # a deal-from-stock style hint
         return f"Hint: {desc}."
-    return f"Hint: {desc}  (type:  {src} {dst})"
+    return (f"Hint: {desc}  ({slot_tag(g, src)} -> {slot_tag(g, dst)}, "
+            f"type: {src} {dst})")
 
 
 def apply_text_command(g: Solitaire, cmd: str) -> Tuple[bool, str]:
