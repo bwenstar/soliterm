@@ -10,6 +10,7 @@ import curses
 import pytest
 
 import soliterm.tui
+from soliterm import aisleriot as ar
 from soliterm import engine, store
 from soliterm.engine import Card
 from helpers import FakeScr, clear_board, deal
@@ -190,6 +191,15 @@ def test_finishing_a_game_records_the_win_and_shows_the_banner(tui):
     assert "YOU WIN" in scr.frames[1]
     s = store.get_stat("klondike")
     assert s["wins"] == 1 and s["total"] == 1
+
+
+def test_playing_again_from_the_menu_does_not_double_aisleriot_stats(tui, keyfile):
+    # every return to the menu and every toggle saves the config the TUI
+    # loaded at start, which must not undo the one-time merge
+    keyfile("[klondike.scm]\nStatistic=10;40;120;900;\n")
+    tui(["d", "m", ENTER, "v", "d", "q"])
+    assert ar.read_stat("klondike.scm") == {"wins": 10, "total": 42,
+                                            "best": 120, "worst": 900}
 
 
 # -- the menu ------------------------------------------------------------------------

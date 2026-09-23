@@ -48,8 +48,9 @@ DEFAULT_CONFIG = {
     # config dir exists) we read from and write to its keyfile, so games played
     # in either program are mirrored in both. Defaults on.
     "sync_aisleriot": True,
-    # set to True once we've folded any pre-existing local stats into the
-    # shared keyfile, so the one-time merge doesn't double-count.
+    # Where older versions kept the one-time merge flag. The flag now lives in
+    # stats.json (see _merged); this copy is still honoured, and kept at True
+    # once set, so an older version reading this file won't merge again.
     "merged_into_aisleriot": False,
 }
 
@@ -87,6 +88,11 @@ def load_config() -> dict:
 
 
 def save_config(cfg: dict) -> bool:
+    cfg = dict(cfg)
+    if not cfg.get("merged_into_aisleriot") and load_config()["merged_into_aisleriot"]:
+        # a copy loaded before the merge (the TUI keeps one for the whole
+        # session) must not clear the flag
+        cfg["merged_into_aisleriot"] = True
     try:
         os.makedirs(config_dir(), exist_ok=True)
         with open(config_path(), "w", encoding="utf-8") as fh:
@@ -112,6 +118,12 @@ def set_game_options(cfg: dict, game_key: str, options: dict) -> None:
 
 EMPTY_STAT = {"wins": 0, "total": 0, "best": 0, "worst": 0}
 
+# stats.json holds one record per game key plus this entry for bookkeeping.
+# The one-time merge flag lives here rather than in config.json so that it
+# always travels with the stats it guards: resetting or losing the config, or
+# copying just the data dir, can't make the merge run twice.
+META_KEY = "_meta"
+
 
 def _norm(s: Optional[dict]) -> dict:
     out = dict(EMPTY_STAT)
@@ -135,7 +147,39 @@ def load_stats() -> dict:
         return {}
 
 
+def _meta(stats: dict) -> dict:
+    meta = stats.get(META_KEY)
+    return meta if isinstance(meta, dict) else {}
+
+
+def _merged(stats: dict) -> bool:
+    """True once the local history in `stats` has been added to the keyfile.
+
+    The marker in stats.json or the flag older versions kept in config.json
+    is enough. A stats.json from before the marker, sitting next to a
+    keyfile, counts as merged as well: that older version was syncing, so
+    its stats.json is a mirror of the keyfile and adding it would double
+    every shared stat. (If AisleRiot only turned up later, its old games are
+    left out of the shared totals, which is the lesser harm.)
+    """
+    flag = _meta(stats).get("merged_into_aisleriot")
+    if flag is True or load_config()["merged_into_aisleriot"]:
+        return True
+    if flag is None and any(k in ar.GAME_TO_SECTION for k in stats):
+        return os.path.exists(ar.keyfile_path())
+    return False
+
+
 def save_stats(stats: dict) -> bool:
+    stats = dict(stats)
+    # Keep the bookkeeping entry of the file on disk when the caller has
+    # none, and never turn a merged marker back off.
+    on_disk = _meta(load_stats())
+    meta = dict(_meta(stats)) if META_KEY in stats else dict(on_disk)
+    if on_disk.get("merged_into_aisleriot") is True:
+        meta["merged_into_aisleriot"] = True
+    if meta:
+        stats[META_KEY] = meta
     try:
         os.makedirs(data_dir(), exist_ok=True)
         with open(stats_path(), "w", encoding="utf-8") as fh:
@@ -188,11 +232,14 @@ def record_result(game_key: str, won: bool, seconds: float) -> dict:
             # keep local JSON as a mirror/backup in lock-step with the keyfile
             stats = load_stats()
             stats[game_key] = updated
+            stats[META_KEY] = {**_meta(stats), "merged_into_aisleriot": True}
             save_stats(stats)
             return updated
 
-    # not syncing: local JSON only
+    # not syncing: local JSON only. Settle the merge marker before this game
+    # joins the history, so a later sync knows whether to fold it in.
     stats = load_stats()
+    stats[META_KEY] = {**_meta(stats), "merged_into_aisleriot": _merged(stats)}
     updated = apply(stats.get(game_key))
     stats[game_key] = updated
     save_stats(stats)
@@ -206,11 +253,19 @@ def _merge_local_into_aisleriot_once() -> None:
     we sync, fold those prior games into AisleRiot's totals so nothing is lost,
     then mark it done so we never double-count. Per game we add our local totals
     to AisleRiot's and keep the better (faster best / slower worst) times.
+
+    The marker is saved before the keyfile is touched: if we stop half way,
+    AisleRiot misses some old games, which beats counting them twice.
     """
-    cfg = load_config()
-    if cfg.get("merged_into_aisleriot"):
-        return
     local = load_stats()
+    if _merged(local):
+        return
+    local[META_KEY] = {**_meta(local), "merged_into_aisleriot": True}
+    if not save_stats(local):
+        return
+    cfg = load_config()
+    cfg["merged_into_aisleriot"] = True
+    save_config(cfg)
     for game_key, lstat in local.items():
         sect = ar.GAME_TO_SECTION.get(game_key)
         if sect is None:
@@ -227,8 +282,6 @@ def _merge_local_into_aisleriot_once() -> None:
         merged["best"] = min(bests) if bests else 0
         merged["worst"] = max(shared["worst"], l["worst"])
         ar.write_stat(sect, merged)
-    cfg["merged_into_aisleriot"] = True
-    save_config(cfg)
 
 
 def reset_stats() -> int:

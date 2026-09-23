@@ -24,6 +24,8 @@ Statistic=3;10;200;400;
 Options=1
 """
 
+AR_KLONDIKE = "[klondike.scm]\nStatistic=10;40;120;900;\n"
+
 
 def stat(wins, total, best, worst):
     return {"wins": wins, "total": total, "best": best, "worst": worst}
@@ -116,17 +118,80 @@ def test_our_results_land_in_the_keyfile(keyfile):
 
 
 def test_local_history_is_merged_into_the_keyfile_once(keyfile):
+    # games played before AisleRiot was around
+    store.record_result("spider", won=True, seconds=400)
+    store.record_result("spider", won=False, seconds=10)
+    store.record_result("golf", won=True, seconds=120)
     keyfile(KEYFILE)
-    write_json(store.stats_path(), {"spider": stat(5, 30, 400, 1500),
-                                    "golf": stat(2, 8, 120, 300)})
-    write_json(store.config_path(), {"sync_aisleriot": True,
-                                     "merged_into_aisleriot": False})
     store.record_result("klondike", won=True, seconds=100)   # triggers the merge
-    assert ar.read_stat("spider.scm") == stat(25, 142, 400, 1966)
-    assert ar.read_stat("golf.scm") == stat(2, 8, 120, 300)
+    assert ar.read_stat("spider.scm") == stat(21, 114, 400, 1966)
+    assert ar.read_stat("golf.scm") == stat(1, 1, 120, 120)
     # the next result must not add the local totals again
     store.record_result("spider", won=False, seconds=10)
-    assert ar.read_stat("spider.scm")["total"] == 143
+    assert ar.read_stat("spider.scm")["total"] == 115
+
+
+def test_a_stale_config_save_does_not_merge_again(keyfile):
+    keyfile(AR_KLONDIKE)
+    cfg = store.load_config()          # the TUI loads this once at start
+    store.record_result("klondike", won=False, seconds=5)
+    store.save_config(cfg)             # and saves it back on every game
+    store.record_result("klondike", won=False, seconds=5)
+    assert ar.read_stat("klondike.scm") == stat(10, 42, 120, 900)
+
+
+def test_losing_the_config_does_not_merge_again(keyfile):
+    keyfile(AR_KLONDIKE)
+    store.record_result("klondike", won=False, seconds=5)
+    os.remove(store.config_path())
+    store.record_result("klondike", won=False, seconds=5)
+    assert ar.read_stat("klondike.scm") == stat(10, 42, 120, 900)
+
+
+def test_the_merge_marker_is_kept_in_stats_json(keyfile):
+    keyfile(AR_KLONDIKE)
+    store.record_result("klondike", won=False, seconds=5)
+    with open(store.stats_path(), encoding="utf-8") as fh:
+        assert json.load(fh)["_meta"]["merged_into_aisleriot"] is True
+
+
+def test_a_reset_keeps_the_merge_marker(keyfile):
+    keyfile(AR_KLONDIKE)
+    store.record_result("klondike", won=False, seconds=5)
+    store.reset_stats()
+    store.record_result("klondike", won=False, seconds=5)    # mirrored locally
+    os.remove(store.config_path())
+    store.record_result("klondike", won=False, seconds=5)
+    assert ar.read_stat("klondike.scm") == stat(0, 2, 0, 0)
+
+
+def test_stats_from_an_older_version_beside_a_keyfile_count_as_merged(keyfile):
+    # older versions kept the flag in config.json only; their stats.json
+    # next to a keyfile is a mirror of it already
+    keyfile(AR_KLONDIKE)
+    write_json(store.stats_path(), {"klondike": stat(10, 40, 120, 900),
+                                    "golf": stat(1, 1, 30, 30)})
+    store.record_result("klondike", won=False, seconds=5)
+    assert ar.read_stat("klondike.scm") == stat(10, 41, 120, 900)
+    assert ar.read_stat("golf.scm") is None
+
+
+def test_the_old_config_flag_still_counts(keyfile):
+    write_json(store.stats_path(), {"_meta": {"merged_into_aisleriot": False},
+                                    "golf": stat(1, 1, 30, 30)})
+    write_json(store.config_path(), {"merged_into_aisleriot": True})
+    keyfile(AR_KLONDIKE)
+    store.record_result("klondike", won=False, seconds=5)
+    assert ar.read_stat("golf.scm") is None
+
+
+def test_saving_the_config_never_clears_the_old_merge_flag():
+    write_json(store.config_path(), {"merged_into_aisleriot": True})
+    cfg = store.load_config()
+    cfg["merged_into_aisleriot"] = False
+    store.save_config(cfg)
+    with open(store.config_path(), encoding="utf-8") as fh:
+        assert json.load(fh)["merged_into_aisleriot"] is True
 
 
 def test_reset_zeroes_only_the_games_we_manage(keyfile):
