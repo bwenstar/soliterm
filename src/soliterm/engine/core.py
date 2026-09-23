@@ -72,6 +72,9 @@ class Solitaire:
         self.moves = 0
         self.redeals_done = 0
         self.current_seed = seed     # the concrete seed of the deal in play
+        # How messages name cards: with suit symbols (2♥) or letters (2H).
+        # The front-end sets it to match the board it draws.
+        self.symbols = True
         self._undo: List[bytes] = []
         self._redo: List[bytes] = []
         self.new_game(seed)
@@ -165,6 +168,7 @@ class Solitaire:
         g.seed = self.seed
         g.current_seed = self.current_seed
         g.options = dict(self.options)
+        g.symbols = self.symbols
         g._deal_seeds = None
         g.rng = random.Random()
         g.slots = [Slot(s.sid, s.kind, s.expand, list(s.cards), s.row)
@@ -220,15 +224,16 @@ class Solitaire:
 
     def _describe_move(self, src: int, dst: int, n: int) -> str:
         pile = self.cards(src)
-        landing = pile[len(pile) - n]          # the card that lands on dst
+        landing = pile[len(pile) - n].label(self.symbols)   # lands on dst
         k = self.kind(dst)
         if k == "foundation":
             return f"Move {landing} to its foundation"
         if k == "freecell":
             return f"Move {landing} to a free cell"
-        if self.empty(dst):
+        top = self.top(dst)
+        if top is None:
             return f"Move {landing} to the empty column"
-        return f"Move {landing} onto {self.top(dst)}"
+        return f"Move {landing} onto {top.label(self.symbols)}"
 
     # -- end-state detection --------------------------------------------- #
 

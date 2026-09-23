@@ -178,6 +178,7 @@ def run_text(g: Solitaire, symbols: bool, game_key: str, stream=None,
              color: bool = False) -> int:
     out = sys.stdout
     inp = stream if stream is not None else sys.stdin
+    g.symbols = symbols               # hints name cards as the board does
     start = time.time()
     print(f"{APP_NAME} - {g.gamedef.name} (text mode). Type h for help.\n", file=out)
     print(render_text(g, symbols, color), file=out)

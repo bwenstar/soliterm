@@ -301,6 +301,12 @@ def test_a_scripted_text_session(cli):
     assert sum(line.startswith("Hint: ") for line in lines) == 1
 
 
+def test_the_text_hint_names_cards_with_the_boards_suit_symbols(cli):
+    rc, lines = cli("--text", "--no-color", "--seed", "1", stdin="hint\nq\n")
+    hint = next(line for line in lines if line.startswith("Hint: "))
+    assert any(s in hint for s in ("♠", "♥", "♦", "♣"))
+
+
 def test_n_in_text_mode_deals_a_new_hand_under_seed(cli):
     first = without_status(render_text(deal("klondike", 5), symbols=False))
     rc, lines = cli("--text", "--ascii", "--no-color", "--game", "klondike",

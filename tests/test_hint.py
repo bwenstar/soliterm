@@ -46,6 +46,15 @@ def test_a_lone_king_to_an_empty_column_is_not_suggested(klondike):
     assert g.best_move() is None
 
 
+def test_the_hint_names_cards_the_way_the_board_draws_them(klondike):
+    g, t = klondike
+    g.slots[t[0]].cards = [Card(9, "C", False), Card(2, "H", True)]
+    g.slots[t[1]].cards = [Card(3, "C", True)]
+    assert g.hint()[2] == "Move 2♥ onto 3♣"
+    g.symbols = False
+    assert g.hint()[2] == "Move 2H onto 3C"
+
+
 def test_a_foundation_play_is_suggested(klondike):
     g, t = klondike
     g.slots[t[0]].cards = [Card(5, "H", True), Card(1, "S", True)]
