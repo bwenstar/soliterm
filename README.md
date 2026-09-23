@@ -13,11 +13,11 @@ with Python on Linux and macOS). No `pip install` of anything else required.
 
 Pick whichever suits you:
 
-**A. Zero install — single file.** Grab `aisle.pyz` and run it:
+**A. Zero install, single file.** Grab `soliterm.pyz` and run it:
 
 ```sh
-python3 aisle.pyz                 # menu → pick a game (curses TUI)
-./aisle.pyz --game freecell       # or run it directly (it's executable)
+python3 soliterm.pyz              # menu → pick a game (curses TUI)
+./soliterm.pyz --game freecell    # or run it directly (it's executable)
 ```
 
 **B. Install with pip** (gives you a `soliterm` command on your PATH):
