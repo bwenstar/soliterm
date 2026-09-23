@@ -261,3 +261,20 @@ def test_two_clicks_far_apart_pick_up_and_put_down(monkeypatch):
     slow_click(app, a, 0)
     assert names(app, a) == ["AS"]
     assert app.selected is None
+
+
+def test_plus_and_minus_change_how_many_cards_are_held():
+    app, a, b = klondike_app([up(9, "C"), up(8, "H"), up(7, "S")], [up(4, "S")])
+    press(app, "-")
+    assert app.selected is None and "pick up" in app.message
+    press(app, ENTER)
+    assert (app.selected, app.selected_n) == (a, 3)
+    press(app, "-")
+    assert app.selected_n == 2 and app.message == "holding 2 cards"
+    press(app, "-", "-")
+    assert app.selected_n == 1 and "fewer" in app.message
+    press(app, "+", "+")
+    assert app.selected_n == 3
+    press(app, "+")
+    assert app.selected_n == 3 and "more" in app.message
+    assert app.selected_exact

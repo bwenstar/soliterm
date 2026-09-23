@@ -673,6 +673,31 @@ class App:
         else:
             self.drop_on(self.cursor)
 
+    def do_lift_more(self):
+        self.change_lift(1)
+
+    def do_lift_fewer(self):
+        self.change_lift(-1)
+
+    def change_lift(self, step: int):
+        """Hold one card more (step 1) or fewer (step -1) of the selected
+        pile, so the keyboard can move part of a run as a click mid-stack
+        does."""
+        if self.selected is None:
+            self.message = "pick up a run first, then + / - to change it"
+            return
+        pile = self.game.cards(self.selected)
+        n = self.selected_n + step
+        while 0 < n <= len(pile):
+            if self.game.can_pickup(self.selected, n):
+                self.selected_n = n
+                self.selected_exact = True    # the player chose the size
+                self.message = f"holding {n} card{'s' if n > 1 else ''}"
+                return
+            n += step
+        self.message = ("can't lift any more cards" if step > 0
+                        else "can't lift any fewer cards")
+
     def do_deal(self):
         self.hint = None
         if not self.game.deal():

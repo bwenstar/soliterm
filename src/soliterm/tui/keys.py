@@ -39,10 +39,11 @@ KEYMAP: Tuple[Binding, ...] = (
              curses.KEY_RIGHT: "right", ord("l"): "right"}),
     bind((curses.KEY_ENTER, 10, 13, " "), "select", "Enter / Space",
          "pick up the cursor's run; press again to drop"),
+    Binding("+ / -", "lift one card more / fewer while holding a run",
+            {ord("+"): "lift_more", ord("-"): "lift_fewer"}),
     bind((curses.KEY_MOUSE,), "mouse", "Mouse click",
-         "click a card to pick it up; click a target\n"
-         "to drop. Click a card mid-stack to split the\n"
-         "pile and lift it plus the cards below it."),
+         "click a card to pick it up, then a target to drop;\n"
+         "click one mid-stack to lift it and all below it."),
     # a gesture the mouse handler tells apart itself, so no keys of its own
     Binding("Mouse double-click", "send a card to a foundation; deal on stock", {}),
     bind((27,), "cancel", "Esc", "cancel the current selection / clear hint"),

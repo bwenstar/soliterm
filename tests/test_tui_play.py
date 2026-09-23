@@ -175,6 +175,15 @@ def test_a_klondike_three_drops_off_the_top_of_a_run(tui):
     assert names(g, b) == ["4C", "3H"]
 
 
+def test_the_keyboard_can_lift_part_of_a_run_into_an_empty_column(tui):
+    g, a, b = board("spider", [up(9, "H"), up(7, "S"), up(6, "S"), up(5, "S")], [],
+                    suits=4)
+    assert g.default_pickup(a) == 3
+    tui([ENTER, "-", "-", curses.KEY_RIGHT, ENTER], start_key="spider", game=g)
+    assert names(g, b) == ["5S"]
+    assert names(g, a) == ["9H", "7S", "6S"]
+
+
 @pytest.mark.parametrize("target", [(9, "D"), (4, "H")])
 def test_a_clicked_split_is_never_shrunk_to_fit(tui, target):
     # clicking the 4S lifts 4S-3S exactly; on 4H the 3S alone would fit, but

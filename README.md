@@ -66,6 +66,7 @@ The zipapp builds with the standard library alone. `--wheel` runs
 |------|--------|
 | Arrow keys | move the cursor between piles |
 | Enter / Space | pick up the cursor's run; press again to drop |
+| `+` / `-` | lift one card more / fewer while holding a run |
 | Mouse click | pick up a card/run; click a target to drop |
 | click mid-stack | split a pile and lift from that card down |
 | double-click | send a card to a foundation (or deal, on the stock) |
