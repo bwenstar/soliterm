@@ -251,6 +251,74 @@ def test_an_unreadable_keyfile_leaves_the_results_local(keyfile):
     assert any("can't read" in n for n in store.notices())
 
 
+def share(on):
+    cfg = store.load_config()
+    cfg["sync_aisleriot"] = on
+    store.save_config(cfg)
+
+
+def test_games_played_while_not_sharing_reach_aisleriot_later(keyfile):
+    keyfile(AR_KLONDIKE)
+    store.record_result("klondike", won=False, seconds=5)
+    share(False)
+    store.record_result("klondike", won=True, seconds=100)
+    store.record_result("golf", won=True, seconds=60)
+    assert ar.read_stat("klondike.scm") == stat(10, 41, 120, 900)
+    share(True)
+    assert store.get_stat("klondike") == stat(11, 42, 100, 900)
+    assert store.get_stat("golf") == stat(1, 1, 60, 60)
+    store.record_result("klondike", won=False, seconds=5)
+    assert ar.read_stat("klondike.scm") == stat(11, 43, 100, 900)
+    assert ar.read_stat("golf.scm") == stat(1, 1, 60, 60)
+    # and only the once
+    store.record_result("klondike", won=False, seconds=5)
+    assert ar.read_stat("klondike.scm") == stat(11, 44, 100, 900)
+    assert ar.read_stat("golf.scm") == stat(1, 1, 60, 60)
+    assert store.get_stat("golf") == stat(1, 1, 60, 60)
+
+
+def test_games_from_both_sides_add_up_once_sharing_is_back(keyfile):
+    path = keyfile(AR_KLONDIKE)
+    store.record_result("klondike", won=False, seconds=5)
+    share(False)
+    store.record_result("klondike", won=True, seconds=100)
+    path.write_text(AR_KLONDIKE.replace("10;40;", "12;43;"))    # two more in sol
+    share(True)
+    assert store.get_stat("klondike") == stat(13, 44, 100, 900)
+
+
+def test_stopping_while_catching_up_never_counts_a_game_twice(keyfile, monkeypatch):
+    keyfile(AR_KLONDIKE)
+    store.record_result("klondike", won=False, seconds=5)
+    share(False)
+    store.record_result("klondike", won=True, seconds=100)
+    share(True)
+    real_update = ar.update_stat
+
+    def update_then_stop(*args):
+        real_update(*args)
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(ar, "update_stat", update_then_stop)
+    with pytest.raises(KeyboardInterrupt):
+        store.record_result("klondike", won=False, seconds=5)
+    monkeypatch.setattr(ar, "update_stat", real_update)
+    assert ar.read_stat("klondike.scm") == stat(11, 43, 100, 900)
+    store.record_result("klondike", won=False, seconds=5)
+    assert ar.read_stat("klondike.scm") == stat(11, 44, 100, 900)
+
+
+def test_a_reset_forgets_games_not_yet_shared(keyfile):
+    keyfile(AR_KLONDIKE)
+    store.record_result("klondike", won=False, seconds=5)
+    share(False)
+    store.record_result("klondike", won=True, seconds=100)
+    share(True)
+    store.reset_stats()
+    store.record_result("klondike", won=False, seconds=5)
+    assert ar.read_stat("klondike.scm") == stat(0, 1, 0, 0)
+
+
 def test_reset_zeroes_only_the_games_we_manage(keyfile):
     keyfile("[Aisleriot Config]\nRecent=spider;\n\n"
             "[spider.scm]\nStatistic=20;112;591;1966;\n\n"

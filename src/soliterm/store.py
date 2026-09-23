@@ -351,6 +351,8 @@ def save_stats(stats: dict) -> bool:
         meta["merged_into_aisleriot"] = True
     if meta:
         stats[META_KEY] = meta
+    else:
+        stats.pop(META_KEY, None)
     return _write_json(stats_path(), stats)
 
 
@@ -367,7 +369,9 @@ def get_stat(game_key: str) -> dict:
                 _unreadable_keyfile()
                 shared = None
             if shared is not None:
-                return _norm(shared)
+                # plus any games of ours the keyfile hasn't been given yet
+                waiting = _unsynced(load_stats()).get(game_key)
+                return _combined(_norm(shared), waiting) if waiting else _norm(shared)
     return _norm(load_stats().get(game_key))
 
 
@@ -377,49 +381,92 @@ def record_result(game_key: str, won: bool, seconds: float) -> dict:
     Best/Worst track WINNING times only (AisleRiot semantics): a loss bumps the
     total but never the best/worst time. When syncing, the update is applied to
     BOTH the shared AisleRiot keyfile and our local JSON, so a game played here
-    shows up in AisleRiot and vice versa.
+    shows up in AisleRiot and vice versa. Games recorded while not sharing
+    are listed in stats.json and go into the keyfile along with the next
+    result recorded while sharing.
     """
     with _locked():
         return _record_result(game_key, won, seconds)
 
 
 def _record_result(game_key: str, won: bool, seconds: float) -> dict:
-    # Fold the one win/loss into a given baseline stat.
-    def apply(base: Optional[dict]) -> dict:
-        s = _norm(base)
-        s["total"] += 1
-        if won:
-            s["wins"] += 1
-            secs = max(1, int(round(seconds)))
-            if s["best"] == 0 or secs < s["best"]:
-                s["best"] = secs
-            if secs > s["worst"]:
-                s["worst"] = secs
-        return s
-
+    one = _one_game(won, seconds)
     if _can_sync():
         _merge_local_into_aisleriot_once()
         sect = ar.GAME_TO_SECTION.get(game_key)
         if sect is not None:
             stats = load_stats()
-            # built on the shared value as it is when we write
-            updated = ar.update_stat(sect, apply)
-            if updated is None:
-                updated = apply(stats.get(game_key))
-            # keep local JSON as a mirror/backup in lock-step with the keyfile
-            stats[game_key] = updated
-            stats[META_KEY] = {**_meta(stats), "merged_into_aisleriot": True}
-            save_stats(stats)
-            return updated
+            stats[game_key] = _combined(_norm(stats.get(game_key)), one)
+            waiting = _unsynced(stats)
+            waiting[game_key] = _combined(waiting.get(game_key, dict(EMPTY_STAT)), one)
+            _share(stats, waiting, game_key)
+            return get_stat(game_key)
 
     # not syncing: local JSON only. Settle the merge marker before this game
     # joins the history, so a later sync knows whether to fold it in.
     stats = load_stats()
-    stats[META_KEY] = {**_meta(stats), "merged_into_aisleriot": _merged(stats)}
-    updated = apply(stats.get(game_key))
+    merged = _merged(stats)
+    meta = {**_meta(stats), "merged_into_aisleriot": merged}
+    updated = _combined(_norm(stats.get(game_key)), one)
     stats[game_key] = updated
+    if merged and game_key in ar.GAME_TO_SECTION:
+        # the merge won't run again, so note the game for the keyfile
+        waiting = _unsynced(stats)
+        waiting[game_key] = _combined(waiting.get(game_key, dict(EMPTY_STAT)), one)
+        meta["unsynced"] = waiting
+    stats[META_KEY] = meta
     save_stats(stats)
     return updated
+
+
+def _one_game(won: bool, seconds: float) -> dict:
+    """A record of one finished game, to add to a stat with _combined().
+
+    Best/Worst are winning times only, so a loss adds nothing to them."""
+    secs = max(1, int(round(seconds))) if won else 0
+    return {"wins": int(won), "total": 1, "best": secs, "worst": secs}
+
+
+def _unsynced(stats: dict) -> Dict[str, dict]:
+    """Games recorded here that the keyfile hasn't been given yet, per game.
+
+    They were played while we weren't sharing (sharing off, or the keyfile
+    out of reach). Our own record of each game already counts them.
+    """
+    raw = _meta(stats).get("unsynced")
+    if not isinstance(raw, dict):
+        return {}
+    out = {k: _norm(v) for k, v in raw.items() if k in ar.GAME_TO_SECTION}
+    return {k: v for k, v in out.items() if v["total"] > 0}
+
+
+def _share(stats: dict, waiting: Dict[str, dict], game_key: str) -> None:
+    """Add the games in `waiting` to the keyfile, then save `stats` (whose
+    own records already count them) with whatever didn't make it.
+
+    They are taken off the unsynced list and saved before the keyfile is
+    touched: if we stop half way, AisleRiot misses those games, which beats
+    counting them twice.
+    """
+    meta = {**_meta(stats), "merged_into_aisleriot": True}
+    meta.pop("unsynced", None)
+    stats[META_KEY] = meta
+    if not save_stats(stats):
+        # the others are still listed in the file on disk; sending them
+        # now would send them again next time
+        waiting = {game_key: waiting[game_key]} if game_key in waiting else {}
+    left: Dict[str, dict] = {}
+    for key, games in waiting.items():
+        def add(cur: Optional[dict], games: dict = games) -> dict:
+            return _combined(_norm(cur), games)
+        written = ar.update_stat(ar.GAME_TO_SECTION[key], add)
+        if written is None:
+            left[key] = games
+        else:
+            stats[key] = written    # our copy follows the keyfile
+    if left:
+        meta["unsynced"] = left
+    save_stats(stats)
 
 
 def _merge_local_into_aisleriot_once() -> None:
@@ -436,7 +483,10 @@ def _merge_local_into_aisleriot_once() -> None:
     local = load_stats()
     if _merged(local):
         return
-    local[META_KEY] = {**_meta(local), "merged_into_aisleriot": True}
+    # the whole history goes in, so nothing is left waiting on its own
+    meta = {**_meta(local), "merged_into_aisleriot": True}
+    meta.pop("unsynced", None)
+    local[META_KEY] = meta
     if not save_stats(local):
         return
     cfg = load_config()
@@ -498,7 +548,9 @@ def _reset_stats() -> int:
     else:
         stats = load_stats()
         cleared = sum(1 for k in GAME_ORDER if _norm(stats.get(k))["total"] > 0)
-    save_stats({})
+    meta = dict(_meta(load_stats()))
+    meta.pop("unsynced", None)      # games not yet shared are cleared too
+    save_stats({META_KEY: meta})
     return cleared
 
 
