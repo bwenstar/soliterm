@@ -297,6 +297,11 @@ def _unreadable_keyfile() -> None:
             "with AisleRiot this time; they are kept here")
 
 
+def _unwritable_keyfile() -> None:
+    _notice(f"couldn't write {ar.keyfile_path()}; results it is missing are "
+            "kept here and added to it next time")
+
+
 def _can_sync() -> bool:
     """syncing(), unless the keyfile is there but can't be read.
 
@@ -469,6 +474,7 @@ def _share(stats: dict, waiting: Dict[str, dict], game_key: str) -> None:
         else:
             stats[key] = written    # our copy follows the keyfile
     if left:
+        _unwritable_keyfile()
         meta["unsynced"] = left
     save_stats(stats)
 
@@ -496,6 +502,7 @@ def _merge_local_into_aisleriot_once() -> None:
     cfg = load_config()
     cfg["merged_into_aisleriot"] = True
     save_config(cfg)
+    left: Dict[str, dict] = {}
     for game_key, lstat in local.items():
         sect = ar.GAME_TO_SECTION.get(game_key)
         if sect is None:
@@ -507,7 +514,13 @@ def _merge_local_into_aisleriot_once() -> None:
         def add(cur: Optional[dict], l: dict = l) -> dict:
             return _combined(_norm(cur), l)
 
-        ar.update_stat(sect, add)
+        if ar.update_stat(sect, add) is None:
+            left[game_key] = l
+    if left:
+        # what the keyfile didn't take waits with the other unshared games
+        _unwritable_keyfile()
+        meta["unsynced"] = left
+        save_stats(local)
 
 
 def _combined(a: dict, b: dict) -> dict:
@@ -546,7 +559,9 @@ def _reset_stats() -> int:
                 played.append(bool(cur and cur.get("total", 0) > 0))
                 return dict(EMPTY_STAT) if cur is not None else None
 
-            ar.update_stat(sect, clear)
+            if ar.update_stat(sect, clear) is None and played and played[-1]:
+                _notice(f"couldn't write {ar.keyfile_path()}, so AisleRiot "
+                        "still has some of the statistics cleared here")
             if played and played[-1]:
                 cleared += 1
     else:

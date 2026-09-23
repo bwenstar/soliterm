@@ -271,6 +271,43 @@ def test_a_deleted_keyfile_is_rebuilt_from_our_record(keyfile):
     assert store.load_stats()["klondike"] == stat(11, 42, 100, 900)
 
 
+def no_writes(monkeypatch):
+    real_write = ar._write_text
+    monkeypatch.setattr(ar, "_write_text", lambda *args, **kwargs: False)
+    return lambda: monkeypatch.setattr(ar, "_write_text", real_write)
+
+
+def test_a_result_the_keyfile_could_not_take_is_kept_and_reported(keyfile, monkeypatch):
+    keyfile(AR_KLONDIKE)
+    writes_again = no_writes(monkeypatch)
+    assert store.record_result("klondike", won=True, seconds=100) == stat(11, 41, 100, 900)
+    assert ar.read_stat("klondike.scm") == stat(10, 40, 120, 900)
+    assert any("couldn't write" in n and ar.keyfile_path() in n for n in store.notices())
+    writes_again()
+    store.record_result("klondike", won=False, seconds=5)
+    assert ar.read_stat("klondike.scm") == stat(11, 42, 100, 900)
+
+
+def test_history_the_keyfile_could_not_take_goes_in_later(keyfile, monkeypatch):
+    store.record_result("golf", won=True, seconds=120)      # before AisleRiot
+    keyfile(AR_KLONDIKE)
+    writes_again = no_writes(monkeypatch)
+    store.record_result("klondike", won=False, seconds=5)   # the merge fails too
+    assert store.get_stat("golf") == stat(1, 1, 120, 120)
+    assert store.get_stat("klondike") == stat(10, 41, 120, 900)
+    writes_again()
+    store.record_result("klondike", won=False, seconds=5)
+    assert ar.read_stat("golf.scm") == stat(1, 1, 120, 120)
+    assert ar.read_stat("klondike.scm") == stat(10, 42, 120, 900)
+
+
+def test_a_reset_the_keyfile_could_not_take_is_reported(keyfile, monkeypatch):
+    keyfile(AR_KLONDIKE)
+    no_writes(monkeypatch)
+    store.reset_stats()
+    assert any("couldn't write" in n for n in store.notices())
+
+
 def share(on):
     cfg = store.load_config()
     cfg["sync_aisleriot"] = on
