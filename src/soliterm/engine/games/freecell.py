@@ -1,0 +1,108 @@
+"""FreeCell: every card dealt face up, with four free cells to park cards in."""
+
+from __future__ import annotations
+
+from ..cards import ACE
+from ..gamedef import GameDef
+
+
+class FreeCell(GameDef):
+    key = "freecell"
+    name = "FreeCell"
+    blurb = "All cards visible. Use the four free cells to build down alt-colour."
+
+    def deal(self, g):
+        g.reset_slots()
+        g.make_deck()
+        g.shuffle()
+        self.cells = [g.add_slot("freecell") for _ in range(4)]
+        self.foundations = [g.add_slot("foundation") for _ in range(4)]
+        g.carriage_return()
+        self.tableau = [g.add_slot("tableau", "down") for _ in range(8)]
+        col = 0
+        while g.deck:
+            g.deal_from_deck(self.tableau[col % 8], 1, face_up=True)
+            col += 1
+        g.update_status()
+
+    def _max_supermove(self, g, dst):
+        free = sum(1 for c in self.cells if g.empty(c))
+        empty_cols = sum(1 for t in self.tableau if g.empty(t) and t != dst)
+        return (free + 1) * (2 ** empty_cols)
+
+    def can_pickup(self, g, sid, n):
+        k = g.kind(sid)
+        if k in ("freecell", "foundation"):
+            return n == 1
+        if k == "tableau":
+            run = g.cards(sid)[len(g.cards(sid)) - n:]
+            for a, b in zip(run, run[1:]):
+                if not self.alt_color_down(a, b):
+                    return False
+            return True
+        return False
+
+    def can_drop(self, g, src, cards, dst):
+        k = g.kind(dst)
+        if k == "freecell":
+            return len(cards) == 1 and g.empty(dst)
+        if k == "foundation":
+            if len(cards) != 1:
+                return False
+            top = g.top(dst)
+            return (cards[0].rank == ACE) if top is None else self.same_suit_up(top, cards[0])
+        if k == "tableau":
+            if len(cards) > self._max_supermove(g, dst):
+                return False
+            top = g.top(dst)
+            if top is None:
+                return True
+            return self.alt_color_down(top, cards[0])
+        return False
+
+    def on_double_click(self, g, sid):
+        if g.kind(sid) not in ("tableau", "freecell"):
+            return False
+        c = g.top(sid)
+        if c is None:
+            return False
+        fid = self.foundation_for(g, c)
+        if fid is None:
+            return False
+        g.slots[fid].cards.append(g.slots[sid].cards.pop())
+        g.score += 1
+        return True
+
+    def after_move(self, g, src, cards, dst):
+        if g.kind(dst) == "foundation":
+            g.score += 1
+        elif g.kind(src) == "foundation":
+            g.score -= 1
+
+    def is_won(self, g):
+        return sum(len(g.cards(s)) for s in self.foundations) == 52
+
+    def can_deal(self, g):
+        return False
+
+    def autoplay(self, g):
+        n = 0
+        again = True
+        while again:
+            again = False
+            for sid in self.tableau + self.cells:
+                c = g.top(sid)
+                if c is not None:
+                    fid = self.foundation_for(g, c)
+                    if fid is not None:
+                        g.slots[fid].cards.append(g.slots[sid].cards.pop())
+                        g.score += 1
+                        n += 1
+                        again = True
+        return n
+
+    def status(self, g):
+        free = sum(1 for c in self.cells if g.empty(c))
+        return f"Free cells: {free}/4"
+
+    # hint(): generic progress-based engine hint (see Solitaire.hint).

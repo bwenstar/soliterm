@@ -6,7 +6,7 @@ rules, and statistics are shared with an installed AisleRiot through its
 keyfile. The runtime is standard library only.
 
 Modules:
-  engine     the slot/card engine and the nine games
+  engine     the slot/card engine; engine.games holds one module per game
   cli        argument parsing, the text mode, and the entry point (main)
   tui        the curses front-end
   store      config and statistics under the XDG directories
