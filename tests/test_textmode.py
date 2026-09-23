@@ -5,9 +5,9 @@ import re
 import pytest
 
 from soliterm import textmode
-from soliterm.engine import GAME_ORDER
+from soliterm.engine import GAME_ORDER, Card
 from soliterm.textmode import render_text
-from helpers import deal
+from helpers import board_state, clear_board, deal
 
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 
@@ -89,3 +89,52 @@ def test_a_hint_names_the_slots_as_the_board_does(key):
         assert named == [textmode.slot_tag(g, h[0]), textmode.slot_tag(g, h[1])], msg
         assert set(named) <= tags, msg
         g.attempt_move(*g.best_move())
+
+
+# -- hints ------------------------------------------------------------------------------
+
+def typed(msg):
+    """The command a hint tells the player to type, or None."""
+    m = re.search(r"type: ([^)]*)\)", msg)
+    return m.group(1) if m else None
+
+
+@pytest.mark.parametrize("seed", [1, 2, 3])
+@pytest.mark.parametrize("key", GAME_ORDER)
+def test_typing_a_hint_back_makes_that_move(key, seed):
+    g = deal(key, seed)
+    for _ in range(30):
+        h = g.hint()
+        if h is None:
+            break
+        src, dst, _ = h
+        msg = textmode._hint_message(g)
+        cmd = typed(msg)
+        assert cmd, msg
+        mv = g.best_move()
+        want = g.clone()
+        if src == dst:
+            want.deal()
+        elif mv[:2] == (src, dst):
+            want.attempt_move(*mv)
+        else:
+            want = None                  # a hint that is not the best move
+        before = len(g.cards(dst))
+        ok, out = textmode.apply_text_command(g, cmd)
+        assert ok, f"{msg!r} -> {out!r}"
+        if want is not None:
+            assert board_state(g) == board_state(want), msg
+        else:
+            assert len(g.cards(dst)) > before, msg
+
+
+def test_a_move_without_a_count_lifts_as_much_as_will_land():
+    g = deal("klondike", 1)
+    clear_board(g)
+    t, f = g.ids_of("tableau")[0], g.ids_of("foundation")[0]
+    g.slots[t].cards = [Card(3, "S", True), Card(2, "D", True)]
+    g.slots[f].cards = [Card(1, "D", True)]
+    ok, _ = textmode.apply_text_command(g, f"{t} {f}")
+    assert ok
+    assert [str(c) for c in g.cards(f)] == ["AD", "2D"]
+    assert [str(c) for c in g.cards(t)] == ["3S"]

@@ -119,7 +119,7 @@ so stk#0 is 0, fnd#4 is 4 and #9 is 9:
   p / .            reprint the board
   d                deal from the stock
   a                autoplay safe cards to foundations
-  <src> <dst>      move the default run from slot src to slot dst, e.g.  9 12
+  <src> <dst>      move the longest run from slot src that dst takes, e.g.  9 12
   <src> <dst> <n>  move exactly n cards
   c <slot>         click a slot (deal / play, game-specific)
   cc <slot>        double-click a slot (send to foundation)
@@ -132,15 +132,34 @@ so stk#0 is 0, fnd#4 is 4 and #9 is 9:
 """
 
 
+def _hint_count(g: Solitaire, src: int, dst: int) -> int:
+    """How many cards the hinted move from src to dst lifts."""
+    mv = g.best_move()
+    if mv is not None and mv[:2] == (src, dst):
+        return mv[2]
+    # not the engine's best move: the longest run that lands, as a bare
+    # "src dst" would pick
+    for n in range(g.default_pickup(src), 0, -1):
+        sim = g.clone()
+        if sim.attempt_move(src, dst, n):
+            return n
+    return g.default_pickup(src)
+
+
 def _hint_message(g: Solitaire) -> str:
     h = g.hint()
     if h is None:
         return f"Hint: {g.no_hint_reason()}."
     src, dst, desc = h
     if src == dst:                      # a deal-from-stock style hint
+        if g.kind(src) == "stock":
+            return f"Hint: {desc}  (type: d)"
         return f"Hint: {desc}."
+    # a bare "src dst" lifts the default run; name the count when it differs
+    n = _hint_count(g, src, dst)
+    cmd = f"{src} {dst}" if n == g.default_pickup(src) else f"{src} {dst} {n}"
     return (f"Hint: {desc}  ({slot_tag(g, src)} -> {slot_tag(g, dst)}, "
-            f"type: {src} {dst})")
+            f"type: {cmd})")
 
 
 def apply_text_command(g: Solitaire, cmd: str) -> Tuple[bool, str]:
@@ -185,6 +204,13 @@ def apply_text_command(g: Solitaire, cmd: str) -> Tuple[bool, str]:
             src = int(parts[0]); dst = int(parts[1])
             n = int(parts[2]) if len(parts) == 3 else None
             ok = g.attempt_move(src, dst, n)
+            if not ok and n is None and 0 <= src < len(g.slots):
+                # like a drop in the TUI: when the whole run won't land,
+                # try the shorter runs off its top, longest first
+                for k in range(g.default_pickup(src) - 1, 0, -1):
+                    if g.attempt_move(src, dst, k):
+                        ok = True
+                        break
             return ok, "" if ok else "illegal move"
     except (ValueError, IndexError):
         pass
