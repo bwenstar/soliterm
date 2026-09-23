@@ -38,9 +38,13 @@ Common flags (all three forms): `--game NAME`, `--seed N`, `--list`,
 
 ## Build the distributables
 
-`./build.sh` regenerates everything into `dist/`: the `aisle.pyz` zipapp, a
-pip wheel + sdist, and a source zip. (The wheel/sdist step needs the `build`
-module: `pip install build`; the zipapp and source zip build without it.)
+```sh
+python3 tools/build_pyz.py           # dist/soliterm.pyz, the single-file zipapp
+python3 tools/build_pyz.py --wheel   # plus a wheel and an sdist in dist/
+```
+
+The zipapp builds with the standard library alone. `--wheel` runs
+`python -m build`, so it needs `pip install build` first.
 
 ## Games
 

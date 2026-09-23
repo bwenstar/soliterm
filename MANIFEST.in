@@ -3,3 +3,4 @@
 # a throwaway home, so the tests must never travel without it.
 include CHANGELOG.md
 recursive-include tests *.py
+include tools/build_pyz.py
