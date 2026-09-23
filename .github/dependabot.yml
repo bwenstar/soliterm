@@ -1,0 +1,14 @@
+# Checks the actions in .github/workflows for new versions once a week
+# and puts whatever it finds into a single pull request. There is no pip
+# entry: the only runtime dependency is windows-curses on Windows, and
+# the dev group in pyproject.toml is unpinned, so there is nothing for it
+# to bump.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
