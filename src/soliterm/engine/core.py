@@ -429,6 +429,19 @@ class Solitaire:
                 return (stock[0], stock[0], "Deal from the stock")
         return None
 
+    def no_hint_reason(self) -> str:
+        """What to tell the player when hint() has nothing to suggest.
+
+        hint() offers a deal whenever one would change the board, so by the
+        time it gives up dealing is no help and is never suggested here.
+        """
+        if self.legal_moves():
+            reason = "no move clearly helps from here - your call"
+            return reason + (", or undo" if self.can_undo() else "")
+        if self.can_undo():
+            return "no moves left - undo to try another line"
+        return "no moves left"
+
     def can_deal(self) -> bool:
         return self.gamedef.can_deal(self)
 

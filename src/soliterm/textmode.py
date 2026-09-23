@@ -119,7 +119,7 @@ Text-mode commands (slots are addressed by the #N tags shown on the board):
 def _hint_message(g: Solitaire) -> str:
     h = g.hint()
     if h is None:
-        return "Hint: no move available - try dealing, or undo."
+        return f"Hint: {g.no_hint_reason()}."
     src, dst, desc = h
     if src == dst:                      # a deal-from-stock style hint
         return f"Hint: {desc}."

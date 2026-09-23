@@ -4,6 +4,7 @@ never loop."""
 import pytest
 
 from soliterm.engine import GAME_ORDER, Card
+from soliterm.textmode import apply_text_command
 from helpers import clear_board, deal
 
 
@@ -90,3 +91,43 @@ def test_best_move_is_legal_with_its_pickup_size(key, seed):
     mv = g.best_move()
     if mv is not None:
         assert g.clone().attempt_move(*mv)
+
+
+# -- when there is nothing to hint ------------------------------------------------
+
+def two_kings(key):
+    """A board with just two kings in play: they can move, but it gets you nowhere."""
+    g = deal(key, 1)
+    clear_board(g)
+    t = g.ids_of("tableau")
+    g.slots[t[0]].cards = [Card(13, "S", True)]
+    g.slots[t[1]].cards = [Card(13, "H", True)]
+    return g
+
+
+@pytest.mark.parametrize("key", ["freecell", "yukon", "klondike"])
+def test_no_hint_never_sends_you_to_deal_or_says_nothing_can_move(key):
+    g = two_kings(key)
+    assert g.hint() is None and g.legal_moves()
+    ok, msg = apply_text_command(g, "hint")
+    assert ok and msg.startswith("Hint: ")
+    assert "deal" not in msg and "no move available" not in msg
+    assert msg == f"Hint: {g.no_hint_reason()}."
+
+
+def test_no_hint_offers_undo_only_when_there_is_something_to_undo():
+    g = two_kings("freecell")
+    assert "undo" not in g.no_hint_reason()
+    t = g.ids_of("tableau")
+    assert g.attempt_move(t[0], t[2], 1)         # slide a king along, for nothing
+    assert g.hint() is None
+    assert "undo" in g.no_hint_reason()
+
+
+def test_a_board_with_no_moves_says_so():
+    g = deal("bakersdozen", 1)
+    clear_board(g)
+    for i, t in enumerate(g.ids_of("tableau")):
+        g.slots[t].cards = [Card(5, "S", True), Card(13, "SHDC"[i % 4], True)]
+    assert not g.legal_moves()
+    assert g.no_hint_reason() == "no moves left"

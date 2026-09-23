@@ -167,6 +167,14 @@ def test_the_hint_key_shows_the_hint(tui):
     assert f"Hint: {desc}" in scr.frames[1]
 
 
+def test_the_hint_key_with_nothing_to_hint_explains_why(tui):
+    g, _, _ = board("freecell", [up(13, "S")], [up(13, "H")])
+    assert g.hint() is None
+    scr = tui(["h"], start_key="freecell", game=g)
+    assert g.no_hint_reason() in scr.frames[1]
+    assert "deal" not in scr.frames[1]
+
+
 def test_n_deals_a_new_hand_and_shift_n_replays_it_under_seed(tui):
     seeded = deal("klondike", 5)
     first = seeded.serialize()

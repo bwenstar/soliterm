@@ -922,7 +922,7 @@ def run(stdscr, start_key: Optional[str] = None, seed: Optional[int] = None,
             if k in (ord("h"), ord("H")):
                 hint = game.hint()
                 if hint is None:
-                    message = "no move available - try dealing, or undo"
+                    message = game.no_hint_reason()
                 else:
                     hsrc, hdst, desc = hint
                     # move the cursor to the suggested source for convenience
