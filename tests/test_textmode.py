@@ -138,3 +138,26 @@ def test_a_move_without_a_count_lifts_as_much_as_will_land():
     assert ok
     assert [str(c) for c in g.cards(f)] == ["AD", "2D"]
     assert [str(c) for c in g.cards(t)] == ["3S"]
+
+
+# -- commands ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("cmd,says", [
+    ("f 9", "no foundation move from #9"),
+    ("cc 9", "double-clicking #9 does nothing"),
+    ("c 2", "clicking fnd#2 does nothing"),
+    ("a", "nothing to autoplay"),
+])
+def test_a_command_that_does_nothing_says_so(cmd, says):
+    g = deal("klondike", 1)
+    before = g.serialize()
+    ok, msg = textmode.apply_text_command(g, cmd)
+    assert (ok, msg) == (False, says)
+    assert g.serialize() == before
+
+
+@pytest.mark.parametrize("cmd", ["99 2", "9 99", "9 99 1", "c 99", "cc 99", "f 99"])
+def test_a_slot_that_does_not_exist_is_named(cmd):
+    g = deal("klondike", 1)
+    ok, msg = textmode.apply_text_command(g, cmd)
+    assert (ok, msg) == (False, "no slot 99 (slots are 0-12)")

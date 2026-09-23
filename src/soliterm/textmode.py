@@ -162,6 +162,14 @@ def _hint_message(g: Solitaire) -> str:
             f"type: {cmd})")
 
 
+def _missing_slot(g: Solitaire, *sids: int) -> str:
+    """Names the first of sids that is not a slot on this board, else ''."""
+    for sid in sids:
+        if not 0 <= sid < len(g.slots):
+            return f"no slot {sid} (slots are 0-{len(g.slots) - 1})"
+    return ""
+
+
 def apply_text_command(g: Solitaire, cmd: str) -> Tuple[bool, str]:
     cmd = cmd.strip().lower()
     if not cmd:
@@ -181,7 +189,7 @@ def apply_text_command(g: Solitaire, cmd: str) -> Tuple[bool, str]:
         return ok, "" if ok else g.deal_blocked_reason()
     if cmd in ("a", "auto"):
         n = g.autoplay()
-        return n > 0, f"autoplayed {n}"
+        return n > 0, f"autoplayed {n}" if n else "nothing to autoplay"
     if cmd in ("u", "undo"):
         ok = g.undo()
         return ok, "" if ok else "nothing to undo"
@@ -194,17 +202,27 @@ def apply_text_command(g: Solitaire, cmd: str) -> Tuple[bool, str]:
 
     parts = cmd.replace(",", " ").split()
     try:
-        if parts[0] in ("c", "click") and len(parts) == 2:
-            return g.click(int(parts[1])), ""
-        if parts[0] in ("cc", "dc") and len(parts) == 2:
-            return g.double_click(int(parts[1])), ""
-        if parts[0] in ("f", "found") and len(parts) == 2:
-            return g.double_click(int(parts[1])), ""
+        if parts[0] in ("c", "click", "cc", "dc", "f", "found") and len(parts) == 2:
+            sid = int(parts[1])
+            missing = _missing_slot(g, sid)
+            if missing:
+                return False, missing
+            tag = slot_tag(g, sid)
+            if parts[0] in ("c", "click"):
+                ok = g.click(sid)
+                return ok, "" if ok else f"clicking {tag} does nothing"
+            ok = g.double_click(sid)
+            if parts[0] in ("cc", "dc"):
+                return ok, "" if ok else f"double-clicking {tag} does nothing"
+            return ok, "" if ok else f"no foundation move from {tag}"
         if all(p.isdigit() for p in parts) and len(parts) in (2, 3):
             src = int(parts[0]); dst = int(parts[1])
+            missing = _missing_slot(g, src, dst)
+            if missing:
+                return False, missing
             n = int(parts[2]) if len(parts) == 3 else None
             ok = g.attempt_move(src, dst, n)
-            if not ok and n is None and 0 <= src < len(g.slots):
+            if not ok and n is None:
                 # like a drop in the TUI: when the whole run won't land,
                 # try the shorter runs off its top, longest first
                 for k in range(g.default_pickup(src) - 1, 0, -1):
