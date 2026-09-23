@@ -318,13 +318,15 @@ class App:
 
     # ---- options dialog ---- #
     @hides_the_board
-    def options_screen(self, key: str) -> dict:
-        stdscr, cfg, CP, safe_add = self.stdscr, self.cfg, self.CP, self.safe_add
+    def options_screen(self, key: str, current: dict) -> Optional[dict]:
+        """Let the player change the options, starting from `current`.
+
+        Returns the options chosen with Enter, or None if Esc left them.
+        """
+        stdscr, CP, safe_add = self.stdscr, self.CP, self.safe_add
         cls = GAMES[key]
         spec = cls.option_spec()
-        opts = {**cls.default_options(), **store.game_options(cfg, key)}
-        if not spec:
-            return opts
+        opts = dict(current)
         sel = 0
         while True:
             stdscr.erase()
@@ -336,9 +338,9 @@ class App:
                 attr = (CP(5) | curses.A_BOLD) if i == sel else 0
                 safe_add(3 + i, 6, f"{marker}{label:<18} {vals}", attr)
             safe_add(3 + len(spec) + 1, 6,
-                     "Left/Right change - Enter/q accept (saved)", CP(4))
+                     "Left/Right change - Enter/q accept - Esc cancel", CP(4))
             stdscr.refresh()
-            k = stdscr.getch()
+            k = self.read_key()
             okey, label, values = spec[sel]
             cur = opts.get(okey, values[0])
             if k in (curses.KEY_UP, ord("k")):
@@ -350,9 +352,25 @@ class App:
                 idx = (idx + (1 if k != curses.KEY_LEFT else -1)) % len(values)
                 opts[okey] = values[idx]
             elif k in (curses.KEY_ENTER, 10, 13, ord("q"), ord("Q")):
-                store.set_game_options(cfg, key, opts)
-                store.save_config(cfg)
                 return opts
+            elif k == 27:
+                return None
+
+    @hides_the_board
+    def confirm(self, *lines: str) -> bool:
+        """Ask a yes or no question: y or Enter is yes, n, Esc or q is no."""
+        CP, safe_add = self.CP, self.safe_add
+        while True:
+            self.stdscr.erase()
+            for i, line in enumerate(lines):
+                safe_add(2 + i, 6, line, (CP(6) | curses.A_BOLD) if i == 0 else 0)
+            safe_add(3 + len(lines), 6, "y / Enter  yes     n / Esc  no", CP(4))
+            self.stdscr.refresh()
+            k = self.read_key()
+            if k in (ord("y"), ord("Y"), curses.KEY_ENTER, 10, 13):
+                return True
+            if k in (ord("n"), ord("N"), ord("q"), ord("Q"), 27):
+                return False
 
     # ---- help overlay ---- #
     @hides_the_board
@@ -471,7 +489,8 @@ class App:
             raise
 
     def read_key(self) -> int:
-        """The next key on the play screen, or -1 for an Alt combination.
+        """The next key on the play screen or a dialog, or -1 for an Alt
+        combination.
 
         A terminal sends Alt+key as Esc and the key together. An Esc with
         another key already queued behind it is not the Esc key, and neither
@@ -853,8 +872,24 @@ class App:
         self.message = "restarted this deal"
 
     def do_options(self):
+        # Every option there is changes the deal (the draw, the suits), so
+        # new options mean a new deal. The game in play is only given up
+        # once something has changed, and after asking if it's under way.
+        if not GAMES[self.key].option_spec():
+            self.message = f"{self.game.gamedef.name} has no options"
+            return
+        newopts = self.options_screen(self.key, self.game.options)
+        if newopts is None or newopts == self.game.options:
+            self.message = "options unchanged"
+            return
+        if self.clock.started and not self.confirm(
+                "Deal again with the new options?",
+                "The game in play will count as lost."):
+            self.message = "options unchanged"
+            return
+        store.set_game_options(self.cfg, self.key, newopts)
+        store.save_config(self.cfg)
         self.maybe_record_loss()
-        newopts = self.options_screen(self.key)
         self.game = self.new_game(newopts)
         self.ui = self.new_board()
         self.reset_for(lambda: None)   # game already dealt by new_solitaire

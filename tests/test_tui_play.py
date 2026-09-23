@@ -581,6 +581,57 @@ def test_a_left_click_on_a_banner_choice_takes_it(tui, bstate):
     assert "new deal" in scr.frames[2]
 
 
+# -- options -------------------------------------------------------------------------
+
+KING_TO_EMPTY = [ENTER] + [curses.KEY_RIGHT] * 4 + [ENTER]    # a first move on near_won()
+
+
+def saved_draw():
+    return store.game_options(store.load_config(), "klondike").get("draw")
+
+
+def test_esc_on_the_options_goes_back_to_the_game_untouched(tui):
+    scr = tui(KING_TO_EMPTY + ["o", curses.KEY_RIGHT, ESC, -1, "a", "m"], game=near_won())
+    assert any("Klondike - options" in frame for frame in scr.frames)
+    assert len(scr.uis) == 1 and saved_draw() is None
+    # nothing was recorded when the options came up, so the win is a win
+    s = store.get_stat("klondike")
+    assert s["wins"] == 1 and s["total"] == 1
+
+
+def test_leaving_the_options_as_they_were_keeps_the_game(tui):
+    scr = tui(["d", "o", ENTER])
+    assert len(scr.uis) == 1
+    assert "Moves 1" in scr.frames[-1] and "options unchanged" in scr.frames[-1]
+    assert store.get_stat("klondike")["total"] == 1       # from the q
+
+
+def test_new_options_mid_game_ask_before_dealing_again(tui):
+    scr = tui(["d", "o", curses.KEY_RIGHT, ENTER, "n",
+               "o", curses.KEY_RIGHT, ENTER, "y"])
+    asked = [i for i, frame in enumerate(scr.frames) if "count as lost" in frame]
+    assert len(asked) == 2
+    # n: the same game, and nothing saved or counted
+    assert "Moves 1" in scr.frames[asked[0] + 1]
+    # y: the old game counts as lost and the new one draws three
+    assert len(scr.uis) == 2 and scr.uis[1].game.options["draw"] == 3
+    assert saved_draw() == 3
+    assert store.get_stat("klondike")["total"] == 1
+
+
+def test_new_options_before_a_move_just_deal_again(tui):
+    scr = tui(["o", curses.KEY_RIGHT, ENTER])
+    assert not any("count as lost" in frame for frame in scr.frames)
+    assert len(scr.uis) == 2 and scr.uis[1].game.options["draw"] == 3
+    assert store.get_stat("klondike")["total"] == 0
+
+
+def test_a_game_without_options_says_so_and_plays_on(tui):
+    scr = tui(["d", "o"], start_key="golf")
+    assert "Golf has no options" in scr.frames[-1]
+    assert len(scr.uis) == 1 and "Moves 1" in scr.frames[-1]
+
+
 # -- the menu ------------------------------------------------------------------------
 
 def test_q_on_the_menu_exits(tui):
