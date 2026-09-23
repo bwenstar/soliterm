@@ -73,11 +73,26 @@ class FortyThieves(GameDef):
         if c is None:
             return False
         fid = self.foundation_for(g, c)
-        if fid is None:
+        if fid is not None:
+            g.slots[fid].cards.append(g.slots[sid].cards.pop())
+            g.score += 1
+            return True
+        dst = self._tableau_place(g, sid, c)
+        if dst is None:
             return False
-        g.slots[fid].cards.append(g.slots[sid].cards.pop())
-        g.score += 1
+        g.slots[dst].cards.append(g.slots[sid].cards.pop())
         return True
+
+    def _tableau_place(self, g, sid, c):
+        """Where a double click puts a card that can't go up, as AisleRiot
+        picks it: the first column it builds on, else an empty one."""
+        for t in self.tableau:
+            if t != sid and not g.empty(t) and self.can_drop(g, sid, [c], t):
+                return t
+        for t in self.tableau:
+            if g.empty(t):
+                return t
+        return None
 
     def after_move(self, g, src, cards, dst):
         if g.kind(dst) == "foundation":

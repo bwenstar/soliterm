@@ -280,6 +280,34 @@ def test_double_clicking_a_foundation_sends_up_all_it_can(key, blocker):
     assert g.double_click(f[0]) is False
 
 
+def test_forty_thieves_double_click_falls_back_to_the_tableau():
+    g = deal("fortythieves", 1)
+    clear_board(g)
+    f, t, w = g.ids_of("foundation"), g.ids_of("tableau"), g.ids_of("waste")[0]
+    g.slots[t[0]].cards = [up(5, "C"), up(9, "H")]
+    g.slots[t[2]].cards = [up(10, "H")]
+    # a column to build on comes before the empty one
+    assert g.double_click(t[0])
+    assert labels(g, t[2]) == ["10H", "9H"] and labels(g, t[0]) == ["5C"]
+    assert g.score == 0
+    g.slots[w].cards = [up(8, "H")]
+    assert g.double_click(w)
+    assert labels(g, t[2]) == ["10H", "9H", "8H"]
+    g.slots[w].cards = [up(4, "S")]
+    assert g.double_click(w)
+    assert labels(g, t[1]) == ["4S"]
+    # a foundation still comes first
+    g.slots[w].cards = [up(1, "S")]
+    assert g.double_click(w)
+    assert labels(g, f[0]) == ["AS"] and g.score == 1
+    # and with no room anywhere nothing moves
+    for x in t:
+        g.slots[x].cards = g.cards(x) or [up(13, "D")]
+    before = g.serialize()
+    assert g.double_click(t[0]) is False
+    assert g.serialize() == before
+
+
 # -- score clamp --------------------------------------------------------------------
 
 def test_score_never_goes_below_zero():
