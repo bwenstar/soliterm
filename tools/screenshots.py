@@ -295,9 +295,10 @@ def sgr(style: Cell, params: str) -> Cell:
             colour, used = _extended(codes[i:]) if code in (38, 48) else (None, 0)
             i += used
         if code in (38, 48):
-            if used:
-                field = "fg" if code == 38 else "bg"
-                style = style._replace(**{field: colour})
+            if used and code == 38:
+                style = style._replace(fg=colour)
+            elif used:
+                style = style._replace(bg=colour)
         elif code == 0:
             style = Cell()
         elif code == 1:
