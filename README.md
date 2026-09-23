@@ -1,6 +1,6 @@
 # AisleRiot CLI
 
-A dependency-free, terminal Solitaire collection — a command-line replica of
+A dependency-free, terminal Solitaire collection, a command-line replica of
 GNOME **AisleRiot** (the `/usr/games/sol` game). Pure Python 3, no third-party
 packages. Plays nine games with a curses TUI (keyboard **and** mouse) or a
 pipe-friendly text mode, and **shares its statistics with the installed GNOME
@@ -72,7 +72,7 @@ The zipapp builds with the standard library alone. `--wheel` runs
 | `d` | deal from the stock |
 | `a` | autoplay safe cards to the foundations |
 | `f` | send the selected/cursor card to a foundation |
-| `h` | hint — highlight a legal move |
+| `h` | hint: highlight a legal move |
 | `n` / `N` | new deal / restart **this** deal |
 | `u` / `r` | undo / redo |
 | `o` | game options · `s` statistics · `v` toggle colour |
@@ -94,7 +94,7 @@ f <slot>         to foundation  n       new deal     q  quit
 
 ## Statistics & AisleRiot sharing
 
-Statistics use AisleRiot's own model — **Wins / Total / Percentage / Best &
+Statistics use AisleRiot's own model: **Wins / Total / Percentage / Best &
 Worst winning time**, per game. When the installed GNOME AisleRiot is present,
 this game reads from and writes to its config keyfile
 (`~/.config/gnome-games/aisleriot`), so a game finished here shows up in
@@ -102,7 +102,7 @@ AisleRiot's Statistics dialog and vice versa. Disable by setting
 `"sync_aisleriot": false` in `~/.config/aisle-cli/config.json`.
 
 `--stats` prints the table; `--reset-stats` clears it (only the games this
-program manages — other AisleRiot games are left untouched).
+program manages; other AisleRiot games are left untouched).
 
 ## Options
 

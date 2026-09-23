@@ -1,8 +1,8 @@
 # Changelog
 
-## 1.0.0 — 2026-06-29
+## 1.0.0 - 2026-06-29
 
-- Initial release. A dependency-free terminal Solitaire collection — a
+- Initial release. A dependency-free terminal Solitaire collection, a
   command-line replica of GNOME AisleRiot (`/usr/games/sol`), pure Python 3
   with no third-party packages.
 - **Nine games**: Klondike, Spider (1/2/4 suit), FreeCell, Eight Off, Golf,
@@ -10,11 +10,11 @@
 - **Curses TUI** with keyboard **and** mouse: arrow-key cursor, click to
   pick up / drop, click mid-stack to split a run, double-click to a foundation
   (or to deal on the stock).
-- **Real overlapping card art** — top card full-size, covered cards peek with
-  their rank visible — with a one-key toggle (`x`) to the compact legacy view.
+- **Real overlapping card art**: top card full-size, covered cards peek with
+  their rank visible, with a one-key toggle (`x`) to the compact legacy view.
 - **Progress-based hints** (`h`) that only ever suggest a move which advances
   the game, and are provably loop-free.
-- **AisleRiot statistics sharing** — reads from and writes to the installed
+- **AisleRiot statistics sharing**: reads from and writes to the installed
   GNOME AisleRiot keyfile, so games played in either program are mirrored in
   both (wins / total / percentage / best & worst time).
 - Live toggles, all persisted: colour on/off (`v`), code-skin play mode (`c`),
