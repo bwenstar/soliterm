@@ -118,6 +118,16 @@ def test_odd_line_breaks_in_other_values_are_kept(keyfile):
         text.replace("1;1;1;1;", "2;2;2;2;") + "\n[golf.scm]\nStatistic=1;1;42;42;\n")
 
 
+def test_a_keyfile_that_is_not_utf8_is_kept_byte_for_byte(keyfile):
+    path = keyfile("")
+    raw = (b"[Aisleriot Config]\nTheme=caf\xe9.svgz\n\n"
+           b"[spider.scm]\nStatistic=20;112;591;1966;\nName=\xff\xfe\n")
+    path.write_bytes(raw)
+    assert store.get_stat("spider") == stat(20, 112, 591, 1966)
+    store.record_result("spider", won=False, seconds=5)
+    assert path.read_bytes() == raw.replace(b"20;112;", b"20;113;")
+
+
 def test_writes_leave_no_temp_files_behind(keyfile):
     path = keyfile(KEYFILE)
     ar.write_stat("spider.scm", stat(21, 113, 480, 1966))

@@ -79,8 +79,11 @@ def _read_text() -> str:
     """
     try:
         # newline="": no newline translation, so "\r\n" and a lone "\r"
-        # come back exactly as they are in the file
-        with open(keyfile_path(), "r", encoding="utf-8", newline="") as fh:
+        # come back exactly as they are in the file. surrogateescape: bytes
+        # that aren't UTF-8 (a value in another encoding) read without an
+        # error and are written back unchanged by _write_text.
+        with open(keyfile_path(), "r", encoding="utf-8", errors="surrogateescape",
+                  newline="") as fh:
             return fh.read()
     except FileNotFoundError:
         return ""
@@ -123,7 +126,8 @@ def _write_text(text: str, expect: Optional[str] = None) -> bool:
         try:
             if mode is not None:
                 os.chmod(tmp, mode)
-            with os.fdopen(fd, "w", encoding="utf-8", newline="") as fh:
+            with os.fdopen(fd, "w", encoding="utf-8", errors="surrogateescape",
+                           newline="") as fh:
                 fh.write(text)
                 fh.flush()
                 os.fsync(fh.fileno())
