@@ -12,8 +12,7 @@ DIST=dist
 rm -rf "$DIST" build *.egg-info
 mkdir -p "$DIST"
 
-# The standard-library modules that make up the runtime (NOT the old sol.py,
-# NOT the test files).
+# The standard-library modules that make up the runtime (not the tests).
 RUNTIME=(aisle.py aisle_cli.py aisle_tui.py aisle_store.py \
          aisle_aisleriot.py aisle_camo.py)
 
@@ -41,8 +40,8 @@ fi
 
 # ---- 3. clean source archive ------------------------------------------------
 SRCZIP="$DIST/aisle-cli-src.zip"
-zip -q "$SRCZIP" "${RUNTIME[@]}" sol.py test*.py \
-    README.md LICENSE pyproject.toml build.sh
+zip -qr "$SRCZIP" "${RUNTIME[@]}" tests \
+    README.md LICENSE pyproject.toml build.sh -x '*__pycache__*'
 echo "built $SRCZIP"
 
 echo

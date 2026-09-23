@@ -36,9 +36,6 @@ python3 aisle_cli.py              # the entry point
 Common flags (all three forms): `--game NAME`, `--seed N`, `--list`,
 `--stats`, `--text` (force text mode), `--ascii`, `--color` / `--no-color`.
 
-> **Note:** `aisle_cli.py` is the entry point. (`sol.py` is an older, separate
-> standalone Klondike+Spider build kept for reference — start `aisle_cli.py`.)
-
 ## Build the distributables
 
 `./build.sh` regenerates everything into `dist/`: the `aisle.pyz` zipapp, a
@@ -119,10 +116,11 @@ Colour, code-skin, and other preferences persist in
 ## Tests
 
 ```sh
-for t in test*.py; do python3 "$t"; done
+python3 -m pytest
 ```
 
-The `test*.py` files cover the engine, all nine games' rules, scoring, undo /
-redo, the hint, statistics persistence, AisleRiot sharing, and the camouflage /
-code-skin / colour features. They run against temporary config directories and
-never touch your real AisleRiot data.
+The tests in `tests/` need pytest (the game itself doesn't). They cover the
+engine, all nine games' rules, scoring, undo / redo, the hint, statistics
+persistence, AisleRiot sharing, and the camouflage / code-skin / colour
+features. They run against temporary config directories and never touch your
+real AisleRiot data.
