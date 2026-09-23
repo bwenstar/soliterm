@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aisle-cli"
+version = "1.0.0"
+description = "A terminal Solitaire collection (a command-line replica of GNOME AisleRiot)"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+authors = [{ name = "Brendan Ta" }]
+keywords = ["solitaire", "klondike", "spider", "freecell", "curses", "tui", "cards", "game"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console :: Curses",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Games/Entertainment",
+]
+# No third-party runtime dependencies - standard library only (curses ships
+# with CPython on Linux/macOS).
+dependencies = []
+
+[project.scripts]
+aisle = "aisle_cli:main"
+
+[tool.setuptools]
+# Flat single-file modules (no package directory).
+py-modules = [
+    "aisle",
+    "aisle_cli",
+    "aisle_tui",
+    "aisle_store",
+    "aisle_aisleriot",
+    "aisle_camo",
+]

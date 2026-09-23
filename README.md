@@ -1,0 +1,128 @@
+# AisleRiot CLI
+
+A dependency-free, terminal Solitaire collection — a command-line replica of
+GNOME **AisleRiot** (the `/usr/games/sol` game). Pure Python 3, no third-party
+packages. Plays nine games with a curses TUI (keyboard **and** mouse) or a
+pipe-friendly text mode, and **shares its statistics with the installed GNOME
+AisleRiot** so games played in either program are mirrored in both.
+
+Needs only **Python 3.8+** (with the standard-library `curses`, which ships
+with Python on Linux and macOS). No `pip install` of anything else required.
+
+## Install / run
+
+Pick whichever suits you:
+
+**A. Zero install — single file.** Grab `aisle.pyz` and run it:
+
+```sh
+python3 aisle.pyz                 # menu → pick a game (curses TUI)
+./aisle.pyz --game freecell       # or run it directly (it's executable)
+```
+
+**B. Install with pip** (gives you an `aisle` command on your PATH):
+
+```sh
+pip install aisle_cli-1.0.0-py3-none-any.whl    # or:  pip install .
+aisle                              # then just run "aisle"
+```
+
+**C. From source** (no install):
+
+```sh
+python3 aisle_cli.py              # the entry point
+```
+
+Common flags (all three forms): `--game NAME`, `--seed N`, `--list`,
+`--stats`, `--text` (force text mode), `--ascii`, `--color` / `--no-color`.
+
+> **Note:** `aisle_cli.py` is the entry point. (`sol.py` is an older, separate
+> standalone Klondike+Spider build kept for reference — start `aisle_cli.py`.)
+
+## Build the distributables
+
+`./build.sh` regenerates everything into `dist/`: the `aisle.pyz` zipapp, a
+pip wheel + sdist, and a source zip. (The wheel/sdist step needs the `build`
+module: `pip install build`; the zipapp and source zip build without it.)
+
+## Games
+
+| Key | Game | Notes |
+|-----|------|-------|
+| `klondike` | Klondike | the classic; draw 1 or 3 (option) |
+| `spider` | Spider | 1 / 2 / 4 suits (option) |
+| `freecell` | FreeCell | four free cells, supermoves |
+| `eightoff` | Eight Off | eight cells, build by suit |
+| `golf` | Golf | clear the tableau onto the waste |
+| `yukon` | Yukon | move any face-up group |
+| `bakersdozen` | Bakers Dozen | no stock, thirteen columns |
+| `fortythieves` | Forty Thieves | two decks, ten columns |
+| `canfield` | Canfield | reserve + deal-three, wrapping |
+
+## Controls (TUI)
+
+| Keys | Action |
+|------|--------|
+| Arrow keys | move the cursor between piles |
+| Enter / Space | pick up the cursor's run; press again to drop |
+| Mouse click | pick up a card/run; click a target to drop |
+| click mid-stack | split a pile and lift from that card down |
+| double-click | send a card to a foundation (or deal, on the stock) |
+| `d` | deal from the stock |
+| `a` | autoplay safe cards to the foundations |
+| `f` | send the selected/cursor card to a foundation |
+| `h` | hint — highlight a legal move |
+| `n` / `N` | new deal / restart **this** deal |
+| `u` / `r` | undo / redo |
+| `o` | game options · `s` statistics · `v` toggle colour |
+| `c` | code skin (keep playing inside a fake source file) |
+| `b` / F2 | boss mode (hide the game behind fake "work" output) |
+| `m` / `q` | back to menu / quit · `?` help |
+
+## Text mode
+
+`--text` (or any non-TTY / piped stdin) runs a scriptable REPL. Slots are
+addressed by the `#N` tags shown on the board:
+
+```
+d                deal           a       autoplay
+<src> <dst>      move a run     u / r   undo / redo
+<src> <dst> <n>  move n cards   hint    suggest a move
+f <slot>         to foundation  n       new deal     q  quit
+```
+
+## Statistics & AisleRiot sharing
+
+Statistics use AisleRiot's own model — **Wins / Total / Percentage / Best &
+Worst winning time**, per game. When the installed GNOME AisleRiot is present,
+this game reads from and writes to its config keyfile
+(`~/.config/gnome-games/aisleriot`), so a game finished here shows up in
+AisleRiot's Statistics dialog and vice versa. Disable by setting
+`"sync_aisleriot": false` in `~/.config/aisle-cli/config.json`.
+
+`--stats` prints the table; `--reset-stats` clears it (only the games this
+program manages — other AisleRiot games are left untouched).
+
+## Options
+
+```
+--game NAME     start a specific game        --seed N    reproducible deal
+--text          force text mode              --ascii     letter suits S/H/D/C
+--color         force colour in text mode    --no-color  disable colour
+--list          list games and exit          --stats     print statistics
+--reset-stats   clear statistics
+```
+
+Colour, code-skin, and other preferences persist in
+`~/.config/aisle-cli/config.json`. Respects `NO_COLOR`.
+
+## Tests
+
+```sh
+for t in test*.py; do python3 "$t"; done
+```
+
+The `test*.py` files cover the engine, all nine games' rules, scoring, undo /
+redo, the hint, statistics persistence, AisleRiot sharing, and the camouflage /
+code-skin / colour features. They run against temporary config directories and
+never touch your real AisleRiot data.
