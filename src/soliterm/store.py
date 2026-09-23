@@ -264,10 +264,12 @@ def record_result(game_key: str, won: bool, seconds: float) -> dict:
         _merge_local_into_aisleriot_once()
         sect = ar.GAME_TO_SECTION.get(game_key)
         if sect is not None:
-            updated = apply(ar.read_stat(sect))   # build on the shared value
-            ar.write_stat(sect, updated)
-            # keep local JSON as a mirror/backup in lock-step with the keyfile
             stats = load_stats()
+            # built on the shared value as it is when we write
+            updated = ar.update_stat(sect, apply)
+            if updated is None:
+                updated = apply(stats.get(game_key))
+            # keep local JSON as a mirror/backup in lock-step with the keyfile
             stats[game_key] = updated
             stats[META_KEY] = {**_meta(stats), "merged_into_aisleriot": True}
             save_stats(stats)
@@ -310,15 +312,18 @@ def _merge_local_into_aisleriot_once() -> None:
         l = _norm(lstat)
         if l["total"] == 0:
             continue
-        shared = _norm(ar.read_stat(sect))
-        merged = {
-            "wins": shared["wins"] + l["wins"],
-            "total": shared["total"] + l["total"],
-        }
-        bests = [b for b in (shared["best"], l["best"]) if b > 0]
-        merged["best"] = min(bests) if bests else 0
-        merged["worst"] = max(shared["worst"], l["worst"])
-        ar.write_stat(sect, merged)
+        ar.update_stat(sect, lambda cur, l=l: _combined(_norm(cur), l))
+
+
+def _combined(a: dict, b: dict) -> dict:
+    """Two records of games added together, keeping the better times."""
+    bests = [t for t in (a["best"], b["best"]) if t > 0]
+    return {
+        "wins": a["wins"] + b["wins"],
+        "total": a["total"] + b["total"],
+        "best": min(bests) if bests else 0,
+        "worst": max(a["worst"], b["worst"]),
+    }
 
 
 def reset_stats() -> int:
@@ -335,11 +340,15 @@ def reset_stats() -> int:
             sect = ar.GAME_TO_SECTION.get(game_key)
             if sect is None:
                 continue
-            cur = ar.read_stat(sect)
-            if cur and cur.get("total", 0) > 0:
+            played: List[bool] = []
+
+            def clear(cur: Optional[dict]) -> Optional[dict]:
+                played.append(bool(cur and cur.get("total", 0) > 0))
+                return dict(EMPTY_STAT) if cur is not None else None
+
+            ar.update_stat(sect, clear)
+            if played and played[-1]:
                 cleared += 1
-            if cur is not None:
-                ar.write_stat(sect, dict(EMPTY_STAT))
     else:
         cleared = sum(1 for v in load_stats().values()
                       if isinstance(v, dict) and v.get("total", 0) > 0)

@@ -21,7 +21,7 @@ comment, and the file's ordering are preserved so AisleRiot's own config
 from __future__ import annotations
 
 import os
-from typing import Dict, List, Optional
+from typing import Callable, Dict, List, Optional
 
 # Our game keys -> AisleRiot section names. AisleRiot's config sections use the
 # Scheme file name with hyphens converted to underscores (e.g. the file
@@ -93,13 +93,21 @@ def readable() -> bool:
     return True
 
 
-def _write_text(text: str) -> bool:
+class _Changed(Exception):
+    """The keyfile is no longer what we based our edit on."""
+
+
+def _write_text(text: str, expect: Optional[str] = None) -> bool:
     """Write the keyfile atomically.
 
     The file is shared with a live program (AisleRiot), so we write a temp file
     in the same directory and os.replace() it onto the target: a crash or full
     disk can never leave the keyfile truncated or half-written. The temp file
     takes the keyfile's mode, so a replaced keyfile keeps its permissions.
+
+    With `expect`, the keyfile is read once more right before it is replaced,
+    and _Changed is raised (with nothing written) if it no longer holds
+    exactly that text.
     """
     import tempfile
     try:
@@ -117,12 +125,16 @@ def _write_text(text: str) -> bool:
                 fh.write(text)
                 fh.flush()
                 os.fsync(fh.fileno())
+            if expect is not None and _read_text() != expect:
+                raise _Changed()
             os.replace(tmp, keyfile_path())
-        except OSError:
+        except (OSError, _Changed) as exc:
             try:
                 os.unlink(tmp)
             except OSError:
                 pass
+            if isinstance(exc, _Changed):
+                raise
             return False
         return True
     except OSError:
@@ -153,8 +165,12 @@ def read_stat(section: str) -> Optional[Dict[str, int]]:
 
     Raises OSError if the keyfile exists but can't be read.
     """
+    return _stat_in(_read_text(), section)
+
+
+def _stat_in(text: str, section: str) -> Optional[Dict[str, int]]:
     current = None
-    for line in _read_text().splitlines():
+    for line in text.splitlines():
         head = _is_header(line)
         if head is not None:
             current = head
@@ -191,10 +207,51 @@ def write_stat(section: str, stat: Dict[str, int]) -> bool:
     comments, ordering, and trailing whitespace are kept byte-for-byte.
     Returns False, and writes nothing, if the keyfile can't be read.
     """
-    try:
-        text = _read_text()
-    except OSError:
-        return False
+    return update_stat(section, lambda current: stat) is not None
+
+
+# How many times update_stat works a change out again when the keyfile keeps
+# changing under it, before giving up.
+_UPDATE_TRIES = 5
+
+
+def update_stat(section: str,
+                change: Callable[[Optional[Dict[str, int]]], Optional[Dict[str, int]]]
+                ) -> Optional[Dict[str, int]]:
+    """Set a section's Statistic from its value at the moment of writing.
+
+    `change` gets the current stat (None if there is none) and returns the
+    new one, or None to leave the file alone. The keyfile is read again just
+    before it is replaced; if anything wrote it in the meantime, the change
+    is worked out again from what is there now, so a stat saved by someone
+    else is never put back to an older value.
+
+    Returns the stat written, or None if nothing was written (the keyfile
+    can't be read or written, it would not hold still, or `change` said no).
+
+    This only closes the gap between our read and our write. AisleRiot reads
+    the keyfile once when it starts and writes its own copy back whenever it
+    saves, so a result we record while it is running is lost from the keyfile
+    at its next save. Our stats.json still has it.
+    """
+    for _ in range(_UPDATE_TRIES):
+        try:
+            text = _read_text()
+        except OSError:
+            return None
+        new = change(_stat_in(text, section))
+        if new is None:
+            return None
+        try:
+            ok = _write_text(_with_stat(text, section, new), expect=text)
+        except _Changed:
+            continue
+        return new if ok else None
+    return None
+
+
+def _with_stat(text: str, section: str, stat: Dict[str, int]) -> str:
+    """`text` with the section's Statistic line set to `stat`."""
     # Preserve the file's exact trailing newline: splitlines() drops the
     # final-newline artifact without eroding real blank lines, and we restore
     # the terminator verbatim when rejoining. (The file is a Linux GNOME config
@@ -232,8 +289,7 @@ def write_stat(section: str, stat: Dict[str, int]) -> bool:
         lines.append(f"[{section}]")
         lines.append(new_line)
 
-    out = eol.join(lines) + final
-    return _write_text(out)
+    return eol.join(lines) + final
 
 
 def all_known_stats() -> Dict[str, Dict[str, int]]:

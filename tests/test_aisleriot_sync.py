@@ -156,6 +156,24 @@ def test_local_history_is_merged_into_the_keyfile_once(keyfile):
     assert ar.read_stat("spider.scm")["total"] == 115
 
 
+def test_a_save_by_aisleriot_just_before_ours_is_kept(keyfile, monkeypatch):
+    path = keyfile(AR_KLONDIKE)
+    # sol finishes a won game and saves while we are recording a loss
+    by_sol = "[Aisleriot Config]\nRecent=klondike;\n\n" + AR_KLONDIKE.replace("10;40;", "11;41;")
+    real_write = ar._write_text
+    raced = []
+
+    def write_after_sol(*args, **kwargs):
+        if not raced:
+            raced.append(True)
+            path.write_text(by_sol)
+        return real_write(*args, **kwargs)
+
+    monkeypatch.setattr(ar, "_write_text", write_after_sol)
+    assert store.record_result("klondike", won=False, seconds=60) == stat(11, 42, 120, 900)
+    assert path.read_text() == by_sol.replace("11;41;", "11;42;")
+
+
 def test_a_stale_config_save_does_not_merge_again(keyfile):
     keyfile(AR_KLONDIKE)
     cfg = store.load_config()          # the TUI loads this once at start
