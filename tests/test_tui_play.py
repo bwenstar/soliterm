@@ -121,6 +121,7 @@ def tui(monkeypatch):
     monkeypatch.setattr(soliterm.tui.app, "BoardUI", RecordingBoardUI)
     # set here rather than in run() so a test can put its own in first
     monkeypatch.setattr(curses, "curs_set", lambda n: None)
+    monkeypatch.setattr(curses, "use_default_colors", lambda: None)
 
     def run(keys, start_key="klondike", game=None, seed=None, color=None,
             color_capable=True, h=40, w=120, **kwargs):
@@ -130,7 +131,6 @@ def tui(monkeypatch):
         monkeypatch.setattr(curses, "mouseinterval", intervals.append)
         monkeypatch.setattr(curses, "has_colors", lambda: color_capable)
         monkeypatch.setattr(curses, "start_color", lambda: None)
-        monkeypatch.setattr(curses, "use_default_colors", lambda: None)
         monkeypatch.setattr(curses, "init_pair", lambda *a: pairs.append(a))
         monkeypatch.setattr(curses, "color_pair", lambda n: n << 8)
         monkeypatch.setattr(curses, "getmouse", lambda: scr.mouse)
@@ -333,6 +333,18 @@ def test_a_terminal_that_cannot_hide_the_cursor_still_plays(tui, monkeypatch):
     assert scr.rc == 0
     assert "Soliterm  -  Klondike" in scr.frames[0]
     assert "Moves 1" in scr.frames[1]
+
+
+def test_a_colour_terminal_without_default_colours_still_plays(tui, monkeypatch):
+    # a few colour terminals can't leave the background to the terminal
+    def no_default_colours():
+        raise curses.error("use_default_colors() returned ERR")
+
+    monkeypatch.setattr(curses, "use_default_colors", no_default_colours)
+    scr = tui(["d", "q"])
+    assert scr.rc == 0
+    assert "Moves 1" in scr.frames[1]
+    assert scr.pairs and all(-1 not in pair[1:] for pair in scr.pairs)
 
 
 def test_ascii_on_the_command_line_reaches_the_tui(monkeypatch):

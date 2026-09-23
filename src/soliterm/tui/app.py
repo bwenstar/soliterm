@@ -175,7 +175,13 @@ class App:
         self.has_color = self.color_capable and want
         if self.color_capable:
             curses.start_color()
-            curses.use_default_colors()
+            # -1 is the terminal's own background. A few colour terminals
+            # can't hand it over, and black stands in for it there.
+            try:
+                curses.use_default_colors()
+                bg = -1
+            except curses.error:
+                bg = curses.COLOR_BLACK
             # Face-up cards are drawn like real cards: a white card face with the
             # suit colour as the text - red for hearts/diamonds, true black for
             # spades/clubs - so black suits read as black, not white, on any
@@ -183,9 +189,9 @@ class App:
             curses.init_pair(1, curses.COLOR_RED, curses.COLOR_WHITE)     # red card face
             curses.init_pair(2, curses.COLOR_BLACK, curses.COLOR_WHITE)   # black card face
             curses.init_pair(3, curses.COLOR_BLACK, curses.COLOR_GREEN)   # selection
-            curses.init_pair(4, curses.COLOR_CYAN, -1)                    # chrome
+            curses.init_pair(4, curses.COLOR_CYAN, bg)                    # chrome
             curses.init_pair(5, curses.COLOR_BLACK, curses.COLOR_YELLOW)  # cursor
-            curses.init_pair(6, curses.COLOR_YELLOW, -1)                  # hint/msg
+            curses.init_pair(6, curses.COLOR_YELLOW, bg)                  # hint/msg
             curses.init_pair(7, curses.COLOR_WHITE, curses.COLOR_BLUE)    # card back
             curses.init_pair(8, curses.COLOR_WHITE, curses.COLOR_GREEN)   # red card, selected
 
