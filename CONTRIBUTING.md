@@ -15,7 +15,7 @@ cd soliterm
 python -m venv .venv
 . .venv/bin/activate              # on Windows: .venv\Scripts\activate
 python -m pip install -e .
-python -m pip install pytest coverage ruff mypy vermin build
+python -m pip install pytest coverage ruff mypy vermin build twine
 ```
 
 Those tools are the `dev` group in `pyproject.toml`, so with pip 25.1 or
