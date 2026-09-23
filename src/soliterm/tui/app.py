@@ -520,12 +520,14 @@ class App:
     def first_cursor(self) -> int:
         return self.game.ids_of("tableau")[0] if self.game.ids_of("tableau") else 0
 
-    def elapsed(self) -> float:
-        return self.clock.elapsed()
+    def seconds(self) -> int:
+        """The game time in whole seconds, rounded as AisleRiot rounds a win
+        time, so the status line, the banner and the statistics agree."""
+        return int(self.clock.elapsed() + 0.5)
 
     def draw(self) -> None:
         self.ui.draw(self.selected, self.selected_n, self.cursor, self.hint,
-                     self.elapsed(), self.message)
+                     self.seconds(), self.message)
 
     def move_cursor(self, dr: int, dc: int):
         ui = self.ui
@@ -618,7 +620,7 @@ class App:
         # A started-but-unfinished game counts as a loss (AisleRiot does the
         # same: any game you start moving in counts in the total).
         if not self.recorded and not self.game.is_won() and self.game.moves > 0:
-            store.record_result(self.key, False, self.elapsed())
+            store.record_result(self.key, False, self.seconds())
             self.recorded = True
 
     def reset_for(self, new_game_fn: Callable[[], object]):
@@ -636,10 +638,11 @@ class App:
     def finish(self, won: bool) -> bool:
         """Record the result and show the end banner. Returns True to keep
         playing (same/new deal chosen) or False to go back to the menu."""
+        seconds = self.seconds()
         if not self.recorded:
-            store.record_result(self.key, won, self.elapsed())
+            store.record_result(self.key, won, seconds)
             self.recorded = True
-        choice = self.end_banner(self.elapsed(), won)
+        choice = self.end_banner(seconds, won)
         if choice == "same":
             self.reset_for(self.game.restart)
             self.message = "replaying the same deal"
@@ -899,7 +902,7 @@ class App:
 
     # ---- end of game ---- #
     @hides_the_board
-    def end_banner(self, elapsed: float, won: bool) -> str:
+    def end_banner(self, seconds: int, won: bool) -> str:
         """Show the end-of-game banner with choices. Returns one of:
         'same' (replay this deal), 'new' (fresh deal), 'menu'."""
         stdscr, CP, safe_add = self.stdscr, self.CP, self.safe_add
@@ -918,7 +921,7 @@ class App:
                 safe_add(2, 6, "No moves left - game over.",
                          CP(6) | curses.A_BOLD)
             safe_add(4, 6, f"Game        : {game.gamedef.name}")
-            safe_add(5, 6, f"Time        : {store.fmt_time(elapsed)}")
+            safe_add(5, 6, f"Time        : {store.fmt_time(seconds)}")
             safe_add(6, 6, f"Score       : {game.score}")
             safe_add(7, 6, f"Moves       : {game.moves}")
             pcts = "N/A" if pct is None else f"{pct:.0f}%"

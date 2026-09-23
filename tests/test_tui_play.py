@@ -7,6 +7,7 @@ time the game asked for a key.
 
 import curses
 import os
+import re
 import sys
 
 import pytest
@@ -161,8 +162,7 @@ def game_clock(monkeypatch):
 
 def times(scr):
     """The time on the status line of every frame that shows the board."""
-    return [line.split("Time ")[1].split()[0]
-            for frame in scr.frames for line in frame.split("\n") if "Time " in line]
+    return [t for frame in scr.frames for t in re.findall(r"Time (\d+:\d\d)", frame)]
 
 
 def board(key, first, second, **options):
@@ -416,6 +416,15 @@ def test_the_clock_runs_from_the_first_move_and_stops_behind_other_screens(tui, 
     scr = tui([Later(30, "d"), Later(10, "?"), Later(60, "z"), "s", Later(60, "z"),
                "b", Later(60, "z")])
     assert times(scr) == ["0:00", "0:00", "0:10", "0:10", "0:10"]
+
+
+def test_the_clock_the_banner_and_the_statistics_agree_on_the_time(tui, game_clock):
+    # moving a king to an empty column starts the clock; the win comes 10.6 s on
+    keys = [ENTER] + [curses.KEY_RIGHT] * 4 + [ENTER, Later(10.6, -1), "a", "m"]
+    scr = tui(keys, game=near_won())
+    assert times(scr)[-1] == "0:11"
+    assert any("Time        : 0:11" in frame for frame in scr.frames)
+    assert store.get_stat("klondike")["best"] == 11
 
 
 # -- recording results -------------------------------------------------------------
