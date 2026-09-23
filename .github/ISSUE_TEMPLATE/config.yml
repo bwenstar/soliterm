@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or idea to talk over
+    url: https://github.com/bwenstar/soliterm/discussions
+    about: Ask how something works or float an idea before filing it.
+  - name: Security problem
+    url: https://github.com/bwenstar/soliterm/security/advisories/new
+    about: Report it privately instead of in a public issue.
