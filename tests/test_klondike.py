@@ -85,19 +85,16 @@ def test_random_play_keeps_the_cards_faces_and_score_straight(seed, draw):
 
 @pytest.mark.parametrize("draw", DRAWS)
 @pytest.mark.parametrize("seed", range(20))
-def test_autoplay_and_deal_until_done(seed, draw):
+def test_autoplay_and_dealing_keep_every_card(seed, draw):
     # the naive strategy: send everything up, deal, repeat
     g = deal("klondike", seed, draw=draw)
     cards = card_multiset(g)
     for _ in range(200):
-        moved = g.autoplay()
+        g.autoplay()
         assert card_multiset(g) == cards
-        if g.is_won():
-            break
-        dealt = g.deal()
+        g.deal()
         assert card_multiset(g) == cards
-        if not dealt and not moved:
-            break
+        check_faces(g)
     assert g.score == foundation_cards(g)
 
 
