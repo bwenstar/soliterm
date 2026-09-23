@@ -95,7 +95,7 @@ class FreeCell(GameDef):
                 c = g.top(sid)
                 if c is not None:
                     fid = self.foundation_for(g, c)
-                    if fid is not None:
+                    if fid is not None and self.safe_to_autoplay(g, c):
                         g.slots[fid].cards.append(g.slots[sid].cards.pop())
                         g.score += 1
                         n += 1

@@ -136,6 +136,23 @@ class GameDef:
                 return sid
         return None
 
+    def safe_to_autoplay(self, g: Solitaire, card: Card) -> bool:
+        """True if autoplay may send `card` to a foundation: no card still
+        in play could want to build on it (see tableau_adjacent).
+
+        So in Klondike a red 5 waits until both black 4s are home, while in
+        Eight Off, which builds by suit, anything that can go up is safe.
+        The foundation's base card (an Ace, or Canfield's dealt base rank)
+        always goes, and never counts as wanting a card to build on, since
+        it can always go straight up; that makes twos safe too.
+        """
+        base = g.base_val or ACE
+        if card.rank == base:
+            return True
+        return not any(c.rank != base and self.tableau_adjacent(card, c)
+                       for s in g.slots if s.kind != "foundation"
+                       for c in s.cards)
+
     def tableau_adjacent(self, upper: Card, lower: Card) -> bool:
         """True if `lower` validly builds directly on `upper` in the tableau.
 

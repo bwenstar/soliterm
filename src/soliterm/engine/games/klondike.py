@@ -157,7 +157,7 @@ class Klondike(GameDef):
                 c = g.top(sid)
                 if c and c.face_up:
                     fid = self.foundation_for(g, c)
-                    if fid is not None:
+                    if fid is not None and self.safe_to_autoplay(g, c):
                         g.slots[fid].cards.append(g.slots[sid].cards.pop())
                         self._post_take(g, sid)
                         g.score += 1

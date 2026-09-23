@@ -526,7 +526,9 @@ class Solitaire:
         return False
 
     def autoplay(self) -> int:
-        """Repeatedly send any obviously-safe cards to foundations.
+        """Send safe cards up to the foundations until none is left. A card
+        is safe when nothing still in play could want to build on it (see
+        GameDef.safe_to_autoplay).
 
         The whole sweep is a single undoable action: we checkpoint first and
         discard the checkpoint if nothing moved.

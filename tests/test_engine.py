@@ -166,6 +166,96 @@ def test_spider_with_eight_complete_suits_is_won_for_96():
     assert g.score == 96
 
 
+# -- autoplay -----------------------------------------------------------------------
+
+def up(rank, suit):
+    return Card(rank, suit, True)
+
+
+def labels(g, sid):
+    return [str(c) for c in g.cards(sid)]
+
+
+@pytest.mark.parametrize("key", ["klondike", "freecell", "yukon", "bakersdozen"])
+def test_autoplay_leaves_a_card_the_twos_still_want(key):
+    # 3D could go up, but a black two still out could want to go on it
+    g = deal(key, 1)
+    clear_board(g)
+    f, t = g.ids_of("foundation"), g.ids_of("tableau")
+    g.slots[f[0]].cards = [up(1, "D"), up(2, "D")]
+    g.slots[t[0]].cards = [up(3, "D")]
+    g.slots[t[1]].cards = [up(9, "H"), up(2, "C")]
+    g.slots[t[2]].cards = [up(2, "S")]
+    assert g.autoplay() == 0
+    assert labels(g, t[0]) == ["3D"]
+    # with both black twos home it is safe
+    g.slots[t[1]].cards = [up(9, "H")]
+    g.slots[t[2]].cards = []
+    g.slots[f[1]].cards = [up(1, "C"), up(2, "C")]
+    g.slots[f[2]].cards = [up(1, "S"), up(2, "S")]
+    assert g.autoplay() == 1
+    assert labels(g, f[0]) == ["AD", "2D", "3D"]
+
+
+@pytest.mark.parametrize("key", ["klondike", "freecell"])
+def test_autoplay_sends_aces_and_twos_up_whatever_is_left(key):
+    g = deal(key, 1)
+    clear_board(g)
+    t = g.ids_of("tableau")
+    g.slots[t[0]].cards = [up(8, "C"), up(2, "H")]
+    g.slots[t[1]].cards = [up(13, "S"), up(1, "H")]
+    assert g.autoplay() == 2
+    assert labels(g, t[0]) == ["8C"] and labels(g, t[1]) == ["KS"]
+
+
+def test_eightoff_autoplay_sends_up_everything_that_goes():
+    # building by suit, nothing can want a card once the one below it is home
+    g = deal("eightoff", 1)
+    clear_board(g)
+    f, t = g.ids_of("foundation"), g.ids_of("tableau")
+    g.slots[f[0]].cards = [up(1, "D"), up(2, "D")]
+    g.slots[t[0]].cards = [up(3, "D")]
+    g.slots[t[1]].cards = [up(2, "C")]
+    assert g.autoplay() == 1
+
+
+def test_forty_thieves_autoplay_waits_for_the_other_deck():
+    g = deal("fortythieves", 1)
+    clear_board(g)
+    f, t = g.ids_of("foundation"), g.ids_of("tableau")
+    g.slots[f[0]].cards = [up(1, "D"), up(2, "D")]
+    g.slots[t[0]].cards = [up(3, "D")]
+    g.slots[t[1]].cards = [up(9, "S"), up(2, "D")]    # the other deck's 2D
+    assert g.autoplay() == 0
+    g.slots[t[1]].cards = [up(9, "S")]
+    g.slots[f[1]].cards = [up(1, "D"), up(2, "D")]
+    assert g.autoplay() == 1
+
+
+def test_canfield_autoplay_counts_from_the_base_card():
+    g = deal("canfield", 1)
+    clear_board(g)
+    g.base_val = 5
+    f, t = g.ids_of("foundation"), g.ids_of("tableau")
+    g.slots[f[0]].cards = [up(5, "D"), up(6, "D")]
+    g.slots[t[0]].cards = [up(7, "D")]            # a black six still wants it
+    g.slots[t[1]].cards = [up(10, "H"), up(6, "C")]
+    g.slots[t[2]].cards = [up(5, "S")]            # a base card always goes
+    assert g.autoplay() == 1
+    assert labels(g, t[0]) == ["7D"] and not g.cards(t[2])
+
+
+@pytest.mark.parametrize("key", ["klondike", "freecell", "yukon", "bakersdozen"])
+def test_autoplay_finishes_a_board_with_every_column_in_order(key):
+    g = deal(key, 1)
+    clear_board(g)
+    t = g.ids_of("tableau")
+    for col, (odd, even) in zip(t, ["SH", "HS", "CD", "DC"]):
+        g.slots[col].cards = [up(r, odd if r % 2 else even) for r in range(13, 0, -1)]
+    assert g.autoplay() == 52
+    assert g.is_won()
+
+
 # -- score clamp --------------------------------------------------------------------
 
 def test_score_never_goes_below_zero():

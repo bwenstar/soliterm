@@ -82,7 +82,8 @@ class BakersDozen(GameDef):
             again = False
             for sid in self.tableau:
                 c = g.top(sid)
-                if c and self.foundation_for(g, c) is not None:
+                if (c and self.foundation_for(g, c) is not None
+                        and self.safe_to_autoplay(g, c)):
                     fid = self.foundation_for(g, c)
                     g.slots[fid].cards.append(g.slots[sid].cards.pop())
                     g.score += 1
