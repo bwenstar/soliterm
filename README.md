@@ -6,7 +6,7 @@ packages. Plays nine games with a curses TUI (keyboard **and** mouse) or a
 pipe-friendly text mode, and **shares its statistics with the installed GNOME
 AisleRiot** so games played in either program are mirrored in both.
 
-Needs only **Python 3.8+** (with the standard-library `curses`, which ships
+Needs only **Python 3.9+** (with the standard-library `curses`, which ships
 with Python on Linux and macOS). No `pip install` of anything else required.
 
 ## Install / run

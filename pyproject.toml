@@ -1,32 +1,57 @@
 [build-system]
-requires = ["setuptools>=61"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "aisle-cli"
-version = "1.0.0"
-description = "A terminal Solitaire collection (a command-line replica of GNOME AisleRiot)"
+name = "soliterm"
+dynamic = ["version"]
+description = "Solitaire for your terminal, AisleRiot-compatible: nine games in curses or plain text"
 readme = "README.md"
-requires-python = ">=3.8"
-license = { text = "MIT" }
+requires-python = ">=3.9"
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "Brendan Ta" }]
-keywords = ["solitaire", "klondike", "spider", "freecell", "curses", "tui", "cards", "game"]
+keywords = [
+    "solitaire", "patience", "card-game", "klondike", "spider", "freecell",
+    "aisleriot", "curses", "tui", "terminal",
+]
 classifiers = [
-    "Development Status :: 5 - Production/Stable",
+    "Development Status :: 4 - Beta",
     "Environment :: Console :: Curses",
     "Intended Audience :: End Users/Desktop",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: POSIX",
+    "Operating System :: OS Independent",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
-    "Topic :: Games/Entertainment",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Games/Entertainment :: Board Games",
+    "Typing :: Typed",
 ]
-# No third-party runtime dependencies - standard library only (curses ships
-# with CPython on Linux/macOS).
-dependencies = []
+# Standard library only. curses ships with CPython on Linux and macOS; on
+# Windows it comes from the windows-curses wheel.
+dependencies = ['windows-curses>=2.3; sys_platform == "win32"']
+
+[project.urls]
+Homepage = "https://github.com/bwenstar/soliterm"
+Source = "https://github.com/bwenstar/soliterm"
+Issues = "https://github.com/bwenstar/soliterm/issues"
+Changelog = "https://github.com/bwenstar/soliterm/blob/main/CHANGELOG.md"
 
 [project.scripts]
 soliterm = "soliterm.cli:main"
+
+[dependency-groups]
+dev = ["pytest", "coverage", "ruff", "mypy", "vermin", "build", "twine"]
+
+[tool.setuptools.dynamic]
+version = { attr = "soliterm.__version__" }
 
 [tool.setuptools.packages.find]
 where = ["src"]
