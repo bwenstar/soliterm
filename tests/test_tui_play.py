@@ -60,6 +60,8 @@ class ScriptedScr(FakeScr):
             assert self.spare < 20, "the UI kept asking for keys after q"
             return ord("q")
         k = self.keys.pop(0)
+        if isinstance(k, type) and issubclass(k, BaseException):
+            raise k                   # e.g. KeyboardInterrupt, for Ctrl-C
         if isinstance(k, Click):
             cells = sorted(yx for yx, hit in self.uis[-1].hit.items()
                            if hit == (k.sid, k.idx))
@@ -294,6 +296,19 @@ def near_won():
         g.slots[fids[i]].cards = [up(r, suit) for r in range(1, 13)]
         g.slots[tids[i]].cards = [up(13, suit)]
     return g
+
+
+@pytest.mark.parametrize("keys", [["d"], ["d", "b"], ["d", "?"]])
+def test_ctrl_c_mid_game_quits_quietly_and_counts_the_loss(tui, keys):
+    scr = tui(keys + [KeyboardInterrupt])
+    assert scr.rc == 130
+    assert store.get_stat("klondike")["total"] == 1
+
+
+def test_ctrl_c_before_a_move_or_on_the_menu_records_nothing(tui):
+    assert tui([KeyboardInterrupt]).rc == 130
+    assert tui([KeyboardInterrupt], start_key=None).rc == 130
+    assert store.get_stat("klondike")["total"] == 0
 
 
 def test_finishing_a_game_records_the_win_and_shows_the_banner(tui):

@@ -137,17 +137,22 @@ class App:
     # ---- top loop ---- #
     def run(self) -> int:
         self.setup_curses()
-        if self.start_key and self.play(self.start_key):
-            return 0
-        while True:
-            choice = self.chooser()
-            if choice is None or choice == "__quit__":
+        try:
+            if self.start_key and self.play(self.start_key):
                 return 0
-            if choice == "__stats__":
-                self.stats_screen()
-                continue
-            if self.play(choice):
-                return 0
+            while True:
+                choice = self.chooser()
+                if choice is None or choice == "__quit__":
+                    return 0
+                if choice == "__stats__":
+                    self.stats_screen()
+                    continue
+                if self.play(choice):
+                    return 0
+        except KeyboardInterrupt:
+            # Ctrl-C quits like q, with no traceback; play() has already
+            # counted a started game as lost
+            return 130
 
     # ---- menu ---- #
     def chooser(self) -> Optional[str]:
@@ -360,21 +365,26 @@ class App:
         Returns True if they quit the program, False to go back to the menu.
         """
         self.start_game(key)
-        while True:
-            self.game.update_status()
-            self.draw()
-            if self.game.is_won() and not self.recorded:
-                if self.finish(True):
-                    continue
-                return False
-            # stuck: no productive move and the player has actually started
-            if self.game.moves > 0 and not self.recorded and self.game.is_stuck():
-                if self.finish(False):
-                    continue
-                return False
-            outcome = self.handle_key(self.read_key())
-            if outcome is not None:
-                return outcome == QUIT
+        try:
+            while True:
+                self.game.update_status()
+                self.draw()
+                if self.game.is_won() and not self.recorded:
+                    if self.finish(True):
+                        continue
+                    return False
+                # stuck: no productive move and the player has actually started
+                if self.game.moves > 0 and not self.recorded and self.game.is_stuck():
+                    if self.finish(False):
+                        continue
+                    return False
+                outcome = self.handle_key(self.read_key())
+                if outcome is not None:
+                    return outcome == QUIT
+        except KeyboardInterrupt:
+            # Ctrl-C, wherever in the game it comes, leaves the way q does
+            self.maybe_record_loss()
+            raise
 
     def read_key(self) -> int:
         """The next key on the play screen, or -1 for an Alt combination.
