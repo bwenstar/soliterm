@@ -4,6 +4,8 @@
   python3 tools/build_pyz.py           # dist/soliterm.pyz
   python3 tools/build_pyz.py --wheel   # and a wheel and sdist (needs `build`)
 
+Either way dist/ is emptied first, so it only ever holds this build.
+
 The zipapp needs nothing but the standard library to build or to run: the
 src/soliterm package goes into a staging directory next to the LICENSE and
 a small __main__.py, and zipapp packs that up behind a shebang. Run the
@@ -91,9 +93,13 @@ def main(argv: Optional[List[str]] = None) -> int:
                    help="also build a wheel and an sdist with python -m build")
     args = p.parse_args(argv)
 
-    target = build_pyz()
+    # Old wheels, sdists or an aisle.pyz from an earlier layout would
+    # otherwise sit next to the new files and go out with them.
+    shutil.rmtree(DIST, ignore_errors=True)
+    target = build_pyz(TARGET)
     size = target.stat().st_size
-    print(f"built {target.relative_to(ROOT)} ({size / 1024:.1f} KiB)", flush=True)
+    shown = target.relative_to(ROOT) if ROOT in target.parents else target
+    print(f"built {shown} ({size / 1024:.1f} KiB)", flush=True)
     if args.wheel:
         return build_dist()
     return 0

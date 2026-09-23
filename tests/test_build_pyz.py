@@ -17,12 +17,16 @@ TOOL = Path(__file__).resolve().parents[1] / "tools" / "build_pyz.py"
 pytestmark = pytest.mark.skipif(not TOOL.exists(), reason="no tools/ in this tree")
 
 
-@pytest.fixture(scope="module")
-def pyz(tmp_path_factory):
+def load_tool():
     spec = importlib.util.spec_from_file_location("build_pyz", TOOL)
     tool = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(tool)
-    return tool.build_pyz(tmp_path_factory.mktemp("dist") / "soliterm.pyz")
+    return tool
+
+
+@pytest.fixture(scope="module")
+def pyz(tmp_path_factory):
+    return load_tool().build_pyz(tmp_path_factory.mktemp("dist") / "soliterm.pyz")
 
 
 def run(pyz, *args):
@@ -57,3 +61,15 @@ def test_the_archive_runs_version_and_list(pyz):
     r = run(pyz, "--list")
     assert r.returncode == 0, r.stderr
     assert [line.split()[0] for line in r.stdout.splitlines()[1:]] == GAME_ORDER
+
+
+def test_main_empties_dist_before_building(tmp_path, monkeypatch, capsys):
+    tool = load_tool()
+    dist = tmp_path / "dist"
+    dist.mkdir()
+    (dist / "aisle.pyz").write_bytes(b"left over from an old build")
+    monkeypatch.setattr(tool, "DIST", dist)
+    monkeypatch.setattr(tool, "TARGET", dist / "soliterm.pyz")
+    assert tool.main([]) == 0
+    assert [p.name for p in dist.iterdir()] == ["soliterm.pyz"]
+    assert capsys.readouterr().out.startswith("built ")
