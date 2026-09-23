@@ -101,3 +101,45 @@ def test_a_won_game_scores_a_thousand(table):
     assert g.attempt_move(t[0], f[0], 1)
     assert g.is_won()
     assert g.score == 1000
+
+
+# -- groups to the foundations --------------------------------------------------------
+
+def test_a_run_goes_up_to_a_foundation_in_one_move(table):
+    g, f, t = table
+    g.slots[t[0]].cards = [up(9, "C"), up(3, "S"), up(2, "S"), up(1, "S")]
+    assert (t[0], f[0], 3) in g.legal_moves()
+    assert g.attempt_move(t[0], f[0], 3)
+    assert labels(g, f[0]) == ["AS", "2S", "3S"]
+    assert labels(g, t[0]) == ["9C"]
+    assert g.score == 15
+    assert g.undo()
+    assert labels(g, t[0]) == ["9C", "3S", "2S", "AS"] and not g.cards(f[0])
+
+
+def test_a_run_carries_on_a_foundation_without_a_free_column(table):
+    g, f, t = table
+    run_to_move(g, t, 0, 0)
+    g.slots[f[0]].cards = [up(1, "S"), up(2, "S")]
+    g.slots[t[0]].cards += [up(5, "S"), up(4, "S"), up(3, "S")]
+    assert g.attempt_move(t[0], f[0], 3)
+    assert labels(g, f[0]) == ["AS", "2S", "3S", "4S", "5S"]
+
+
+def test_a_run_whose_top_card_does_not_fit_stays_down(table):
+    g, f, t = table
+    g.slots[t[0]].cards = [up(4, "S"), up(3, "S"), up(2, "S")]
+    assert g.attempt_move(t[0], f[0], 3) is False       # no ace to start it
+    g.slots[f[0]].cards = [up(1, "S"), up(2, "S")]
+    g.slots[t[0]].cards = [up(5, "S"), up(4, "S")]
+    assert g.attempt_move(t[0], f[0], 2) is False       # the 3S is missing
+    g.slots[f[0]].cards = [up(1, "H"), up(2, "H"), up(3, "H")]
+    assert g.attempt_move(t[0], f[0], 2) is False       # wrong suit
+
+
+def test_the_hint_names_the_whole_run_it_sends_up(table):
+    g, f, t = table
+    g.symbols = False
+    g.slots[t[0]].cards = [up(9, "C"), up(3, "S"), up(2, "S"), up(1, "S")]
+    assert g.hint_move() == (t[0], f[0], 3)
+    assert g.hint()[2] == "Move AS through 3S to its foundation"

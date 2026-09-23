@@ -227,6 +227,9 @@ class Solitaire:
         landing = pile[len(pile) - n].label(self.symbols)   # lands on dst
         k = self.kind(dst)
         if k == "foundation":
+            if n > 1:                   # a run goes up from its top card
+                return (f"Move {pile[-1].label(self.symbols)} through {landing}"
+                        " to its foundation")
             return f"Move {landing} to its foundation"
         if k == "freecell":
             return f"Move {landing} to a free cell"

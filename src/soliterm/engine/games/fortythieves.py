@@ -53,10 +53,13 @@ class FortyThieves(GameDef):
         k = g.kind(dst)
         c = cards[0]
         if k == "foundation":
-            if len(cards) != 1:
+            # A run of one suit can go up in one move, whatever the empty
+            # columns, as long as its top card fits (see after_move).
+            if not all(self.tableau_adjacent(a, b) for a, b in zip(cards, cards[1:])):
                 return False
+            first = cards[-1]
             top = g.top(dst)
-            return (c.rank == ACE) if top is None else self.same_suit_up(top, c)
+            return (first.rank == ACE) if top is None else self.same_suit_up(top, first)
         if k == "tableau":
             if len(cards) > self._max_group(g, src, dst):
                 return False
@@ -101,6 +104,13 @@ class FortyThieves(GameDef):
             if g.empty(t):
                 return t
         return None
+
+    def after_move(self, g, src, cards, dst):
+        if g.kind(dst) == "foundation" and len(cards) > 1:
+            # the run landed the way it lay in the column; turn it round so
+            # it builds up from the card that was on top
+            pile = g.cards(dst)
+            pile[len(pile) - len(cards):] = reversed(cards)
 
     def post_move(self, g):
         # As AisleRiot scores it, worked out afresh from the foundations: 5
