@@ -7,12 +7,19 @@ plus the player's chosen options per game, under XDG paths.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
+import tempfile
 import time
-from typing import Dict, List, Optional
+from typing import Dict, Iterator, List, Optional
 
 from . import aisleriot as ar
+
+try:
+    import fcntl
+except ImportError:     # Windows: no advisory locks, the lock is a no-op
+    fcntl = None  # type: ignore[assignment]
 
 APP_DIR_NAME = "aisle-cli"
 
@@ -54,6 +61,123 @@ def stats_path() -> str:
     return os.path.join(data_dir(), "stats.json")
 
 
+# --------------------------------------------------------------------------- #
+# Reading and writing our JSON files
+# --------------------------------------------------------------------------- #
+
+def _read_json(path: str) -> Optional[dict]:
+    """The object in a JSON file: {} if there is no file, None if it is there
+    but can't be read (and so must not be written over either).
+
+    A file that doesn't hold a JSON object (cut short by a crash, say) is
+    moved aside to <name>.corrupt-<time> and reads as {}, so the next save
+    can't destroy what is left of it.
+    """
+    try:
+        with open(path, "rb") as fh:
+            raw = fh.read()
+    except FileNotFoundError:
+        return {}
+    except OSError as exc:
+        _notice(f"can't read {path} ({exc.strerror or exc}), "
+                "so it is left alone and nothing is saved to it")
+        return None
+    try:
+        data = json.loads(raw.decode("utf-8"))
+    except (ValueError, RecursionError):
+        data = None
+    if isinstance(data, dict):
+        return data
+    return {} if _set_aside(path) else None
+
+
+def _set_aside(path: str) -> bool:
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    target = f"{path}.corrupt-{stamp}"
+    n = 1
+    while os.path.exists(target):
+        target = f"{path}.corrupt-{stamp}-{n}"
+        n += 1
+    try:
+        os.rename(path, target)
+    except FileNotFoundError:
+        return True     # another copy of the game moved it first
+    except OSError as exc:
+        _notice(f"{path} is damaged and can't be moved aside "
+                f"({exc.strerror or exc}), so nothing is saved to it")
+        return False
+    _notice(f"{path} was damaged; it is kept as {target} and a new one started")
+    return True
+
+
+def _write_json(path: str, obj: dict) -> bool:
+    """Save `obj` to `path` whole or not at all.
+
+    The JSON goes to a temp file in the same directory, which then replaces
+    the old file in one step, so a crash or a full disk leaves the old file
+    as it was rather than a truncated one.
+    """
+    folder = os.path.dirname(path)
+    try:
+        os.makedirs(folder, exist_ok=True)
+        text = json.dumps(obj, indent=2)
+        fd, tmp = tempfile.mkstemp(dir=folder, prefix=f".{os.path.basename(path)}.",
+                                   suffix=".tmp")
+    except (OSError, TypeError, ValueError):
+        return False
+    try:
+        try:
+            os.chmod(tmp, os.stat(path).st_mode & 0o7777)
+        except FileNotFoundError:
+            pass
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(text)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(tmp, path)
+    except OSError:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        return False
+    return True
+
+
+# Reentrancy count for _locked(): record_result holds the lock while it
+# calls helpers that take it too.
+_lock_depth = 0
+
+
+@contextlib.contextmanager
+def _locked() -> Iterator[None]:
+    """Hold the stats lock while reading, changing and saving the stats.
+
+    Two copies of the game finishing at once would otherwise both read the
+    same stats and the later save would drop the other's result. The lock is
+    advisory (flock on stats.lock beside stats.json) and does nothing where
+    there is no fcntl, or when the lock file can't be made.
+    """
+    global _lock_depth
+    fh = None
+    if _lock_depth == 0 and fcntl is not None:
+        try:
+            os.makedirs(data_dir(), exist_ok=True)
+            fh = open(os.path.join(data_dir(), "stats.lock"), "a")
+            fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
+        except OSError:
+            if fh is not None:
+                fh.close()
+            fh = None
+    _lock_depth += 1
+    try:
+        yield
+    finally:
+        _lock_depth -= 1
+        if fh is not None:
+            fh.close()      # which also lets go of the lock
+
+
 DEFAULT_CONFIG = {
     "last_game": "klondike",
     "symbols": True,
@@ -72,48 +196,41 @@ DEFAULT_CONFIG = {
 def load_config() -> dict:
     cfg = dict(DEFAULT_CONFIG)
     cfg["options"] = {}
-    try:
-        with open(config_path(), "r", encoding="utf-8") as fh:
-            data = json.load(fh)
-        if isinstance(data, dict):
-            if isinstance(data.get("last_game"), str):
-                cfg["last_game"] = data["last_game"]
-            cfg["symbols"] = bool(data.get("symbols", True))
-            if isinstance(data.get("options"), dict):
-                cfg["options"] = data["options"]
-            cfg["sync_aisleriot"] = bool(data.get("sync_aisleriot", True))
-            cfg["merged_into_aisleriot"] = bool(data.get("merged_into_aisleriot", False))
-            # optional UI-preference keys, only present once set by the player:
-            #   color      - colour on/off (the 'v' toggle)
-            #   code_skin  - play wrapped in source (the 'c' toggle)
-            #   camo_theme - boss-mode disguise theme
-            #   view       - board view: "expanded" cards or "legacy" cells
-            if "color" in data:
-                cfg["color"] = bool(data["color"])
-            if "code_skin" in data:
-                cfg["code_skin"] = bool(data["code_skin"])
-            if isinstance(data.get("camo_theme"), str):
-                cfg["camo_theme"] = data["camo_theme"]
-            if data.get("view") in ("expanded", "legacy"):
-                cfg["view"] = data["view"]
-    except (OSError, ValueError):
-        pass
+    data = _read_json(config_path())
+    if data:
+        if isinstance(data.get("last_game"), str):
+            cfg["last_game"] = data["last_game"]
+        cfg["symbols"] = bool(data.get("symbols", True))
+        if isinstance(data.get("options"), dict):
+            cfg["options"] = data["options"]
+        cfg["sync_aisleriot"] = bool(data.get("sync_aisleriot", True))
+        cfg["merged_into_aisleriot"] = bool(data.get("merged_into_aisleriot", False))
+        # optional UI-preference keys, only present once set by the player:
+        #   color      - colour on/off (the 'v' toggle)
+        #   code_skin  - play wrapped in source (the 'c' toggle)
+        #   camo_theme - boss-mode disguise theme
+        #   view       - board view: "expanded" cards or "legacy" cells
+        if "color" in data:
+            cfg["color"] = bool(data["color"])
+        if "code_skin" in data:
+            cfg["code_skin"] = bool(data["code_skin"])
+        if isinstance(data.get("camo_theme"), str):
+            cfg["camo_theme"] = data["camo_theme"]
+        if data.get("view") in ("expanded", "legacy"):
+            cfg["view"] = data["view"]
     return cfg
 
 
 def save_config(cfg: dict) -> bool:
     cfg = dict(cfg)
-    if not cfg.get("merged_into_aisleriot") and load_config()["merged_into_aisleriot"]:
+    on_disk = _read_json(config_path())
+    if on_disk is None:
+        return False
+    if not cfg.get("merged_into_aisleriot") and on_disk.get("merged_into_aisleriot"):
         # a copy loaded before the merge (the TUI keeps one for the whole
         # session) must not clear the flag
         cfg["merged_into_aisleriot"] = True
-    try:
-        os.makedirs(config_dir(), exist_ok=True)
-        with open(config_path(), "w", encoding="utf-8") as fh:
-            json.dump(cfg, fh, indent=2)
-        return True
-    except OSError:
-        return False
+    return _write_json(config_path(), cfg)
 
 
 def game_options(cfg: dict, game_key: str) -> dict:
@@ -172,12 +289,7 @@ def _can_sync() -> bool:
 
 
 def load_stats() -> dict:
-    try:
-        with open(stats_path(), "r", encoding="utf-8") as fh:
-            data = json.load(fh)
-        return data if isinstance(data, dict) else {}
-    except (OSError, ValueError):
-        return {}
+    return _read_json(stats_path()) or {}
 
 
 def _meta(stats: dict) -> dict:
@@ -205,21 +317,18 @@ def _merged(stats: dict) -> bool:
 
 def save_stats(stats: dict) -> bool:
     stats = dict(stats)
+    current = _read_json(stats_path())
+    if current is None:
+        return False
     # Keep the bookkeeping entry of the file on disk when the caller has
     # none, and never turn a merged marker back off.
-    on_disk = _meta(load_stats())
+    on_disk = _meta(current)
     meta = dict(_meta(stats)) if META_KEY in stats else dict(on_disk)
     if on_disk.get("merged_into_aisleriot") is True:
         meta["merged_into_aisleriot"] = True
     if meta:
         stats[META_KEY] = meta
-    try:
-        os.makedirs(data_dir(), exist_ok=True)
-        with open(stats_path(), "w", encoding="utf-8") as fh:
-            json.dump(stats, fh, indent=2)
-        return True
-    except OSError:
-        return False
+    return _write_json(stats_path(), stats)
 
 
 def get_stat(game_key: str) -> dict:
@@ -247,8 +356,13 @@ def record_result(game_key: str, won: bool, seconds: float) -> dict:
     BOTH the shared AisleRiot keyfile and our local JSON, so a game played here
     shows up in AisleRiot and vice versa.
     """
+    with _locked():
+        return _record_result(game_key, won, seconds)
+
+
+def _record_result(game_key: str, won: bool, seconds: float) -> dict:
     # Fold the one win/loss into a given baseline stat.
-    def apply(base: dict) -> dict:
+    def apply(base: Optional[dict]) -> dict:
         s = _norm(base)
         s["total"] += 1
         if won:
@@ -312,7 +426,11 @@ def _merge_local_into_aisleriot_once() -> None:
         l = _norm(lstat)
         if l["total"] == 0:
             continue
-        ar.update_stat(sect, lambda cur, l=l: _combined(_norm(cur), l))
+
+        def add(cur: Optional[dict], l: dict = l) -> dict:
+            return _combined(_norm(cur), l)
+
+        ar.update_stat(sect, add)
 
 
 def _combined(a: dict, b: dict) -> dict:
@@ -333,6 +451,11 @@ def reset_stats() -> int:
     too (other AisleRiot games and all non-Statistic keys are left untouched).
     Local JSON is always cleared. Returns the count of games that had a record.
     """
+    with _locked():
+        return _reset_stats()
+
+
+def _reset_stats() -> int:
     from .engine import GAME_ORDER  # local import to avoid a cycle at module load
     cleared = 0
     if _can_sync():
