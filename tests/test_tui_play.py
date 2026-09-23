@@ -275,6 +275,29 @@ def test_the_escape_delay_is_short_unless_the_player_set_one(monkeypatch):
     assert seen[-1] == "300"
 
 
+# -- a terminal too small for the board -----------------------------------------------
+
+def test_keys_make_no_hidden_moves_while_the_board_does_not_fit(tui):
+    scr = tui(["d", "d", ENTER, curses.KEY_RIGHT, ENTER, "a", "n", "o", "m", "q"],
+              h=20, w=38)
+    assert scr.rc == 0
+    assert all("Terminal too small" in frame for frame in scr.frames)
+    assert len(scr.uis) == 1 and scr.uis[0].game.moves == 0
+    assert store.get_stat("klondike")["total"] == 0
+
+
+def test_the_board_comes_back_as_it_was_once_the_terminal_grows(tui):
+    scr = tui(["d", Resize(40, 120), "q"], h=20, w=38)
+    assert "Terminal too small" in scr.frames[1]
+    assert "Moves 0" in scr.frames[2] and "Stock: 24" in scr.frames[2]
+
+
+def test_the_boss_key_still_works_on_a_small_terminal(tui):
+    scr = tui(["b", "z"], h=20, w=38)
+    assert "Terminal too small" not in scr.frames[1]
+    assert "Terminal too small" in scr.frames[2]
+
+
 # -- recording results -------------------------------------------------------------
 
 def test_quitting_before_moving_records_nothing(tui):

@@ -356,15 +356,20 @@ class BoardUI:
             bottom = max(bottom, sy + self._slot_height(sid, sy))
         return set(range(top, bottom + 2))
 
+    def fits(self) -> bool:
+        """False while the terminal is too small to lay the board out."""
+        h, w = self.stdscr.getmaxyx()
+        return w >= MIN_COLS and h >= MIN_ROWS
+
     def draw(self, selected_slot: Optional[int], selected_n: int,
              cursor_slot: Optional[int], hint: Optional[Tuple[int, int, str]],
              elapsed: float, message: str):
         self.stdscr.erase()
         self.hit.clear()
-        h, w = self.stdscr.getmaxyx()
-        if w < MIN_COLS or h < MIN_ROWS:
+        if not self.fits():
             # Terminal too small to lay the board out cleanly: say so plainly
             # instead of drawing a clipped, unplayable mess.
+            h, w = self.stdscr.getmaxyx()
             self.safe_add(0, 0, "Terminal too small.")
             self.safe_add(1, 0, f"Need >= {MIN_COLS}x{MIN_ROWS}, have {w}x{h}.")
             self.safe_add(2, 0, "Resize, or press q.")
