@@ -69,6 +69,10 @@ def build_pyz(target: Path = TARGET) -> Path:
         target.parent.mkdir(parents=True, exist_ok=True)
         zipapp.create_archive(stage, target, interpreter=INTERPRETER,
                               compressed=True)
+    # zipapp only sets the owner's execute bit. Do what chmod +x does and
+    # give it to everyone who can read the file.
+    mode = target.stat().st_mode
+    target.chmod(mode | (mode & 0o444) >> 2)
     return target
 
 

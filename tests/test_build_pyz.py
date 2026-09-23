@@ -2,6 +2,7 @@
 
 import importlib.util
 import os
+import stat
 import subprocess
 import sys
 import zipfile
@@ -52,6 +53,9 @@ def test_the_archive_starts_with_a_shebang(pyz):
     assert pyz.read_bytes().startswith(b"#!/usr/bin/env python3\n")
     if os.name == "posix":
         assert os.access(pyz, os.X_OK)
+        # executable for whoever may read it, the way chmod +x leaves it
+        mode = stat.S_IMODE(pyz.stat().st_mode)
+        assert mode & 0o111 == (mode & 0o444) >> 2
 
 
 def test_the_archive_runs_version_and_list(pyz):
