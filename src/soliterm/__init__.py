@@ -3,7 +3,8 @@
 Nine solitaire games with a curses TUI (keyboard and mouse) and a
 pipe-friendly text mode. The engine follows GNOME AisleRiot's model and
 rules, and statistics are shared with an installed AisleRiot through its
-keyfile. The runtime is standard library only.
+keyfile. The runtime is standard library only, apart from windows-curses
+on Windows, where CPython ships no curses module.
 
 Modules:
   engine     the slot/card engine; engine.games holds one module per game
@@ -17,5 +18,5 @@ Modules:
 
 __version__ = "1.0.0.dev0"
 
-# The product name as players see it (titles, banners, --version).
+# The product name as players see it (titles, banners, --help).
 APP_NAME = "Soliterm"
