@@ -139,9 +139,16 @@ The screenshots in the README come from `tools/screenshots.py`:
 python tools/screenshots.py
 ```
 
-It needs tmux and Pillow. Those are only for this script and the game
-never uses them, so they aren't in the dev group. If your change alters
-what's on screen, regenerate the screenshots and commit them with it.
+It needs tmux 3.0 or newer, Pillow and the DejaVu Sans Mono font. Those
+are only for this script and the game never uses them, so they aren't in
+the dev group. If your change alters what's on screen, regenerate the
+screenshots and commit them with it.
+
+`--list` shows the scenes and `--scene NAME` redraws only the ones you
+name. The scenes are a list near the top of the script: a game, a seed and
+the keys to press, so changing what a shot shows usually means editing a
+line or two there. `--out DIR` writes somewhere other than `docs/img/`,
+which is handy for checking a change before you overwrite the real ones.
 
 ## Questions
 
