@@ -55,12 +55,12 @@ class App:
     ui: BoardUI
 
     def __init__(self, stdscr, start_key: Optional[str] = None,
-                 seed: Optional[int] = None, color: bool = True,
+                 seed: Optional[int] = None, color: Optional[bool] = None,
                  symbols: Optional[bool] = None):
         self.stdscr = stdscr
         self.start_key = start_key
         self.seed = seed
-        self.color = color
+        self.color = color            # --color / --no-color, None for neither
         self.cfg = store.load_config()
         # suit symbols and box-drawing cards, or plain letters (--ascii);
         # None means the saved setting. A terminal that can't show them
@@ -101,11 +101,17 @@ class App:
             pass
         # We always initialise the colour pairs when the terminal supports
         # colour, so colour can come on later even if it starts off.
+        # Colour for the session: --color or --no-color, then NO_COLOR, then
+        # what the player last chose with v, then on. Neither the flag nor
+        # NO_COLOR is saved, so the next plain launch has the saved choice.
         self.color_capable = curses.has_colors()
-        self.has_color = self.color_capable and bool(self.color)
-        # a saved preference (from a previous toggle) overrides the launch default
-        if "color" in self.cfg:
-            self.has_color = self.color_capable and bool(self.cfg["color"])
+        if self.color is not None:
+            want = self.color
+        elif os.environ.get("NO_COLOR"):
+            want = False
+        else:
+            want = bool(self.cfg.get("color", True))
+        self.has_color = self.color_capable and want
         if self.color_capable:
             curses.start_color()
             curses.use_default_colors()
@@ -892,12 +898,12 @@ class App:
 
 
 def run(stdscr, start_key: Optional[str] = None, seed: Optional[int] = None,
-        color: bool = True, symbols: Optional[bool] = None):
+        color: Optional[bool] = None, symbols: Optional[bool] = None):
     return App(stdscr, start_key, seed, color, symbols).run()
 
 
 def main(start_key: Optional[str] = None, seed: Optional[int] = None,
-         color: bool = True, symbols: Optional[bool] = None) -> int:
+         color: Optional[bool] = None, symbols: Optional[bool] = None) -> int:
     # After an Esc, ncurses waits ESCDELAY ms (a whole second by default) to
     # see whether a key sequence follows, so the Esc key felt dead. It reads
     # the variable when curses starts; a value the player set is kept.

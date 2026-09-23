@@ -106,7 +106,7 @@ def tui(monkeypatch):
     # set here rather than in run() so a test can put its own in first
     monkeypatch.setattr(curses, "curs_set", lambda n: None)
 
-    def run(keys, start_key="klondike", game=None, seed=None, color=True,
+    def run(keys, start_key="klondike", game=None, seed=None, color=None,
             color_capable=True, h=40, w=120, **kwargs):
         scr = ScriptedScr(h, w, keys, uis)
         monkeypatch.setattr(curses, "mousemask",
@@ -500,6 +500,37 @@ def test_the_menu_starts_the_chosen_game_and_remembers_it(tui):
 
 
 # -- colour --------------------------------------------------------------------------------
+
+@pytest.mark.parametrize("saved, flag, no_color, shown", [
+    (True, False, False, False),     # --no-color beats the saved choice
+    (True, None, True, False),       # and so does NO_COLOR
+    (False, True, True, True),       # --color beats both
+    (False, None, False, False),     # with neither, the saved choice holds
+    (None, None, False, True),       # and with nothing saved, the terminal's
+])
+def test_colour_goes_by_the_flag_then_no_color_then_the_saved_choice(
+        tui, monkeypatch, saved, flag, no_color, shown):
+    if saved is not None:
+        cfg = store.load_config()
+        cfg["color"] = saved
+        store.save_config(cfg)
+    if no_color:
+        monkeypatch.setenv("NO_COLOR", "1")
+    scr = tui([], color=flag)
+    assert scr.uis[0].initial_has_color is shown
+    assert store.load_config().get("color") == saved     # only v saves it
+
+
+def test_the_tui_hears_whether_a_colour_flag_was_given(monkeypatch):
+    seen = {}
+    monkeypatch.setattr(soliterm.tui, "main", lambda **kw: seen.update(kw) or 0)
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+    monkeypatch.setattr(cli, "_terminal_problem", lambda: None)
+    for argv, color in ([], None), (["--color"], True), (["--no-color"], False):
+        cli.main(["--game", "klondike"] + argv)
+        assert seen["color"] is color
+
 
 def test_v_on_a_mono_terminal_just_says_so(tui):
     scr = tui(["v"], color_capable=False)

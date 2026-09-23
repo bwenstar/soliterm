@@ -231,9 +231,9 @@ def _run(args: argparse.Namespace) -> int:
     cfg = store.load_config()
     symbols = cfg.get("symbols", True) and not args.ascii
 
-    # Colour (both the curses TUI and text mode): explicit --color/--no-color
-    # wins; otherwise on unless NO_COLOR is set (https://no-color.org). The TTY
-    # check only applies to text mode - the TUI is always on a terminal.
+    # Colour in text mode: explicit --color/--no-color wins; otherwise on
+    # unless NO_COLOR is set (https://no-color.org) or stdout isn't a TTY.
+    # The TUI gets the bare flag, since it also has the colour saved with v.
     if args.color is None:
         color = not os.environ.get("NO_COLOR")
         text_color = color and sys.stdout.isatty()
@@ -243,7 +243,7 @@ def _run(args: argparse.Namespace) -> int:
     if not args.text and sys.stdout.isatty() and sys.stdin.isatty():
         tui, why = _load_tui()
         if tui is not None:
-            return tui.main(start_key=args.game, seed=args.seed, color=color,
+            return tui.main(start_key=args.game, seed=args.seed, color=args.color,
                             symbols=symbols)
         print(f"soliterm: {why}", file=sys.stderr)
 
