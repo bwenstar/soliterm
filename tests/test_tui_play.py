@@ -102,11 +102,12 @@ def tui(monkeypatch):
             return super().draw(selected_slot, *args)
 
     monkeypatch.setattr(soliterm.tui.app, "BoardUI", RecordingBoardUI)
+    # set here rather than in run() so a test can put its own in first
+    monkeypatch.setattr(curses, "curs_set", lambda n: None)
 
     def run(keys, start_key="klondike", game=None, seed=None, color=True,
             color_capable=True, h=40, w=120):
         scr = ScriptedScr(h, w, keys, uis)
-        monkeypatch.setattr(curses, "curs_set", lambda n: None)
         monkeypatch.setattr(curses, "mousemask",
                             lambda mask: masks.append(mask) or (mask, 0))
         monkeypatch.setattr(curses, "mouseinterval", intervals.append)
@@ -282,6 +283,18 @@ def test_the_escape_delay_is_short_unless_the_player_set_one(monkeypatch):
     monkeypatch.setenv("ESCDELAY", "300")
     soliterm.tui.main()
     assert seen[-1] == "300"
+
+
+def test_a_terminal_that_cannot_hide_the_cursor_still_plays(tui, monkeypatch):
+    # vt100, ansi and xterm-mono have no way to make the cursor invisible
+    def no_civis(n):
+        raise curses.error("curs_set() returned ERR")
+
+    monkeypatch.setattr(curses, "curs_set", no_civis)
+    scr = tui(["d", "q"])
+    assert scr.rc == 0
+    assert "Soliterm  -  Klondike" in scr.frames[0]
+    assert "Moves 1" in scr.frames[1]
 
 
 # -- a terminal too small for the board -----------------------------------------------

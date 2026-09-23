@@ -80,7 +80,12 @@ class App:
         self.recorded = False
 
     def setup_curses(self) -> None:
-        curses.curs_set(0)
+        try:
+            curses.curs_set(0)
+        except curses.error:
+            # vt100, ansi and the mono terminals can't hide the cursor;
+            # play on with it showing rather than refuse to start
+            pass
         self.stdscr.keypad(True)
         try:
             curses.mousemask(MOUSE_MASK)
