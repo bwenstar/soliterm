@@ -256,6 +256,7 @@ def load_config() -> dict:
             cfg["options"] = data["options"]
         # optional UI-preference keys, only present once set by the player:
         #   color      - colour on/off (the 'v' toggle)
+        #   theme      - the colour theme ('t'); not camo_theme, the disguise
         #   code_skin  - play wrapped in source (the 'c' toggle)
         #   camo_theme - boss-mode disguise theme
         #   view       - board view: "expanded" cards or "legacy" cells
@@ -265,6 +266,9 @@ def load_config() -> dict:
                 cfg[key] = data[key]
         if isinstance(data.get("camo_theme"), str):
             cfg["camo_theme"] = data["camo_theme"]
+        # any name is kept: one from a newer version plays as classic here
+        if isinstance(data.get("theme"), str):
+            cfg["theme"] = data["theme"]
         if data.get("view") in ("expanded", "legacy"):
             cfg["view"] = data["view"]
         # where the settings were copied from on the first run (migrate.py)

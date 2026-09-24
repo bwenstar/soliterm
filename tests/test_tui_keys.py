@@ -120,6 +120,10 @@ def test_the_help_says_shift_u_and_shift_r_go_all_the_way():
     assert "U and R go all the way" in help_screen()
 
 
+def test_t_and_shift_t_switch_the_theme():
+    assert keys.PLAY_ACTIONS[ord("t")] == keys.PLAY_ACTIONS[ord("T")] == "theme"
+
+
 def test_tab_is_the_boss_mode_key():
     assert keys.BOSS_ACTIONS == {ord("\t"): "next_disguise"}  # noqa: SIM300 (it is the one under test)
     assert ord("\t") not in keys.PLAY_ACTIONS

@@ -78,7 +78,11 @@ KEYMAP: tuple[Binding, ...] = (
         mode="boss",
     ),
     bind("cC", "code_skin", "c", "code skin: keep playing inside a code file"),
-    bind("vV", "color", "v", "toggle colour on / off (monochrome)"),
+    Binding(
+        "v / t",
+        "toggle colour / next theme",
+        {ord("v"): "color", ord("V"): "color", ord("t"): "theme", ord("T"): "theme"},
+    ),
     bind("xX", "view", "x", "toggle view: full cards <-> compact cells"),
     Binding(
         "u / U, r / R",

@@ -212,7 +212,9 @@ class App:
         # "show colour" flag the renderer reads, and flips on toggle.
         self.color_capable = False
         self.has_color = False
-        self.theme = themes.by_name(theme)
+        # the theme for this run, then the one t last picked; a name this
+        # version doesn't know plays classic, and stays in the config
+        self.theme = themes.by_name(theme or self.cfg.get("theme"))
         # the terminal says its background is light, so the theme may want
         # darker text; and whether -1, that background, can be used at all
         self.light = light_background()
@@ -1140,6 +1142,22 @@ class App:
             self.cfg["color"] = self.has_color
             store.save_config(self.cfg)
             self.message = "colour on" if self.has_color else "colour off (monochrome)"
+
+    def do_theme(self):
+        # the next theme, on screen at once (cells change with their pairs)
+        # and kept as the new default
+        if not self.color_capable:
+            self.message = "this terminal has no colour support"
+            return
+        self.theme = themes.next_theme(self.theme)
+        self.init_pairs()
+        self.cfg["theme"] = self.theme.name
+        store.save_config(self.cfg)
+        self.message = f"{self.theme.name} theme{self.colour_note()}"
+
+    def colour_note(self) -> str:
+        """What keeps a change of colours from showing, to end a message with."""
+        return "" if self.has_color else " (colour is off, v turns it on)"
 
     def do_view(self):
         # toggle the board view: expanded card boxes <-> legacy cells

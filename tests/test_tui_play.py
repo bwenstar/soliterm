@@ -1721,11 +1721,57 @@ def test_a_hinted_card_has_a_background_of_its_own(tui):
     assert bg not in (-1, fg)
 
 
-def test_v_on_a_mono_terminal_just_says_so(tui):
-    scr = tui(["v"], color_capable=False)
+@pytest.mark.parametrize("key", ["v", "t"])
+def test_the_colour_keys_on_a_mono_terminal_just_say_so(tui, key):
+    scr = tui([key], color_capable=False)
     assert "this terminal has no colour support" in scr.frames[1]
     assert scr.pairs == []
-    assert "color" not in store.load_config()
+    cfg = store.load_config()
+    assert "color" not in cfg
+    assert "theme" not in cfg
+
+
+def test_t_cycles_the_themes_and_saves_the_choice(tui):
+    scr = tui(["t", "t", "t", "t"], colours=256)
+    assert "dark theme" in scr.frames[1]
+    assert "light theme" in scr.frames[2]
+    assert "contrast theme" in scr.frames[3]
+    assert "classic theme" in scr.frames[4]
+    assert "colour is off" not in scr.frames[1]
+    # every press sets the pairs up again, and the board shows the new ones
+    size = len(themes.CLASSIC.pairs)
+    sets = [scr.pairs[i : i + size] for i in range(0, len(scr.pairs), size)]
+    assert sets == [
+        themes.pair_colours(themes.by_name(name), 256)
+        for name in ("classic", "dark", "light", "contrast", "classic")
+    ]
+    assert scr.uis[-1].has_color
+    assert store.load_config()["theme"] == "classic"
+
+
+def test_t_with_colour_off_says_how_to_turn_it_on(tui):
+    scr = tui(["t"], color=False)
+    assert "dark theme (colour is off, v turns it on)" in scr.frames[1]
+    assert not scr.uis[-1].has_color
+    cfg = store.load_config()
+    assert cfg["theme"] == "dark"
+    assert "color" not in cfg
+
+
+def test_the_saved_theme_is_the_one_played(tui):
+    store.save_config({**store.load_config(), "theme": "light"})
+    scr = tui(["q"], colours=256)
+    assert scr.pairs == themes.pair_colours(themes.LIGHT, 256)
+
+
+def test_an_unknown_theme_name_is_kept_and_plays_classic(tui):
+    # a newer version's theme, say; this one plays classic and leaves it be
+    store.save_config({**store.load_config(), "theme": "solarized"})
+    scr = tui(["v"], colours=256)
+    assert scr.pairs == themes.pair_colours(themes.CLASSIC, 256)
+    cfg = store.load_config()
+    assert cfg["color"] is False
+    assert cfg["theme"] == "solarized"
 
 
 def test_v_turns_colour_off_and_on_and_saves_it(tui):
@@ -1783,6 +1829,7 @@ def test_the_stats_screen_shows_streak_columns(tui):
 def test_the_help_screen_lists_the_toggles(tui):
     scr = tui(["?", "z"])
     assert "toggle colour" in scr.frames[1]
+    assert "next theme" in scr.frames[1]
     assert "boss mode" in scr.frames[1]
 
 

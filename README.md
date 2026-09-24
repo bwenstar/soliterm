@@ -79,6 +79,7 @@ The zipapp builds with the standard library alone. `--wheel` runs
 | `g` | play a deal by its number or share code |
 | `u` / `r` | undo / redo a move; `U` / `R` every move (redo is kept) |
 | `o` | game options · `s` statistics · `v` toggle colour |
+| `t` | next colour theme: classic, dark, light, contrast |
 | `c` | code skin (keep playing inside a fake source file) |
 | `b` / F2 | boss mode (hide the game behind fake "work" output) |
 | `m` / `q` | back to menu / quit · `?` help |
