@@ -1328,6 +1328,39 @@ def test_enter_on_it_resumes_with_the_clock_at_0_42(tui, game_clock):
     assert saves.waiting() == {}
 
 
+def signal_once_taken(monkeypatch, signum):
+    """Send signum to this process the moment a save has been taken out of
+    the saves folder, before the game it holds is set up."""
+    real = saves.take
+
+    def take(key):
+        taken = real(key)
+        os.kill(os.getpid(), signum)
+        return taken
+
+    monkeypatch.setattr(saves, "take", take)
+
+
+@pytest.mark.skipif(not hasattr(signal, "SIGHUP"), reason="needs POSIX signals")
+@pytest.mark.parametrize("name", ["SIGINT", "SIGTERM"])
+def test_a_signal_as_a_save_is_resumed_puts_it_back(tui, monkeypatch, game_clock, name):
+    keep_one()
+    signal_once_taken(monkeypatch, getattr(signal, name))
+    with cli._leave_on_signals():
+        scr = tui([])
+    assert scr.rc == 130
+    assert saves.waiting() == {"klondike": {"seconds": 42, "moves": 31}}
+    assert store.get_stat("klondike")["total"] == 0
+
+
+def test_ctrl_c_before_the_first_deal_leaves_quietly(tui, monkeypatch):
+    def interrupted(deal, saved):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(deals, "resumes", interrupted)
+    assert tui([]).rc == 130
+
+
 def test_game_flag_resumes_a_saved_game(tui):
     keep_one()
     scr = tui(["n", "q"])

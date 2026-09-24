@@ -572,8 +572,9 @@ def test_n_on_a_resumed_game_counts_it_lost_with_its_saved_time(monkeypatch, cap
         yield "n\n"
         yield "q\n"
 
-    g = deal("klondike", 1)
-    assert textmode.run_text(g, False, "klondike", stream=script(), keep=True, played=42) == 0
+    assert saves.keep(deal("klondike", 1), 42)
+    g = deal("klondike", 2)
+    assert textmode.run_text(g, False, "klondike", stream=script(), keep=True, resume=True) == 0
     # the resumed game was under way before a move; the new deal never was
     assert [(e["result"], e["seconds"], e["moves"]) for e in history.games()] == [("lost", 47, 0)]
     assert saves.waiting() == {}

@@ -808,8 +808,8 @@ class App:
 
         Returns True if they quit the program, False to go back to the menu.
         """
-        self.start_game(key, deal)
         try:
+            self.start_game(key, deal)
             while True:
                 self.game.update_status()
                 self.draw()
@@ -835,7 +835,7 @@ class App:
             # but on the end banner there is nothing left to come back to
             if self.ending:
                 self.give_up()
-            else:
+            elif hasattr(self, "game"):  # there is none before the first deal
                 self.put_away()
             raise
 
@@ -885,18 +885,39 @@ class App:
         listed = resumes and key in self.waiting
         # the menu listed it, but another window has had it since
         gone = listed and not os.path.exists(saves.save_path(key))
-        resumed = saves.take(key) if resumes else None
+        # From the take on, a resumed game is out of the saves folder until
+        # put_away puts it back, so a signal waits until it is set up
+        with store.signals_held():
+            resumed = saves.take(key) if resumes else None
+            self.put_in_play(deal, resumed)
         if not os.path.exists(saves.save_path(key)):
             self.waiting.pop(key, None)  # taken or set aside, so there's room
+        if resumed is not None:
+            done = self.resume_text({"seconds": resumed[1], "moves": self.game.moves})
+            self.message = f"Resumed your game ({done}). n deals a new hand."
+            if self.game.finish_moves():
+                self.message = FINISH_OFFER  # as after the move that left it so
+        elif gone:
+            self.message = "Your saved game was picked up somewhere else, so this is a new deal."
+        elif listed:
+            self.message = "Your saved game couldn't be read, so this is a new deal."
+        elif key in self.waiting:
+            self.message = self.unkept_note()
+
+    def put_in_play(self, deal: Deal, resumed: tuple[Solitaire, int] | None) -> None:
+        """Put the resumed game in play, or else a new deal of `deal`, with
+        the play screen set up for it."""
         if resumed is None:
             self.game = self.new_game(deal)
         else:
             self.game = resumed[0]
             self.game.symbols = self.symbols
-        self.cfg["last_game"] = key
+        self.cfg["last_game"] = self.key
         store.save_config(self.cfg)
         self.ui = self.new_board()
         self.clock.reset()
+        if resumed is not None:
+            self.clock.resume(resumed[1])
         self.selected = None
         self.selected_n = 1
         self.selected_exact = False
@@ -908,19 +929,6 @@ class App:
         self.recorded = False
         self.dead_end_undone = False
         self.skip_cascade = False
-        if resumed is not None:
-            seconds = resumed[1]
-            self.clock.resume(seconds)
-            done = self.resume_text({"seconds": seconds, "moves": self.game.moves})
-            self.message = f"Resumed your game ({done}). n deals a new hand."
-            if self.game.finish_moves():
-                self.message = FINISH_OFFER  # as after the move that left it so
-        elif gone:
-            self.message = "Your saved game was picked up somewhere else, so this is a new deal."
-        elif listed:
-            self.message = "Your saved game couldn't be read, so this is a new deal."
-        elif key in self.waiting:
-            self.message = self.unkept_note()
 
     def unkept_note(self) -> str:
         """What a new deal says while a game of its kind is saved, as then

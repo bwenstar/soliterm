@@ -814,6 +814,28 @@ def test_text_mode_resumes_at_a_tty(cli, stopped_clock):
     assert store.get_stat("klondike")["total"] == 0
 
 
+@pytest.mark.skipif(not hasattr(signal, "SIGHUP"), reason="needs POSIX signals")
+@pytest.mark.parametrize("name", ["SIGINT", "SIGTERM"])
+def test_a_signal_as_text_mode_resumes_puts_the_game_back(cli, monkeypatch, stopped_clock, name):
+    g = deal("klondike", 7)
+    g.deal()
+    g.moves = 31
+    assert saves.keep(g, 42)
+    real = saves.take
+
+    def take(key):
+        taken = real(key)
+        os.kill(os.getpid(), getattr(signal, name))  # before the game is set up
+        return taken
+
+    monkeypatch.setattr(saves, "take", take)
+    rc, lines = cli("--text", stdin="q\n", tty=True)
+    assert rc == 130
+    assert lines[-1] == "Saved your game (0:42, 31 moves) for next time."
+    assert saves.waiting() == {"klondike": {"seconds": 42, "moves": 31}}
+    assert store.get_stat("klondike")["total"] == 0
+
+
 @pytest.mark.parametrize(
     "chosen", [("--deal", "3"), ("--draw", "3")], ids=["a deal number", "an option"]
 )

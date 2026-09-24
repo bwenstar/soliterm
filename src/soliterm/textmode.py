@@ -296,22 +296,22 @@ def run_text(
     color: bool = False,
     camo_theme: str | None = None,
     keep: bool = False,
-    played: int | None = None,
+    resume: bool = False,
 ) -> int:
     """Play g at a prompt, reading commands from `stream` (stdin by default).
 
-    With `keep`, a game left under way is saved for next time rather than
-    counted lost. `played` is the seconds a resumed game has on its clock.
+    With `resume`, the game saved for game_key is played in g's place if
+    there is one. With `keep`, a game left under way is saved for next time
+    rather than counted lost.
     """
     out = sys.stdout
     inp = stream if stream is not None else sys.stdin
     # a cp1252 or ASCII stdout has no suit symbols; letters beat a crash
     symbols = symbols and _can_write(out, "".join(SUIT_SYMBOL.values()))
-    g.symbols = symbols  # hints name cards as the board does
     theme = camo_theme if camo_theme in camo.THEMES else camo.DEFAULT_THEME
-    start = time.monotonic() - (played or 0)  # one clock per deal
+    start = time.monotonic()  # one clock per deal
     recorded = False
-    resumed = played is not None
+    resumed = False
 
     def seconds() -> int:
         """This deal's time in whole seconds, as it is printed and stored."""
@@ -364,6 +364,16 @@ def run_text(
         give_up()
 
     try:
+        if resume:
+            # From the take on, the game is out of the saves folder until
+            # put_away puts it back, so a signal waits until it is in play
+            with store.signals_held():
+                taken = saves.take(game_key)
+                if taken is not None:
+                    g, played = taken
+                    start -= played
+                    resumed = True
+        g.symbols = symbols  # hints name cards as the board does
         name = g.gamedef.name
         print(f"{APP_NAME} - {name} - {deal_label(g)} (text mode). Type h for help.", file=out)
         if resumed:

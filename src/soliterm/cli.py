@@ -463,20 +463,14 @@ def _run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
     # as in the TUI, only a plain start, with no deal number or options, or
     # a daily over a save of the same daily, resumes
     resumes = keep and deals.resumes(deal, saves.waiting(deal.key).get(deal.key))
-    taken = saves.take(deal.key) if resumes else None
-    played: int | None = None
-    if taken is None:
-        g = deals.deal_game(deal, store.game_options(cfg, deal.key))
-    else:
-        g, played = taken
     return run_text(
-        g,
+        deals.deal_game(deal, store.game_options(cfg, deal.key)),
         symbols,
         deal.key,
         color=text_color,
         camo_theme=cfg.get("camo_theme"),
         keep=keep,
-        played=played,
+        resume=resumes,
     )
 
 
