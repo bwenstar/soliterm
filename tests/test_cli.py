@@ -2,6 +2,7 @@
 
 import io
 import os
+import signal
 import subprocess
 import sys
 from pathlib import Path
@@ -10,6 +11,7 @@ import pytest
 
 import soliterm
 from soliterm import aisleriot as ar
+from soliterm import cli as cli_mod
 from soliterm import store
 from soliterm.cli import main
 from soliterm.deals import Deal
@@ -816,3 +818,83 @@ def test_output_to_a_reader_that_went_away_ends_quietly(args, stdin):
         os.close(w)
     assert p.stderr == ""
     assert p.returncode == 141
+
+
+# -- leaving on a signal -----------------------------------------------------------------
+
+# Windows has no SIGHUP, and os.kill there ends the process whatever the signal
+posix_signals = pytest.mark.skipif(not hasattr(signal, "SIGHUP"), reason="needs POSIX signals")
+
+
+@pytest.fixture
+def quieted(monkeypatch):
+    """Record the calls to _quiet_output rather than let it point this
+    process's output at devnull."""
+    calls = []
+    monkeypatch.setattr(cli_mod, "_quiet_output", lambda: calls.append(True))
+    return calls
+
+
+@posix_signals
+def test_sighup_raises_keyboard_interrupt_and_quiets_output(quieted):
+    with cli_mod._leave_on_signals():
+        with pytest.raises(KeyboardInterrupt):
+            os.kill(os.getpid(), signal.SIGHUP)
+        assert signal.getsignal(signal.SIGHUP) == signal.SIG_IGN
+        assert signal.getsignal(signal.SIGTERM) == signal.SIG_IGN
+    assert quieted == [True]
+
+
+@posix_signals
+def test_sigterm_leaves_output_alone(quieted):
+    with cli_mod._leave_on_signals(), pytest.raises(KeyboardInterrupt):
+        os.kill(os.getpid(), signal.SIGTERM)
+    assert quieted == []
+
+
+@posix_signals
+def test_the_old_handlers_come_back(quieted):
+    def mine(signum, frame):
+        pass
+
+    hup = signal.getsignal(signal.SIGHUP)
+    before = signal.signal(signal.SIGTERM, mine)
+    try:
+        for fire in (False, True):
+            with cli_mod._leave_on_signals():
+                if fire:
+                    with pytest.raises(KeyboardInterrupt):
+                        os.kill(os.getpid(), signal.SIGHUP)
+            assert signal.getsignal(signal.SIGTERM) is mine
+            assert signal.getsignal(signal.SIGHUP) == hup
+    finally:
+        signal.signal(signal.SIGTERM, before)
+
+
+@posix_signals
+def test_a_second_signal_waits_for_the_save(quieted):
+    saved = []
+    with cli_mod._leave_on_signals():
+        try:
+            os.kill(os.getpid(), signal.SIGTERM)
+        except KeyboardInterrupt:
+            # the save the first signal set off
+            os.kill(os.getpid(), signal.SIGTERM)
+            os.kill(os.getpid(), signal.SIGHUP)
+            saved.append(True)
+    assert saved == [True]
+    assert quieted == []
+
+
+@posix_signals
+def test_a_hangup_exits_130_whatever_curses_made_of_it(monkeypatch, quieted):
+    def hung_up(args, parser):
+        try:
+            os.kill(os.getpid(), signal.SIGHUP)
+        except KeyboardInterrupt:
+            pass  # the game is saved
+        return 1  # as when curses can't put back a terminal that is gone
+
+    monkeypatch.setattr(cli_mod, "_run", hung_up)
+    assert main([]) == 130
+    assert quieted == [True]

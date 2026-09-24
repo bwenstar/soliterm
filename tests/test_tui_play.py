@@ -11,6 +11,7 @@ import importlib.util
 import json
 import os
 import re
+import signal
 import sys
 
 import pytest
@@ -56,6 +57,13 @@ class Later:
         self.seconds, self.k = seconds, k
 
 
+class Signal:
+    """The signal `name` arriving from outside, as kill sends it."""
+
+    def __init__(self, name):
+        self.name = name
+
+
 class ScriptedScr(FakeScr):
     def __init__(self, h, w, keys, uis):
         super().__init__(h, w)
@@ -86,6 +94,9 @@ class ScriptedScr(FakeScr):
         assert k != -1 or self.delay >= 0, "no key is coming and getch would wait for ever"
         if isinstance(k, type) and issubclass(k, BaseException):
             raise k  # e.g. KeyboardInterrupt, for Ctrl-C
+        if isinstance(k, Signal):
+            os.kill(os.getpid(), getattr(signal, k.name))
+            return -1
         if isinstance(k, Click):
             cells = sorted(yx for yx, hit in self.uis[-1].hit.items() if hit == (k.sid, k.idx))
             assert cells, f"card {k.idx} of slot {k.sid} is not on screen"
@@ -703,6 +714,17 @@ def test_ctrl_c_mid_game_quits_quietly_and_saves_it(tui, keys):
     scr = tui(keys + [KeyboardInterrupt])
     assert scr.rc == 130
     assert store.get_stat("klondike")["total"] == 0
+    assert saves.waiting()["klondike"]["moves"] == 1
+
+
+@pytest.mark.skipif(not hasattr(signal, "SIGHUP"), reason="needs POSIX signals")
+@pytest.mark.parametrize("name", ["SIGHUP", "SIGTERM"])
+def test_a_signal_mid_game_saves_it(tui, monkeypatch, name):
+    # SIGHUP would otherwise point this process's output at devnull
+    monkeypatch.setattr(cli, "_quiet_output", lambda: None)
+    with cli._leave_on_signals():
+        scr = tui(["d", Signal(name)])
+    assert scr.rc == 130
     assert saves.waiting()["klondike"]["moves"] == 1
 
 

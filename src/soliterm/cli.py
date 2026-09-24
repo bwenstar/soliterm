@@ -14,7 +14,10 @@ from __future__ import annotations
 import argparse
 import functools
 import os
+import signal
 import sys
+from collections.abc import Iterator
+from contextlib import contextmanager
 from typing import Any, Callable
 
 from . import APP_NAME, __version__, deals, debuginfo, migrate, store
@@ -249,12 +252,61 @@ def _quiet_on_broken_pipe(main: Callable[..., int]) -> Callable[..., int]:
             return rc
         except BrokenPipeError:
             try:
-                os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
+                _to_devnull(sys.stdout.fileno())
             except (OSError, ValueError):
-                pass
+                pass  # a stdout with no file behind it
             return 141  # what a shell shows for SIGPIPE
 
     return run
+
+
+def _to_devnull(*fds: int) -> None:
+    """Point file descriptors at os.devnull, so writes to them go nowhere."""
+    try:
+        null = os.open(os.devnull, os.O_WRONLY)
+        for fd in fds:
+            os.dup2(null, fd)
+    except OSError:
+        pass
+
+
+def _quiet_output() -> None:
+    # every write to a terminal that has hung up fails with EIO
+    _to_devnull(1, 2)
+
+
+@contextmanager
+def _leave_on_signals() -> Iterator[list[int]]:
+    """Leave on SIGHUP (the terminal closing) or SIGTERM the way Ctrl-C does.
+
+    Both raise KeyboardInterrupt, so the game in play is saved or counted as
+    it is for Ctrl-C. The first signal turns both off, so a second can't
+    cut that short. What it yields lists the signal that came, if one did.
+    """
+    hup = getattr(signal, "SIGHUP", None)  # not on Windows
+    signums = [s for s in (hup, signal.SIGTERM) if s is not None]
+    came: list[int] = []
+
+    def leave(signum: int, frame: object) -> None:
+        came.append(signum)
+        for s in signums:
+            signal.signal(s, signal.SIG_IGN)
+        if signum == hup:
+            _quiet_output()
+        raise KeyboardInterrupt
+
+    old = {}
+    for s in signums:
+        try:
+            old[s] = signal.signal(s, leave)
+        except (ValueError, OSError):
+            pass  # only the main thread can set a handler
+    try:
+        yield came
+    finally:
+        for s, handler in old.items():
+            if handler is not None:  # None: one set outside Python
+                signal.signal(s, handler)
 
 
 @_quiet_on_broken_pipe
@@ -270,7 +322,11 @@ def main(argv: list[str] | None = None) -> int:
     if args.no_sync:
         store.disable_sync()
     try:
-        return _run(args, parser)
+        with _leave_on_signals() as came:
+            rc = _run(args, parser)
+        # 130 as for Ctrl-C, even when curses couldn't put back a terminal
+        # that had hung up
+        return 130 if came else rc
     finally:
         # anything that kept the stats from being shared or saved as usual
         for msg in store.notices():
