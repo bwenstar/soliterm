@@ -1108,6 +1108,35 @@ def test_q_while_another_copy_has_the_lock_says_why_it_waits(tui, monkeypatch):
     assert saves.waiting()["klondike"]["moves"] == 1
 
 
+@pytest.mark.skipif(store.fcntl is None, reason="needs flock")
+@pytest.mark.parametrize("second", ["broken off", "let go"])
+def test_ctrl_c_twice_as_q_waits_for_the_lock_says_what_was_lost(tui, monkeypatch, second):
+    os.makedirs(store.data_dir(), exist_ok=True)
+    waits = []
+    with open(os.path.join(store.data_dir(), "stats.lock"), "a") as other:
+
+        def say_waiting(self):
+            waits.append(self.game.moves)
+            if len(waits) == 1 or second == "broken off":
+                raise KeyboardInterrupt  # Ctrl-C as it waits
+            store.fcntl.flock(other.fileno(), store.fcntl.LOCK_UN)  # it lets go
+
+        monkeypatch.setattr(soliterm.tui.app.App, "say_waiting", say_waiting)
+        lock = functools.partial(store.fcntl.flock, other.fileno(), store.fcntl.LOCK_EX)
+        scr = tui(["d", Meanwhile(lock, "q")])
+    assert scr.rc == 130
+    assert waits == [1, 1]  # on q, then on the way out
+    if second == "broken off":
+        assert saves.waiting() == {}
+        assert store.get_stat("klondike")["total"] == 0
+        assert store.notices() == [
+            "leaving was cut short, so your Klondike game was neither saved nor counted"
+        ]
+    else:
+        assert saves.waiting()["klondike"]["moves"] == 1
+        assert store.notices() == []
+
+
 @pytest.mark.skipif(not hasattr(signal, "SIGHUP"), reason="needs POSIX signals")
 def test_a_signal_as_n_counts_the_game_leaves_it_unsaved(tui, monkeypatch):
     signal_once_written(monkeypatch, store.stats_path(), signal.SIGTERM)

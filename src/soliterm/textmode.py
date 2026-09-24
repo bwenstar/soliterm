@@ -450,5 +450,11 @@ def run_text(
         # Ctrl-C leaves like q does, minus the traceback, and so do SIGHUP
         # and SIGTERM, which the command line turns into this
         print(file=sys.stderr)
-        put_away()
+        try:
+            put_away()
+        finally:
+            # another Ctrl-C, say as it waited for another copy's lock
+            if not recorded and (g.is_won() or under_way()):
+                print(file=sys.stderr)  # off the line its ^C is on
+                store.cut_short(g.gamedef.name)
         return 130

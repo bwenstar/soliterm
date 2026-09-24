@@ -1,6 +1,7 @@
 """Text mode: the board it prints and the commands it takes."""
 
 import io
+import os
 import re
 import signal
 from datetime import date
@@ -591,6 +592,33 @@ def test_ctrl_c_as_q_saves_the_game_keeps_it_once(monkeypatch, capsys):
     assert saves.waiting()["klondike"]["moves"] == 1
     assert store.get_stat("klondike")["total"] == 0
     assert store.notices() == []
+
+
+@pytest.mark.skipif(store.fcntl is None, reason="needs flock")
+@pytest.mark.parametrize("keep", [True, False])
+def test_ctrl_c_twice_as_q_waits_for_the_lock_says_what_was_lost(keep, capsys):
+    os.makedirs(store.data_dir(), exist_ok=True)
+
+    def ctrl_c():
+        raise KeyboardInterrupt  # as it waits
+
+    g = deal("klondike", 1)
+    with open(os.path.join(store.data_dir(), "stats.lock"), "a") as other:
+
+        def script():
+            yield "d\n"
+            store.fcntl.flock(other.fileno(), store.fcntl.LOCK_EX)  # another copy takes it
+            yield "q\n"
+
+        with store.lock_wait_note(ctrl_c), pytest.raises(KeyboardInterrupt):
+            textmode.run_text(g, False, "klondike", stream=script(), keep=keep)
+    assert saves.waiting() == {}
+    assert store.get_stat("klondike")["total"] == 0
+    assert store.notices() == [
+        "leaving was cut short, so your Klondike game was neither saved nor counted"
+    ]
+    # a line for each ^C, so the notice starts a line of its own
+    assert capsys.readouterr().err == "\n\n"
 
 
 @posix_signals

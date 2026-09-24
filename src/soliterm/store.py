@@ -216,6 +216,12 @@ def signals_held() -> Iterator[None]:
             signal.pthread_sigmask(signal.SIG_SETMASK, old)
 
 
+def cut_short(name: str) -> None:
+    """Tell of a game left neither saved nor counted, as Ctrl-C or a signal
+    broke off the way out, say while it waited for the lock."""
+    _notice(f"leaving was cut short, so your {name} game was neither saved nor counted")
+
+
 @contextlib.contextmanager
 def _locked() -> Iterator[None]:
     """Hold the stats lock while reading, changing and saving the stats.

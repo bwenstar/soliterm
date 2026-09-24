@@ -851,10 +851,17 @@ class App:
         except KeyboardInterrupt:
             # Ctrl-C, wherever in the game it comes, leaves the way q does,
             # but on the end banner there is nothing left to come back to
-            if self.ending:
-                self.give_up()
-            elif hasattr(self, "game"):  # there is none before the first deal
-                self.put_away()
+            if not hasattr(self, "game"):  # there is none before the first deal
+                raise
+            try:
+                if self.ending:
+                    self.give_up()
+                else:
+                    self.put_away()
+            finally:
+                # another Ctrl-C, say as it waited for another copy's lock
+                if not self.recorded and (self.game.is_won() or self.under_way()):
+                    store.cut_short(self.game.gamedef.name)
             raise
 
     def read_key(self, wait_ms: int = 1000) -> int:
