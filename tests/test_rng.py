@@ -3,8 +3,8 @@ so a deal number deals the same hand on any Python."""
 
 import pytest
 
-from soliterm.engine import GAME_ORDER
-from soliterm.engine.rng import Pcg32, fisher_yates, stream_of
+from soliterm.engine import GAME_ORDER, make_deck
+from soliterm.engine.rng import Pcg32, fisher_yates, microsoft_deal, stream_of
 
 
 def test_pcg32_matches_the_reference_output():
@@ -84,3 +84,38 @@ def test_stream_of_is_fnv1a_64():
 
 def test_every_game_has_a_stream_of_its_own():
     assert len({stream_of(key) for key in GAME_ORDER}) == len(GAME_ORDER)
+
+
+# Microsoft FreeCell's deals as published, read across 8 cards to a row
+# (T is a ten)
+MICROSOFT = {
+    1: "JD 2D 9H JC 5D 7H 7C 5H / KD KC 9S 5S AD QC KH 3H / 2S KS 9D QD JS AS AH 3C / "
+    "4C 5C TS QH 4H AC 4D 7S / 3S TD 4S TH 8H 2C JH 7D / 6D 8S 8D QS 6C 3D 8C TC / "
+    "6S 9C 2H 6H",
+    617: "7D AD 5C 3S 5S 8C 2D AH / TD 7S QD AC 6D 8H AS KH / TH QC 3H 9D 6S 8D 3D TC / "
+    "KD 5H 9S 3C 8S 7H 4D JS / 4C QS 9C 9H 7C 6H 2C 2S / 4S TS 2H 5D JC 6C JH QH / "
+    "JD KS KC 4H",
+    11982: "AH AS 4H AC 2D 6S TS JS / 3D 3H QS QC 8S 7H AD KS / KD 6H 5S 4D 9H JH 9S 3C / "
+    "JC 5D 5C 8C 9D TD KH 7C / 6C 2C TH QH 6D TC 4S 7S / JD 7D 8H 9C 2H QD 4C 5H / "
+    "KC 8D 2S 3S",
+    1000000: "2D 6H 6S TH JC 3C 4D TD / 9C 3D 7D 7C QC AC 2S 4C / KD 5H 5D QH JH 6C 9H KS / "
+    "JD 7S QD 8D 2H AD 5C 8C / 3H 4S 3S KC KH 9D 7H 8S / TC AS 6D 8H 2C QS 5S JS / "
+    "TS AH 9S 4H",
+}
+
+
+def microsoft_text(card):
+    return "A23456789TJQK"[card.rank - 1] + card.suit
+
+
+@pytest.mark.parametrize("number", sorted(MICROSOFT))
+def test_microsoft_deals_match_the_published_layouts(number):
+    dealt = [microsoft_text(c) for c in microsoft_deal(number)]
+    rows = [" ".join(dealt[i : i + 8]) for i in range(0, 52, 8)]
+    assert " / ".join(rows) == MICROSOFT[number]
+
+
+@pytest.mark.parametrize("number", [0, 1, 2**31 - 1])
+def test_a_microsoft_deal_has_each_card_once(number):
+    dealt = microsoft_deal(number)
+    assert sorted(dealt, key=str) == sorted(make_deck(), key=str)

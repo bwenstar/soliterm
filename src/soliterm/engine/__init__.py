@@ -12,6 +12,7 @@ the games' rules, the statistics dialog). No GPL source code is copied.
   core     Slot and Solitaire, the game state every front-end drives
   gamedef  GameDef, the base class for a game's rules, and its helpers
   games    one module per game, plus the GAMES registry and new_solitaire()
+  rng      the shuffle behind every deal, and Microsoft FreeCell's deals
 
 Everything the front-ends need is importable straight from soliterm.engine.
 """
