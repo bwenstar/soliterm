@@ -364,10 +364,14 @@ def run_text(
         # on leaving: kept for next time if it may be, and otherwise lost,
         # with saves.keep's notice saying why; a win not counted yet, as
         # when Ctrl-C comes just as it's made, counts as won. Signals wait
-        # until it's done, so one can't cut it off halfway.
+        # until it's done, so one can't cut it off halfway. A deal nobody
+        # touched has nothing to keep, so it doesn't wait for the lock.
         nonlocal recorded
+        won = g.is_won() and not recorded
+        if not won and not under_way():
+            return
         with store.signals_held():
-            if g.is_won() and not recorded:
+            if won:
                 count(True, seconds())
                 return
             if keep and under_way():

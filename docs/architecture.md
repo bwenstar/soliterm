@@ -207,7 +207,8 @@ Leaving always goes the same way, whatever the reason:
   that was already ignored, as under `nohup`, stays ignored. After a
   hangup, output goes to `/dev/null`, since the terminal has gone.
 - The play loop catches it and calls `put_away`, which keeps the game, or
-  counts it as won or lost when it can't be kept.
+  counts it as won or lost when it can't be kept. A deal never started
+  has nothing to keep, so it leaves at once, without the stats lock.
 - Saving a game or counting it, and marking it done, happen inside
   `store.signals_held`, which holds those signals back until the block
   is over. Without it, a signal landing between the two would have the

@@ -1146,12 +1146,15 @@ class App:
 
         Signals wait until it is done, so one can't land between a save
         that failed and the loss it leaves, and have the save tried again.
+        A deal never started has nothing to keep, so it doesn't wait for
+        the stats lock either.
         """
+        won = self.game.is_won() and not self.recorded
+        if not won and not self.under_way():
+            return
         with store.signals_held():
-            if self.game.is_won() and not self.recorded:
+            if won:
                 self.count(True, self.seconds())
-                return
-            if not self.under_way():
                 return
             self.recorded = saves.keep(self.game, self.seconds())
             if not self.recorded:

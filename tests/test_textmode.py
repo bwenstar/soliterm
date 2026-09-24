@@ -621,6 +621,35 @@ def test_ctrl_c_twice_as_q_waits_for_the_lock_says_what_was_lost(keep, capsys):
     assert capsys.readouterr().err == "\n\n"
 
 
+@pytest.mark.skipif(store.fcntl is None, reason="needs flock")
+@pytest.mark.parametrize("keep", [True, False])
+@pytest.mark.parametrize("leave", ["q\n", KeyboardInterrupt, None], ids=["q", "ctrl-c", "eof"])
+def test_leaving_an_untouched_deal_does_not_wait_for_the_lock(keep, leave):
+    os.makedirs(store.data_dir(), exist_ok=True)
+    waits = []
+    g = deal("klondike", 1)
+    with open(os.path.join(store.data_dir(), "stats.lock"), "a") as other:
+
+        def let_go():
+            waits.append(store.LOCK_WAIT)
+            store.fcntl.flock(other.fileno(), store.fcntl.LOCK_UN)
+
+        def script():
+            yield "p\n"
+            store.fcntl.flock(other.fileno(), store.fcntl.LOCK_EX)  # another copy takes it
+            if leave is KeyboardInterrupt:
+                raise leave
+            if leave:
+                yield leave
+
+        with store.lock_wait_note(let_go):
+            textmode.run_text(g, False, "klondike", stream=script(), keep=keep)
+    # there was nothing to keep or count, so nothing to wait for
+    assert waits == []
+    assert saves.waiting() == {}
+    assert store.get_stat("klondike")["total"] == 0
+
+
 @posix_signals
 def test_ctrl_c_as_n_counts_the_game_leaves_it_unsaved(monkeypatch):
     signal_once_written(monkeypatch, store.stats_path(), signal.SIGINT)

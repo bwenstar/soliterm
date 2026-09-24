@@ -749,6 +749,28 @@ def test_quitting_before_moving_records_nothing(tui):
     assert saves.waiting() == {}
 
 
+@pytest.mark.skipif(store.fcntl is None, reason="needs flock")
+@pytest.mark.parametrize("leave", [["q"], ["m", "q"], [KeyboardInterrupt]])
+def test_leaving_an_untouched_deal_does_not_wait_for_the_lock(tui, monkeypatch, leave):
+    os.makedirs(store.data_dir(), exist_ok=True)
+    waits = []
+    with open(os.path.join(store.data_dir(), "stats.lock"), "a") as other:
+
+        def another_copy_takes_it():
+            store.fcntl.flock(other.fileno(), store.fcntl.LOCK_EX)
+
+        def let_go(app):
+            waits.append(store.LOCK_WAIT)
+            store.fcntl.flock(other.fileno(), store.fcntl.LOCK_UN)
+
+        monkeypatch.setattr(soliterm.tui.app.App, "say_waiting", let_go)
+        first, *rest = leave
+        tui([Meanwhile(another_copy_takes_it, first), *rest])
+    # there was nothing to keep or count, so nothing to wait for
+    assert waits == []
+    assert saves.waiting() == {}
+
+
 def test_quitting_mid_game_saves_it(tui):
     tui(["d", "q"])
     assert store.get_stat("klondike")["total"] == 0
