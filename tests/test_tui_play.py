@@ -167,6 +167,19 @@ def test_the_hint_key_shows_the_hint(tui):
     assert f"Hint: {desc}" in scr.frames[1]
 
 
+def test_the_hint_names_cards_the_way_the_board_draws_them(tui):
+    # with symbols off the board shows 2H, so the hint must not say 2♥
+    cfg = store.load_config()
+    cfg["symbols"] = False
+    store.save_config(cfg)
+    g = deal("klondike", 1)
+    g.symbols = False
+    desc = g.hint()[2]
+    g.symbols = True
+    scr = tui(["h"], game=g)
+    assert f"Hint: {desc}" in scr.frames[1]
+
+
 def test_the_hint_key_with_nothing_to_hint_explains_why(tui):
     g, _, _ = board("freecell", [up(13, "S")], [up(13, "H")])
     assert g.hint() is None
