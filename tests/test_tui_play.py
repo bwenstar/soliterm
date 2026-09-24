@@ -1355,6 +1355,24 @@ def test_a_resumed_game_leaves_the_slot_free_for_the_next(tui):
     assert UNKEPT not in scr.frames[4]
 
 
+def keep_a_daily(day=DAY):
+    """Put Klondike's daily deal of `day`, one deal in and 0:42 on, in the
+    saves folder."""
+    g = deals.deal_game(deals.daily("klondike", day), {})
+    g.deal()
+    assert saves.keep(g, 42)
+
+
+def test_opening_todays_daily_resumes_its_save(tui):
+    keep_a_daily()
+    scr = tui(["q"], start=deals.daily("klondike", DAY))
+    assert "Resumed your game (0:42, 1 move). n deals a new hand." in scr.frames[0]
+    assert "Klondike  -  Daily 2026-09-24" in scr.frames[0]
+    assert "Moves 1 " in scr.frames[0]
+    # and q puts it back as the same daily
+    assert saves.waiting() == {"klondike": {"seconds": 42, "moves": 1, "daily": "2026-09-24"}}
+
+
 def test_an_unreadable_save_deals_a_new_hand_and_says_so(tui):
     keep_one()
     path = saves.save_path("klondike")

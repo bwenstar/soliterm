@@ -827,12 +827,13 @@ class App:
         for it, and set the play screen up for it."""
         self.key = key
         deal = deal or Deal(key)
-        # only a plain start, with no deal number or options, resumes
-        plain = deal == Deal(key)
-        listed = plain and key in self.waiting
+        # only a plain start, with no deal number or options, or a daily
+        # over a save of the same daily, resumes
+        resumes = deals.resumes(deal, self.waiting.get(key))
+        listed = resumes and key in self.waiting
         # the menu listed it, but another window has had it since
         gone = listed and not os.path.exists(saves.save_path(key))
-        resumed = saves.take(key) if plain else None
+        resumed = saves.take(key) if resumes else None
         if not os.path.exists(saves.save_path(key)):
             self.waiting.pop(key, None)  # taken or set aside, so there's room
         if resumed is None:

@@ -67,6 +67,9 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="N|CODE",
         help="play deal N, or the deal a share code names, such as klondike:d3:48213",
     )
+    which.add_argument(
+        "--daily", action="store_true", help="play today's daily deal, the same for everyone"
+    )
     # what --deal was called in 1.0.0; not in the help, but it still works.
     # It stays out of the group, since a hidden option in one is where
     # argparse's usage line has broken before, so _requested_deal checks it.
@@ -380,8 +383,16 @@ def _requested_deal(args: argparse.Namespace, cfg: dict) -> deals.Deal | None:
     from --draw and --suits go over the saved ones and aren't saved."""
     if args.seed is not None and args.deal is not None:
         raise ValueError("argument --seed: not allowed with argument --deal")
+    if args.seed is not None and args.daily:
+        raise ValueError("argument --seed: not allowed with argument --daily")
     code = args.deal if args.deal is not None else args.seed
     given = {name: v for name, v in (("draw", args.draw), ("suits", args.suits)) if v is not None}
+    if args.daily and given:
+        raise ValueError(
+            "--daily can't be given options: the daily deal always uses the standard ones"
+        )
+    if args.daily:
+        return deals.daily(args.game or cfg.get("last_game", "klondike"), deals.today())
     if len(given) > 1:
         raise ValueError("--draw and --suits are for different games")
     if code is not None and code.key is not None:
@@ -449,9 +460,10 @@ def _run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
     # a script or a pipe plays its deal and counts it, as it always has
     deal = start or deals.Deal(cfg.get("last_game", "klondike"))
     keep = sys.stdin.isatty()
-    # as in the TUI, only a plain start, with no deal number or options,
-    # resumes
-    taken = saves.take(deal.key) if keep and deal == deals.Deal(deal.key) else None
+    # as in the TUI, only a plain start, with no deal number or options, or
+    # a daily over a save of the same daily, resumes
+    resumes = keep and deals.resumes(deal, saves.waiting(deal.key).get(deal.key))
+    taken = saves.take(deal.key) if resumes else None
     played: int | None = None
     if taken is None:
         g = deals.deal_game(deal, store.game_options(cfg, deal.key))

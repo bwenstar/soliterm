@@ -172,6 +172,15 @@ def deal_of(code: Code, key: str) -> Deal:
     return Deal(code.key or key, code.number, code.options)
 
 
+def resumes(deal: Deal, saved: dict | None) -> bool:
+    """Whether starting `deal` takes up `saved`, the game waiting for its
+    key as saves.waiting() lists it. A plain start, with no deal number or
+    options, takes up any, and a daily a save of the same day's daily."""
+    if deal == Deal(deal.key):
+        return True
+    return deal.daily is not None and saved is not None and saved.get("daily") == deal.daily
+
+
 def deal_game(deal: Deal, saved: dict) -> Solitaire:
     """Deal what `deal` asks for. Options it leaves out come from `saved`,
     the player's own, except in a daily deal, which plays the standard

@@ -7,6 +7,7 @@ import signal
 import subprocess
 import sys
 import types
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -14,7 +15,7 @@ import pytest
 import soliterm
 from soliterm import aisleriot as ar
 from soliterm import cli as cli_mod
-from soliterm import history, saves, store, textmode
+from soliterm import deals, history, saves, store, textmode
 from soliterm.cli import main
 from soliterm.deals import Deal
 from soliterm.engine import GAME_ORDER, GAMES
@@ -287,6 +288,95 @@ def test_a_share_code_with_draw_is_refused(capsys, args, flag):
     assert exc.value.code == 2
     err = capsys.readouterr().err
     assert f"error: a share code carries its own options, so leave out {flag}" in err
+
+
+# -- --daily -------------------------------------------------------------------------
+
+DAY = date(2026, 9, 24)
+
+
+@pytest.fixture
+def on_the_day(monkeypatch):
+    """Make today 2026-09-24, as far as the daily deal goes."""
+    monkeypatch.setattr(deals, "today", lambda: DAY)
+
+
+def test_daily_flag_names_the_daily_in_the_text_header(cli, on_the_day):
+    cfg = store.load_config()
+    cfg["last_game"] = "golf"
+    store.set_game_options(cfg, "klondike", {"draw": 3})
+    store.save_config(cfg)
+    out = play_briefly(cli, "--daily")
+    assert out.startswith("Soliterm - Golf - Daily 2026-09-24 (text mode). Type h for help.\n")
+    assert text_board(deal("golf", 20260924)) in out
+    out = play_briefly(cli, "--daily", "--game", "klondike")
+    assert out.startswith("Soliterm - Klondike - Daily 2026-09-24 (text mode).")
+    # drawing one, whatever the player's own options say
+    assert text_board(deal("klondike", 20260924)) in out
+
+
+def test_daily_is_in_the_help(capsys):
+    with pytest.raises(SystemExit):
+        main(["--help"])
+    assert "--daily               play today's daily deal, the same for everyone\n" in (
+        capsys.readouterr().out
+    )
+
+
+@pytest.mark.parametrize(
+    "args, error",
+    [
+        (["--deal", "5", "--daily"], "argument --daily: not allowed with argument --deal"),
+        (["--daily", "--deal", "5"], "argument --deal: not allowed with argument --daily"),
+        (["--seed", "5", "--daily"], "argument --seed: not allowed with argument --daily"),
+        (["--daily", "--seed", "klondike:5"], "argument --seed: not allowed with argument --daily"),
+    ],
+    ids=["daily after deal", "deal after daily", "seed", "seed with a share code"],
+)
+def test_daily_with_seed_or_deal_is_refused(capsys, args, error):
+    with pytest.raises(SystemExit) as exc:
+        main(["--text", *args])
+    assert exc.value.code == 2
+    assert f"error: {error}\n" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    "args", [["--draw", "3"], ["--suits", "2", "--game", "spider"]], ids=["draw", "suits"]
+)
+def test_daily_with_draw_is_refused(capsys, args):
+    with pytest.raises(SystemExit) as exc:
+        main(["--text", "--daily", *args])
+    assert exc.value.code == 2
+    err = capsys.readouterr().err
+    assert (
+        "error: --daily can't be given options: the daily deal always uses the standard ones\n"
+        in err
+    )
+
+
+def keep_a_daily(day):
+    """Put Klondike's daily deal of `day`, one deal in and 0:42 on, in the
+    saves folder."""
+    g = deals.deal_game(deals.daily("klondike", day), {})
+    g.deal()
+    assert saves.keep(g, 42)
+
+
+def test_daily_flag_resumes_todays_daily_at_a_tty(cli, stopped_clock, on_the_day):
+    keep_a_daily(DAY)
+    _rc, lines = cli("--text", "--daily", stdin="q\n", tty=True)
+    assert lines[0] == "Soliterm - Klondike - Daily 2026-09-24 (text mode). Type h for help."
+    assert lines[1] == "Resumed your Klondike game (0:42, 1 move). Type n for a new deal."
+    assert saves.waiting() == {"klondike": {"seconds": 42, "moves": 1, "daily": "2026-09-24"}}
+
+
+def test_daily_flag_over_yesterdays_daily_says_it_wont_be_kept(cli, stopped_clock, on_the_day):
+    keep_a_daily(date(2026, 9, 23))
+    _rc, lines = cli("--text", "--daily", stdin="d\nq\n", tty=True)
+    assert lines[0] == "Soliterm - Klondike - Daily 2026-09-24 (text mode). Type h for help."
+    assert lines[1] == "a saved Klondike game is waiting, so this one won't be kept"
+    assert saves.waiting() == {"klondike": {"seconds": 42, "moves": 1, "daily": "2026-09-23"}}
+    assert store.get_stat("klondike")["total"] == 1
 
 
 @pytest.mark.parametrize("args", [["--draw", "2"], ["--suits", "3"], ["--draw", "three"]])
@@ -739,13 +829,14 @@ def test_a_chosen_deal_is_kept_but_never_resumed(cli, stopped_clock, chosen):
     )
 
 
-def test_a_chosen_deal_looks_only_at_its_own_games_save(cli):
+@pytest.mark.parametrize("start", [["--deal", "3"], ["--daily"]], ids=["deal", "daily"])
+def test_a_chosen_deal_looks_only_at_its_own_games_save(cli, start):
     # a damaged Spider save, for Spider to deal with when it's played
     os.makedirs(saves.saves_dir())
     spider = saves.save_path("spider")
     with open(spider, "w", encoding="utf-8") as fh:
         json.dump({"format": 1, "game": "klondike"}, fh)
-    _rc, lines = cli("--text", "--deal", "3", stdin="q\n", tty=True)
+    _rc, lines = cli("--text", *start, stdin="q\n", tty=True)
     assert lines[1] != "a saved Klondike game is waiting, so this one won't be kept"
     assert os.path.exists(spider)
     assert cli.err == ""
@@ -836,6 +927,19 @@ def test_the_full_screen_game_is_handed_the_deal(terminal, monkeypatch):
     assert terminal("--game", "golf") == 0
     assert terminal() == 0
     assert starts == [Deal("spider", 7, {"suits": 2}), Deal("golf", 5), Deal("golf"), None]
+
+
+def test_the_full_screen_game_is_handed_the_daily(terminal, monkeypatch, on_the_day):
+    import soliterm.tui as tui_mod
+
+    starts = []
+    monkeypatch.setattr(tui_mod, "main", lambda start, **kw: starts.append(start) or 0)
+    assert terminal("--daily") == 0
+    assert terminal("--daily", "--game", "spider") == 0
+    assert starts == [
+        Deal("klondike", 20260924, None, "2026-09-24"),
+        Deal("spider", 20260924, None, "2026-09-24"),
+    ]
 
 
 def test_without_curses_text_mode_says_why(terminal, monkeypatch, capsys):
