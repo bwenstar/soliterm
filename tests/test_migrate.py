@@ -5,6 +5,7 @@ soliterm folders the first time, and the AisleRiot merge never runs twice.
 import json
 import ntpath
 import os
+from pathlib import Path
 
 import pytest
 
@@ -115,11 +116,11 @@ def test_running_twice_copies_once(old, capsys):
     old("stats", {"golf": stat(2, 3, 40, 90)})
     migrate.ensure()
     capsys.readouterr()
-    first = (open(store.config_path(), "rb").read(), open(store.stats_path(), "rb").read())
+    first = (Path(store.config_path()).read_bytes(), Path(store.stats_path()).read_bytes())
     old("stats", {"golf": stat(9, 9, 9, 9)})    # the old version played on
     migrate.ensure()
-    assert (open(store.config_path(), "rb").read(),
-            open(store.stats_path(), "rb").read()) == first
+    assert (Path(store.config_path()).read_bytes(),
+            Path(store.stats_path()).read_bytes()) == first
     assert capsys.readouterr().err == ""
 
 
@@ -167,8 +168,8 @@ def test_damaged_old_files_are_copied_as_they_are(old, capsys):
     old("config", "{not json")
     old("stats", '{"golf": {"wins": 1,')
     migrate.ensure()
-    assert open(store.config_path(), encoding="utf-8").read() == "{not json"
-    assert open(store.stats_path(), encoding="utf-8").read() == '{"golf": {"wins": 1,'
+    assert Path(store.config_path()).read_text(encoding="utf-8") == "{not json"
+    assert Path(store.stats_path()).read_text(encoding="utf-8") == '{"golf": {"wins": 1,'
     assert "aisle-cli" in capsys.readouterr().err
     # and then dealt with the usual way: kept aside, and a fresh start
     assert store.load_config()["last_game"] == "klondike"

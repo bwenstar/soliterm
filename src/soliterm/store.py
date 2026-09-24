@@ -166,7 +166,8 @@ def _locked() -> Iterator[None]:
     if _lock_depth == 0 and fcntl is not None:
         try:
             os.makedirs(data_dir(), exist_ok=True)
-            fh = open(os.path.join(data_dir(), "stats.lock"), "a")
+            # kept open while we hold the lock; the finally below closes it
+            fh = open(os.path.join(data_dir(), "stats.lock"), "a")  # noqa: SIM115
             fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
         except OSError:
             if fh is not None:
@@ -591,7 +592,7 @@ def _copy_file(src: str, dst: str) -> bool:
     """Copy `src` over `dst` in one step, keeping its mode. False if there
     is no `src`; OSError if it can't be copied."""
     try:
-        fin = open(src, "rb")
+        fin = open(src, "rb")  # noqa: SIM115 (the with below closes it)
     except FileNotFoundError:
         return False
     with fin:
