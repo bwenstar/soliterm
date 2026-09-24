@@ -564,6 +564,17 @@ def test_ctrl_c_as_a_win_is_counted_still_puts_it_in_the_history(monkeypatch):
     assert [e["result"] for e in history.games()] == ["won"]
 
 
+def test_n_with_a_game_of_its_kind_saved_says_it_wont_be_kept(capsys):
+    assert saves.keep(deal("klondike", 4), 42)
+    g = deal("klondike", 1)
+    assert textmode.run_text(g, False, "klondike", stream=iter(["n\n", "q\n"]), keep=True) == 0
+    lines = capsys.readouterr().out.splitlines()
+    note = "a saved Klondike game is waiting, so this one won't be kept"
+    assert lines[1] == note
+    new = next(i for i, line in enumerate(lines) if line.startswith("new deal "))
+    assert lines[new + 1] == note
+
+
 def test_n_on_a_resumed_game_counts_it_lost_with_its_saved_time(monkeypatch, capsys):
     clock = Clock()
     monkeypatch.setattr(textmode, "time", clock)

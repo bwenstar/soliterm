@@ -347,6 +347,13 @@ def run_text(
         if under_way():
             count(False, seconds())
 
+    def unkept() -> str:
+        # a new deal while a game of its kind is saved, which leaves no room
+        # to keep this one too
+        if keep and game_key in saves.waiting(game_key):
+            return f"a saved {g.gamedef.name} game is waiting, so this one won't be kept"
+        return ""
+
     def put_away() -> None:
         # on leaving: kept for next time if it may be, and otherwise lost,
         # with saves.keep's notice saying why; a win not counted yet, as
@@ -379,8 +386,8 @@ def run_text(
         print(f"{APP_NAME} - {name} - {deal_label(g)} (text mode). Type h for help.", file=out)
         if resumed:
             print(f"Resumed your {name} game ({so_far()}). Type n for a new deal.", file=out)
-        elif keep and g.gamedef.key in saves.waiting(g.gamedef.key):
-            print(f"a saved {name} game is waiting, so this one won't be kept", file=out)
+        elif note := unkept():
+            print(note, file=out)
         print(file=out)
         print(render_text(g, symbols, color), file=out)
         for raw in inp:
@@ -397,6 +404,8 @@ def run_text(
                 g.new_game()
                 start, recorded, resumed = time.monotonic(), False, False
                 msg = f"new deal {g.deal_number}"
+                if note := unkept():
+                    msg = f"{msg}\n{note}"
             elif msg == "__restart__":
                 # the same hand again: AisleRiot does not count a restart
                 g.restart()
