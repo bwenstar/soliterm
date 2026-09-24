@@ -552,7 +552,7 @@ def test_reset_zeroes_only_the_games_we_manage(keyfile):
     assert ar.read_stat("poker.scm") == stat(5, 50, 0, 0)
 
 
-# -- the games added since 1.0.0 ------------------------------------------------------
+# -- the games added since aisle-cli 1.0.0 --------------------------------------------
 
 # where AisleRiot keeps each one's record: its Scheme file's name, with
 # hyphens turned into underscores

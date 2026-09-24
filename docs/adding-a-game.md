@@ -347,7 +347,7 @@ shows in both. If you have AisleRiot, play a game of it there and look
 for the section in the keyfile to be sure of the name.
 
 Add the pair to `NEW_SECTIONS` in `tests/test_aisleriot_sync.py` as well,
-which lists the games added since 1.0.0.
+which lists the games added since aisle-cli 1.0.0.
 
 A game AisleRiot doesn't have stays out of `GAME_TO_SECTION`, and its
 statistics stay in Soliterm's own `stats.json`.
