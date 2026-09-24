@@ -8,7 +8,7 @@ and Soliterm follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Soliterm grew out of aisle-cli, a private project of mine that played the
 same kind of games in a terminal under the command `aisle`. Its one
 release, aisle-cli 1.0.0 of 2026-06-29, stays at the bottom as history, and
-Unreleased lists everything that has changed since.
+Unreleased lists the changes since.
 
 ## [Unreleased]
 
@@ -60,7 +60,9 @@ Unreleased lists everything that has changed since.
   `dark`, `light` and `contrast`. `t` moves on to the next one and
   remembers it, and `--theme NAME` picks one for a single run. A terminal
   with too few colour pairs for a theme draws the ones it has no room for
-  in colours it does have.
+  in colours it does have. When `COLORFGBG` says the terminal's
+  background is light, `classic` and `contrast` swap the colours that
+  would vanish on it for ones that show.
 - A four-colour deck with green clubs and orange diamonds (blue diamonds
   on terminals without 256 colours). `4` turns it on and off, and it's
   remembered too. A terminal without the colour pairs for it says so, and
@@ -105,16 +107,41 @@ Unreleased lists everything that has changed since.
   starts with the waste empty, as AisleRiot's does.
 - Autoplay only sends up cards that are safe to send up.
 - A hint can be a move that sets up the next one, and in Spider one that
-  fills an empty column so you can deal.
+  fills an empty column so you can deal. It lights up the whole run it
+  would move, not just the top card, in a colour of its own that shows on
+  any background.
+- `o` shows the options before it gives up the game in play. Esc, or
+  leaving them as they were, keeps the game, a change mid-game asks
+  first, and new options deal the next number, the way `n` does. Where
+  Soliterm asks whether to give a game up, only `y` says yes, so an Enter
+  too many can't.
 - A game counts from its first move, even if you undo every move. One
   with no moves left offers Undo on its banner and counts as lost only when
   you leave it for a new deal or the menu.
 - The clock ticks on the status line and stops while another screen hides
   the board, and the banner shows the same time the statistics keep.
+- A board that's short of room closes up before it loses anything. A long
+  column piles its face-down cards onto one row that counts them and
+  keeps every face-up rank in view, and a wide game closes up its fans
+  and the gaps between its columns. A board, the menu or a dialog that
+  still doesn't fit says what size it needs instead of drawing off the
+  edge.
+- Klondike drawing three fans out the last three cards of the waste, as
+  AisleRiot does, and the stock's count sits on the stock itself.
+- The code skin stays on for the menu, the dialogs, the banners and the
+  too-small notice, which show as comments in the same file, and draws
+  its source in the terminal's own colours instead of a card's black on
+  white. Its board sits as high as the plain one, so it takes no rows
+  from the cards.
 - When curses can't drive the terminal, or can't load at all, Soliterm
   says why and plays in text mode.
 - `--no-color` and `NO_COLOR` beat the colour saved with `v`, and `--ascii`
   works in the full-screen game as well as in text mode.
+
+### Removed
+
+- The `aisle` command and the aisle-cli package. `soliterm` replaces them.
+- Python 3.8. Soliterm needs Python 3.9 or newer.
 
 ### Fixed
 
@@ -147,7 +174,8 @@ Unreleased lists everything that has changed since.
   allow, and a Spider game with too few cards left to deal ends. Canfield
   and Bakers Dozen let foundation cards come back down, Canfield counts
   its base card in the score, and Forty Thieves is scored as AisleRiot
-  scores it and can send a whole run up in one move.
+  scores it, can send a whole run up in one move, and on a double-click
+  puts a card that can't go up onto a column.
 - Statistics are only shared when AisleRiot is there, as its keyfile or
   its `sol` program, and not just because there's a `gnome-games` folder,
   which other GNOME games keep too.
@@ -159,13 +187,17 @@ Unreleased lists everything that has changed since.
   nothing says why, as those games have no foundations. Text mode's `f`
   does too.
 - The mouse: a slow click picks a card up instead of undoing itself, a
-  double-click at a normal speed counts, moving the pointer doesn't move
-  the cursor, a click on the menu doesn't click the new board as well, and
-  the banner only takes a left click on a choice.
+  double-click at a normal speed counts, and a click straight after a
+  drag isn't taken for one. Moving the pointer doesn't move the cursor,
+  and letting go of a click doesn't move the menu's. A click on the menu
+  or a dialog doesn't turn up on the board afterwards, and the banner
+  only takes a left click on a choice.
 - The keys: Esc acts at once, and Alt with a key is no longer read as Esc
-  and then the key. Help and statistics stay up until a key is pressed,
-  boss mode stays up when the mouse moves or the window is resized, and
-  game keys do nothing while the terminal is too small to show the board.
+  and then the key. Help and statistics stay up until a key is pressed.
+  The boss key works on every screen, not just the board, and brings you
+  back to where you were. Boss mode stays up when the mouse moves or the
+  window is resized, and game keys do nothing while the terminal is too
+  small to show the board.
 - Hints name cards as the board draws them and no longer tell you to deal
   when you can't, the Spider summary no longer claims that builds must
   follow suit, and the status line catches up after undo and redo.
@@ -175,19 +207,16 @@ Unreleased lists everything that has changed since.
   it did nothing.
 - `*** YOU WIN! ***` shows in full on an 80-column status line in every
   game, code skin too, where a long status used to cut it off.
-- The full-screen game starts on terminals that can't hide the cursor, and
-  draws plain cards when the locale can't show the suit symbols.
+- The full-screen game starts on terminals that can't hide the cursor and
+  on colour terminals without default colours, draws plain cards when the
+  locale can't show the suit symbols, and keeps a ten inside its card at
+  the narrowest width and in the compact view.
 - Text mode lines the cards up under their tags, times each deal on its
   own clock, counts a game left unfinished from a pipe as lost, uses
   letter suits when the output can't show the symbols, and leaves quietly
   on Ctrl-C or when piped into `head`. Its boss screen hides the board
   properly, with paths that fit the platform.
 - Soliterm starts on Klondike when the game played last no longer exists.
-
-### Removed
-
-- The `aisle` command and the aisle-cli package. `soliterm` replaces them.
-- Python 3.8. Soliterm needs Python 3.9 or newer.
 
 ## aisle-cli 1.0.0 - 2026-06-29
 
