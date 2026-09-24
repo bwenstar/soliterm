@@ -179,6 +179,61 @@ def test_a_ten_fits_inside_the_narrowest_card(view, symbols):
     assert row[xa + ui._cw:xb].strip() == ""
 
 
+def fill_the_fans(g):
+    """Give every right-fanned slot more cards than it shows."""
+    for s in g.slots:
+        if s.expand == "right":
+            s.cards = [Card((i % 13) + 1, "SHDC"[i % 4], True) for i in range(12)]
+    return g
+
+
+def all_on_screen(ui, g, h, w):
+    """Every slot is drawn, and nothing past the last column curses writes
+    or into the status line."""
+    assert {sid for sid, _ in ui.hit.values()} == {s.sid for s in g.slots}
+    assert max(x for _, x in ui.hit) < w - 1
+    assert max(y for y, _ in ui.hit) < h - 3
+
+
+@pytest.mark.parametrize("code_skin", [False, True])
+@pytest.mark.parametrize("view", ["expanded", "legacy"])
+@pytest.mark.parametrize("key", GAME_ORDER)
+def test_every_game_fits_on_an_80x24_screen(key, view, code_skin):
+    g = fill_the_fans(deal(key, 1))
+    ui, scr = draw(g, h=24, w=80, view=view, code_skin=code_skin)
+    all_on_screen(ui, g, 24, 80)
+
+
+@pytest.mark.parametrize("code_skin", [False, True])
+@pytest.mark.parametrize("view", ["expanded", "legacy"])
+@pytest.mark.parametrize("key", GAME_ORDER)
+def test_a_board_fits_in_just_the_size_it_asks_for(key, view, code_skin):
+    g = fill_the_fans(deal(key, 1))
+    ui, _ = draw(g, view=view, code_skin=code_skin)
+    w, h = ui.needed_size()
+    ui, scr = draw(g, h=h, w=w, view=view, code_skin=code_skin)
+    all_on_screen(ui, g, h, w)
+    for smaller in ((h - 1, w), (h, w - 1)):
+        ui, scr = draw(g, *smaller, view=view, code_skin=code_skin)
+        assert not ui.hit
+        assert f"needs {w}x{h}" in scr.text()
+
+
+@pytest.mark.parametrize("key, h, w", [("fortythieves", 24, 60), ("klondike", 15, 80)])
+def test_a_board_too_big_for_the_terminal_is_not_drawn_off_it(key, h, w):
+    ui, scr = draw(deal(key, 1), h=h, w=w)
+    assert "Terminal too small." in scr.text()
+    assert not ui.hit and not ui.fits()
+
+
+def test_the_foundations_stay_put_as_the_waste_grows():
+    g = deal("fortythieves", 1)
+    ui = tui.BoardUI(FakeScr(40, 120), g, symbols=False, has_color=False)
+    before = ui.compute_positions()
+    fill_the_fans(g)
+    assert ui.compute_positions() == before
+
+
 def test_a_tiny_terminal_gets_a_message_instead_of_a_board():
     ui, scr = draw(deal("klondike", 1), h=8, w=30)
     assert "Terminal too small." in scr.text()

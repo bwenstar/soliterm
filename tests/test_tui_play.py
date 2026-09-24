@@ -421,6 +421,16 @@ def test_the_board_comes_back_as_it_was_once_the_terminal_grows(tui):
     assert "Moves 0" in scr.frames[2] and "Stock: 24" in scr.frames[2]
 
 
+@pytest.mark.parametrize("key, h, small", [
+    ("c", 17, [False, True, False]),    # the code skin needs more rows
+    ("x", 15, [True, False, True]),     # and full cards more than compact ones
+])
+def test_the_skin_and_view_toggles_still_work_on_a_small_terminal(tui, key, h, small):
+    # so the toggle that hid the board can bring it back
+    scr = tui([key, key, "q"], h=h, w=80)
+    assert ["Terminal too small" in frame for frame in scr.frames[:3]] == small
+
+
 def test_the_boss_key_still_works_on_a_small_terminal(tui):
     scr = tui(["b", "z"], h=20, w=38)
     assert "Terminal too small" not in scr.frames[1]

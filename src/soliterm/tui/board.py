@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import curses
 import locale
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Iterator, List, Optional, Tuple
 
 from .. import APP_NAME, camo, store
 from ..engine import SUIT_SYMBOL, Card, Solitaire
@@ -28,9 +28,9 @@ MAX_CARD_W = 8      # widest card (lots of horizontal room)
 COL_GAP = 1         # blank columns between piles in a row
 ROW_GAP = 1         # blank rows between slot-rows
 MAX_RIGHT_FAN = 6   # most cards shown in a right-expanding fan (waste/reserve)
-                    # unless the game fans fewer (see fan_shown)
-MIN_COLS = 40       # below this width/height the board can't lay out cleanly
-MIN_ROWS = 14
+                    # unless the game fans fewer (see fan_room)
+MIN_COLS = 40       # the smallest terminal any board is drawn on; a wide
+MIN_ROWS = 14       # game needs more (see BoardUI.needed_size)
 
 # Box-drawing glyphs: unicode for a real card look, ASCII fallback for --ascii.
 _GLYPHS = {
@@ -220,30 +220,68 @@ class BoardUI:
                 rows = [top, line1, mid, bot]
         return rows if full else rows[:2]      # peek = top border + label
 
-    def _card_width(self, screen_w: int, base_x: int) -> int:
-        """Pick a card width that lets the widest row fit on screen.
+    def _layouts(self) -> Iterator[Tuple[int, int, int, int]]:
+        """Every layout to try, roomiest first, as (card width, fan step,
+        column gap, code-skin indent).
 
-        Tries from wide to narrow; a wider card is nicer, a narrower one keeps
-        a 13-column game (Bakers Dozen) or a long waste fan on an 80-col screen.
+        A wider card is nicer, so the cards narrow first, then the skinned
+        board moves out to the gutter, then the fans close up, and only as a
+        last resort do the columns lose their gap. That keeps a 13-column
+        game (Bakers Dozen) or a two-deck top row on an 80-col screen.
         """
-        rows = {}
+        indent = self._code_indent if self.code_skin else 0
+        for cw in range(self.max_cw, self.min_cw - 1, -1):
+            yield cw, min(self.peek_x, cw - 1), COL_GAP, indent
+        cw = self.min_cw
+        step = min(self.peek_x, cw - 1)
+        for less in range(indent - 1, -1, -1):
+            yield cw, step, COL_GAP, less
+        for closer in range(step - 1, 1, -1):     # down to two columns a card
+            yield cw, closer, COL_GAP, 0
+        yield cw, min(step, 2), 0, 0
+
+    def _rows(self) -> List[List]:
+        """The slots on each display row, top row first."""
+        rows: Dict[int, List] = {}
         for s in self.game.slots:
             rows.setdefault(s.row, []).append(s)
-        for w in range(self.max_cw, self.min_cw - 1, -1):
-            peek_x = min(self.peek_x, w - 1)
-            ok = True
-            for sids in rows.values():
-                need = base_x
-                for s in sids:
-                    need += w + COL_GAP
-                    if s.expand == "right":
-                        need += max(0, self.fan_shown(s) - 1) * peek_x
-                if need > screen_w:
-                    ok = False
-                    break
-            if ok:
-                return w
-        return self.min_cw
+        return [rows[r] for r in sorted(rows)]
+
+    def _row_width(self, slots, cw: int, step: int, gap: int) -> int:
+        """Columns a row of slots takes, room for full fans included."""
+        return (sum(cw + (self.fan_room(s) - 1) * step for s in slots)
+                + gap * (len(slots) - 1))
+
+    def _choose_layout(self, screen_w: int) -> None:
+        """Set the card width, fan step, gap and indent for this frame: the
+        roomiest layout whose widest row fits on screen, or the tightest."""
+        base_x = self._gutter if self.code_skin else self.origin_x
+        rows = self._rows()
+        for layout in self._layouts():
+            cw, step, gap, indent = layout
+            right = base_x + indent + max(self._row_width(r, cw, step, gap)
+                                          for r in rows)
+            # curses never writes the last column (see safe_add)
+            if right < screen_w:
+                break
+        self._cw, self._step, self._gap, self._indent = layout
+
+    def needed_size(self) -> Tuple[int, int]:
+        """The smallest terminal, as (columns, rows), the board fits on.
+
+        The width is the widest row laid out as tightly as it goes. The
+        height has every row one card high, as the columns can squeeze
+        (only the last row holds columns in any game), and the status and
+        message lines below.
+        """
+        cw, step, gap, indent = list(self._layouts())[-1]
+        base_x = self._gutter if self.code_skin else self.origin_x
+        rows = self._rows()
+        w = base_x + indent + max(self._row_width(r, cw, step, gap)
+                                  for r in rows) + 1
+        top = self._code_top if self.code_skin else self.origin_y
+        h = top + len(rows) * (self.card_h + ROW_GAP) - ROW_GAP + 3
+        return max(MIN_COLS, w), max(MIN_ROWS, h)
 
     def safe_add(self, y, x, text, attr=0):
         h, w = self.stdscr.getmaxyx()
@@ -298,7 +336,7 @@ class BoardUI:
     def _draw_right_fan(self, slot, sid, sy, sx, cw, sel_here, cur_here,
                         hint_src, hint_dst):
         """A waste/reserve fan: cards overlap leftward, top card full-width."""
-        peek_x = min(self.peek_x, cw - 1)
+        peek_x = self._step
         cards = slot.cards
         start = len(cards) - self.fan_shown(slot)
         last = len(cards) - 1
@@ -314,10 +352,17 @@ class BoardUI:
             self._register_hit(sy, cx, self.card_h, width, sid, i)
 
     # -- layout -- #
+    def fan_room(self, slot) -> int:
+        """How many cards the board makes room for in a slot: the most a
+        right-fanned one shows, so the slots beside it don't move as it
+        grows, and one for any other."""
+        if slot.expand != "right":
+            return 1
+        return self.game.gamedef.fan_limit(self.game, slot.sid) or MAX_RIGHT_FAN
+
     def fan_shown(self, slot) -> int:
         """How many of a right-fanned slot's cards the board shows."""
-        limit = self.game.gamedef.fan_limit(self.game, slot.sid)
-        return min(len(slot.cards), limit or MAX_RIGHT_FAN)
+        return min(len(slot.cards), self.fan_room(slot))
 
     def _columns_in_row(self, row: int) -> List[int]:
         return [s.sid for s in self.game.slots if s.row == row]
@@ -378,11 +423,9 @@ class BoardUI:
         rows = sorted({s.row for s in self.game.slots})
         # In code-skin mode the board sits lower and indented, inside the file.
         y = (self._code_top if self.code_skin else self.origin_y)
-        base_x = (self._gutter + self._code_indent if self.code_skin
+        self._choose_layout(self.stdscr.getmaxyx()[1])
+        base_x = (self._gutter + self._indent if self.code_skin
                   else self.origin_x)
-        w = self.stdscr.getmaxyx()[1]
-        self._cw = self._card_width(w, base_x)
-        peek_x = min(self.peek_x, self._cw - 1)
         for row in rows:
             sids = self._columns_in_row(row)
             x = base_x
@@ -390,9 +433,7 @@ class BoardUI:
             for sid in sids:
                 positions[sid] = (y, x)
                 slot = self.game.slots[sid]
-                x += self._cw + COL_GAP
-                if slot.expand == "right":
-                    x += max(0, self.fan_shown(slot) - 1) * peek_x
+                x += self._cw + self._gap + (self.fan_room(slot) - 1) * self._step
                 row_h = max(row_h, self._slot_height(sid, y))
             y += row_h + ROW_GAP
         return positions
@@ -424,7 +465,8 @@ class BoardUI:
     def fits(self) -> bool:
         """False while the terminal is too small to lay the board out."""
         h, w = self.stdscr.getmaxyx()
-        return w >= MIN_COLS and h >= MIN_ROWS
+        need_w, need_h = self.needed_size()
+        return w >= need_w and h >= need_h
 
     def draw(self, selected_slot: Optional[int], selected_n: int,
              cursor_slot: Optional[int], hint: Optional[Tuple[int, int, str]],
@@ -435,8 +477,10 @@ class BoardUI:
             # Terminal too small to lay the board out cleanly: say so plainly
             # instead of drawing a clipped, unplayable mess.
             h, w = self.stdscr.getmaxyx()
+            need_w, need_h = self.needed_size()
             self.safe_add(0, 0, "Terminal too small.")
-            self.safe_add(1, 0, f"Need >= {MIN_COLS}x{MIN_ROWS}, have {w}x{h}.")
+            name = self.game.gamedef.name
+            self.safe_add(1, 0, f"{name} needs {need_w}x{need_h}, have {w}x{h}.")
             self.safe_add(2, 0, "Resize, or press q.")
             self.stdscr.refresh()
             return

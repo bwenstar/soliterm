@@ -32,7 +32,9 @@ START_MESSAGE = "? help  h hint  m menu. Click or use arrows + Enter."
 
 # What still works while "Terminal too small" hides the board: nothing that
 # could make a move the player can't see. The mouse finds no cards to hit.
-SMALL_SCREEN_ACTIONS = ("quit", "redraw", "boss", "mouse")
+# The code skin and the view change the size the board needs, so the toggle
+# that hid it can bring it back.
+SMALL_SCREEN_ACTIONS = ("quit", "redraw", "boss", "mouse", "code_skin", "view")
 
 # The mouse events the game asks for: the left button only. Asking for
 # REPORT_MOUSE_POSITION as well would have the terminal report every move of
