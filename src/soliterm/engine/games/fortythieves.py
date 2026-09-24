@@ -33,10 +33,7 @@ class FortyThieves(GameDef):
             return n == 1
         if k == "tableau":
             run = g.cards(sid)[len(g.cards(sid)) - n:]
-            for a, b in zip(run, run[1:]):
-                if not (a.suit == b.suit and b.rank == a.rank - 1):
-                    return False
-            return True
+            return all(a.suit == b.suit and b.rank == a.rank - 1 for a, b in zip(run, run[1:]))
         return False
 
     def tableau_adjacent(self, upper, lower):

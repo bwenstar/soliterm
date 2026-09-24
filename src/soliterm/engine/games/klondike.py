@@ -69,10 +69,7 @@ class Klondike(GameDef):
 
     @staticmethod
     def _valid_run(run):
-        for a, b in zip(run, run[1:]):
-            if not (a.is_red != b.is_red and b.rank == a.rank - 1):
-                return False
-        return True
+        return all(a.is_red != b.is_red and b.rank == a.rank - 1 for a, b in zip(run, run[1:]))
 
     def can_drop(self, g, src, cards, dst):
         k = g.kind(dst)

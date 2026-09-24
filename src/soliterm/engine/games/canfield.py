@@ -57,10 +57,7 @@ class Canfield(GameDef):
             return n == 1 and top is not None and top.rank != g.base_val
         if k == "tableau":
             run = g.cards(sid)[len(g.cards(sid)) - n:]
-            for a, b in zip(run, run[1:]):
-                if not self._t_down_altcolor(a, b):
-                    return False
-            return True
+            return all(self._t_down_altcolor(a, b) for a, b in zip(run, run[1:]))
         return False
 
     def can_drop(self, g, src, cards, dst):

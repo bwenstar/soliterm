@@ -37,10 +37,7 @@ class FreeCell(GameDef):
             return n == 1
         if k == "tableau":
             run = g.cards(sid)[len(g.cards(sid)) - n:]
-            for a, b in zip(run, run[1:]):
-                if not self.alt_color_down(a, b):
-                    return False
-            return True
+            return all(self.alt_color_down(a, b) for a, b in zip(run, run[1:]))
         return False
 
     def can_drop(self, g, src, cards, dst):
