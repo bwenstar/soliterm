@@ -206,6 +206,18 @@ def test_suits_fall_back_to_letters_when_stdout_cannot_show_them(
     assert shown and shown <= set(suits)
 
 
+def test_the_hint_uses_letters_too_when_stdout_cannot_show_symbols(monkeypatch):
+    raw = io.BytesIO()
+    out = io.TextIOWrapper(raw, encoding="ascii")
+    monkeypatch.setattr("sys.stdout", out)
+    g = deal("klondike", 1)
+    assert textmode.run_text(g, True, "klondike", stream=io.StringIO("hint\nq\n")) == 0
+    out.flush()
+    hint = next(line for line in raw.getvalue().decode("ascii").splitlines()
+                if line.startswith("Hint: "))
+    assert "2H onto 3C" in hint
+
+
 # -- results ----------------------------------------------------------------------------
 
 def play_text(key, script, seed=1):
