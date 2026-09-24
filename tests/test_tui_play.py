@@ -6,6 +6,7 @@ time the game asked for a key.
 """
 
 import curses
+import importlib.util
 import os
 import re
 import sys
@@ -1025,3 +1026,22 @@ def test_x_toggles_the_view_and_the_next_game_uses_it(tui):
     assert store.load_config()["view"] == "legacy"
     scr = tui([])
     assert scr.uis[-1].view == "legacy"
+
+
+SCREENSHOTS = os.path.join(os.path.dirname(__file__), "..", "tools", "screenshots.py")
+# the tmux key names the screenshot tool sends, as curses hands them over
+TMUX_KEYS = {"Enter": ENTER, "Left": curses.KEY_LEFT, "Right": curses.KEY_RIGHT,
+             "Up": curses.KEY_UP, "Down": curses.KEY_DOWN}
+
+
+@pytest.mark.skipif(not os.path.exists(SCREENSHOTS), reason="no tools/ in this tree")
+def test_the_spider_screenshot_deals_two_suits_and_makes_its_move(tui):
+    spec = importlib.util.spec_from_file_location("screenshots", SCREENSHOTS)
+    shots = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(shots)
+    (scene,) = [s for s in shots.SCENES if s.name == "spider"]
+    keys = [TMUX_KEYS.get(k, k) for step in scene.steps for k in step.keys.split()]
+    scr = tui(keys, start_key=scene.game, seed=scene.seed, h=shots.ROWS, w=shots.COLS)
+    last = scr.frames[len(keys)]
+    assert "♥" in last and "♠" in last
+    assert "Moves 1 " in last and "Hint: Move" in last

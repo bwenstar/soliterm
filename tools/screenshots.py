@@ -56,10 +56,11 @@ OUT = ROOT / "docs" / "img"
 # last shot. An animated one becomes <name>.gif, one frame per shot, each
 # shown for its hold time in milliseconds.
 #
-# The keys follow the TUI's bindings in src/soliterm/tui.py: the arrows move
-# the cursor, Enter or Space picks a card up and puts it down, h shows a hint
-# (and moves the cursor to the card it suggests), d deals, u undoes, o opens
-# the game's options, c toggles the code skin, b is the boss key and q quits.
+# The keys follow the TUI's bindings in src/soliterm/tui/keys.py: the arrows
+# move the cursor, Enter or Space picks a card up and puts it down, h shows
+# a hint (and moves the cursor to the card it suggests), d deals, u undoes,
+# o opens the game's options, c toggles the code skin, b is the boss key
+# and q quits.
 # The moves were worked out by hand for these seeds. If a seed ever deals a
 # different hand, play it with --seed and write down the new keys.
 # --------------------------------------------------------------------------- #
@@ -116,9 +117,13 @@ SCENES: list[Scene] = [
         "two-suit Spider after one move, with the next hint showing",
         "spider",
         5,
-        # o opens the options, Right switches Suits from 1 to 2 and Enter
+        # o opens the options, Left switches Suits from 4 to 2 and Enter
         # deals again with the same seed
-        [Step("o Right Enter"), Step("h Enter Right Right Right Enter"), shot("h")],
+        [
+            Step("o Left Enter"),
+            Step("h Enter Right Right Right Right Enter"),
+            shot("h"),
+        ],
     ),
     Scene(
         "code-skin",
