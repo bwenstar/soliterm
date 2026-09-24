@@ -62,6 +62,13 @@ class Later:
         self.seconds, self.k = seconds, k
 
 
+class Meanwhile:
+    """Key k, pressed once fn has run, as another window would run it."""
+
+    def __init__(self, fn, k):
+        self.fn, self.k = fn, k
+
+
 class Signal:
     """The signal `name` arriving from outside, as kill sends it."""
 
@@ -97,6 +104,9 @@ class ScriptedScr(FakeScr):
         k = self.keys.pop(0)
         if isinstance(k, Later):
             soliterm.tui.app.clock.now += k.seconds
+            k = k.k
+        if isinstance(k, Meanwhile):
+            k.fn()
             k = k.k
         assert k != -1 or self.delay >= 0, "no key is coming and getch would wait for ever"
         if isinstance(k, type) and issubclass(k, BaseException):
@@ -1407,6 +1417,23 @@ def test_every_new_deal_says_the_save_waiting_leaves_no_room(tui, keys):
     assert UNKEPT in scr.frames[len(keys)]
 
 
+@pytest.mark.parametrize(
+    "keys",
+    [["g", "6", ENTER], ["n"], ["o", curses.KEY_RIGHT, ENTER]],
+    ids=["g", "n", "new options"],
+)
+def test_a_game_saved_in_another_window_meanwhile_is_told_of_too(tui, keys):
+    scr = tui([Meanwhile(keep_one, keys[0]), *keys[1:], "q"], deal=5)
+    assert UNKEPT not in scr.frames[0]
+    assert UNKEPT in scr.frames[len(keys)]
+
+
+def test_play_a_deal_says_so_of_a_game_saved_since_the_menu(tui):
+    scr = tui([Mouse(PLAY_A_DEAL, 8), Meanwhile(keep_one, "5"), ENTER, "q"], start_key=None)
+    assert "Resume your game" not in scr.frames[0]
+    assert UNKEPT in scr.frames[-1]
+
+
 def test_the_banners_new_deal_says_so_too(tui):
     keep_one()
     scr = tui(KING_TO_EMPTY + ["a", "n", "q"], start=Deal("klondike", 5), game=near_won())
@@ -1498,9 +1525,9 @@ def test_an_unreadable_save_deals_a_new_hand_and_says_so(tui):
 
 def test_a_save_picked_up_in_another_window_says_so(tui, monkeypatch):
     keep_one()
-    listed = saves.waiting()
+    listed, real = saves.waiting(), saves.waiting
     # taken somewhere else once the menu has listed it
-    monkeypatch.setattr(saves, "waiting", lambda: listed)
+    monkeypatch.setattr(saves, "waiting", lambda *keys: real(*keys) if keys else listed)
     os.remove(saves.save_path("klondike"))
     scr = tui([ENTER, "n", "q"], start_key=None)
     assert "Resume your game" in scr.frames[0]

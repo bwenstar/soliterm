@@ -901,8 +901,8 @@ class App:
             self.message = "Your saved game was picked up somewhere else, so this is a new deal."
         elif listed:
             self.message = "Your saved game couldn't be read, so this is a new deal."
-        elif key in self.waiting:
-            self.message = self.unkept_note()
+        else:
+            self.message = self.unkept_note() or START_MESSAGE
 
     def put_in_play(self, deal: Deal, resumed: tuple[Solitaire, int] | None) -> None:
         """Put the resumed game in play, or else a new deal of `deal`, with
@@ -932,9 +932,16 @@ class App:
 
     def unkept_note(self) -> str:
         """What a new deal says while a game of its kind is saved, as then
-        leaving this one can't keep it too; "" when there's room for it."""
-        if self.key not in self.waiting:
+        leaving this one can't keep it too; "" when there's room for it.
+
+        The slot is looked at again, for a game another window has saved
+        since the menu, and the menu's list of saves is brought up to date.
+        """
+        saved = saves.waiting(self.key).get(self.key)
+        if saved is None:
+            self.waiting.pop(self.key, None)
             return ""
+        self.waiting[self.key] = saved
         return f"a saved {GAMES[self.key].name} game is waiting, so this one won't be kept"
 
     @staticmethod
