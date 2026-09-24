@@ -639,7 +639,7 @@ class BoardUI:
             stat = (f"    # score={g.score} moves={g.moves} "
                     f"t={store.fmt_time(elapsed)}  {g.status}{won}")
             self.safe_add(sy, self._gutter, stat.ljust(pad)[:pad], dim)
-            note = message if message else "code-skin mode (c to toggle)"
+            note = message or "code-skin mode (c to toggle)"
             self.safe_add(sy + 1, self._gutter, f"    # {note}".ljust(pad)[:pad], dim)
         else:
             self.safe_add(sy, 2,

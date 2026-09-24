@@ -91,7 +91,7 @@ def _read_text() -> str:
         # come back exactly as they are in the file. surrogateescape: bytes
         # that aren't UTF-8 (a value in another encoding) read without an
         # error and are written back unchanged by _write_text.
-        with open(keyfile_path(), "r", encoding="utf-8", errors="surrogateescape",
+        with open(keyfile_path(), encoding="utf-8", errors="surrogateescape",
                   newline="") as fh:
             return fh.read()
     except FileNotFoundError:

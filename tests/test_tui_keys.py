@@ -93,5 +93,5 @@ def test_the_help_screen_fits_an_80x24_terminal():
 
 
 def test_tab_is_the_boss_mode_key():
-    assert keys.BOSS_ACTIONS == {ord("\t"): "next_disguise"}
+    assert keys.BOSS_ACTIONS == {ord("\t"): "next_disguise"}  # noqa: SIM300 (it is the one under test)
     assert ord("\t") not in keys.PLAY_ACTIONS

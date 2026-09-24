@@ -847,7 +847,7 @@ def test_a_hinted_card_has_a_background_of_its_own(tui):
     ui = scr.uis[-1]
     card = g.slots[g.hint()[0]].top
     fg, bg = pair_of(ui.card_attr(card, False, True), scr)
-    assert bg != -1 and fg != bg
+    assert bg not in (-1, fg)
 
 
 def test_v_on_a_mono_terminal_just_says_so(tui):
