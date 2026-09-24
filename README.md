@@ -408,4 +408,5 @@ Soliterm is MIT licensed; see
 [LICENSE](https://github.com/bwenstar/soliterm/blob/main/LICENSE).
 
 It plays by AisleRiot's rules and shares AisleRiot's statistics file, but
-Soliterm is not affiliated with GNOME or the AisleRiot project.
+Soliterm is not affiliated with or endorsed by GNOME or the AisleRiot
+authors.
