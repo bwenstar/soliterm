@@ -44,6 +44,10 @@ QUIT = "quit"
 START_MESSAGE = "? help  h hint  m menu. Click or use arrows + Enter."
 # shown after any move that leaves every card free to go up
 FINISH_OFFER = "Every card can go up now. Press a to finish."
+# The keys that change only how the board looks, and say so where the offer
+# was. The offer still stands, so a short form of it follows their note.
+LOOK_ACTIONS = ("color", "theme", "four_color", "view", "code_skin")
+FINISH_REMINDER = "; a to finish"
 UNDONE_ALL = "back at the deal: r redoes a move, R all of them"
 # the longest a finish takes to watch, and the longest one card of it takes
 FINISH_S = 1.5
@@ -1209,6 +1213,8 @@ class App:
             self.dead_end_undone = False
         if self.game.moves != moves and self.game.finish_moves():
             self.message = FINISH_OFFER
+        elif action in LOOK_ACTIONS and self.game.finish_moves():
+            self.message += FINISH_REMINDER
         return outcome
 
     def do_redraw(self):

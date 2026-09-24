@@ -826,6 +826,29 @@ def test_the_offer_shows_after_the_move_that_allows_it(tui):
     assert offer not in scr.frames[moved + 1]
 
 
+@pytest.mark.parametrize("key", ["t", "v", "4", "x", "c"])
+def test_a_change_of_look_still_offers_the_finish(tui, key):
+    scr = tui(KING_TO_EMPTY + [key, key], game=queen_under_a_king())
+    moved = len(KING_TO_EMPTY)
+    for frame in scr.frames[moved + 1 : moved + 3]:
+        assert "; a to finish" in frame
+
+
+@pytest.mark.parametrize("skin", [False, True])
+def test_the_longest_note_and_the_offer_fit_at_80_columns(tui, skin):
+    if skin:
+        code_skin_on()
+    keys = KING_TO_EMPTY + ["4", "4"]
+    scr = tui(keys, game=queen_under_a_king(), h=24, w=80, color=False)
+    note = "four-colour deck off (colour is off, v turns it on); a to finish"
+    assert note in scr.frames[len(keys)]
+
+
+def test_a_change_of_look_offers_no_finish_there_is_not(tui):
+    scr = tui(["t", "4"])
+    assert not any("a to finish" in frame for frame in scr.frames)
+
+
 def test_R_back_to_where_every_card_can_go_up_offers_the_finish(tui):
     scr = tui(KING_TO_EMPTY + ["U", "R"], game=queen_under_a_king())
     offer = soliterm.tui.app.FINISH_OFFER
