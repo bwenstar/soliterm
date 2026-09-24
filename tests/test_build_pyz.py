@@ -35,7 +35,7 @@ def run(pyz, *args):
     # isolated HOME from conftest is already in the environment)
     env = {k: v for k, v in os.environ.items() if k != "PYTHONPATH"}
     return subprocess.run([sys.executable, str(pyz), *args], capture_output=True,
-                          text=True, env=env, cwd=str(pyz.parent), timeout=60)
+                          text=True, env=env, cwd=str(pyz.parent), check=False, timeout=60)
 
 
 def test_the_archive_holds_the_package_the_license_and_a_main(pyz):

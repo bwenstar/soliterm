@@ -493,7 +493,8 @@ def test_curses_itself_turns_down_an_unknown_terminal_type():
     # the real terminfo lookup, in a process of its own
     code = "from soliterm import cli; print(cli._terminal_problem())"
     r = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
-                       env=dict(child_env(), TERM="no-such-terminal"), timeout=60)
+                       env=dict(child_env(), TERM="no-such-terminal"), check=False,
+                       timeout=60)
     assert r.returncode == 0, r.stderr
     assert "TERM=no-such-terminal" in r.stdout
 
@@ -510,7 +511,8 @@ def child_env():
 
 def test_python_m_soliterm_runs_the_command_line():
     r = subprocess.run([sys.executable, "-m", "soliterm", "--list"],
-                       capture_output=True, text=True, env=child_env(), timeout=60)
+                       capture_output=True, text=True, env=child_env(), check=False,
+                       timeout=60)
     assert r.returncode == 0, r.stderr
     assert [line.split()[0] for line in r.stdout.splitlines()[1:]] == GAME_ORDER
 
@@ -527,7 +529,7 @@ def test_output_to_a_reader_that_went_away_ends_quietly(args, stdin):
     try:
         p = subprocess.run([sys.executable, "-m", "soliterm", *args], input=stdin,
                            stdout=w, stderr=subprocess.PIPE, text=True,
-                           env=child_env(), timeout=60)
+                           env=child_env(), check=False, timeout=60)
     finally:
         os.close(w)
     assert p.stderr == ""
