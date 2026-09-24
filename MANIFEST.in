@@ -3,4 +3,6 @@
 # a throwaway home, so the tests must never travel without it.
 include CHANGELOG.md
 recursive-include tests *.py
-include tools/build_pyz.py tools/screenshots.py
+include tools/build_pyz.py tools/keybindings.py tools/screenshots.py
+# tests/test_keybindings_doc.py checks the key page against the code
+include docs/keybindings.md

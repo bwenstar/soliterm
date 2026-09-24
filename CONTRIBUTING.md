@@ -172,6 +172,20 @@ Each game is one module in `src/soliterm/engine/games/`.
    deal, goal, moves, scoring, options and tips), and add it to the table
    in `docs/games/README.md`.
 
+## The key reference
+
+`docs/keybindings.md` is written by `tools/keybindings.py`, from `KEYMAP`
+in `src/soliterm/tui/keys.py` and the text-mode help. When you change a
+key, run
+
+```sh
+python tools/keybindings.py
+```
+
+and commit the page along with the change. The tests fail until you do.
+The keys of the other screens, such as the menu and the end banner, are
+written out in the script itself, so change them there.
+
 ## Screenshots
 
 The screenshots in the README come from `tools/screenshots.py`:
