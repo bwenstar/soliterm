@@ -8,3 +8,5 @@ include tools/build_pyz.py tools/keybindings.py tools/screenshots.py
 include docs/keybindings.md
 # the manual page, which tests/test_man_page.py checks against the code
 include man/soliterm.6
+# SECURITY.md, which tests/test_cli.py checks against --reset-stats
+include SECURITY.md

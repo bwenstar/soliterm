@@ -693,6 +693,14 @@ def test_security_md_names_what_the_reset_leaves_beside_the_keyfile(cli, keyfile
         assert f"{name}`" in security, name
 
 
+def test_the_sdist_carries_security_md_for_the_check_above():
+    # the suite is run from an unpacked sdist too, so the file has to be in it
+    manifest = Path(__file__).resolve().parents[1] / "MANIFEST.in"
+    if not manifest.exists():
+        pytest.skip("no MANIFEST.in in this tree")
+    assert "include SECURITY.md" in manifest.read_text(encoding="utf-8").splitlines()
+
+
 def test_reset_stats_clears_nothing_when_the_backup_fails(cli, keyfile, monkeypatch):
     path = keyfile(f"[{ar.GAME_TO_SECTION['canfield']}]\nStatistic=2;9;100;400;\n")
     before = path.read_text()
