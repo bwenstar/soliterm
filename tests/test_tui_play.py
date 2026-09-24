@@ -144,7 +144,11 @@ def tui(monkeypatch):
                 return pending.pop() if pending else real(key, seed=seed, options=options)
 
             monkeypatch.setattr(engine, "new_solitaire", new_solitaire)
-        scr.rc = soliterm.tui.run(scr, start_key, seed, color, **kwargs)
+        try:
+            scr.rc = soliterm.tui.run(scr, start_key, seed, color, **kwargs)
+        except KeyboardInterrupt:
+            # let through, it would stop the whole test session
+            pytest.fail("Ctrl-C got out of the TUI")
         scr.uis, scr.pairs, scr.masks, scr.intervals = uis, pairs, masks, intervals
         return scr
 
