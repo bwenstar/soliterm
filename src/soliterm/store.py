@@ -539,15 +539,15 @@ def _merge_local_into_aisleriot_once() -> None:
         sect = ar.GAME_TO_SECTION.get(game_key)
         if sect is None:
             continue
-        l = _norm(lstat)
-        if l["total"] == 0:
+        ours = _norm(lstat)
+        if ours["total"] == 0:
             continue
 
-        def add(cur: Optional[dict], l: dict = l) -> dict:
-            return _combined(_norm(cur), l)
+        def add(cur: Optional[dict], ours: dict = ours) -> dict:
+            return _combined(_norm(cur), ours)
 
         if ar.update_stat(sect, add) is None:
-            left[game_key] = l
+            left[game_key] = ours
     if left:
         # what the keyfile didn't take waits with the other unshared games
         _unwritable_keyfile()

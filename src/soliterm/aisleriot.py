@@ -193,10 +193,10 @@ def _list_items(value: str) -> Optional[List[str]]:
     chars = iter(value)
     for c in chars:
         if c == "\\":
-            c = _ESCAPES.get(next(chars, ""), "")
-            if not c:
+            unescaped = _ESCAPES.get(next(chars, ""), "")
+            if not unescaped:
                 return None
-            item += c           # an escaped ";" stays in the item
+            item += unescaped   # an escaped ";" stays in the item
         elif c == ";":
             items.append(item)
             item = ""
