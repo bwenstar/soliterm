@@ -20,7 +20,8 @@ from typing import Callable, Iterator, List, Optional, Tuple
 
 from .. import APP_NAME, camo, engine, store
 from ..engine import GAME_ORDER, GAMES, Solitaire
-from .board import CODE_GUTTER, BoardUI, can_draw_unicode, draw_code_backdrop
+from .board import (CODE_GUTTER, MIN_COLS, BoardUI, can_draw_unicode,
+                    draw_code_backdrop, draw_too_small)
 from .keys import BOSS_ACTIONS, PLAY_ACTIONS, help_lines
 
 # What a play-screen handler returns to leave the game in play: back to the
@@ -140,10 +141,13 @@ class App:
         # "show colour" flag the renderer reads, and flips on toggle.
         self.color_capable = False
         self.has_color = False
-        # what the screen being drawn has put up so far, while the code skin
-        # holds it back (see begin_page), and how far right it came out
+        # what the screen being drawn has put up so far, held back until it
+        # is known to fit (see begin_page), how far right the code skin put
+        # it, and whether the last one fit
         self.page: Optional[List[Tuple[int, int, str, int]]] = None
+        self.page_skinned = False
         self.page_dx = 0
+        self.page_fits = True
         # per-game state, reset by start_game()
         self.clock = GameClock()
         self.selected: Optional[int] = None
@@ -232,30 +236,52 @@ class App:
     def begin_page(self) -> None:
         """Start drawing a screen other than the board.
 
-        Under the code skin what the screen draws is held back, to be shown
-        by end_page as a comment in the same code file the board sits in,
-        so the menu, the dialogs and the banners don't give the game away
-        either.
+        What the screen draws is held back for end_page, which shows it only
+        if it fits. Under the code skin it goes in as a comment in the same
+        code file the board sits in, so the menu, the dialogs and the
+        banners don't give the game away either.
         """
         self.stdscr.erase()
-        skinned = bool(self.cfg.get("code_skin", False))
-        self.page = [] if skinned else None
-        self.page_dx = CODE_GUTTER if skinned else 0
+        self.page_skinned = bool(self.cfg.get("code_skin", False))
+        self.page = []
+        self.page_dx = CODE_GUTTER if self.page_skinned else 0
 
     def end_page(self) -> None:
-        """Put the screen begun with begin_page on the terminal."""
+        """Put the screen begun with begin_page on the terminal, or if it
+        needs more rows than the terminal has, say so instead of cutting
+        off its last lines."""
         page, self.page = self.page, None
-        if page:
-            h, _w = self.stdscr.getmaxyx()
-            rows = [y for y, _, _, _ in page]
-            top, bottom = min(rows), max(rows)
-            # a comment mark at the gutter down the rows the screen uses,
-            # and its text after it, so the whole block reads as a comment
-            draw_code_backdrop(self, {y: "#" for y in range(top, bottom + 1)},
-                               last_row=max(h - 2, bottom))
+        h, w = self.stdscr.getmaxyx()
+        rows = [y for y, _, _, _ in page]
+        need = (MIN_COLS, max(rows, default=0) + 1)
+        self.page_fits = w >= need[0] and h >= need[1]
+        if not self.page_fits:
+            draw_too_small(self, "This screen", need, self.page_skinned)
+        else:
+            if self.page_skinned and rows:
+                top, bottom = min(rows), max(rows)
+                # a comment mark at the gutter down the rows the screen uses,
+                # and its text after it, so the whole block reads as a comment
+                draw_code_backdrop(self, {y: "#" for y in range(top, bottom + 1)},
+                                   last_row=max(h - 2, bottom))
             for y, x, text, attr in page:
                 self.safe_add(y, x + self.page_dx, text, attr)
         self.stdscr.refresh()
+
+    def page_key(self) -> int:
+        """The next key on a screen drawn with begin_page, read as read_key
+        reads it. While the screen doesn't fit, only q, the boss key and a
+        resize act, as the player can't see what any other key would do."""
+        k = self.read_key()
+        if (self.page_fits or k in (-1, ord("q"), ord("Q"), curses.KEY_RESIZE)
+                or PLAY_ACTIONS.get(k) == "boss"):
+            return k
+        if k == curses.KEY_MOUSE:
+            try:
+                curses.getmouse()         # take the click off the queue
+            except curses.error:
+                pass
+        return -1
 
     def wait_for_key(self, draw: Callable[[], None]) -> int:
         """Show a screen until a key is pressed, and return that key.
@@ -266,7 +292,7 @@ class App:
         """
         while True:
             draw()
-            k = self.stdscr.getch()
+            k = self.page_key()
             if k == curses.KEY_MOUSE:
                 try:
                     curses.getmouse()
@@ -309,7 +335,7 @@ class App:
 
     # ---- menu ---- #
     def chooser(self) -> Optional[str]:
-        stdscr, cfg, CP, safe_add = self.stdscr, self.cfg, self.CP, self.safe_add
+        cfg, CP, safe_add = self.cfg, self.CP, self.safe_add
         sel = GAME_ORDER.index(cfg.get("last_game", "klondike")) \
             if cfg.get("last_game") in GAME_ORDER else 0
         extra = ["__stats__", "__quit__"]
@@ -333,7 +359,7 @@ class App:
             safe_add(base + len(extra) + 1, 6,
                      "Up/Down move - Enter select - mouse click - q quit", CP(4))
             self.end_page()
-            key = stdscr.getch()
+            key = self.page_key()
             if self.boss_key(key):
                 continue
             if key in (curses.KEY_UP, ord("k")):
@@ -416,7 +442,7 @@ class App:
             safe_add(3 + len(spec) + 1, 6,
                      "Left/Right change - Enter/q accept - Esc cancel", CP(4))
             self.end_page()
-            k = self.read_key()
+            k = self.page_key()
             if self.boss_key(k):
                 continue
             okey, label, values = spec[sel]
@@ -444,7 +470,7 @@ class App:
                 safe_add(2 + i, 6, line, (CP(6) | curses.A_BOLD) if i == 0 else 0)
             safe_add(3 + len(lines), 6, "y / Enter  yes     n / Esc  no", CP(4))
             self.end_page()
-            k = self.read_key()
+            k = self.page_key()
             if self.boss_key(k):
                 continue
             if k in (ord("y"), ord("Y"), curses.KEY_ENTER, 10, 13):
@@ -1060,7 +1086,7 @@ class App:
         """Show the end-of-game banner with choices. Returns one of:
         'undo' (take the last move back, when no moves are left), 'same'
         (replay this deal), 'new' (fresh deal), 'menu'."""
-        stdscr, CP, safe_add = self.stdscr, self.CP, self.safe_add
+        CP, safe_add = self.CP, self.safe_add
         game = self.game
         s = store.get_stat(self.key)
         if not self.recorded:
@@ -1099,7 +1125,7 @@ class App:
             safe_add(12 + len(choices) + 1, 6,
                      f"Up/Down + Enter, or {keys}. Click to choose.", CP(4))
             self.end_page()
-            k = stdscr.getch()
+            k = self.page_key()
             if self.boss_key(k):
                 continue
             if k in (curses.KEY_UP, ord("k")):

@@ -311,6 +311,15 @@ def test_alt_and_a_key_does_not_act_as_esc_then_the_key(tui):
     assert scr.uis[0].selections[-1] is not None
 
 
+def test_alt_and_a_key_does_nothing_on_the_menu_or_the_banner(tui):
+    # Alt+j would have moved the menu to Spider, Alt+n dealt a new hand
+    scr = tui([ESC, "j", ENTER], start_key=None)
+    assert scr.uis[0].game.gamedef.key == "klondike"
+    scr = tui(["a", ESC, "n", "m"], game=near_won())
+    assert "YOU WIN" in scr.frames[-2]
+    assert "choose a game" in scr.frames[-1]
+
+
 def test_the_escape_delay_is_short_unless_the_player_set_one(monkeypatch):
     seen = []
     monkeypatch.setattr(curses, "wrapper",
@@ -907,6 +916,29 @@ def test_the_code_skin_keeps_the_too_small_notice_inside_the_code_file(tui):
     assert "solver.py" in rows[0]
     shown = [row for row in rows if "Terminal too small" in row or "needs" in row]
     assert len(shown) == 2 and all(re.match(r" *\d+  # ", row) for row in shown)
+
+
+@pytest.mark.parametrize("screen, start_key, game, keys", EVERY_SCREEN)
+def test_a_screen_too_tall_for_the_terminal_says_so(tui, screen, start_key, game, keys):
+    # rather than lose its last lines off the bottom
+    scr = tui(keys + [Resize(40, 120)], start_key=start_key, game=game and game())
+    rows = scr.frames[len(keys)].rstrip().split("\n")
+    need = len(rows)
+    scr = tui(keys + [Resize(need - 1, 120), Resize(need, 120)],
+              start_key=start_key, game=game and game())
+    small, roomy = scr.frames[len(keys) + 1:len(keys) + 3]
+    assert "Terminal too small" in small and f"needs 40x{need}" in small
+    assert screen not in small
+    shown = roomy.rstrip().split("\n")
+    assert len(shown) == need and shown[-1] == rows[-1]
+
+
+def test_keys_the_player_cannot_see_do_nothing_on_a_small_menu(tui):
+    # Enter here would start whichever game is highlighted
+    scr = tui([ENTER, curses.KEY_DOWN, ENTER, "q"], start_key=None, h=12)
+    assert "Terminal too small" in scr.frames[0]
+    assert scr.uis == []
+    assert scr.rc == 0
 
 
 def test_a_click_on_a_banner_choice_finds_it_under_the_code_skin(tui):

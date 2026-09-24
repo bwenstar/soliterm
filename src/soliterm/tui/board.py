@@ -91,6 +91,21 @@ def draw_code_backdrop(ui, notes: Dict[int, str],
         ui.safe_add(screen_y, CODE_GUTTER, _CODE[idx], code_attr)
 
 
+def draw_too_small(ui, what: str, need: Tuple[int, int], code_skin: bool) -> None:
+    """Say the terminal is smaller than the (width, height) `what` needs,
+    in place of drawing it cut off. `ui` is as for draw_code_backdrop."""
+    h, w = ui.stdscr.getmaxyx()
+    notice = ["Terminal too small.",
+              f"{what} needs {need[0]}x{need[1]}, have {w}x{h}.",
+              "Resize, or press q."]
+    if code_skin:
+        # as a comment in the file, so the notice gives nothing away
+        draw_code_backdrop(ui, {1 + i: f"# {line}" for i, line in enumerate(notice)})
+    else:
+        for i, line in enumerate(notice):
+            ui.safe_add(i, 0, line)
+
+
 class BoardUI:
     """Renders a Solitaire board and maps screen coords back to (slot, index)."""
 
@@ -477,19 +492,8 @@ class BoardUI:
         if not self.fits():
             # Terminal too small to lay the board out cleanly: say so plainly
             # instead of drawing a clipped, unplayable mess.
-            h, w = self.stdscr.getmaxyx()
-            need_w, need_h = self.needed_size()
-            name = self.game.gamedef.name
-            notice = ["Terminal too small.",
-                      f"{name} needs {need_w}x{need_h}, have {w}x{h}.",
-                      "Resize, or press q."]
-            if self.code_skin:
-                # as a comment in the file, so the notice gives nothing away
-                draw_code_backdrop(self, {1 + i: f"# {line}"
-                                          for i, line in enumerate(notice)})
-            else:
-                for i, line in enumerate(notice):
-                    self.safe_add(i, 0, line)
+            draw_too_small(self, self.game.gamedef.name, self.needed_size(),
+                           self.code_skin)
             self.stdscr.refresh()
             return
         chrome = self.CP(4)
