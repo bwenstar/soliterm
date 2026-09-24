@@ -518,6 +518,75 @@ def test_undo_steps_with_an_old_seed_line_still_restore():
     assert h.serialize() == g.serialize()
 
 
+def swap_line(text, start, new):
+    """text with its line beginning `start` replaced by `new` (None drops it)."""
+    lines = [new if line.startswith(start) else line for line in text.splitlines()]
+    return "\n".join(line for line in lines if line is not None)
+
+
+@pytest.mark.parametrize(
+    "start, new",
+    [
+        ("moves=", "moves=x"),
+        ("moves=", None),
+        ("s0|", "s0|stock|none|0|14SU"),
+        ("s0|", "s0|stock|none|0|5XU"),
+        ("s0|", "s0|stock|none|0|5S"),
+        ("s0|", "s0|stock"),
+        ("moves=", "junk"),
+    ],
+    ids=[
+        "moves=x",
+        "missing moves=",
+        "s0|stock|none|0|14SU",
+        "s0|stock|none|0|5XU",
+        "s0|stock|none|0|5S",
+        "s0|stock",
+        "junk",
+    ],
+)
+def test_parse_refuses(start, new):
+    g = deal("klondike", 4)
+    with pytest.raises(ValueError, match="position"):
+        g._parse(swap_line(g.serialize(), start, new))
+
+
+def test_parse_reads_back_what_serialize_writes():
+    g = deal("klondike", 4)
+    g.deal()
+    key, counters, slots = g._parse(g.serialize())
+    assert key == "klondike"
+    assert counters == {"score": g.score, "base": 0, "moves": 1, "redeals": 0}
+    assert slots == g.slots
+
+
+@pytest.mark.parametrize(
+    "start, new",
+    [
+        ("game=", "game=spider"),
+        ("moves=", "moves=-1"),
+        ("base=", "base=14"),
+        ("s0|", None),
+        ("s1|", "s1|reserve|none|0|"),
+        ("s6|", "s6|tableau|down|1|3SU"),
+    ],
+    ids=[
+        "another game",
+        "negative moves",
+        "base past a king",
+        "a slot dropped",
+        "a slot renamed",
+        "a card changed",
+    ],
+)
+def test_check_position_refuses_what_does_not_fit(start, new):
+    g = deal("klondike", 4)
+    text = g.serialize()
+    g._check_position(text)  # the position itself fits
+    with pytest.raises(ValueError, match="fit"):
+        g._check_position(swap_line(text, start, new))
+
+
 # -- stuck detection ------------------------------------------------------------------
 
 

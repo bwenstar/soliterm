@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import random
+import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -53,6 +54,18 @@ class Slot:
 # --------------------------------------------------------------------------- #
 # The engine
 # --------------------------------------------------------------------------- #
+
+# The numbers a serialize() text holds besides its slots.
+_COUNTERS = ("score", "base", "moves", "redeals")
+_CARD = re.compile(r"(1[0-3]|[1-9])([SHDC])([UD])")
+
+
+def _card(token: str) -> Card:
+    """The card a serialize() token such as 12HU stands for."""
+    m = _CARD.fullmatch(token)
+    if m is None:
+        raise ValueError(f"not a card: {token!r}")
+    return Card(int(m[1]), m[2], m[3] == "U")
 
 
 class Solitaire:
@@ -568,27 +581,63 @@ class Solitaire:
             )
         return "\n".join(parts)
 
-    def _restore(self, text: str) -> None:
-        def dec(t: str) -> Card:
-            return Card(int(t[:-2]), t[-2], t[-1] == "U")
+    def _parse(self, text: str) -> tuple[str, dict[str, int], list[Slot]]:
+        """The game key, the counters and the slots (by sid) of a serialize() text.
 
-        new_slots: list[Slot] = []
+        Raises ValueError for anything serialize() doesn't write. The seed=
+        line of older undo steps and the options= line are skipped.
+        """
+        key = ""
+        counters: dict[str, int] = {}
+        slots: list[Slot] = []
         for line in text.splitlines():
-            if line.startswith("score="):
-                self.score = int(line[6:])
-            elif line.startswith("base="):
-                self.base_val = int(line[5:])
-            elif line.startswith("moves="):
-                self.moves = int(line[6:])
-            elif line.startswith("redeals="):
-                self.redeals_done = int(line[8:])
-            elif line.startswith("s") and "|" in line:
-                head, _, cardstr = line.partition("|")
-                kind, expand, row, rest = (cardstr.split("|", 3) + ["", "", "0", ""])[:4]
-                sid = int(head[1:])
-                cards = [dec(x) for x in rest.split(",")] if rest else []
-                new_slots.append(Slot(sid, kind, expand, cards, int(row or 0)))
-        if new_slots:
-            self.slots = sorted(new_slots, key=lambda s: s.sid)
+            name, eq, value = line.partition("=")
+            try:
+                if eq and name == "game":
+                    key = value
+                elif eq and name in _COUNTERS:
+                    counters[name] = int(value)
+                elif eq and name in ("seed", "options"):
+                    continue
+                elif line.startswith("s") and line.count("|") == 4:
+                    head, kind, expand, row, cards = line.split("|")
+                    dealt = [_card(t) for t in cards.split(",")] if cards else []
+                    slots.append(Slot(int(head[1:]), kind, expand, dealt, int(row)))
+                else:
+                    raise ValueError
+            except ValueError:
+                raise ValueError(f"not part of a position: {line!r}") from None
+        missing = [name for name in _COUNTERS if name not in counters]
+        if missing:
+            raise ValueError(f"a position needs a {missing[0]}= line")
+        return key, counters, sorted(slots, key=lambda s: s.sid)
+
+    def _check_position(self, text: str) -> None:
+        """Raise ValueError unless text has this game's slots and this deal's cards."""
+        key, counters, slots = self._parse(text)
+        if key != self.gamedef.key:
+            raise ValueError(f"a position of {key or 'no game'} doesn't fit {self.gamedef.key}")
+        if min(counters.values()) < 0 or counters["base"] > 13:
+            raise ValueError(f"the counters {counters} don't fit a deal")
+
+        def layout(slots: list[Slot]) -> list[tuple[int, str, str, int]]:
+            return [(s.sid, s.kind, s.expand, s.row) for s in slots]
+
+        def cards(slots: list[Slot]) -> list[tuple[int, str]]:
+            return sorted((c.rank, c.suit) for s in slots for c in s.cards)
+
+        if layout(slots) != layout(self.slots):
+            raise ValueError(f"the slots don't fit {self.gamedef.key}")
+        if cards(slots) != cards(self.slots):
+            raise ValueError("the cards don't fit this deal")
+
+    def _restore(self, text: str) -> None:
+        _, counters, slots = self._parse(text)
+        self.score = counters["score"]
+        self.base_val = counters["base"]
+        self.moves = counters["moves"]
+        self.redeals_done = counters["redeals"]
+        if slots:
+            self.slots = slots
         # the status line describes the board, so it has to follow it back
         self.update_status()
