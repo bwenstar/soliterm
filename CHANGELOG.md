@@ -11,6 +11,20 @@
 - `--debug-info` prints what a bug report needs: the versions, the
   terminal, curses and where Soliterm keeps its files. It only reads, and
   leaves every file as it was.
+- Every deal has a number, shown on the board, at the end of a game and in
+  text mode. `--deal N` plays deal N, and `n` then deals the next one.
+- Share codes such as `klondike:d3:48213` name a deal with its options.
+  The end of a game shows its code, and `--deal` takes one, as do the new
+  `g` key during a game and Play a deal on the menu.
+- FreeCell deals are numbered as in Microsoft FreeCell.
+- `--draw` and `--suits` set Klondike's draw or Spider's suits for one run
+  without saving them.
+- Deals come from Soliterm's own shuffle, not Python's, so a number deals
+  the same cards on every Python. This means the numbers from 1.0.0 deal
+  different cards now. `--seed` still works as another name for `--deal`.
+- In the full-screen game, `--seed 5` (or `--deal 5`) without `--game`
+  goes straight into the game played last instead of the menu, and only
+  that first game is deal 5, not every game picked from the menu.
 
 ## 1.0.0 - 2026-06-29
 
