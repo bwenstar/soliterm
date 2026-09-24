@@ -11,6 +11,7 @@ How each of the games in Soliterm is played, with its rules, scoring and a few t
 | [Eight Off](eightoff.md) | `eightoff` | FreeCell's cousin with eight cells and columns built in suit; nearly all skill. |
 | [Golf](golf.md) | `golf` | Clear seven face-up columns onto the waste, one rank up or down, no wrapping. |
 | [Yukon](yukon.md) | `yukon` | Klondike with no stock, where any face-up group can move, in order or not. |
+| [Scorpion](scorpion.md) | `scorpion` | Seven columns built down in suit, any face-up group moves, and no foundations. |
 | [Bakers Dozen](bakersdozen.md) | `bakersdozen` | One deck, thirteen open columns, no stock; build down by rank in any suit. |
 | [Forty Thieves](fortythieves.md) | `fortythieves` | Two decks, ten columns built down in suit, one pass through the stock. |
 | [Canfield](canfield.md) | `canfield` | Reserve of 13, deal three with unlimited redeals, foundations from a random base rank. |

@@ -58,6 +58,7 @@ The zipapp builds with the standard library alone. `--wheel` runs
 | `eightoff` | Eight Off | eight cells, build by suit |
 | `golf` | Golf | clear the tableau onto the waste |
 | `yukon` | Yukon | move any face-up group |
+| `scorpion` | Scorpion | move any group, build suits in place |
 | `bakersdozen` | Bakers Dozen | no stock, thirteen columns |
 | `fortythieves` | Forty Thieves | two decks, ten columns |
 | `canfield` | Canfield | reserve + deal-three, wrapping |
