@@ -50,9 +50,11 @@ soliterm = "soliterm.cli:main"
 dev = [
     "pytest",
     "coverage",
-    # the same versions as the lint job in CI (and ruff as in pre-commit)
+    # the same versions as the lint job in CI (and ruff as in pre-commit).
+    # mypy 2.3.1 needs Python 3.10 or newer, so on 3.9 the group leaves it
+    # out rather than failing to install.
     "ruff==0.16.6",
-    "mypy==2.3.1",
+    "mypy==2.3.1; python_version >= '3.10'",
     "vermin==1.8.0",
     "build",
     "twine",

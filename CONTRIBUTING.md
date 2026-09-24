@@ -15,12 +15,17 @@ cd soliterm
 python -m venv .venv
 . .venv/bin/activate              # on Windows: .venv\Scripts\activate
 python -m pip install -e .
-python -m pip install pytest coverage ruff==0.16.6 mypy==2.3.1 vermin==1.8.0 build twine
+python -m pip install pytest coverage ruff==0.16.6 vermin==1.8.0 build twine
+python -m pip install mypy==2.3.1   # needs Python 3.10 or newer
 ```
 
+mypy 2.3.1 won't install on Python 3.9, so on 3.9 skip that last line and
+leave the type check to CI.
+
 Those tools are the `dev` group in `pyproject.toml`, so with pip 25.1 or
-newer `python -m pip install -e . --group dev` installs the lot. If you use
-uv, `uv sync --group dev` does the whole setup in one step.
+newer `python -m pip install -e . --group dev` installs the lot (all but
+mypy on 3.9). If you use uv, `uv sync --group dev` does the whole setup in
+one step.
 
 The game reads and writes your real statistics, and GNOME AisleRiot's too if
 you have it installed. When you try out a change by hand, give it a throwaway
