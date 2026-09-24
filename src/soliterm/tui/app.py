@@ -1274,7 +1274,10 @@ class App:
         self.cfg["four_color"] = self.four_color
         store.save_config(self.cfg)
         state = "on" if self.four_color else "off"
-        self.message = f"four-colour deck {state}{self.colour_note()}"
+        # kept all the same, for the next terminal, which may have the room
+        short = self.four_color and getattr(curses, "COLOR_PAIRS", 256) <= themes.CLUB_FACE
+        note = " (this terminal can't show it)" if short else self.colour_note()
+        self.message = f"four-colour deck {state}{note}"
 
     def colour_note(self) -> str:
         """What keeps a change of colours from showing, to end a message with."""

@@ -2179,11 +2179,21 @@ def test_a_red_card_picked_up_stays_green_with_only_8_pairs(tui):
     assert hinted not in {attr & 0xFF00 for attr in others}
 
 
-def test_the_four_colour_deck_on_a_terminal_with_too_few_pairs(tui):
-    scr = tui(["4", "q"], color_pairs=10)
+@pytest.mark.parametrize("room", [8, 10, 15])
+def test_the_four_colour_deck_on_a_terminal_with_too_few_pairs(tui, room):
+    # it needs pairs 14 and 15; the choice is kept for a terminal that has them
+    scr = tui(["4", "4", "q"], color_pairs=room)
     assert scr.rc == 0
-    assert "four-colour deck on" in scr.frames[1]
-    assert scr.pairs and all(n < 10 for n, _, _ in scr.pairs)
+    assert "four-colour deck on (this terminal can't show it)" in scr.frames[1]
+    assert "four-colour deck off" in scr.frames[2] and "show it" not in scr.frames[2]
+    assert scr.pairs and all(n < room for n, _, _ in scr.pairs)
+    tui(["4", "q"], color_pairs=room)
+    assert store.load_config()["four_color"] is True
+
+
+def test_the_four_colour_deck_on_a_terminal_with_room_for_it(tui):
+    scr = tui(["4", "q"], color_pairs=16)
+    assert "four-colour deck on" in scr.frames[1] and "show it" not in scr.frames[1]
 
 
 def test_a_hinted_card_has_a_background_of_its_own(tui):
