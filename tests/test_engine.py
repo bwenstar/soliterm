@@ -750,6 +750,7 @@ def test_snapshot_keeps_the_newest_steps(steps):
     snap = g.snapshot(steps)
     assert (snap["undo"], snap["redo"]) == want
     assert snap["game"] == "klondike" and snap["deal"] == 4 and snap["daily"] is None
+    assert snap["chosen"] is True
     assert snap["options"] == g.options and snap["options"] is not g.options
     assert (snap["moves"], snap["score"]) == (4, g.score)
     assert snap["position"] == g.serialize()
@@ -790,6 +791,7 @@ def test_every_game_resumes_where_it_was(key):
         lambda s: s.update(daily="2026-02-30"),
         lambda s: s.update(daily="20260924"),
         lambda s: s.update(daily=20260924),
+        lambda s: s.update(chosen=1),
     ],
     ids=[
         "an unknown game",
@@ -805,6 +807,7 @@ def test_every_game_resumes_where_it_was(key):
         "a daily on a day there wasn't",
         "a daily without its dashes",
         "a daily as a number",
+        "chosen as a number",
     ],
 )
 def test_resume_refuses(change):
@@ -827,20 +830,38 @@ def test_a_daily_resumes_as_a_daily():
     assert engine.resume_solitaire({**snap, "daily": None}).daily is None
 
 
-def test_a_resumed_game_deals_at_random_after():
+def deals_after(g):
+    """The numbers of the next three deals n would deal."""
+    after = []
+    for _ in range(3):
+        g.new_game()
+        after.append(g.deal_number)
+    return after
+
+
+def test_a_resumed_chosen_deal_goes_on_to_the_next_number():
     g = deal("klondike", 5)
     g.deal()
     h = engine.resume_solitaire(g.snapshot(500))
-    assert h.seed is None
     assert h.deal_number == 5
     h.restart()
     assert board(h) == board(deal("klondike", 5))
-    # the next deals are fresh ones, not the numbers after deal 5
-    after = []
-    for _ in range(3):
-        h.new_game()
-        after.append(h.deal_number)
-    assert after != [6, 7, 8]
+    assert deals_after(h) == [6, 7, 8]
+
+
+def test_a_resumed_random_deal_deals_at_random_after():
+    g = engine.new_solitaire("klondike")
+    g.deal()
+    h = engine.resume_solitaire(g.snapshot(500))
+    assert h.seed is None
+    number = h.deal_number
+    assert deals_after(h) != [number + 1, number + 2, number + 3]
+
+
+def test_a_save_from_before_the_mark_deals_at_random_after():
+    snap = deal("klondike", 5).snapshot(500)
+    del snap["chosen"]
+    assert engine.resume_solitaire(snap).seed is None
 
 
 # -- stuck detection ------------------------------------------------------------------

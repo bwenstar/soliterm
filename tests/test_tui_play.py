@@ -1379,6 +1379,14 @@ def test_game_flag_resumes_a_saved_game(tui):
     assert saves.waiting() == {}
 
 
+@pytest.mark.parametrize("keys", [["n"], ["a", "n"]], ids=["n", "the banner's new deal"])
+def test_a_resumed_chosen_deal_goes_on_to_the_next_number(tui, keys):
+    assert saves.keep(near_won(5), 42)
+    scr = tui([*keys, "q"])
+    assert "Klondike  -  Deal 5" in scr.frames[0]
+    assert "Klondike  -  Deal 6" in scr.frames[len(keys)]
+
+
 @pytest.mark.parametrize(
     "start",
     [Deal("klondike", 5), Deal("klondike", None, {"draw": 3})],

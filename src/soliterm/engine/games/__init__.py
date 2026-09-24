@@ -87,6 +87,9 @@ def resume_solitaire(snap: dict) -> Solitaire:
     daily = snap.get("daily")  # missing from saves made before the daily deal
     if daily is not None and not _is_day(daily):
         raise ValueError(f"the daily {daily!r} doesn't fit, as it isn't a day like 2026-09-24")
+    chosen = snap.get("chosen", False)  # missing from saves made before it was kept
+    if type(chosen) is not bool:
+        raise ValueError(f"chosen={chosen!r} doesn't fit, as it isn't true or false")
     position, undo, redo = snap.get("position"), snap.get("undo"), snap.get("redo")
     if not (
         isinstance(position, str)
@@ -102,5 +105,7 @@ def resume_solitaire(snap: dict) -> Solitaire:
     g._undo = [t.encode() for t in undo]
     g._redo = [t.encode() for t in redo]
     g.daily = daily
-    g.seed = None  # n deals at random from here, not the number after
+    # n deals as it would have before the save: the number after a chosen
+    # deal, and otherwise at random
+    g.seed = deal if chosen else None
     return g

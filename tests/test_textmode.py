@@ -575,6 +575,14 @@ def test_n_with_a_game_of_its_kind_saved_says_it_wont_be_kept(capsys):
     assert lines[new + 1] == note
 
 
+def test_n_after_a_resumed_chosen_deal_deals_the_next_number(capsys):
+    assert saves.keep(deal("klondike", 7), 42)
+    g = deal("klondike", 1)
+    script = iter(["n\n", "q\n"])
+    assert textmode.run_text(g, False, "klondike", stream=script, keep=True, resume=True) == 0
+    assert "\nnew deal 8\n" in capsys.readouterr().out
+
+
 def test_n_on_a_resumed_game_counts_it_lost_with_its_saved_time(monkeypatch, capsys):
     clock = Clock()
     monkeypatch.setattr(textmode, "time", clock)

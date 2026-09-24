@@ -676,6 +676,8 @@ class Solitaire:
             "options": dict(self.options),
             "deal": self.deal_number,
             "daily": self.daily,
+            # a chosen deal, which n follows on from, not a random one
+            "chosen": self.seed is not None,
             "moves": self.moves,
             "score": self.score,
             "position": self.serialize(),
