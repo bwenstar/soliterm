@@ -227,6 +227,25 @@ def test_f_in_a_game_with_no_foundations_says_so(key, says):
     assert textmode.apply_text_command(g, "f 2") == (False, says)
 
 
+@pytest.mark.parametrize("key", ["golf", "triplepeaks"])
+def test_f_with_no_card_to_play_names_none(key):
+    g = deal(key, 1)
+    clear_board(g)
+    waste = g.ids_of("waste")[0]
+    g.slots[waste].cards = [Card(9, "S", True)]
+    empty = g.ids_of("tableau")[0]
+    tag = textmode.slot_tag(g, empty)
+    assert textmode.apply_text_command(g, f"f {empty}") == (
+        False,
+        f"nothing on {tag} goes on the waste",
+    )
+    tag = textmode.slot_tag(g, waste)
+    assert textmode.apply_text_command(g, f"f {waste}") == (
+        False,
+        f"nothing on {tag} goes on the waste",
+    )
+
+
 def test_text_a_finishes_the_game():
     g = stalled_klondike()
     assert textmode.apply_text_command(g, "a") == (True, "autoplayed 37")

@@ -259,7 +259,8 @@ def apply_text_command(g: Solitaire, cmd: str) -> tuple[bool, str]:
                 return ok, "" if ok else f"double-clicking {tag} does nothing"
             if ok:
                 return ok, ""
-            return ok, g.no_foundation_reason(tag) or f"no foundation move from {tag}"
+            reason = g.no_foundation_reason(sid, tag, f"on {tag}")
+            return ok, reason or f"no foundation move from {tag}"
         if all(p.isdigit() for p in parts) and len(parts) in (2, 3):
             src = int(parts[0])
             dst = int(parts[1])

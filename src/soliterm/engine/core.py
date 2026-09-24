@@ -547,13 +547,19 @@ class Solitaire:
             return "no moves left - undo to try another line"
         return "no moves left"
 
-    def no_foundation_reason(self, what: str) -> str | None:
-        """Why sending `what` to a foundation did nothing, in a game with no
-        foundations; None in one that has them, for the caller to say."""
+    def no_foundation_reason(
+        self, sid: int, card: str = "that card", place: str = "there"
+    ) -> str | None:
+        """Why sending the top card of sid to a foundation did nothing, in a
+        game with no foundations; None in one that has them, for the caller
+        to say. `card` names the card and `place` the slot, as the player
+        sees them."""
         if self.ids_of("foundation"):
             return None
         if self.ids_of("waste"):  # Golf and Triple Peaks play onto it
-            return f"{what} doesn't go on the waste"
+            if self.empty(sid) or self.kind(sid) == "waste":
+                return f"nothing {place} goes on the waste"
+            return f"{card} doesn't go on the waste"
         return f"{self.gamedef.name} has no foundations"
 
     def can_deal(self) -> bool:

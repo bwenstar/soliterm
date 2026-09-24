@@ -1224,6 +1224,23 @@ def test_an_f_that_does_nothing_says_why(tui, key, says, double):
     assert g.serialize() == before
 
 
+# an empty peak is off the board, so Triple Peaks has only its waste
+@pytest.mark.parametrize(
+    "key, on", [("golf", "empty"), ("golf", "waste"), ("triplepeaks", "waste")]
+)
+def test_an_f_with_no_card_to_play_names_none(tui, key, on):
+    g = deal(key, 1)
+    clear_board(g)
+    tableau, waste = g.ids_of("tableau"), g.ids_of("waste")[0]
+    g.slots[waste].cards = [up(9, "S")]
+    g.slots[tableau[-1]].cards = [up(5, "H")]  # a card left to play, so not won
+    before = g.serialize()
+    target = tableau[0] if on == "empty" else waste
+    scr = tui([Click(target, 0, curses.BUTTON1_DOUBLE_CLICKED)], start_key=key, game=g)
+    assert "nothing there goes on the waste" in scr.frames[1]
+    assert g.serialize() == before
+
+
 @pytest.mark.parametrize("how", ["d", "click"])
 def test_a_card_dealt_from_the_stock_clears_the_last_message(tui, how):
     g = deal("triplepeaks", 1)
