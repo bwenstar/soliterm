@@ -28,9 +28,10 @@ soliterm: TERM=dumb can't move the cursor, so playing in text mode; set TERM to 
 ```
 
 The game to play comes from the same options as the full-screen game:
-`--game`, `--deal`, `--daily`, `--draw` and `--suits`. With none of them,
-text mode plays a random deal of the game you played last, which is
-Klondike the first time.
+`--game`, `--deal`, `--daily`, `--draw` and `--suits`. A share code
+names its game, `--draw` means Klondike and `--suits` Spider. Otherwise
+it's the game you last picked in the full-screen game, which is Klondike
+until you've played there.
 
 ## The board
 
@@ -240,8 +241,7 @@ bye
 ```
 
 Starting that game again without a deal number or options, as
-`soliterm --text --game golf` or just `soliterm --text` after playing
-it, carries on where you left off:
+`soliterm --text --game golf`, carries on where you left off:
 
 ```text
 Soliterm - Golf - Deal 286262 (text mode). Type h for help.
