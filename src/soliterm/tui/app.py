@@ -40,8 +40,11 @@ QUIT = "quit"
 
 START_MESSAGE = "? help  h hint  m menu. Click or use arrows + Enter."
 
-DEAL_TEXT_MAX = 40  # the most the pick-deal box takes; a share code is shorter
+# The most the pick-deal box takes. The board's title line, 46 characters
+# at most, has to paste in whole, even copied with the spaces around it.
+DEAL_TEXT_MAX = 64
 DEAL_ERROR_W = 60  # where the pick-deal box wraps a long error
+DEAL_ERROR_ROWS = 3  # the most an error about text that long wraps to
 
 # What still works while "Terminal too small" hides the board: nothing that
 # could make a move the player can't see. The mouse finds no cards to hit.
@@ -539,9 +542,9 @@ class App:
                 y += 1
                 safe_add(y, 6, f"A number on its own plays {GAMES[self.last_game()].name}.")
             safe_add(y + 1, 6, f"> {text}_", CP(5) | curses.A_BOLD)
-            for i, line in enumerate(textwrap.wrap(error, DEAL_ERROR_W)[:2]):
+            for i, line in enumerate(textwrap.wrap(error, DEAL_ERROR_W)[:DEAL_ERROR_ROWS]):
                 safe_add(y + 2 + i, 6, line, CP(6))
-            safe_add(y + 4, 6, "Enter play - Esc back", CP(4))
+            safe_add(y + 2 + DEAL_ERROR_ROWS, 6, "Enter play - Esc back", CP(4))
             self.end_page()
             k = self.page_key()
             # b is a letter here, so only F2 hides the box, unless it doesn't

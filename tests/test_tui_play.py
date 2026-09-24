@@ -18,6 +18,7 @@ from soliterm import aisleriot as ar
 from soliterm import cli, deals, engine, store
 from soliterm.deals import Deal
 from soliterm.engine import Card
+from soliterm.tui.app import DEAL_TEXT_MAX
 
 from helpers import FakeScr, clear_board, deal
 
@@ -415,20 +416,37 @@ def test_g_asks_before_leaving_a_started_game(tui):
     assert store.get_stat("klondike")["total"] == 1  # the deal given up
 
 
+@pytest.mark.parametrize("key", engine.GAME_ORDER)
+def test_g_takes_the_board_title_row_pasted_whole(tui, key):
+    # the longest title the game has, copied as a whole row, spaces and all
+    row = tui([], start=Deal(key, engine.MAX_DEAL)).frames[0].split("\n")[0]
+    assert f"  Deal {engine.MAX_DEAL}" in row
+    scr = tui(["g", *row, ENTER], start=Deal(key, engine.MAX_DEAL))
+    assert "that's the deal in play (N starts it over)" in scr.frames[-1]
+
+
 @pytest.mark.parametrize("skin", [False, True])
-def test_the_pick_deal_box_fits_80x24(tui, skin):
+@pytest.mark.parametrize("game", ["klondike", "golf"])
+def test_the_pick_deal_box_fits_80x24(tui, skin, game):
     if skin:
         code_skin_on()
-    typed = "klondike:" + "x" * 29 + ":5"  # as long as the box takes
+    # as long as the box takes, with the longest errors there are: one
+    # naming the options Klondike takes, one saying Golf has none
+    typed = f"{game}:" + "x" * (DEAL_TEXT_MAX - len(game) - 3) + ":5"
+    assert len(typed) == DEAL_TEXT_MAX
+    with pytest.raises(ValueError, match="share code") as exc:
+        deals.parse(typed)
     scr = tui(["g", *typed, "y", ENTER, ESC, -1], h=24, w=80)
     box = scr.frames[len(typed) + 3]
-    assert f"> {typed}_" in box
-    # the error, however long, is all on screen
-    error = "(it takes d1, d3, rs, rn, ru)"
+    assert "Terminal too small" not in box
     rows = box.split("\n")
-    assert "Terminal too small" not in box and "'" + "x" * 29 in box
-    assert any(row.endswith(error) for row in rows)
     assert all(len(row) < 80 for row in rows)
+    (prompt,) = [i for i, row in enumerate(rows) if f"> {typed}_" in row]
+    (footer,) = [i for i, row in enumerate(rows) if "Enter play - Esc back" in row]
+    # the error, however long, is all on screen between the two
+    start = rows[prompt].index(">")
+    shown = " ".join(row[start:].strip() for row in rows[prompt + 1 : footer])
+    assert " ".join(shown.split()) == str(exc.value)
 
 
 def test_the_terminal_is_not_asked_to_report_pointer_motion(tui):
