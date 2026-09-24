@@ -1,5 +1,7 @@
 # pip install pre-commit && pre-commit install
 # "pre-commit autoupdate" moves the revs below to the latest releases.
+# ruff's rev is pinned to the same version as ci.yml, the dev group in
+# pyproject.toml and CONTRIBUTING.md, so if it moves, move those with it.
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
