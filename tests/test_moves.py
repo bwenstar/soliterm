@@ -54,7 +54,7 @@ def test_a_slot_cannot_move_onto_itself(key):
 @pytest.mark.parametrize("key", GAME_ORDER)
 def test_moving_from_an_empty_slot_is_refused(key):
     g = deal(key, 3)
-    if all(s.cards for s in g.slots):  # Scorpion's deal fills every slot
+    if all(s.cards for s in g.slots):  # Scorpion and Triple Peaks fill every slot
         g.slots[-1].cards.clear()
     src = next(s.sid for s in g.slots if not s.cards)
     before = g.serialize()

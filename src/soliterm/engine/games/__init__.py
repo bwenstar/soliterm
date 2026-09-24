@@ -15,6 +15,7 @@ from .klondike import Klondike
 from .scorpion import Scorpion
 from .spider import Spider
 from .spiderette import Spiderette
+from .triplepeaks import TriplePeaks
 from .yukon import Yukon
 
 GAMES: dict[str, type[GameDef]] = {
@@ -26,6 +27,7 @@ GAMES: dict[str, type[GameDef]] = {
         FreeCell,
         EightOff,
         Golf,
+        TriplePeaks,
         Yukon,
         Scorpion,
         BakersDozen,
@@ -41,6 +43,7 @@ GAME_ORDER = [
     "freecell",
     "eightoff",
     "golf",
+    "triplepeaks",
     "yukon",
     "scorpion",
     "bakersdozen",

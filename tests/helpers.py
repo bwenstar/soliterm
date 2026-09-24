@@ -14,6 +14,7 @@ EXPECTED_CARDS = {
     "freecell": 52,
     "eightoff": 52,
     "golf": 52,
+    "triplepeaks": 52,
     "yukon": 52,
     "scorpion": 52,
     "bakersdozen": 52,

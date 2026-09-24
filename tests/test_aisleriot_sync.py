@@ -559,6 +559,7 @@ def test_reset_zeroes_only_the_games_we_manage(keyfile):
 NEW_SECTIONS = {
     "spiderette": "spiderette.scm",
     "scorpion": "scorpion.scm",
+    "triplepeaks": "triple_peaks.scm",
 }
 
 

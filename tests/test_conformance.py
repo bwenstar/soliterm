@@ -146,9 +146,9 @@ def every_suit_in_its_own_column(key):
 def test_finish_scores_like_the_moves_one_by_one(key):
     g = every_suit_in_its_own_column(key)
     moves = g.finish_moves()
-    if key in ("spider", "spiderette", "golf", "scorpion"):
-        # Spider's foundations only take a whole suit, and Golf and Scorpion
-        # have none
+    if key in ("spider", "spiderette", "golf", "triplepeaks", "scorpion"):
+        # Spider's foundations only take a whole suit, and Golf, Triple
+        # Peaks and Scorpion have none
         assert moves is None
         assert g.finish() == 0
         return
@@ -183,6 +183,7 @@ DEALS = {
     "freecell": ("586e2b0bda55805d", "cf45ea6eb566a0e3"),
     "eightoff": ("295688b1398793ab", "da12f0b5390ee5a9"),
     "golf": ("c89f7ca84c5ff69e", "6e6353a85789ea94"),
+    "triplepeaks": ("982d88b0591ea26b", "6abf131775027eeb"),
     "yukon": ("1d346d96d5dac407", "433b6900ae77fdfb"),
     "scorpion": ("5c8afc5598104f2a", "f20768415a740ffe"),
     "bakersdozen": ("c917882e336c8264", "f5f30c943fcf5229"),
@@ -198,3 +199,7 @@ def test_a_deal_number_still_deals_the_same_hand(key):
 
 def test_the_draw_option_does_not_change_the_deal():
     assert deal_digest(deal("klondike", 1, draw=3)) == DEALS["klondike"][0]
+
+
+def test_the_scoring_option_does_not_change_the_deal():
+    assert deal_digest(deal("triplepeaks", 1, scoring="multiplier")) == DEALS["triplepeaks"][0]

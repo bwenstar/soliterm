@@ -1074,6 +1074,21 @@ def test_replaying_a_deal_with_no_moves_left_does_not_count_it(tui):
     assert store.get_stat("golf")["total"] == 0
 
 
+def test_a_played_card_moves_the_cursor_to_the_card_it_uncovered(tui):
+    # the game starts on the 6H at the bottom left; once it's played, the
+    # 7S it was covering turns up and the next f plays that
+    g = deal("triplepeaks", 1)
+    clear_board(g)
+    peaks = g.ids_of("tableau")
+    g.slots[g.ids_of("waste")[0]].cards = [up(5, "C")]
+    g.slots[peaks[9]].cards = [Card(7, "S", False)]
+    g.slots[peaks[18]].cards = [up(6, "H")]
+    g.slots[peaks[27]].cards = [up(13, "D")]
+    tui(["f", "f", "m", "q"], start_key="triplepeaks", game=g, h=24, w=80)
+    assert [str(c) for c in g.cards(g.ids_of("waste")[0])] == ["5C", "6H", "7S"]
+    assert not g.cards(peaks[9]) and not g.cards(peaks[18])
+
+
 def test_a_win_after_taking_back_the_dead_end_counts_as_a_win(tui):
     # 4D first leaves the 6C and 5S stuck; 6C, 5S, 4D clears the board
     g = deal("golf", 1)

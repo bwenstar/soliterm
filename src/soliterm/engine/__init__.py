@@ -32,6 +32,7 @@ from .games.klondike import Klondike
 from .games.scorpion import Scorpion
 from .games.spider import Spider
 from .games.spiderette import Spiderette
+from .games.triplepeaks import TriplePeaks
 from .games.yukon import Yukon
 
 __all__ = [
@@ -61,6 +62,7 @@ __all__ = [
     "Solitaire",
     "Spider",
     "Spiderette",
+    "TriplePeaks",
     "Yukon",
     "make_deck",
     "new_solitaire",

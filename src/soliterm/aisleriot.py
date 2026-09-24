@@ -35,6 +35,7 @@ GAME_TO_SECTION: dict[str, str] = {
     "freecell": "freecell.scm",
     "eightoff": "eight_off.scm",
     "golf": "golf.scm",
+    "triplepeaks": "triple_peaks.scm",
     "yukon": "yukon.scm",
     "scorpion": "scorpion.scm",
     "bakersdozen": "bakers_dozen.scm",

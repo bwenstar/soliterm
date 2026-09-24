@@ -481,6 +481,19 @@ def test_a_board_with_placed_slots_asks_for_just_its_size(view):
         assert f"needs {w}x{h}" in scr.text()
 
 
+def test_the_peaks_fit_80x24_with_six_wide_cards():
+    g = deal("triplepeaks", 1)
+    peaks = g.ids_of("tableau")
+    ui, _scr = draw(g, h=24, w=80)
+    assert ui._cw == 6
+    all_on_screen(ui, g, 24, 80)
+    assert {ui.slot_origin[sid][0] for sid in peaks[:3]} == {9}  # the tops
+    bottom = {y for (y, _x), (sid, _idx) in ui.hit.items() if sid in peaks[18:]}
+    assert bottom == {15, 16, 17, 18}
+    ui, _scr = draw(g, h=30, w=100)
+    assert ui._cw == 8
+
+
 # -- expanded and legacy views -----------------------------------------------------------
 
 
