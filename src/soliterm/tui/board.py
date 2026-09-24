@@ -779,11 +779,13 @@ class BoardUI:
 
     def cascade_piles(self) -> list[tuple[int, int, list[Card]]]:
         """Where the cascade's cards come from, as drawn in the last frame:
-        each foundation, or the waste in a game without foundations (Golf).
-        Each gives the top-left cell of its top card and its cards."""
+        each foundation, or the waste in a game without foundations (Golf),
+        or the finished King to Ace columns in a game with neither
+        (Scorpion). Each gives the top-left cell of its top card and its
+        cards."""
         g = self.game
         piles = []
-        for sid in g.ids_of("foundation") or g.ids_of("waste"):
+        for sid in g.ids_of("foundation") or g.ids_of("waste") or g.ids_of("tableau"):
             cards = g.cards(sid)
             if not cards:
                 continue

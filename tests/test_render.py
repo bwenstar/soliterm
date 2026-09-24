@@ -712,6 +712,20 @@ def test_golf_bounces_its_waste_from_the_top_card():
     assert (y, x) != ui.slot_origin[waste]  # the waste fans to the right
 
 
+def test_scorpion_bounces_its_finished_columns_from_the_top_card():
+    # it has no foundations and no waste, so the cards come off the columns
+    g = deal("scorpion", 1)
+    clear_board(g)
+    columns = g.ids_of("tableau")
+    for t, suit in zip(columns[1:], "SHDC"):
+        g.slots[t].cards = [Card(r, suit, True) for r in range(13, 0, -1)]
+    assert g.is_won()
+    ui, _scr = draw(g)
+    piles = ui.cascade_piles()
+    assert [cards for _y, _x, cards in piles] == [g.cards(t) for t in columns[1:5]]
+    assert [ui.hit[(y, x)] for y, x, _cards in piles] == [(t, 12) for t in columns[1:5]]
+
+
 def test_a_card_in_flight_is_cut_off_at_the_edges():
     ui, scr = draw(won_klondike())
     ui.draw_card_at(20, -2, Card(13, "S", True))

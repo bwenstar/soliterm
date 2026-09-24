@@ -945,6 +945,20 @@ def test_any_key_skips_the_cascade(animated):
     assert len(scr.uis) == 1
 
 
+def test_a_scorpion_win_has_a_cascade_too(animated):
+    g = deal("scorpion", 1)
+    clear_board(g)
+    columns = g.ids_of("tableau")
+    for t, suit in zip(columns, "SHD"):
+        g.slots[t].cards = [up(r, suit) for r in range(13, 0, -1)]
+    g.slots[columns[3]].cards = [up(r, "C") for r in range(13, 1, -1)]
+    g.slots[columns[4]].cards = [up(1, "C")]
+    scr = animated([Click(columns[4], 0), Click(columns[3], 11), -1, "z", "m"], game=g)
+    assert g.is_won()
+    assert scr.delays[2:4] == [cascade.FRAME_MS] * 2
+    assert "Replay this deal" in scr.frames[4]
+
+
 def test_the_cascade_waits_a_frame_for_a_key(animated):
     scr = animated([*LANDINGS, -1, -1, "z", "m"], game=near_won())
     assert scr.delays[5:9] == [cascade.FRAME_MS] * 3 + [1000]
