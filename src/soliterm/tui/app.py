@@ -1698,12 +1698,15 @@ class App:
         share = ""  # the line a daily leaves to paste to friends
         if game.daily:
             share = deals.share_line(game.gamedef.name, game.daily, won, seconds, game.moves)
-        choices = [("same", "Replay this deal"), ("new", "New deal"), ("menu", "Back to menu")]
-        keys = "s/n/m"
+        # each with the key that takes it
+        choices = [
+            ("same", "Replay this deal (s)"),
+            ("new", "New deal (n)"),
+            ("menu", "Back to menu (m)"),
+        ]
         can_undo = not won and game.can_undo()
         if can_undo:
-            choices.insert(0, ("undo", "Undo move"))
-            keys = "u/" + keys
+            choices.insert(0, ("undo", "Undo move (u)"))
         sel = 0
         while True:
             self.begin_page()
@@ -1719,7 +1722,7 @@ class App:
                 attr = (CP(CURSOR) | curses.A_BOLD) if i == sel else 0
                 safe_add(top + i, 6, f"{marker}{label}", attr)
             footer = top + len(choices) + 1
-            safe_add(footer, 6, f"Up/Down + Enter, or {keys}. Click to choose.", CP(CHROME))
+            safe_add(footer, 6, "Up/Down + Enter, or click to choose.", CP(CHROME))
             h, w = self.stdscr.getmaxyx()
             # only on a row the terminal has, as the banner fits without it
             if share and footer + 2 < h:

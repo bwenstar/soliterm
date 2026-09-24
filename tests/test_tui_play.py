@@ -1517,12 +1517,12 @@ def test_the_banner_keeps_its_rows(tui, game_clock):
         "      Best time   : 0:01  (your first Klondike win!)",
         "",  # no streak on a first win
         "",
-        "      > Replay this deal",
+        "      > Replay this deal (s)",
     ]
     # with no best time or streak their rows stay empty, so the choices
     # don't move up
     stuck = tui(["f", "m"], start_key="golf", game=one_move_left()).frames[1].split("\n")
-    assert stuck[10:15] == ["      Wins/Total  : 0/1  (0%)", "", "", "", "      > Undo move"]
+    assert stuck[10:15] == ["      Wins/Total  : 0/1  (0%)", "", "", "", "      > Undo move (u)"]
 
 
 def test_the_banner_shows_the_deal_and_share_code(tui):
@@ -1567,6 +1567,20 @@ def test_the_share_line_is_left_off_a_banner_it_would_not_fit_on(tui, won):
 
 
 @pytest.mark.parametrize("skin", [False, True])
+def test_every_banner_choice_shows_its_key_at_80x24(tui, skin):
+    if skin:
+        code_skin_on()
+    # the most a banner holds: four choices and a daily's share line
+    golf = deals.daily("golf", DAY)
+    banner = tui(["f", "m"], start=golf, game=one_move_left(), h=24, w=80).frames[1]
+    assert "Terminal too small" not in banner
+    for choice in ["Undo move (u)", "Replay this deal (s)", "New deal (n)", "Back to menu (m)"]:
+        assert choice in banner
+    assert "Up/Down + Enter, or click to choose." in banner
+    assert "Soliterm daily 2026-09-24, Golf" in banner
+
+
+@pytest.mark.parametrize("skin", [False, True])
 def test_the_longest_share_line_fits_80_columns(tui, monkeypatch, skin):
     if skin:
         code_skin_on()
@@ -1601,7 +1615,7 @@ def test_the_banner_shows_a_streak_of_two_or_more(tui, before, streak):
     played_before("klondike", before)
     banner = tui(["a", "m"], game=near_won()).frames[1].split("\n")
     assert banner[12].strip() == streak
-    assert banner[14] == "      > Replay this deal"
+    assert banner[14] == "      > Replay this deal (s)"
 
 
 def test_the_no_moves_banner_shows_no_streak(tui):
@@ -1650,11 +1664,11 @@ def test_the_banner_choices_follow_its_lines(tui, monkeypatch):
     assert banner[12:19] == [
         "      Line 8",
         "",
-        "      > Replay this deal",
-        "        New deal",
-        "        Back to menu",
+        "      > Replay this deal (s)",
+        "        New deal (n)",
+        "        Back to menu (m)",
         "",
-        "      Up/Down + Enter, or s/n/m. Click to choose.",
+        "      Up/Down + Enter, or click to choose.",
     ]
     assert "replaying the same deal" in scr.frames[2]
 
