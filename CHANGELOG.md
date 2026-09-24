@@ -38,6 +38,18 @@
   name a run of two or more wins, and `--stats` lists the last ten games.
 - `--reset-stats` clears the history as well, keeping a copy in
   `history.jsonl.bak`, and leaves saved games alone.
+- `a` finishes the game once every card left can go up, safe or not, as
+  one move, and the message line says when that is.
+- `U` and `R` undo and redo every move at once; `u` and `r` still take
+  one. `U` used to be the same as `u`. `U` keeps the clock and redo,
+  where `N` deals the hand again as a new game.
+- Text mode: `undo all` and `redo all`, and `a` finishes too.
+- The finish sends the cards up one at a time, and a win bounces them
+  off the board. Any key skips either, the boss key still hides
+  everything at once, and `--no-animation` or `"animation": false` in
+  config.json turns them off.
+- The win banner says when a win is your first of that game or a new
+  best time.
 
 ## 1.0.0 - 2026-06-29
 
