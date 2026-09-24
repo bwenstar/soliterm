@@ -303,7 +303,7 @@ class BoardUI:
                 self.hit[(y + dy, x + dx)] = (sid, idx)
 
     def _draw_down_pile(self, slot, sid, sy, sx, cw, sel_here, cur_here,
-                        selected_n, hint_src, hint_dst):
+                        selected_n, hint_src, hint_dst, hint_n):
         """A tableau column: covered cards peek above the full-size top card."""
         n = len(slot.cards)
         sel_start = n - selected_n if sel_here else n
@@ -314,7 +314,7 @@ class BoardUI:
             is_top = i == n - 1
             is_sel = sel_here and i >= sel_start
             is_hint = (sid == hint_dst and is_top) or \
-                      (sid == hint_src and i >= n - 1)
+                      (sid == hint_src and i >= n - hint_n)
             is_cur = cur_here and is_top
             attr = self.card_attr(card, is_sel, is_hint and not is_sel,
                                   cursor=is_cur)
@@ -470,7 +470,8 @@ class BoardUI:
 
     def draw(self, selected_slot: Optional[int], selected_n: int,
              cursor_slot: Optional[int], hint: Optional[Tuple[int, int, str]],
-             elapsed: float, message: str):
+             elapsed: float, message: str, hint_n: int = 1):
+        """hint_n is how many cards the hint would move from its source."""
         self.stdscr.erase()
         self.hit.clear()
         if not self.fits():
@@ -525,7 +526,7 @@ class BoardUI:
 
             if slot.expand == "down":
                 self._draw_down_pile(slot, sid, sy, sx, cw, sel_here, cur_here,
-                                     selected_n, hint_src, hint_dst)
+                                     selected_n, hint_src, hint_dst, hint_n)
             elif slot.expand == "right":
                 self._draw_right_fan(slot, sid, sy, sx, cw, sel_here, cur_here,
                                      hint_src, hint_dst)

@@ -39,9 +39,9 @@ def up(rank, suit):
     return Card(rank, suit, True)
 
 
-def klondike_app(first, second, keys=()):
+def klondike_app(first, second, keys=(), scr=None):
     """An App playing Klondike with only the first two columns dealt."""
-    app = App(KeyScr(keys))
+    app = App(scr or KeyScr(keys))
     app.start_game("klondike")
     t = app.game.ids_of("tableau")
     for sid in t:
@@ -120,6 +120,32 @@ def test_esc_drops_the_selection_and_the_hint():
     app, a, b = klondike_app([up(5, "H")], [up(4, "S")])
     press(app, ENTER, "h", 27)
     assert app.selected is None and app.hint is None and app.message == ""
+
+
+class AttrScr(KeyScr):
+    """A KeyScr that also keeps the attribute every cell was drawn with."""
+
+    def erase(self):
+        super().erase()
+        self.attrs = {}
+
+    def addnstr(self, y, x, text, n, attr=0):
+        super().addnstr(y, x, text, n, attr)
+        for i in range(min(len(text), n)):
+            self.attrs[(y, x + i)] = attr
+
+
+def test_a_hint_marks_every_card_it_would_move():
+    # the cursor jumps to the top one, so marking just that showed nothing
+    run = [up(8, "H"), up(7, "S"), up(6, "H")]
+    app, a, b = klondike_app([Card(2, "C", False)] + run, [up(9, "C")], scr=AttrScr())
+    press(app, "h")
+    app.draw()
+    assert app.hint[:2] == (a, b)
+    marked = {idx for yx, (sid, idx) in app.ui.hit.items()
+              if sid == a and app.stdscr.attrs[yx] & curses.A_UNDERLINE}
+    assert marked == {1, 2}
+    assert app.stdscr.attrs[cell_of(app, a, 3)] & curses.A_BOLD
 
 
 def test_an_illegal_drop_says_so_and_changes_nothing():

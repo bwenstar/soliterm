@@ -153,6 +153,7 @@ class App:
         self.last_click: Optional[Tuple[int, float]] = None   # (slot, clock())
         self.cursor = 0
         self.hint: Optional[Tuple[int, int, str]] = None
+        self.hint_n = 1               # how many cards the hint would move
         self.message = ""
         self.recorded = False
         # the player took back the move that left no moves: the banner
@@ -635,7 +636,7 @@ class App:
 
     def draw(self) -> None:
         self.ui.draw(self.selected, self.selected_n, self.cursor, self.hint,
-                     self.seconds(), self.message)
+                     self.seconds(), self.message, self.hint_n)
 
     def move_cursor(self, dr: int, dc: int):
         ui = self.ui
@@ -872,9 +873,19 @@ class App:
             self.message = self.game.no_hint_reason()
         else:
             hsrc, hdst, desc = self.hint
+            self.hint_n = self.hinted_run(hsrc, hdst)
             # move the cursor to the suggested source for convenience
             self.cursor = hsrc
             self.message = f"Hint: {desc}"
+
+    def hinted_run(self, src: int, dst: int) -> int:
+        """How many cards the hint from src to dst would move: as many as
+        best_move() says when the hint is that move, else the most dst takes."""
+        mv = self.game.best_move()
+        if mv is not None and mv[:2] == (src, dst):
+            return mv[2]
+        takes = [n for (s, d, n) in self.game.legal_moves() if (s, d) == (src, dst)]
+        return max(takes, default=1)
 
     def do_select(self):
         self.hint = None
