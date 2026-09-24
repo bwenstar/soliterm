@@ -236,12 +236,12 @@ it's saved instead of counting as lost:
 
 ```text
 q
-Saved your game (0:02, 1 move) for next time.
+Saved your Golf game (0:02, 1 move). Run soliterm --text --game golf to pick it up.
 bye
 ```
 
-Starting that game again without a deal number or options, as
-`soliterm --text --game golf`, carries on where you left off:
+Starting that game again without a deal number or options, as that line
+says, carries on where you left off:
 
 ```text
 Soliterm - Golf - Deal 286262 (text mode). Type h for help.

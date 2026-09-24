@@ -15,6 +15,15 @@ SAVE_MAX_BYTES = 4_000_000
 # What _read() gives for a save this version must neither use nor write over.
 LEFT_ALONE = object()
 
+# The games this run put in the folder and hasn't taken out again
+_kept: list[str] = []
+
+
+def kept() -> list[str]:
+    """The keys of the games this run saved that are still waiting, in the
+    order they were saved, for the way out to say where they went."""
+    return list(_kept)
+
 
 def saves_dir() -> str:
     return os.path.join(store.data_dir(), "saves")
@@ -49,6 +58,7 @@ def keep(g: Solitaire, seconds: float) -> bool:
             **g.snapshot(SAVED_STEPS),
         }
         if store._write_json(path, save):
+            _kept.append(key)
             return True
     store._notice(f"couldn't save your {GAMES[key].name} game to {path}, so it counts as lost")
     return False
@@ -80,6 +90,8 @@ def take(key: str) -> tuple[Solitaire, int] | None:
                 "so it is left there and a new hand dealt"
             )
             return None
+    if key in _kept:
+        _kept.remove(key)
     return g, save["seconds"]
 
 

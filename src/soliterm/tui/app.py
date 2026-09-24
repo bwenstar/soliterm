@@ -14,6 +14,7 @@ from __future__ import annotations
 import curses
 import functools
 import os
+import sys
 import textwrap
 import time
 from collections.abc import Iterator
@@ -1774,7 +1775,18 @@ def main(start: str | Deal | None = None, **options) -> int:
     try:
         return curses.wrapper(run, start, **options)
     except curses.error as exc:
-        import sys
-
         print(f"curses error: {exc}", file=sys.stderr)
         return 1
+    finally:
+        # once the screen is back, where a game left for next time went
+        kept = [GAMES[key].name for key in saves.kept()]
+        if kept:
+            print(f"soliterm: {_saved_line(kept)}", file=sys.stderr)
+
+
+def _saved_line(names: list[str]) -> str:
+    """What leaving says of the games it saved, named in `names`."""
+    if len(names) == 1:
+        return f"saved your {names[0]} game; run soliterm to pick it up"
+    games = ", ".join(names[:-1]) + " and " + names[-1]
+    return f"saved your {games} games; run soliterm to pick them up"

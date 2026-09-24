@@ -138,7 +138,7 @@ def tui(monkeypatch):
 
     It starts on a game of start_key (None for the menu), deal number deal=
     if given, or on start=, a Deal. Pass game= to start play on a board
-    built by hand. The returned screen
+    built by hand, and via_main=True to go through main(). The returned screen
     has .frames, .rc, .uis (every BoardUI made, each with .selections),
     .pairs (init_pair calls), .masks (mousemask calls) and .intervals
     (mouseinterval calls).
@@ -175,6 +175,7 @@ def tui(monkeypatch):
         start=None,
         colours=8,
         color_pairs=256,
+        via_main=False,
         **kwargs,
     ):
         scr = ScriptedScr(h, w, keys, uis)
@@ -208,7 +209,12 @@ def tui(monkeypatch):
         try:
             if start is None and start_key is not None:
                 start = Deal(start_key, deal)
-            scr.rc = soliterm.tui.run(scr, start, color=color, **kwargs)
+            if via_main:
+                # the way the command line starts it, curses handing main() the screen
+                monkeypatch.setattr(curses, "wrapper", lambda fn, *args, **kw: fn(scr, *args, **kw))
+                scr.rc = soliterm.tui.main(start, color=color, **kwargs)
+            else:
+                scr.rc = soliterm.tui.run(scr, start, color=color, **kwargs)
         except KeyboardInterrupt:
             # let through, it would stop the whole test session
             pytest.fail("Ctrl-C got out of the TUI")
@@ -1159,6 +1165,45 @@ def test_ctrl_c_twice_as_q_waits_for_the_lock_says_what_was_lost(tui, monkeypatc
     else:
         assert saves.waiting()["klondike"]["moves"] == 1
         assert store.notices() == []
+
+
+@pytest.mark.parametrize(
+    "leave",
+    [["q"], ["m", "q"], [KeyboardInterrupt], [Signal("SIGTERM")]],
+    ids=["q", "m then q", "ctrl-c", "sigterm"],
+)
+def test_leaving_says_where_the_kept_game_went(tui, capsys, leave):
+    if isinstance(leave[0], Signal) and not hasattr(signal, "SIGHUP"):
+        pytest.skip("needs POSIX signals")
+    with cli._leave_on_signals():
+        scr = tui(["d", *leave], via_main=True)
+    assert scr.rc == (0 if leave[0] in ("q", "m") else 130)
+    assert saves.waiting("klondike")["klondike"]["moves"] == 1
+    # once the screen is back, as the notices are told
+    assert capsys.readouterr().err == (
+        "soliterm: saved your Klondike game; run soliterm to pick it up\n"
+    )
+
+
+def test_two_kept_games_are_told_of_in_one_line(tui, capsys):
+    tui(["d", "m", "j", ENTER, "d", "q"], via_main=True)
+    assert set(saves.waiting()) == {"klondike", "spider"}
+    assert capsys.readouterr().err == (
+        "soliterm: saved your Klondike and Spider games; run soliterm to pick them up\n"
+    )
+
+
+def test_leaving_says_nothing_of_a_game_not_kept(tui, capsys, monkeypatch):
+    tui(["q"], via_main=True)  # untouched
+    # kept, then taken up again and won
+    tui(["f", "m", ENTER, "a", "m", "q"], game=stalled_klondike(), via_main=True)
+    assert store.get_stat("klondike")["wins"] == 1
+    # a chosen deal, with a game of its kind already waiting
+    assert saves.keep(deal("klondike", 7), 42)
+    monkeypatch.setattr(saves, "_kept", [])  # as an earlier run left it
+    tui(["d", "q"], deal=3, via_main=True)
+    assert store.get_stat("klondike")["total"] == 2
+    assert capsys.readouterr().err == ""
 
 
 @pytest.mark.skipif(

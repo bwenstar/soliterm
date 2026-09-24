@@ -837,6 +837,11 @@ def test_a_saved_spider_suits_choice_beats_the_default(cli, suits):
 # -- saved games in text mode ----------------------------------------------------------
 
 
+# what leaving says of a game it saved
+KEPT = "Saved your Klondike game (0:00, 1 move). Run soliterm --text --game klondike to pick it up."
+KEPT_42 = KEPT.replace("0:00, 1 move", "0:42, 31 moves")
+
+
 @pytest.fixture
 def stopped_clock(monkeypatch):
     """Text mode's clock, stopped, so the times it prints are known."""
@@ -846,15 +851,26 @@ def stopped_clock(monkeypatch):
 def test_text_mode_saves_on_q_at_a_tty(cli, stopped_clock):
     rc, lines = cli("--text", stdin="d\nq\n", tty=True)
     assert rc == 0
-    assert lines[-2:] == ["Saved your game (0:00, 1 move) for next time.", "bye"]
+    assert lines[-2:] == [KEPT, "bye"]
     assert saves.waiting() == {"klondike": {"seconds": 0, "moves": 1}}
     assert store.get_stat("klondike")["total"] == 0
+
+
+def test_the_command_a_kept_game_names_takes_it_up(cli, stopped_clock):
+    _rc, lines = cli("--text", "--game", "golf", stdin="d\nq\n", tty=True)
+    assert lines[-2] == (
+        "Saved your Golf game (0:00, 1 move). Run soliterm --text --game golf to pick it up."
+    )
+    command = lines[-2].split("Run ")[1].split(" to pick")[0].split()
+    assert command[0] == "soliterm"
+    _rc, lines = cli(*command[1:], stdin="q\n", tty=True)
+    assert lines[1] == "Resumed your Golf game (0:00, 1 move). Type n for a new deal."
 
 
 def test_ctrl_d_at_a_tty_saves(cli, stopped_clock):
     rc, lines = cli("--text", stdin="d\n", tty=True)
     assert rc == 0
-    assert lines[-1] == "Saved your game (0:00, 1 move) for next time."
+    assert lines[-1] == KEPT
     assert saves.waiting() == {"klondike": {"seconds": 0, "moves": 1}}
     assert store.get_stat("klondike")["total"] == 0
 
@@ -870,7 +886,7 @@ def test_text_mode_resumes_at_a_tty(cli, stopped_clock):
     assert lines[1] == "Resumed your Klondike game (0:42, 31 moves). Type n for a new deal."
     assert without_status(render_text(g, symbols=False)) in "\n".join(lines)
     # still under way without a move made, so it goes back as it was
-    assert lines[-2:] == ["Saved your game (0:42, 31 moves) for next time.", "bye"]
+    assert lines[-2:] == [KEPT_42, "bye"]
     assert saves.waiting() == {"klondike": {"seconds": 42, "moves": 31}}
     assert store.get_stat("klondike")["total"] == 0
 
@@ -892,7 +908,7 @@ def test_a_signal_as_text_mode_resumes_puts_the_game_back(cli, monkeypatch, stop
     monkeypatch.setattr(saves, "take", take)
     rc, lines = cli("--text", stdin="q\n", tty=True)
     assert rc == 130
-    assert lines[-1] == "Saved your game (0:42, 31 moves) for next time."
+    assert lines[-1] == KEPT_42
     assert saves.waiting() == {"klondike": {"seconds": 42, "moves": 31}}
     assert store.get_stat("klondike")["total"] == 0
 
@@ -902,7 +918,7 @@ def test_a_signal_as_text_mode_resumes_puts_the_game_back(cli, monkeypatch, stop
 )
 def test_a_chosen_deal_is_kept_but_never_resumed(cli, stopped_clock, chosen):
     _rc, lines = cli("--text", *chosen, stdin="d\nq\n", tty=True)
-    assert lines[-2] == "Saved your game (0:00, 1 move) for next time."
+    assert lines[-2] == KEPT
     _rc, lines = cli("--text", *chosen, stdin="d\nd\nq\n", tty=True)
     assert lines[1] == "a saved Klondike game is waiting, so this one won't be kept"
     assert saves.waiting() == {"klondike": {"seconds": 0, "moves": 1}}

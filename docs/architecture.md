@@ -196,7 +196,9 @@ again, `resume_solitaire` in
 deals the same hand afresh and checks every saved position against it,
 same slots and same cards, so a damaged or hand-edited save is set aside
 instead of played. The save is taken out of the folder as the game
-resumes, so it can't be played twice.
+resumes, so it can't be played twice. Once the full-screen game has put
+the terminal back, `main` in [`tui/app.py`](../src/soliterm/tui/app.py)
+names the games this run left in the folder, from `saves.kept()`.
 
 Leaving always goes the same way, whatever the reason:
 

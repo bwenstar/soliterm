@@ -9,7 +9,7 @@ time, so setting the environment here is enough.
 import pytest
 
 from soliterm import aisleriot as ar
-from soliterm import store
+from soliterm import saves, store
 
 
 @pytest.fixture(autouse=True)
@@ -27,6 +27,7 @@ def isolated_home(tmp_path, monkeypatch):
     # the store's notices and --no-sync are per run; start each test afresh
     monkeypatch.setattr(store, "_notices", [])
     monkeypatch.setattr(store, "_no_sync", False)
+    monkeypatch.setattr(saves, "_kept", [])
     # AisleRiot may be installed here; a test that wants it says so
     monkeypatch.setattr(ar, "installed", lambda: False)
     return home

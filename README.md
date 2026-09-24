@@ -180,7 +180,9 @@ day's cards again whenever you like.
 ## Saved games
 
 Leave a game with `q`, `m` or Ctrl-C, or close the terminal on it, and it's
-kept for next time with its clock, its score and the moves to undo. Each
+kept for next time with its clock, its score and the moves to undo, and
+the way out says so: `soliterm: saved your Klondike game; run soliterm to
+pick it up`. Each
 game has room for one saved game, so a Klondike and a Spider can both be
 waiting, but not two Klondikes. The game's row on the menu then reads
 `Resume your game: 0:42, 31 moves`, and picking it, or starting it with

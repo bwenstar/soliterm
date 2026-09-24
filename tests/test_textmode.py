@@ -577,6 +577,10 @@ def test_ctrl_c_leaves_quietly_and_counts_like_quitting(before, lost, capsys):
 # -- saved games ---------------------------------------------------------------------------
 
 
+# what leaving says of a game it saved
+KEPT = "Saved your Klondike game (0:00, 1 move). Run soliterm --text --game klondike to pick it up."
+
+
 def test_ctrl_c_saves_a_game_it_may_keep(monkeypatch, capsys):
     monkeypatch.setattr(textmode, "time", Clock())
 
@@ -589,7 +593,7 @@ def test_ctrl_c_saves_a_game_it_may_keep(monkeypatch, capsys):
     assert saves.waiting() == {"klondike": {"seconds": 0, "moves": 1}}
     assert store.get_stat("klondike")["total"] == 0
     out, err = capsys.readouterr()
-    assert out.endswith("\nSaved your game (0:00, 1 move) for next time.\n")
+    assert out.endswith(f"\n{KEPT}\n")
     assert err == "\n"
 
 
@@ -601,7 +605,7 @@ def test_ctrl_c_as_q_saves_the_game_keeps_it_once(monkeypatch, capsys):
     signal_once_written(monkeypatch, saves.save_path("klondike"), signal.SIGINT)
     g = deal("klondike", 1)
     assert textmode.run_text(g, False, "klondike", stream=iter(["d\n", "q\n"]), keep=True) == 130
-    assert "Saved your game (0:00, 1 move) for next time." in capsys.readouterr().out
+    assert KEPT in capsys.readouterr().out
     assert saves.waiting()["klondike"]["moves"] == 1
     assert store.get_stat("klondike")["total"] == 0
     assert store.notices() == []
