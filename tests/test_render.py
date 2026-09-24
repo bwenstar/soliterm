@@ -669,6 +669,20 @@ def test_the_code_skin_moves_the_board_into_the_file():
     assert on[sid][0] >= off[sid][0]  # and no higher
 
 
+# -- the status line -------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("code_skin", [False, True])
+@pytest.mark.parametrize("key", GAME_ORDER)
+def test_the_win_shows_in_full_on_the_status_line_at_80_columns(monkeypatch, key, code_skin):
+    # a long game's numbers, and a fresh deal's status, the longest it gets
+    g = deal(key, 2**31 - 1)
+    g.score, g.moves = 9999, 999
+    monkeypatch.setattr(g, "is_won", lambda: True)
+    _ui, scr = draw(g, h=24, w=80, code_skin=code_skin)
+    assert "*** YOU WIN! ***" in scr.text().splitlines()[21]
+
+
 # -- the win's cascade ---------------------------------------------------------------
 
 

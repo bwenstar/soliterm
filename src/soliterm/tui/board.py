@@ -714,7 +714,9 @@ class BoardUI:
         # status bar
         h, w = self.stdscr.getmaxyx()
         sy = h - 3
-        won = " *** YOU WIN! ***" if g.is_won() else ""
+        # the win goes ahead of the game's status, which can run past 80
+        # columns and would cut it off
+        won = "*** YOU WIN! ***  " if g.is_won() else ""
         if self.code_skin:
             # render the status + message as trailing source comments so the
             # bottom of the screen still reads as code. Pad to the screen width
@@ -723,7 +725,7 @@ class BoardUI:
             pad = w - self._gutter - 1
             stat = (
                 f"    # score={g.score} moves={g.moves} "
-                f"t={store.fmt_time(elapsed)} deal={g.deal_number}  {g.status}{won}"
+                f"t={store.fmt_time(elapsed)} deal={g.deal_number}  {won}{g.status}"
             )
             self.safe_add(sy, self._gutter, stat.ljust(pad)[:pad], comment)
             note = message or "code-skin mode (c to toggle)"
@@ -731,7 +733,7 @@ class BoardUI:
         else:
             left = (
                 f"Score {g.score}   Time {store.fmt_time(elapsed)}   "
-                f"Moves {g.moves}   {g.status}{won}"
+                f"Moves {g.moves}   {won}{g.status}"
             )
             self.safe_add(sy, 2, left, chrome)
             label = deal_label(g)
