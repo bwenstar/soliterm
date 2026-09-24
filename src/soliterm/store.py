@@ -493,8 +493,9 @@ def _share(stats: dict, waiting: Dict[str, dict], game_key: str) -> None:
         waiting = {game_key: waiting[game_key]} if game_key in waiting else {}
     left: Dict[str, dict] = {}
     for key, games in waiting.items():
-        def add(cur: Optional[dict], games: dict = games,
-                ours: dict = _norm(stats.get(key))) -> dict:
+        ours = _norm(stats.get(key))
+
+        def add(cur: Optional[dict], games: dict = games, ours: dict = ours) -> dict:
             # A game the keyfile has no record of (a fresh keyfile, or sol
             # saving its own copy over ours) starts from our record, which
             # counts these games already, rather than from nothing.
@@ -637,7 +638,8 @@ def _reset_stats() -> int:
             played: List[bool] = []
 
             def clear(cur: Optional[dict]) -> Optional[dict]:
-                played.append(bool(cur and cur.get("total", 0) > 0))
+                # update_stat calls this before the loop moves on
+                played.append(bool(cur and cur.get("total", 0) > 0))  # noqa: B023
                 return dict(EMPTY_STAT) if cur is not None else None
 
             if ar.update_stat(sect, clear) is None and played and played[-1]:
