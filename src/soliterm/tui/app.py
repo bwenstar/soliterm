@@ -428,6 +428,17 @@ class App:
             # saved or counted the game
             return 130
 
+    def say_waiting(self) -> None:
+        """Say on the bottom line why the game has stopped, while another
+        copy of it has the stats lock (store.lock_wait_note)."""
+        h, w = self.stdscr.getmaxyx()
+        try:
+            # over all the line had, as any screen may be showing
+            self.stdscr.addnstr(h - 1, 0, store.LOCK_WAIT.ljust(w), max(0, w - 1))
+            self.stdscr.refresh()
+        except curses.error:
+            pass
+
     # ---- menu ---- #
     def last_game(self) -> str:
         """The game played last, or Klondike before there is one."""
@@ -1738,7 +1749,10 @@ class App:
 def run(stdscr, start: str | Deal | None = None, **options):
     """Run a session on stdscr. The settings go on to App by name, so a new
     one only has to be added there."""
-    return App(stdscr, start, **options).run()
+    app = App(stdscr, start, **options)
+    # a wait for another copy of the game is told of on the screen
+    with store.lock_wait_note(app.say_waiting):
+        return app.run()
 
 
 def main(start: str | Deal | None = None, **options) -> int:

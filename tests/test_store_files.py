@@ -164,6 +164,26 @@ def test_ctrl_c_still_stops_a_wait_for_the_lock():
     assert store.get_stat("golf")["total"] == 0
 
 
+@needs_flock
+def test_a_wait_for_the_lock_is_told_of_first():
+    os.makedirs(store.data_dir())
+    told = []
+    with open(os.path.join(store.data_dir(), "stats.lock"), "a") as other:
+        store.fcntl.flock(other.fileno(), store.fcntl.LOCK_EX)
+
+        def note():
+            told.append(store.LOCK_WAIT)
+            store.fcntl.flock(other.fileno(), store.fcntl.LOCK_UN)  # it lets go
+
+        with store.lock_wait_note(note):
+            store.record_result("golf", won=True, seconds=42)
+            assert told == [store.LOCK_WAIT]
+            # with the lock free, there is no wait to tell of
+            store.record_result("golf", won=True, seconds=42)
+    assert told == [store.LOCK_WAIT]
+    assert store.get_stat("golf")["wins"] == 2
+
+
 @pytest.mark.skipif(os.name != "posix", reason="needs POSIX file modes")
 def test_the_lock_file_is_the_players_own():
     old = os.umask(0o022)

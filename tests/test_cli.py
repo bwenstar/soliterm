@@ -566,6 +566,24 @@ def test_a_reset_leaves_out_an_aisleriot_with_no_record_of_ours(cli, keyfile, mo
     assert path.read_text() == before
 
 
+@pytest.mark.skipif(store.fcntl is None, reason="needs flock")
+def test_a_wait_for_another_copy_is_told_of_on_stderr(cli, monkeypatch):
+    store.record_result("golf", True, 50)
+    real = cli_mod._say_waiting
+    with open(os.path.join(store.data_dir(), "stats.lock"), "a") as other:
+        store.fcntl.flock(other.fileno(), store.fcntl.LOCK_EX)
+
+        def say_waiting():
+            real()
+            store.fcntl.flock(other.fileno(), store.fcntl.LOCK_UN)  # it lets go
+
+        monkeypatch.setattr(cli_mod, "_say_waiting", say_waiting)
+        rc, lines = cli("--reset-stats", "--yes")
+    assert rc == 0
+    assert lines[-1] == "Statistics cleared."
+    assert cli.err == f"soliterm: {store.LOCK_WAIT}\n"
+
+
 @pytest.mark.parametrize("flag", ["--r", "--reset", "--reset-stat"])
 def test_reset_stats_takes_no_abbreviation(cli, flag):
     store.record_result("golf", True, 50)

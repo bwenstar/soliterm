@@ -350,6 +350,11 @@ def _leave_on_signals() -> Iterator[list[int]]:
                 signal.signal(s, handler)
 
 
+def _say_waiting() -> None:
+    # the TUI says it on the screen instead
+    print(f"soliterm: {store.LOCK_WAIT}", file=sys.stderr, flush=True)
+
+
 @_quiet_on_broken_pipe
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
@@ -363,7 +368,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.no_sync:
         store.disable_sync()
     try:
-        with _leave_on_signals() as came:
+        with _leave_on_signals() as came, store.lock_wait_note(_say_waiting):
             try:
                 rc = _run(args, parser)
             except KeyboardInterrupt:

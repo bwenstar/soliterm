@@ -14,7 +14,7 @@ import shutil
 import signal
 import tempfile
 import time
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 
 from . import aisleriot as ar
 
@@ -167,6 +167,24 @@ def _write_text(path: str, text: str) -> bool:
 # calls helpers that take it too.
 _lock_depth = 0
 
+# What the front end says while another copy of the game has the lock, and
+# how it says it (see lock_wait_note)
+LOCK_WAIT = "waiting for another copy of the game to finish with the statistics"
+_on_wait: Callable[[], None] | None = None
+
+
+@contextlib.contextmanager
+def lock_wait_note(say: Callable[[], None]) -> Iterator[None]:
+    """Have say() called when the stats lock is busy, before the wait for
+    it, so the player knows why the game has stopped. Another copy holds it
+    only for a moment, unless it is stopped (Ctrl-Z) while it does."""
+    global _on_wait  # noqa: PLW0603 (state for this run)
+    old, _on_wait = _on_wait, say
+    try:
+        yield
+    finally:
+        _on_wait = old
+
 
 # Ctrl-C, the terminal closing and kill: what signals_held holds back
 _LEAVING = [getattr(signal, n) for n in ("SIGINT", "SIGHUP", "SIGTERM") if hasattr(signal, n)]
@@ -216,7 +234,12 @@ def _locked() -> Iterator[None]:
             fd = os.open(os.path.join(data_dir(), "stats.lock"), os.O_WRONLY | os.O_CREAT, 0o600)
             with contextlib.suppress(OSError):
                 os.fchmod(fd, 0o600)  # one an older version left open to others
-            fcntl.flock(fd, fcntl.LOCK_EX)
+            try:
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                if _on_wait is not None:
+                    _on_wait()
+                fcntl.flock(fd, fcntl.LOCK_EX)
         except BaseException as exc:
             if fd is not None:
                 os.close(fd)

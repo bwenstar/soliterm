@@ -1087,6 +1087,27 @@ def test_a_signal_as_q_saves_the_game_keeps_it_once(tui, monkeypatch, name):
     assert store.notices() == []
 
 
+@pytest.mark.skipif(store.fcntl is None, reason="needs flock")
+def test_q_while_another_copy_has_the_lock_says_why_it_waits(tui, monkeypatch):
+    os.makedirs(store.data_dir(), exist_ok=True)
+    seen = []
+    with open(os.path.join(store.data_dir(), "stats.lock"), "a") as other:
+        real = soliterm.tui.app.App.say_waiting
+
+        def say_waiting(self):
+            real(self)
+            seen.append(self.stdscr.text())
+            store.fcntl.flock(other.fileno(), store.fcntl.LOCK_UN)  # it lets go
+
+        monkeypatch.setattr(soliterm.tui.app.App, "say_waiting", say_waiting)
+        lock = functools.partial(store.fcntl.flock, other.fileno(), store.fcntl.LOCK_EX)
+        scr = tui(["d", Meanwhile(lock, "q")])
+    assert scr.rc == 0
+    assert len(seen) == 1
+    assert seen[0].splitlines()[-1] == store.LOCK_WAIT
+    assert saves.waiting()["klondike"]["moves"] == 1
+
+
 @pytest.mark.skipif(not hasattr(signal, "SIGHUP"), reason="needs POSIX signals")
 def test_a_signal_as_n_counts_the_game_leaves_it_unsaved(tui, monkeypatch):
     signal_once_written(monkeypatch, store.stats_path(), signal.SIGTERM)
