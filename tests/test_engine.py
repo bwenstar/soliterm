@@ -402,10 +402,10 @@ def test_restart_replays_a_new_deal_made_under_a_fixed_seed():
 def test_a_negative_seed_is_refused():
     # random.Random(-5) shuffles exactly like Random(5), so -5 would be a
     # second name for seed 5's deal
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="seed must be 0 or more"):
         deal("golf", -5)
     g = deal("golf", 5)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="seed must be 0 or more"):
         g.new_game(seed=-1)
     assert board(g) == board(deal("golf", 5))
 
