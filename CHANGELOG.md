@@ -51,6 +51,16 @@
   config.json turns them off.
 - The win banner says when a win is your first of that game or a new
   best time.
+- Themes for the full-screen game: `classic` (the look it always had),
+  `dark`, `light` and `contrast`. `t` moves on to the next one and
+  remembers it, and `--theme NAME` picks one for a single run.
+- A four-colour deck with green clubs and orange diamonds (blue diamonds
+  on terminals without 256 colours). `4` turns it on and off, and it's
+  remembered too.
+- The code skin colours its source's keywords, strings and numbers as an
+  editor would, in the theme's colours.
+- A terminal with too few colour pairs for all of these draws the ones it
+  has no room for in colours it does have.
 
 ## 1.0.0 - 2026-06-29
 
