@@ -478,10 +478,17 @@ class BoardUI:
             # instead of drawing a clipped, unplayable mess.
             h, w = self.stdscr.getmaxyx()
             need_w, need_h = self.needed_size()
-            self.safe_add(0, 0, "Terminal too small.")
             name = self.game.gamedef.name
-            self.safe_add(1, 0, f"{name} needs {need_w}x{need_h}, have {w}x{h}.")
-            self.safe_add(2, 0, "Resize, or press q.")
+            notice = ["Terminal too small.",
+                      f"{name} needs {need_w}x{need_h}, have {w}x{h}.",
+                      "Resize, or press q."]
+            if self.code_skin:
+                # as a comment in the file, so the notice gives nothing away
+                draw_code_backdrop(self, {1 + i: f"# {line}"
+                                          for i, line in enumerate(notice)})
+            else:
+                for i, line in enumerate(notice):
+                    self.safe_add(i, 0, line)
             self.stdscr.refresh()
             return
         chrome = self.CP(4)

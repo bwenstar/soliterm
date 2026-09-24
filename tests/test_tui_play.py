@@ -900,6 +900,15 @@ def test_the_code_skin_keeps_every_screen_inside_the_code_file(
     assert shown and all(re.match(r" *\d+  # ", row) for row in shown)
 
 
+def test_the_code_skin_keeps_the_too_small_notice_inside_the_code_file(tui):
+    code_skin_on()
+    scr = tui([], h=17, w=80)
+    rows = scr.frames[0].split("\n")
+    assert "solver.py" in rows[0]
+    shown = [row for row in rows if "Terminal too small" in row or "needs" in row]
+    assert len(shown) == 2 and all(re.match(r" *\d+  # ", row) for row in shown)
+
+
 def test_a_click_on_a_banner_choice_finds_it_under_the_code_skin(tui):
     code_skin_on()
     new = BANNER_ROW["new"]
