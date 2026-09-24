@@ -6,6 +6,7 @@ How each of the games in Soliterm is played, with its rules, scoring and a few t
 | --- | --- | --- |
 | [Klondike](klondike.md) | `klondike` | The classic one-deck game: seven columns and a stock, drawing one card or three. |
 | [Spider](spider.md) | `spider` | Two decks, ten columns: build full King to Ace runs in one, two or four suits. |
+| [Spiderette](spiderette.md) | `spiderette` | Spider on one deck and seven columns, dealt like Klondike, in four suits. |
 | [FreeCell](freecell.md) | `freecell` | Every card face up, four free cells, and nearly every deal can be won. |
 | [Eight Off](eightoff.md) | `eightoff` | FreeCell's cousin with eight cells and columns built in suit; nearly all skill. |
 | [Golf](golf.md) | `golf` | Clear seven face-up columns onto the waste, one rank up or down, no wrapping. |
