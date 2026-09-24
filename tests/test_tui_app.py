@@ -16,7 +16,7 @@ from soliterm.engine import Card, Solitaire
 from soliterm.tui import cascade
 from soliterm.tui.app import MENU, QUIT, App
 
-from helpers import FakeScr, clear_board
+from helpers import FakeScr, clear_board, steps
 
 ENTER = 10
 
@@ -155,6 +155,44 @@ def test_an_app_needs_no_terminal_to_start_a_game():
     app.draw()
     assert "Soliterm  -  Spider" in app.stdscr.text()
     assert store.load_config()["last_game"] == "spider"
+
+
+def steps_app():
+    """An App playing Steps: a face-down card over two face-up ones."""
+    app = App(KeyScr(w=80))
+    app.game = steps()
+    app.ui = app.new_board()
+    app.cursor = app.first_cursor()
+    return app, app.game.ids_of("tableau")
+
+
+def test_the_cursor_starts_on_a_face_up_card():
+    app, (_top, left, _right) = steps_app()
+    assert app.cursor == left
+    app.start_game("klondike")
+    assert app.cursor == app.game.ids_of("tableau")[0]
+
+
+def test_the_cursor_skips_an_empty_placed_slot():
+    app, (top, left, right) = steps_app()
+    app.game.slots[left].cards = []
+    app.cursor = right
+    press(app, curses.KEY_LEFT)
+    assert app.cursor == top
+    press(app, curses.KEY_DOWN)
+    assert app.cursor == right
+
+
+def test_the_cursor_leaves_a_slot_that_empties():
+    app, (top, left, _right) = steps_app()
+    app.cursor = left
+    app.draw()
+    app.game.slots[left].cards = []  # as a card played from it would
+    app.draw()
+    assert app.cursor == top  # the nearest card still there
+    app.game.slots[left].cards = [up(5, "H")]
+    app.draw()
+    assert app.cursor == top
 
 
 def board_on(key, w=80, tall=False):

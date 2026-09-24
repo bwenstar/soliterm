@@ -120,6 +120,18 @@ class GameDef:
         Text mode goes by the slot's expand and ignores this."""
         return None
 
+    def spot(self, g: Solitaire, sid: int) -> tuple[int, int] | None:
+        """Where the board draws slot sid inside its row, for a game that
+        lays cards out by hand rather than side by side: (rows down, half
+        cards across). A row down is one covered-card peek, so a card one
+        row down hides the lower part of the one above it, as Triple
+        Peaks' peaks do. None, the default, puts the slot after the one
+        before it.
+
+        A row of slots is placed either all by hand or all in turn. An
+        empty slot placed by hand isn't drawn or clickable."""
+        return None
+
     # ---- shared helpers ---- #
     @staticmethod
     def alt_color_down(upper: Card, lower: Card) -> bool:

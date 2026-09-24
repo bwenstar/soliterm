@@ -14,7 +14,7 @@ from soliterm import camo, themes, tui
 from soliterm.engine import GAME_ORDER, Card
 from soliterm.textmode import render_text
 
-from helpers import FakeScr, clear_board, deal
+from helpers import FakeScr, Steps, clear_board, deal, steps
 
 
 def draw(g, h=40, w=120, symbols=False, view="expanded", code_skin=False, hint=None):
@@ -428,6 +428,57 @@ def test_a_tiny_terminal_gets_a_message_instead_of_a_board():
     ui, scr = draw(deal("klondike", 1), h=8, w=30)
     assert "Terminal too small." in scr.text()
     assert not ui.hit
+
+
+# -- slots a game places by hand -------------------------------------------------------
+
+
+@pytest.mark.parametrize("view", ["expanded", "legacy"])
+def test_a_placed_slot_sits_where_the_game_puts_it(view):
+    g = steps()
+    ui, _scr = draw(g, w=80, view=view)
+    row_y = ui.slot_origin[0][0] + ui.card_h + ui._row_gap  # the row under the stock
+    half = ui._cw + ui._gap
+    for sid, (down, across) in zip(g.ids_of("tableau"), Steps.SPOTS):
+        assert ui.slot_origin[sid] == (row_y + down * ui.peek_y, ui.origin_x + across * half // 2)
+
+
+def test_a_lower_placed_card_covers_the_one_above():
+    g = steps()
+    ui, _scr = draw(g, w=80)
+    top, left, _right = g.ids_of("tableau")
+    (y, x), cw = ui.slot_origin[top], ui._cw
+    shown = {yx for yx, (sid, _idx) in ui.hit.items() if sid == top}
+    # its top border and rank, and the column between the two cards on it
+    strip = {(y + dy, x + dx) for dy in range(ui.peek_y) for dx in range(cw)}
+    sliver = {(y + dy, ui.slot_origin[left][1] + cw) for dy in range(ui.peek_y, ui.card_h)}
+    assert shown == strip | sliver
+
+
+def test_an_empty_placed_slot_is_not_drawn_or_clickable():
+    g = steps()
+    _top, left, _right = g.ids_of("tableau")
+    g.slots[left].cards = []
+    ui, scr = draw(g, w=80)
+    assert clickable(ui, left) == set()
+    y, x = ui.slot_origin[left]
+    # the card above covers the rest of where it was
+    for dy in range(ui.card_h):
+        assert scr.grid[y + dy][x : x + 4] == [" "] * 4
+        assert ui.hit_test(y + dy, x) is None
+
+
+@pytest.mark.parametrize("view", ["expanded", "legacy"])
+def test_a_board_with_placed_slots_asks_for_just_its_size(view):
+    g = steps()
+    ui, _ = draw(g, view=view)
+    w, h = ui.needed_size()
+    ui, scr = draw(g, h=h, w=w, view=view)
+    all_on_screen(ui, g, h, w)
+    for smaller in ((h - 1, w), (h, w - 1)):
+        ui, scr = draw(g, *smaller, view=view)
+        assert not ui.hit
+        assert f"needs {w}x{h}" in scr.text()
 
 
 # -- expanded and legacy views -----------------------------------------------------------

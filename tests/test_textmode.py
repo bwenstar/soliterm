@@ -10,7 +10,15 @@ from soliterm import history, saves, store, textmode
 from soliterm.engine import GAME_ORDER, Card, new_solitaire
 from soliterm.textmode import render_text
 
-from helpers import board_state, clear_board, deal, signal_once_written, stalled_klondike
+from helpers import (
+    Steps,
+    board_state,
+    clear_board,
+    deal,
+    signal_once_written,
+    stalled_klondike,
+    steps,
+)
 
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 
@@ -85,6 +93,25 @@ def test_every_slot_shows_its_id_and_kind(key):
     board = render_text(g, symbols=False)
     shown = {int(sid): kind for kind, sid in re.findall(r"([a-z]*)#(\d+)", board)}
     assert shown == {s.sid: KIND_TAG[s.kind] for s in g.slots}
+
+
+def test_placed_slots_print_where_the_game_puts_them():
+    g = steps()
+    top, left, right = g.ids_of("tableau")
+    placed = blocks(render_text(g, symbols=False))[1:]
+    assert len(placed) == 2  # a row of cards for each row down
+    for sid, (down, across) in zip((top, left, right), Steps.SPOTS):
+        tags, rows = placed[down]
+        x = across * 3  # a half card
+        assert tags[x : x + 5] == f"#{sid}".rjust(5)
+        assert re.fullmatch(r"\[[^\]]{3}\]", rows[0][x : x + 5])
+        assert len(rows) == 1
+    # an empty one is left out, as on the board, and so is a row with none
+    g.slots[left].cards = []
+    g.slots[right].cards = []
+    board = render_text(g, symbols=False)
+    assert len(blocks(board)) == 2
+    assert not re.search(rf"#({left}|{right})\b", board)
 
 
 @pytest.mark.parametrize("key", GAME_ORDER)

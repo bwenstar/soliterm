@@ -93,11 +93,31 @@ def _column(s: Slot, symbols: bool, color: bool) -> list[str]:
     return lines
 
 
+def _placed(g: Solitaire, slots: list[Slot], symbols: bool, color: bool) -> list[str]:
+    """Slots the game places by hand (Triple Peaks): a tag line and a card
+    line for each row down, a half card being three columns across. An
+    empty one is left out, as on the board."""
+    spots = {s.sid: spot for s in slots if s.cards and (spot := g.gamedef.spot(g, s.sid))}
+    lines: list[str] = []
+    for down in sorted({d for d, _ in spots.values()}):
+        tags = cells = ""
+        for sid, (d, across) in spots.items():
+            if d == down:
+                x = across * 3
+                tags += " " * (x - len(tags)) + _pad(slot_tag(g, sid), _CELL_W)
+                cells += " " * (x - _width(cells)) + _cell(g.top(sid), symbols, color)
+        lines += [tags, cells, ""]
+    return lines
+
+
 def render_text(g: Solitaire, symbols: bool = True, color: bool = False) -> str:
     lines: list[str] = []
     lines.append(f"=== {g.gamedef.name} ===")
     for row in sorted({s.row for s in g.slots}):
         slots = [s for s in g.slots if s.row == row]
+        if g.gamedef.spot(g, slots[0].sid) is not None:
+            lines += _placed(g, slots, symbols, color)
+            continue
         tags = [slot_tag(g, s.sid) for s in slots]
         cols = [_column(s, symbols, color) for s in slots]
         # each column is as wide as its widest line, so a slot's cards

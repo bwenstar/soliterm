@@ -899,7 +899,11 @@ class App:
         return ui
 
     def first_cursor(self) -> int:
-        return self.game.ids_of("tableau")[0] if self.game.ids_of("tableau") else 0
+        """The first column with a face-up card on top, else the first
+        column: Triple Peaks starts on its bottom row, not a face-down peak."""
+        columns = self.game.ids_of("tableau")
+        faced = [sid for sid in columns if any(c.face_up for c in self.game.cards(sid)[-1:])]
+        return (faced or columns or [0])[0]
 
     def seconds(self) -> int:
         """The game time in whole seconds, rounded as AisleRiot rounds a win
@@ -907,6 +911,7 @@ class App:
         return int(self.clock.elapsed() + 0.5)
 
     def draw(self) -> None:
+        self.keep_cursor_on_a_card()
         self.ui.draw(
             self.selected,
             self.selected_n,
@@ -917,13 +922,28 @@ class App:
             self.hint_n,
         )
 
+    def keep_cursor_on_a_card(self) -> None:
+        """Move the cursor off a slot the board no longer draws, as a card
+        played from a peak leaves, onto the nearest one it does."""
+        ui = self.ui
+        if not ui.hidden(self.cursor):
+            return
+        cy, cx = ui.slot_origin.get(self.cursor, (ui.origin_y, 2))
+
+        def away(sid: int) -> int:
+            oy, ox = ui.slot_origin.get(sid, (0, 0))
+            return abs(oy - cy) + abs(ox - cx)
+
+        shown = [s.sid for s in self.game.slots if not ui.hidden(s.sid)]
+        self.cursor = min(shown, key=away, default=self.cursor)
+
     def move_cursor(self, dr: int, dc: int):
         ui = self.ui
         cy, cx = ui.slot_origin.get(self.cursor, (ui.origin_y, 2))
         best = None
         bestcost = 1e9
         for s in self.game.slots:
-            if s.sid == self.cursor:
+            if s.sid == self.cursor or ui.hidden(s.sid):
                 continue
             oy, ox = ui.slot_origin.get(s.sid, (0, 0))
             dy, dx = oy - cy, ox - cx

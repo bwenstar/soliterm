@@ -80,6 +80,38 @@ def random_op(g, rng):
         g.attempt_move(rng.randrange(ns), rng.randrange(ns), rng.choice([None, 1, 2, 3, 5, 13]))
 
 
+class Steps(engine.GameDef):
+    """A test game that places its cards by hand, one over two as Triple
+    Peaks' peaks are: a stock, then a face-down card at (0, 1) on two
+    face-up ones at (1, 0) and (1, 2)."""
+
+    key = "steps"
+    name = "Steps"
+    SPOTS = ((0, 1), (1, 0), (1, 2))
+
+    def deal(self, g):
+        g.reset_slots()
+        g.make_deck()
+        self.stock = g.add_slot("stock")
+        g.carriage_return()
+        self.steps = [g.add_slot("tableau") for _ in self.SPOTS]
+        for i, t in enumerate(self.steps):
+            g.deal_from_deck(t, 1, face_up=i > 0)
+        while g.deck:
+            g.deal_from_deck(self.stock, 1, face_up=False)
+
+    def spot(self, g, sid):
+        i = sid - self.steps[0]
+        return self.SPOTS[i] if 0 <= i < len(self.SPOTS) else None
+
+
+def steps():
+    """A dealt game of Steps, which never goes into engine.GAMES."""
+    g = engine.Solitaire(Steps(), seed=1)
+    g.new_game(1)
+    return g
+
+
 def board_state(g):
     """The cards on the board, slot by slot, ignoring score and counters."""
     return tuple(tuple(s.cards) for s in g.slots)

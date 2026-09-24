@@ -315,6 +315,9 @@ class BoardUI:
 
     def _row_width(self, slots, cw: int, step: int, gap: int) -> int:
         """Columns a row of slots takes, room for full fans included."""
+        placed = [spot for spot in (self._spot(s.sid) for s in slots) if spot]
+        if placed:
+            return max(across * (cw + gap) // 2 + cw for _down, across in placed)
         return sum(cw + (self.fan_room(s) - 1) * step for s in slots) + gap * (len(slots) - 1)
 
     def _choose_layout(self, screen_w: int) -> None:
@@ -344,7 +347,9 @@ class BoardUI:
         w = base_x + indent + max(self._row_width(r, cw, step, gap) for r in rows) + 1
         h = (self._code_top if self.code_skin else self.origin_y) - ROW_GAP + 3
         for row in rows:
-            h += ROW_GAP + max([self.card_h] + [self._slot_height(s.sid, 0) for s in row])
+            h += ROW_GAP + max(
+                [self.card_h] + [self._drop(s.sid) + self._slot_height(s.sid, 0) for s in row]
+            )
         return max(MIN_COLS, w), max(MIN_ROWS, h)
 
     def safe_add(self, y, x, text, attr=0):
@@ -454,6 +459,19 @@ class BoardUI:
     def fan_shown(self, slot) -> int:
         """How many of a right-fanned slot's cards the board shows."""
         return min(len(slot.cards), self.fan_room(slot))
+
+    def _spot(self, sid: int) -> tuple[int, int] | None:
+        return self.game.gamedef.spot(self.game, sid)
+
+    def hidden(self, sid: int) -> bool:
+        """An empty slot the game places by hand: a card gone from a peak
+        leaves no frame behind, and nothing there to click."""
+        return self.game.empty(sid) and self._spot(sid) is not None
+
+    def _drop(self, sid: int) -> int:
+        """Rows down from the top of its row a slot placed by hand starts."""
+        spot = self._spot(sid)
+        return spot[0] * self.peek_y if spot else 0
 
     def _columns_in_row(self, row: int) -> list[int]:
         return [s.sid for s in self.game.slots if s.row == row]
@@ -566,10 +584,18 @@ class BoardUI:
             x = base_x
             row_h = self.card_h
             for sid in self._columns_in_row(row):
-                positions[sid] = (y, x)
-                slot = self.game.slots[sid]
-                x += self._cw + self._gap + (self.fan_room(slot) - 1) * self._step
-                row_h = max(row_h, self._slot_height(sid, self._room(y)))
+                spot = self._spot(sid)
+                if spot:
+                    down, across = spot
+                    positions[sid] = (
+                        y + down * self.peek_y,
+                        base_x + across * (self._cw + self._gap) // 2,
+                    )
+                else:
+                    positions[sid] = (y, x)
+                    slot = self.game.slots[sid]
+                    x += self._cw + self._gap + (self.fan_room(slot) - 1) * self._step
+                row_h = max(row_h, self._drop(sid) + self._slot_height(sid, self._room(y)))
             y += row_h + gap
         return positions
 
@@ -641,6 +667,8 @@ class BoardUI:
 
         cw = self._cw
         for sid, (sy, sx) in positions.items():
+            if self.hidden(sid):
+                continue
             slot = g.slots[sid]
             if not self.code_skin and (sy == self._top or self._row_gap):
                 # clip the slot label to the card width so narrow (legacy) cells
