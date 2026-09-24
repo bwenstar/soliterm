@@ -252,6 +252,20 @@ def test_draw_with_spider_is_refused(capsys, args, error):
     assert f"soliterm: error: {error}\n" in capsys.readouterr().err
 
 
+def test_text_mode_accepts_and_ignores_theme(cli):
+    plain = play_briefly(cli, "--deal", "5")
+    themed = play_briefly(cli, "--deal", "5", "--theme", "contrast")
+    assert themed == plain
+    assert "theme" not in store.load_config()
+
+
+def test_an_unknown_theme_is_refused(capsys):
+    with pytest.raises(SystemExit) as exc:
+        main(["--text", "--theme", "solarized"])
+    assert exc.value.code == 2
+    assert "argument --theme: invalid choice" in capsys.readouterr().err
+
+
 def test_draw_and_suits_together_are_refused(capsys):
     with pytest.raises(SystemExit) as exc:
         main(["--text", "--draw", "3", "--suits", "2"])

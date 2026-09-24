@@ -20,7 +20,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Any, Callable
 
-from . import APP_NAME, __version__, deals, debuginfo, history, migrate, saves, store
+from . import APP_NAME, __version__, deals, debuginfo, history, migrate, saves, store, themes
 from . import aisleriot as ar
 from .engine import GAME_ORDER, GAMES
 from .textmode import run_text
@@ -100,6 +100,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="force coloured suits in text mode (red/black on white)",
     )
     p.add_argument("--no-color", dest="color", action="store_false", help="disable coloured output")
+    p.add_argument(
+        "--theme",
+        choices=themes.NAMES,
+        help="colour theme for this run (t switches and keeps one)",
+    )
     p.add_argument(
         "--no-animation", action="store_true", help="finish and win without animating the cards"
     )
@@ -436,6 +441,7 @@ def _run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
                 color=args.color,
                 symbols=symbols,
                 animation=False if args.no_animation else None,
+                theme=args.theme,
             )
         print(f"soliterm: {why}", file=sys.stderr)
 

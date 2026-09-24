@@ -1633,6 +1633,31 @@ def test_no_animation_reaches_the_tui(monkeypatch):
         assert seen["animation"] is animation
 
 
+def test_theme_flag_is_for_one_run(monkeypatch):
+    seen = {}
+    monkeypatch.setattr(soliterm.tui, "main", lambda *a, **kw: seen.update(kw) or 0)
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+    monkeypatch.setattr(cli, "_terminal_problem", lambda: None)
+    for argv, theme in ([], None), (["--theme", "light"], "light"):
+        cli.main(["--game", "klondike"] + argv)
+        assert seen["theme"] == theme
+    assert "theme" not in store.load_config()
+
+
+def test_a_theme_for_one_run_leaves_the_saved_one_alone(tui):
+    store.save_config({**store.load_config(), "theme": "dark"})
+    scr = tui(["v"], theme="light", colours=256)
+    assert scr.pairs == themes.pair_colours(themes.LIGHT, 256)
+    assert store.load_config()["theme"] == "dark"
+
+
+def test_t_after_a_theme_for_one_run_saves_the_next_one(tui):
+    scr = tui(["t"], theme="light")
+    assert "contrast theme" in scr.frames[1]
+    assert store.load_config()["theme"] == "contrast"
+
+
 def pair_of(attr, scr):
     """The (fg, bg) of the colour pair in attr, as the tui fixture set it up."""
     n = (attr >> 8) & 0xFF
