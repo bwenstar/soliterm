@@ -1251,13 +1251,15 @@ class App:
         card lands on it. A key sends the rest up at once, skips the win's
         cascade, and is not passed on, except the boss key, which hides the
         screen straight after. The clock stands still while the cards land,
-        so watching costs no time."""
+        so watching costs no time. On a terminal slow to draw, what is left
+        once FINISH_S is up goes up at once."""
         wait = max(1, min(FINISH_STEP_MS, int(FINISH_S * 1000 / steps)))
         cut: list[int] = []
         self.message = ""  # the offer, which is being taken up
+        started = clock()
 
         def land(src: int, dst: int) -> None:
-            if cut:
+            if cut or clock() - started >= FINISH_S:
                 return
             self.hint = (-1, dst, "")  # lights the foundation only
             self.draw()

@@ -823,6 +823,14 @@ def test_the_clock_is_paused_while_the_finish_plays(animated, game_clock):
     assert "Time        : 0:00\n" in banner
 
 
+def test_a_finish_on_a_slow_terminal_lands_the_rest_once_time_is_up(animated, game_clock):
+    # the waits add up to FINISH_S at most, but drawing each card takes time too
+    late = Later(soliterm.tui.app.FINISH_S, -1)
+    scr = animated(["a", -1, late, "z", "m"], game=near_won())
+    assert scr.delays[:4] == [1000, 80, 80, cascade.FRAME_MS]
+    assert store.get_stat("klondike")["wins"] == 1
+
+
 def test_the_offer_goes_once_it_is_taken_up(animated):
     scr = animated(KING_TO_EMPTY + ["a", -1, -1, -1, -1], game=near_won())
     offer = soliterm.tui.app.FINISH_OFFER
