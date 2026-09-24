@@ -20,8 +20,14 @@ from typing import Callable, Iterator, List, Optional, Tuple
 
 from .. import APP_NAME, camo, engine, store
 from ..engine import GAME_ORDER, GAMES, Solitaire
-from .board import (CODE_GUTTER, MIN_COLS, BoardUI, can_draw_unicode,
-                    draw_code_backdrop, draw_too_small)
+from .board import (
+    CODE_GUTTER,
+    MIN_COLS,
+    BoardUI,
+    can_draw_unicode,
+    draw_code_backdrop,
+    draw_too_small,
+)
 from .keys import BOSS_ACTIONS, PLAY_ACTIONS, help_lines
 
 # What a play-screen handler returns to leave the game in play: back to the

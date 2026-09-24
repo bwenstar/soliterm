@@ -22,7 +22,6 @@ from . import aisleriot as ar
 from .engine import GAME_ORDER, GAMES
 from .textmode import run_text
 
-
 # --------------------------------------------------------------------------- #
 # CLI
 # --------------------------------------------------------------------------- #

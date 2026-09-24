@@ -17,6 +17,7 @@ import soliterm.tui
 from soliterm import aisleriot as ar
 from soliterm import cli, engine, store
 from soliterm.engine import Card
+
 from helpers import FakeScr, clear_board, deal
 
 ENTER = "\n"
@@ -430,6 +431,7 @@ def test_a_terminal_that_cannot_show_unicode_gets_plain_cards(tui, monkeypatch):
 
 def test_the_locale_decides_when_the_window_does_not_say(monkeypatch):
     import locale
+
     from soliterm.tui.board import can_draw_unicode
 
     class Window:

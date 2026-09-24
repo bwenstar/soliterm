@@ -14,6 +14,7 @@ from soliterm import store
 from soliterm.cli import main
 from soliterm.engine import GAME_ORDER, GAMES
 from soliterm.textmode import render_text
+
 from helpers import deal
 
 

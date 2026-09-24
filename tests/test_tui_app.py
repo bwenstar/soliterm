@@ -11,6 +11,7 @@ import soliterm.tui.app
 from soliterm import store
 from soliterm.engine import Card, Solitaire
 from soliterm.tui.app import MENU, QUIT, App
+
 from helpers import FakeScr
 
 ENTER = 10

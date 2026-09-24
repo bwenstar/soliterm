@@ -9,6 +9,7 @@ import pytest
 
 from soliterm.tui import keys
 from soliterm.tui.app import App
+
 from helpers import FakeScr
 
 # how a label names the keys that are not a plain character

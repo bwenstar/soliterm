@@ -3,6 +3,7 @@
 import pytest
 
 from soliterm.engine import Card
+
 from helpers import clear_board, deal
 
 

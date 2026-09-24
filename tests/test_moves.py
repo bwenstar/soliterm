@@ -6,6 +6,7 @@ import pytest
 
 from soliterm import textmode
 from soliterm.engine import GAME_ORDER, Card
+
 from helpers import board_state, clear_board, deal, legal_walk
 
 

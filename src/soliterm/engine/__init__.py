@@ -16,8 +16,7 @@ the games' rules, the statistics dialog). No GPL source code is copied.
 Everything the front-ends need is importable straight from soliterm.engine.
 """
 
-from .cards import (ACE, JACK, KING, QUEEN, RANK_NAME, RED_SUITS, SUIT_SYMBOL,
-                    SUITS, Card, make_deck)
+from .cards import ACE, JACK, KING, QUEEN, RANK_NAME, RED_SUITS, SUIT_SYMBOL, SUITS, Card, make_deck
 from .core import Slot, Solitaire
 from .gamedef import GameDef
 from .games import GAME_ORDER, GAMES, new_solitaire

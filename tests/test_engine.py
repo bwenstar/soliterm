@@ -7,6 +7,7 @@ import pytest
 
 from soliterm import engine
 from soliterm.engine import GAME_ORDER, Card
+
 from helpers import EXPECTED_CARDS, card_count, card_multiset, clear_board, deal, random_op
 
 

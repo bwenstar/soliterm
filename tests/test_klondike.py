@@ -5,6 +5,7 @@ import random
 import pytest
 
 from soliterm.engine import Card
+
 from helpers import card_multiset, clear_board, deal, legal_walk
 
 DRAWS = [1, 3]

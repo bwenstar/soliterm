@@ -13,6 +13,7 @@ import pytest
 from soliterm import camo, tui
 from soliterm.engine import GAME_ORDER, Card
 from soliterm.textmode import render_text
+
 from helpers import FakeScr, clear_board, deal
 
 

@@ -10,6 +10,7 @@ import pytest
 
 from soliterm import camo, store, textmode
 from soliterm.cli import main
+
 from helpers import deal
 
 TELLS = ("♠", "♥", "♦", "♣", "[###]", "score=", "Foundation")

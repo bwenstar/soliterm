@@ -8,6 +8,7 @@ import pytest
 from soliterm import store, textmode
 from soliterm.engine import GAME_ORDER, Card, new_solitaire
 from soliterm.textmode import render_text
+
 from helpers import board_state, clear_board, deal
 
 ANSI = re.compile(r"\x1b\[[0-9;]*m")

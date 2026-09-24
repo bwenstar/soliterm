@@ -17,7 +17,6 @@ from typing import List, Optional, Tuple
 from . import APP_NAME, camo, store
 from .engine import SUIT_SYMBOL, Card, Slot, Solitaire
 
-
 # --------------------------------------------------------------------------- #
 # Text rendering (curses-free; for pipes and tests)
 # --------------------------------------------------------------------------- #

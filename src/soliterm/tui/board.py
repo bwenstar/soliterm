@@ -16,7 +16,6 @@ from typing import Dict, Iterator, List, Optional, Tuple
 from .. import APP_NAME, camo, store
 from ..engine import SUIT_SYMBOL, Card, Solitaire
 
-
 # Geometry of a rendered card. Cards are drawn as multi-line boxes that overlap
 # vertically (and horizontally for waste fans), AisleRiot-style: the top card of
 # a pile shows full-size, covered cards peek out with their rank+suit corner.
