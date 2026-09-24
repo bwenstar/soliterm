@@ -54,7 +54,8 @@ OUT = ROOT / "docs" / "img"
 # stand for themselves, and there are Up, Down, Left, Right, Enter, Space,
 # Escape, Tab, F2 and so on. A still scene is saved as <name>.png from its
 # last shot. An animated one becomes <name>.gif, one frame per shot, each
-# shown for its hold time in milliseconds.
+# shown for its hold time in milliseconds. A caption is a frame of its own,
+# its text alone on an empty screen, to say where a GIF skips ahead.
 #
 # The keys follow the TUI's bindings in src/soliterm/tui/keys.py: the arrows
 # move the cursor, Enter or Space picks a card up and puts it down, h shows
@@ -78,6 +79,7 @@ class Step(NamedTuple):
     wait: float = PAUSE
     shot: bool = False
     hold: int = 1200
+    caption: str = ""  # text to show on an empty screen instead of the game
 
 
 class Scene(NamedTuple):
@@ -91,6 +93,17 @@ class Scene(NamedTuple):
 
 def shot(keys: str = "", hold: int = 1200, wait: float = PAUSE) -> Step:
     return Step(keys, wait, True, hold)
+
+
+def caption(text: str, hold: int = 1200) -> Step:
+    return Step(wait=0, shot=True, hold=hold, caption=text)
+
+
+def caption_screen(text: str) -> str:
+    """A screen with only text on it, in the middle, as tmux would capture it."""
+    lines = [""] * ROWS
+    lines[ROWS // 2] = text.center(COLS).rstrip()
+    return "\n".join(lines) + "\n"
 
 
 def golf(plays: str) -> str:
@@ -191,6 +204,7 @@ SCENES: list[Scene] = [
             shot("Left", hold=300),
             shot("Left", hold=600),
             shot("Enter", hold=1400),
+            caption("a little later...", hold=1200),
             # a cut to the end of the game, the cards going up and the
             # win: the finish takes about a second and a half and the
             # cascade after it six at most, then the banner comes up
@@ -762,7 +776,9 @@ class Stage:
                     time.sleep(KEY_GAP)
                 time.sleep(step.wait)
                 self._check_alive(scene.name)
-                if step.shot:
+                if step.caption:
+                    frames.append(Frame(caption_screen(step.caption), step.hold))
+                elif step.shot:
                     frames.append(Frame(self.capture(scene.name), step.hold))
             if not frames:
                 frames.append(Frame(self.capture(scene.name), 0))

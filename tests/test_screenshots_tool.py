@@ -169,6 +169,26 @@ def test_frames_last_as_long_as_asked(tool):
     assert all(step.shot and step.hold == 100 and step.wait < 0.1 for step in steps)
 
 
+def test_a_caption_is_its_text_alone_in_the_middle_of_the_screen(tool):
+    rows = tool.parse(tool.caption_screen("a little later..."))
+    assert len(rows) == tool.ROWS
+    lines = [text_of(row).strip() for row in rows]
+    assert lines[tool.ROWS // 2] == "a little later..."
+    assert sum(map(bool, lines)) == 1
+    middle = text_of(rows[tool.ROWS // 2])
+    left, right = len(middle) - len(middle.lstrip()), tool.COLS - len(middle.rstrip())
+    assert abs(left - right) <= 1
+
+
+def test_the_hero_says_so_where_it_skips_ahead(tool):
+    steps = list(scene(tool, "hero").steps)
+    jump = next(i for i, step in enumerate(steps) if step.keys == tool.TO_THE_FINISH)
+    before = steps[jump - 1]
+    assert before.shot and not before.keys
+    assert before.caption == "a little later..."
+    assert sum(bool(step.caption) for step in steps) == 1
+
+
 def test_draws_a_window(tool):
     pytest.importorskip("PIL")
     try:

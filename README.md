@@ -12,7 +12,7 @@ of statistics shared between the two.
 [![Python versions](https://img.shields.io/pypi/pyversions/soliterm)](https://pypi.org/project/soliterm/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](https://github.com/bwenstar/soliterm/blob/main/LICENSE)
 
-![A game of Klondike, deal 946, in a terminal. A few cards are moved with the keyboard, then the recording skips ahead to where every card can go up. One key sends them all to the foundations, the cards bounce down the screen, and the win screen shows the time, the score and the share code klondike:946.](https://raw.githubusercontent.com/bwenstar/soliterm/main/docs/img/hero.gif)
+![A game of Klondike, deal 946, in a terminal. A few cards are moved with the keyboard, then a caption says a little later and the recording skips ahead to where every card can go up. One key sends them all to the foundations, the cards bounce down the screen, and the win screen shows the time, the score and the share code klondike:946.](https://raw.githubusercontent.com/bwenstar/soliterm/main/docs/img/hero.gif)
 
 ## Try it now
 
