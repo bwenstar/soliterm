@@ -41,6 +41,7 @@ QUIT = "quit"
 START_MESSAGE = "? help  h hint  m menu. Click or use arrows + Enter."
 # shown after any move that leaves every card free to go up
 FINISH_OFFER = "Every card can go up now. Press a to finish."
+UNDONE_ALL = "back at the deal: r redoes a move, R all of them"
 
 # The most the pick-deal box takes. The board's title line, 46 characters
 # at most, has to paste in whole, even copied with the spaces around it.
@@ -1192,6 +1193,16 @@ class App:
 
     def do_redo(self):
         self.message = "" if self.game.redo() else "nothing to redo"
+        self.selected = None
+        self.hint = None
+
+    def do_undo_all(self):
+        self.message = UNDONE_ALL if self.game.undo_all() else "nothing to undo"
+        self.selected = None
+        self.hint = None
+
+    def do_redo_all(self):
+        self.message = "" if self.game.redo_all() else "nothing to redo"
         self.selected = None
         self.hint = None
 

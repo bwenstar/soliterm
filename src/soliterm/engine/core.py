@@ -393,6 +393,21 @@ class Solitaire:
         self._restore(self._redo.pop().decode())
         return True
 
+    def undo_all(self) -> int:
+        """Take back every move, back to the deal. Returns how many undo steps
+        that was. Each goes onto the redo stack, so redo_all() replays them."""
+        n = 0
+        while self.undo():
+            n += 1
+        return n
+
+    def redo_all(self) -> int:
+        """Redo every move taken back. Returns how many."""
+        n = 0
+        while self.redo():
+            n += 1
+        return n
+
     def can_undo(self) -> bool:
         return bool(self._undo)
 

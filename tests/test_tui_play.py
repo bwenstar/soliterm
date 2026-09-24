@@ -691,6 +691,23 @@ def test_undoing_every_move_still_keeps_the_game(tui):
     assert saves.waiting()["klondike"]["moves"] == 0
 
 
+def test_U_undoes_every_move_and_R_redoes_them(tui):
+    scr = tui(["d", "d", "d", "U", "R", "U", "U", "R", "R"])
+    undone, redone = scr.frames[4], scr.frames[5]
+    assert "Moves 0" in undone and soliterm.tui.app.UNDONE_ALL in undone
+    assert "Moves 3" in redone
+    assert "nothing to undo" in scr.frames[7]
+    assert "nothing to redo" in scr.frames[9]
+
+
+def test_U_keeps_the_clock_running_and_the_game_under_way(tui, game_clock):
+    # where N deals the hand again as a new game, at 0:00 and not kept
+    scr = tui([Later(0, "d"), "d", Later(10, "U"), Later(5, -1)])
+    assert "Moves 0" in scr.frames[-1]
+    assert times(scr)[-1] == "0:15"
+    assert saves.waiting()["klondike"] == {"seconds": 15, "moves": 0}
+
+
 def test_restarting_the_deal_does_not_count_it(tui):
     # nor does AisleRiot's Restart, which deals the same hand again
     tui(["d", "N", "q"])

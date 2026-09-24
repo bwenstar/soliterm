@@ -241,6 +241,30 @@ def test_letters_whose_case_means_nothing_work_in_either_case():
     assert textmode.apply_text_command(g, "Q") == (True, "__quit__")
 
 
+def test_text_undo_all_and_redo_all():
+    g = deal("golf", 1)
+    start = g.serialize()
+    assert textmode.apply_text_command(g, "undo all") == (False, "nothing to undo")
+    g.deal()
+    g.deal()
+    end = g.serialize()
+    assert textmode.apply_text_command(g, "undo all") == (True, "")
+    assert g.serialize() == start
+    assert textmode.apply_text_command(g, " Redo  ALL") == (True, "")
+    assert g.serialize() == end
+    assert textmode.apply_text_command(g, "redo all") == (False, "nothing to redo")
+    assert "undo all" in textmode.TEXT_HELP and "redo all" in textmode.TEXT_HELP
+
+
+def test_text_U_still_undoes_one():
+    g = deal("golf", 1)
+    g.deal()
+    one = g.serialize()
+    g.deal()
+    assert textmode.apply_text_command(g, "U") == (True, "")
+    assert g.serialize() == one
+
+
 def test_the_help_lists_restart():
     assert "N / restart" in textmode.TEXT_HELP
 

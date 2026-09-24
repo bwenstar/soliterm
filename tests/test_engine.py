@@ -105,6 +105,47 @@ def test_undo_all_returns_to_the_deal(key):
     assert g.serialize() == initial
 
 
+def played_a_little(key):
+    """A deal a few good moves in, with nothing to redo."""
+    g = deal(key, 11)
+    for _ in range(12):
+        mv = g.best_move()
+        if mv is not None:
+            g.attempt_move(*mv)
+        elif not g.deal():
+            break
+    return g
+
+
+@pytest.mark.parametrize("key", GAME_ORDER)
+def test_undo_all_goes_back_to_the_deal_and_redo_all_replays_it(key):
+    start = deal(key, 11).serialize()
+    g = played_a_little(key)
+    end, steps = g.serialize(), len(g._undo)
+    assert steps > 0
+    assert g.undo_all() == steps
+    assert g.serialize() == start
+    assert not g.can_undo()
+    assert g.redo_all() == steps
+    assert g.serialize() == end
+    assert not g.can_redo()
+
+
+def test_undo_all_leaves_the_moves_to_redo_one_at_a_time():
+    g = deal("klondike", 42)
+    g.deal()
+    first = g.serialize()
+    g.deal()
+    assert g.undo_all() == 2
+    assert g.redo()
+    assert g.serialize() == first
+
+
+def test_undo_all_and_redo_all_with_nothing_to_do_return_0():
+    g = deal("klondike", 42)
+    assert (g.undo_all(), g.redo_all()) == (0, 0)
+
+
 def test_a_failed_click_keeps_the_redo_stack():
     g = deal("klondike", 42)
     g.deal()

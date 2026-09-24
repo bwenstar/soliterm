@@ -76,7 +76,7 @@ The zipapp builds with the standard library alone. `--wheel` runs
 | `h` | hint: highlight a legal move |
 | `n` / `N` | new deal / restart **this** deal |
 | `g` | play a deal by its number or share code |
-| `u` / `r` | undo / redo |
+| `u` / `r` | undo / redo a move; `U` / `R` every move (redo is kept) |
 | `o` | game options · `s` statistics · `v` toggle colour |
 | `c` | code skin (keep playing inside a fake source file) |
 | `b` / F2 | boss mode (hide the game behind fake "work" output) |
@@ -119,6 +119,7 @@ d                deal           a       autoplay or finish
 <src> <dst>      move a run     u / r   undo / redo
 <src> <dst> <n>  move n cards   hint    suggest a move
 f <slot>         to foundation  n / N   new deal / restart   q  quit
+undo all / redo all   take back or redo every move
 ```
 
 ## Saved games

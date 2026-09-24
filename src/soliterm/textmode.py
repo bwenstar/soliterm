@@ -132,6 +132,8 @@ so stk#0 is 0, fnd#4 is 4 and #9 is 9:
   hint / ?         suggest a legal move (shows the slot ids to use)
   b / boss         boss mode: print fake 'work' output to hide the game
   u  undo   r  redo   n  new deal
+  undo all         take back every move, back to the deal
+  redo all         redo every move taken back
   N / restart      start this deal over
   h / help         this help
   q                quit
@@ -198,6 +200,12 @@ def apply_text_command(g: Solitaire, cmd: str) -> tuple[bool, str]:
     if cmd in ("a", "auto"):
         n = g.finish() or g.autoplay()
         return n > 0, f"autoplayed {n}" if n else "nothing to autoplay"
+    if cmd.split() == ["undo", "all"]:
+        n = g.undo_all()
+        return n > 0, "" if n else "nothing to undo"
+    if cmd.split() == ["redo", "all"]:
+        n = g.redo_all()
+        return n > 0, "" if n else "nothing to redo"
     if cmd in ("u", "undo"):
         ok = g.undo()
         return ok, "" if ok else "nothing to undo"
