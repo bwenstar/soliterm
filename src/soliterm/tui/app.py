@@ -993,7 +993,8 @@ class App:
 
     def keep_cursor_on_a_card(self) -> None:
         """Move the cursor off a slot the board no longer draws, as a card
-        played from a peak leaves, onto the nearest one it does."""
+        played from a peak leaves, onto the nearest one it does: the nearest
+        card that will play, if one will."""
         ui = self.ui
         if not ui.hidden(self.cursor):
             return
@@ -1004,7 +1005,9 @@ class App:
             return abs(oy - cy) + abs(ox - cx)
 
         shown = [s.sid for s in self.game.slots if not ui.hidden(s.sid)]
-        self.cursor = min(shown, key=away, default=self.cursor)
+        plays = {src for src, _dst, _n in self.game.legal_moves()}
+        playable = [sid for sid in shown if sid in plays]
+        self.cursor = min(playable or shown, key=away, default=self.cursor)
 
     def move_cursor(self, dr: int, dc: int):
         ui = self.ui
