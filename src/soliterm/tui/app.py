@@ -1102,8 +1102,9 @@ class App:
         self.hint = None
 
     def click_stock(self, sid: int):
-        if not self.game.click(sid):
-            self.message = self.game.deal_blocked_reason()
+        # a deal clears what was said about the move before, as a move does
+        ok = self.game.click(sid)
+        self.message = "" if ok else self.game.deal_blocked_reason()
 
     def under_way(self) -> bool:
         # A game is under way from its first move, as in AisleRiot, even if
@@ -1384,8 +1385,8 @@ class App:
 
     def do_deal(self):
         self.hint = None
-        if not self.game.deal():
-            self.message = self.game.deal_blocked_reason()
+        ok = self.game.deal()
+        self.message = "" if ok else self.game.deal_blocked_reason()
         self.selected = None
 
     def do_autoplay(self):

@@ -1224,6 +1224,22 @@ def test_an_f_that_does_nothing_says_why(tui, key, says, double):
     assert g.serialize() == before
 
 
+@pytest.mark.parametrize("how", ["d", "click"])
+def test_a_card_dealt_from_the_stock_clears_the_last_message(tui, how):
+    g = deal("triplepeaks", 1)
+    clear_board(g)
+    first = g.ids_of("tableau")[-1]
+    g.slots[first].cards = [up(5, "H")]
+    stock, waste = g.ids_of("stock")[0], g.ids_of("waste")[0]
+    g.slots[waste].cards = [up(9, "S")]
+    g.slots[stock].cards = [Card(2, "C", False), Card(3, "D", False)]
+    dealt = "d" if how == "d" else Click(stock, 1)
+    scr = tui(["f", dealt], start_key="triplepeaks", game=g)
+    assert "doesn't go on the waste" in scr.frames[1]
+    assert names(g, waste)[-1] == "3D"
+    assert "doesn't go on the waste" not in scr.frames[2]
+
+
 def test_a_win_after_taking_back_the_dead_end_counts_as_a_win(tui):
     # 4D first leaves the 6C and 5S stuck; 6C, 5S, 4D clears the board
     g = deal("golf", 1)
