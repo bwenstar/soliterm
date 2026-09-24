@@ -160,6 +160,7 @@ class Canfield(GameDef):
     def status(self, g):
         done = sum(len(g.cards(f)) for f in self.foundations)
         base = RANK_NAME.get(g.base_val, str(g.base_val))
-        return f"Stock: {len(g.cards(self.stock))}  Reserve: {len(g.cards(self.reserve))}  Base: {base}  ({done}/52)"
+        stock, reserve = len(g.cards(self.stock)), len(g.cards(self.reserve))
+        return f"Stock: {stock}  Reserve: {reserve}  Base: {base}  ({done}/52)"
 
     # hint(): generic progress-based engine hint (see Solitaire.hint).

@@ -176,7 +176,8 @@ class Spider(GameDef):
 
     def status(self, g):
         done = sum(1 for f in self.foundations if not g.empty(f))
-        return f"Stock: {len(g.cards(self.stock))} ({len(g.cards(self.stock))//10} deals)  Done: {done}/8"
+        stock = len(g.cards(self.stock))
+        return f"Stock: {stock} ({stock // 10} deals)  Done: {done}/8"
 
     def progress(self, g):
         """Spider progresses by building in-suit runs and completing suits.
