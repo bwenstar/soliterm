@@ -180,6 +180,76 @@ def test_a_squeezed_column_still_shows_every_face_up_rank(down, up):
     assert clickable(ui, col) >= set(range(down, down + up))
 
 
+KING_TO_ACE = [Card(r, "SH"[r % 2], True) for r in range(13, 0, -1)]
+DEALT = [Card(9, "H", True), Card(4, "S", True), Card(7, "H", True), Card(2, "S", True)]
+
+
+def rows_of_their_own(ui, scr, sid):
+    """Indexes of slot sid's cards with a row to themselves above the status
+    line: the row shows the card's rank and suit, and a click on it picks
+    that card."""
+    top, x = ui.slot_origin[sid]
+    lines = scr.text().splitlines()
+    cards = ui.game.cards(sid)
+    own = set()
+    for y in range(top, ui.stdscr.getmaxyx()[0] - 3):
+        hit = ui.hit_test(y, x + 1)
+        text = lines[y][x:x + ui._cw].strip("|│ ")
+        if hit and hit[0] == sid and text == cards[hit[1]].label(ui.symbols):
+            own.add(hit[1])
+    return own
+
+
+@pytest.mark.parametrize("symbols", [False, True])
+@pytest.mark.parametrize("code_skin", [False, True])
+@pytest.mark.parametrize("key, down, up", [
+    ("klondike", 6, KING_TO_ACE),              # as long as a Klondike column gets
+    ("klondike", 0, KING_TO_ACE),
+    ("spider", 5, KING_TO_ACE + DEALT[:2]),
+    ("spider", 0, KING_TO_ACE + DEALT[:3]),
+])
+def test_every_face_up_card_of_a_long_column_has_a_row_at_80x24(key, down, up,
+                                                                code_skin, symbols):
+    g = deal(key, 1)
+    clear_board(g)
+    col = g.ids_of("tableau")[0]
+    g.slots[col].cards = [Card(1, "C", False)] * down + up
+    ui, scr = draw(g, h=24, w=80, code_skin=code_skin, symbols=symbols)
+    assert rows_of_their_own(ui, scr, col) >= set(range(down, down + len(up)))
+    all_on_screen(ui, g, 24, 80)
+
+
+@pytest.mark.parametrize("code_skin", [False, True])
+def test_a_column_too_long_for_the_screen_says_how_many_cards_share_a_row(code_skin):
+    g = deal("spider", 1)
+    clear_board(g)
+    col = g.ids_of("tableau")[0]
+    cards = [Card(1, "C", False)] * 5 + KING_TO_ACE + DEALT
+    g.slots[col].cards = cards
+    ui, scr = draw(g, h=24, w=80, code_skin=code_skin)
+    all_on_screen(ui, g, 24, 80)
+    top, x = ui.slot_origin[col]
+    lines = scr.text().splitlines()
+    first_row = {}               # card index -> the first row a click picks it on
+    for y in range(top, 21):
+        hit = ui.hit_test(y, x + 1)
+        if hit and hit[0] == col:
+            first_row.setdefault(hit[1], y)
+    starts = sorted(first_row)
+    assert starts[0] == 0
+    shared = []
+    for a, b in zip(starts, starts[1:] + [len(cards)]):
+        text = lines[first_row[a]][x:x + ui._cw]
+        if b - a > 1 and cards[a].face_up:
+            assert text.strip("| ") == f"+{b - a}"
+            shared.append(a)
+        elif b - a > 1:
+            assert text.strip("|#") == str(b - a)
+    # the run's King and the cards on top of the column keep their own rows
+    assert shared
+    assert rows_of_their_own(ui, scr, col) >= {5, len(cards) - 2, len(cards) - 1}
+
+
 @pytest.mark.parametrize("code_skin", [False, True])
 @pytest.mark.parametrize("key", GAME_ORDER)
 def test_every_face_up_rank_of_an_opening_deal_shows_at_80x24(key, code_skin):

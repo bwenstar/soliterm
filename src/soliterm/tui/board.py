@@ -130,6 +130,10 @@ class BoardUI:
         # harder (a FreeCell deal at 80x24 would lose ranks)
         self._code_top = self.origin_y
         self._code_indent = 9
+        # where this frame's board starts, and the rows between its rows of
+        # slots (see compute_positions)
+        self._top = self.origin_y
+        self._row_gap = ROW_GAP
 
     def set_view(self, view: str) -> None:
         """Configure rendering geometry for the chosen view.
@@ -287,17 +291,19 @@ class BoardUI:
         """The smallest terminal, as (columns, rows), the board fits on.
 
         The width is the widest row laid out as tightly as it goes. The
-        height has every row one card high, as the columns can squeeze
-        (only the last row holds columns in any game), and the status and
-        message lines below.
+        height has the board where it usually sits, each row as high as a
+        card or its columns squeezed as far as they go, cards sharing rows
+        and all (see _down_rows), and the status and message lines below.
         """
         cw, step, gap, indent = list(self._layouts())[-1]
         base_x = self._gutter if self.code_skin else self.origin_x
         rows = self._rows()
         w = base_x + indent + max(self._row_width(r, cw, step, gap)
                                   for r in rows) + 1
-        top = self._code_top if self.code_skin else self.origin_y
-        h = top + len(rows) * (self.card_h + ROW_GAP) - ROW_GAP + 3
+        h = (self._code_top if self.code_skin else self.origin_y) - ROW_GAP + 3
+        for row in rows:
+            h += ROW_GAP + max([self.card_h] + [self._slot_height(s.sid, 0)
+                                                for s in row])
         return max(MIN_COLS, w), max(MIN_ROWS, h)
 
     def safe_add(self, y, x, text, attr=0):
@@ -321,34 +327,59 @@ class BoardUI:
 
     def _draw_down_pile(self, slot, sid, sy, sx, cw, sel_here, cur_here,
                         selected_n, hint_src, hint_dst, hint_n):
-        """A tableau column: covered cards peek above the full-size top card."""
-        n = len(slot.cards)
+        """A tableau column: covered cards peek above the top card (see
+        _down_rows). Cards squeezed onto one row show as one row that says
+        how many they are; a click on it picks the deepest of them, and
+        + and - reach the rest."""
+        cards = slot.cards
+        n = len(cards)
         sel_start = n - selected_n if sel_here else n
-        # each card's top row, so cards stack consistently
-        ys = [sy + dy for dy in self._down_rows(slot.cards, sy)]
-        for i, card in enumerate(slot.cards):
-            cy = ys[i]
+        rows, top_h = self._down_rows(cards, self._room(sy))
+        first = 0          # the deepest card sharing this card's row
+        for i, card in enumerate(cards):
             is_top = i == n - 1
+            height = top_h if is_top else rows[i + 1] - rows[i]
+            if not height:
+                continue   # under the next card, which shows for both
             is_sel = sel_here and i >= sel_start
             is_hint = (sid == hint_dst and is_top) or \
                       (sid == hint_src and i >= n - hint_n)
-            is_cur = cur_here and is_top
             attr = self.card_attr(card, is_sel, is_hint and not is_sel,
-                                  cursor=is_cur)
-            # full box for the top card, just the peek (border+label) for
-            # covered ones, and a face-up card's label alone when only one
-            # row of it shows
-            lines = self._card_rows(card, cw, is_top)
-            if not is_top and card.face_up and ys[i + 1] - cy == 1:
-                lines = lines[-1:]
+                                  cursor=cur_here and is_top)
+            if i > first:
+                lines = [self._shared_row(cards[first:i + 1], cw)]
+            elif is_top:
+                lines = self._card_rows(card, cw, True)
+                if top_h < len(lines):
+                    # squeezed to its label and bottom edge, or its label
+                    lines = [lines[1], lines[-1]][:top_h]
+            else:
+                # the peek, or on one row a face-up card's label
+                lines = self._card_rows(card, cw, False)
+                lines = lines[-height:] if card.face_up else lines[:height]
             for dy, line in enumerate(lines):
-                self.safe_add(cy + dy, sx, line, attr)
-            # clickable band: from this card's top row to the next card's top
-            # (its exposed strip), or the full box for the top card. Later cards
-            # overwrite earlier rows in the hit map, so each exposed strip maps
-            # to its own card - even a 1-row strip stays individually clickable.
-            band = self.card_h if is_top else max(1, ys[i + 1] - cy)
-            self._register_hit(cy, sx, band, cw, sid, i)
+                self.safe_add(sy + rows[i] + dy, sx, line, attr)
+            self._register_hit(sy + rows[i], sx, height, cw, sid, first)
+            first = i + 1
+
+    def _shared_row(self, cards: List[Card], w: int) -> str:
+        """The row a run of cards squeezed onto one row shows: how many
+        they are, on a card back if they are all face down, or as +N where
+        a face-up card has its label."""
+        count = str(len(cards))
+        if not any(c.face_up for c in cards):
+            # on the pattern, not in spaces, so it can't read as a rank
+            back = self._card_rows(cards[-1], w, False)[-1]
+            at = (len(back) - len(count)) // 2
+            return back[:at] + count + back[at + len(count):]
+        inner = w - 2
+        mark = "+" + count
+        if self.view == "legacy":
+            return "[" + mark.rjust(inner) + "]"
+        if len(mark) < inner:
+            mark = " " + mark
+        v = _GLYPHS[bool(self.symbols)]["v"]
+        return v + mark.ljust(inner)[:inner] + v
 
     def _draw_right_fan(self, slot, sid, sy, sx, cw, sel_here, cur_here,
                         hint_src, hint_dst):
@@ -388,75 +419,109 @@ class BoardUI:
     def _columns_in_row(self, row: int) -> List[int]:
         return [s.sid for s in self.game.slots if s.row == row]
 
-    def _down_rows(self, cards: List[Card], sy: int) -> List[int]:
-        """Each card's top row in a down-column, counted from the column top.
+    def _room(self, sy: int) -> int:
+        """Rows from screen row sy down to the status line."""
+        return self.stdscr.getmaxyx()[0] - 3 - sy
 
-        A covered card shows PEEK_Y rows (the top border and the rank label)
-        when there's room. A tall pile (a long Spider / Yukon column) that
-        would run past the status bar squeezes its face-down cards to a row
-        each first, since they have no rank to show, then the face-up ones to
-        a row showing just the label, then lets the face-down cards overlap
-        more tightly still. Only when even that won't fit do face-up cards go
-        below a row each, over face-down cards hidden entirely. The full-size
-        top card always stays on screen and clickable.
+    def _down_rows(self, cards: List[Card], room: int,
+                   tuck: bool = True) -> Tuple[List[int], int]:
+        """Lay a down-column out in `room` rows: each card's top row,
+        counted from the column top, and how many rows the top card shows.
+
+        A covered card shows peek_y rows (its top border and rank label)
+        and the top card its full box when there's room. A long column
+        squeezes a step at a time: its face-down cards to a row each, then
+        each run of them onto one row that counts them, then the face-up
+        cards to their label alone, then the top card to its label and
+        bottom edge, then to its label. Every face-up card keeps a row of
+        its own through all of that.
+
+        Past that, and only with tuck, face-up cards give up their rows one
+        at a time to share the row of the card on them, from just above
+        the deepest face-up card (so a run can still be picked up from its
+        King) to just below the top card. A shared row says how many cards
+        it holds (see _draw_down_pile).
         """
         covered = cards[:-1]
+        py, ch = self.peek_y, self.card_h
         if not covered:
-            return [0] * len(cards)
-        h = self.stdscr.getmaxyx()[0]
-        # rows available from the column top down to just above the status bar,
-        # reserving card_h for the full-size top card
-        avail = max(0, (h - 3) - sy - self.card_h)
-        up = sum(1 for c in covered if c.face_up)
-        down = len(covered) - up
-        py = self.peek_y
-        if (up + down) * py <= avail:
-            step_up = step_down = float(py)
-        elif up * py + down <= avail:
-            step_up, step_down = float(py), 1.0
-        elif up + down <= avail:
-            step_up = step_down = 1.0
-        elif up <= avail:
-            step_up, step_down = 1.0, (avail - up) / down
-        else:
-            step_up, step_down = avail / up, 0.0
-        rows, at = [0], 0.0
-        for c in covered:
-            at += step_up if c.face_up else step_down
-            # floor, not round, so a face-up card after a squeezed run of
-            # face-down ones still gets its whole row
-            rows.append(int(at + 1e-9))
-        return rows
+            return [0], ch
+        # the face-down cards under another face-down card, which go onto
+        # its row once each run of them shares one
+        piled = [not c.face_up and i + 1 < len(covered)
+                 and not covered[i + 1].face_up for i, c in enumerate(covered)]
+        # rows for a face-down card, for a face-up one and for the top card,
+        # roomiest first; a face-down 0 piles each run of them onto one row
+        for down, up, top_h in ((py, py, ch), (1, py, ch), (0, py, ch),
+                                (0, 1, ch), (0, 1, min(2, ch)), (0, 1, 1)):
+            steps = [up if c.face_up else (down or (0 if pile else 1))
+                     for c, pile in zip(covered, piled)]
+            if sum(steps) + top_h <= room:
+                break
+        if tuck:
+            ups = [i for i, c in enumerate(covered) if c.face_up]
+            for i in ups[1:-1]:
+                if sum(steps) + top_h <= room:
+                    break
+                steps[i] = 0
+        rows = [0]
+        for step in steps:
+            rows.append(rows[-1] + step)
+        return rows, top_h
 
-    def _slot_height(self, sid: int, sy: int) -> int:
-        """Screen rows the slot's rendering occupies (for row stacking)."""
+    def _slot_height(self, sid: int, room: int) -> int:
+        """Screen rows slot sid takes, a column given `room` rows for it."""
         slot = self.game.slots[sid]
         if slot.expand == "down" and len(slot.cards) > 1:
-            return self._down_rows(slot.cards, sy)[-1] + self.card_h
+            rows, top_h = self._down_rows(slot.cards, room)
+            return rows[-1] + top_h
         return self.card_h
+
+    def _fits_unshared(self, sid: int, sy: int) -> bool:
+        """Whether slot sid fits at row sy with no cards sharing a row."""
+        slot = self.game.slots[sid]
+        if slot.expand != "down" or len(slot.cards) < 2:
+            return True
+        room = self._room(sy)
+        rows, top_h = self._down_rows(slot.cards, room, tuck=False)
+        return rows[-1] + top_h <= room
 
     def compute_positions(self) -> Dict[int, Tuple[int, int]]:
         """Assign each slot a top-left (y, x). Returns slot_id -> (y, x).
 
-        Also sets self._cw (the chosen card width for this frame).
+        Also sets this frame's layout (see _choose_layout) and how high the
+        board sits: where it usually does, unless a column would then have
+        cards sharing rows. Then the lines above the board give way a row
+        at a time, and last the gaps between its rows of slots.
         """
-        positions: Dict[int, Tuple[int, int]] = {}
-        rows = sorted({s.row for s in self.game.slots})
-        # In code-skin mode the board sits lower and indented, inside the file.
-        y = (self._code_top if self.code_skin else self.origin_y)
         self._choose_layout(self.stdscr.getmaxyx()[1])
+        # In code-skin mode the board sits indented, inside the file.
+        start = self._code_top if self.code_skin else self.origin_y
+        tops = [(top, ROW_GAP) for top in range(start, 0, -1)] + [(1, 0)]
+        for top, gap in tops:
+            positions = self._place(top, gap)
+            if all(self._fits_unshared(sid, y)
+                   for sid, (y, _) in positions.items()):
+                break
+        self._top, self._row_gap = top, gap
+        return positions
+
+    def _place(self, top: int, gap: int) -> Dict[int, Tuple[int, int]]:
+        """Each slot's top-left, the board starting at row top with gap
+        rows between its rows of slots."""
+        positions: Dict[int, Tuple[int, int]] = {}
         base_x = (self._gutter + self._indent if self.code_skin
                   else self.origin_x)
-        for row in rows:
-            sids = self._columns_in_row(row)
+        y = top
+        for row in sorted({s.row for s in self.game.slots}):
             x = base_x
             row_h = self.card_h
-            for sid in sids:
+            for sid in self._columns_in_row(row):
                 positions[sid] = (y, x)
                 slot = self.game.slots[sid]
                 x += self._cw + self._gap + (self.fan_room(slot) - 1) * self._step
-                row_h = max(row_h, self._slot_height(sid, y))
-            y += row_h + ROW_GAP
+                row_h = max(row_h, self._slot_height(sid, self._room(y)))
+            y += row_h + gap
         return positions
 
     def _draw_code_skin(self):
@@ -480,7 +545,7 @@ class BoardUI:
         top = min(y for y, _ in positions.values()) - 1
         bottom = top
         for sid, (sy, _sx) in positions.items():
-            bottom = max(bottom, sy + self._slot_height(sid, sy))
+            bottom = max(bottom, sy + self._slot_height(sid, self._room(sy)))
         return set(range(top, bottom + 2))
 
     def fits(self) -> bool:
@@ -504,22 +569,25 @@ class BoardUI:
             return
         chrome = self.CP(4)
         g = self.game
+        positions = self.compute_positions()
+        self.slot_origin = positions
         if self.code_skin:
             self._draw_code_skin()
         else:
-            title = f"{APP_NAME}  -  {g.gamedef.name}"
-            self.safe_add(0, 2, title, chrome | curses.A_BOLD)
-            self.safe_add(1, 2, g.gamedef.blurb, chrome)
-
-        positions = self.compute_positions()
-        self.slot_origin = positions
+            # as far as a board squeezed up to fit leaves room for them
+            # above its labels
+            if self._top > 1:
+                title = f"{APP_NAME}  -  {g.gamedef.name}"
+                self.safe_add(0, 2, title, chrome | curses.A_BOLD)
+            if self._top > 2:
+                self.safe_add(1, 2, g.gamedef.blurb, chrome)
         hint_src = hint[0] if hint else None
         hint_dst = hint[1] if hint else None
 
         cw = self._cw
         for sid, (sy, sx) in positions.items():
             slot = g.slots[sid]
-            if not self.code_skin:
+            if not self.code_skin and (sy == self._top or self._row_gap):
                 # clip the slot label to the card width so narrow (legacy) cells
                 # don't run their labels together
                 self.safe_add(sy - 1, sx, self._slot_label(slot)[:cw], chrome)

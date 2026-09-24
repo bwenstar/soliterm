@@ -247,6 +247,20 @@ def test_clicking_the_top_card_lifts_just_that_card(tui):
     assert names(g, b) == ["4H", "3S"]
 
 
+def test_the_lift_keys_reach_cards_squeezed_onto_one_row(tui):
+    # too long a column for 19 rows puts JS 10S 9S on one row; a click there
+    # lifts from the JS, and - and + go through the cards under it
+    run = [up(r, "S") for r in range(12, 0, -1)]
+    g, a, b = board("spider", [Card(1, "S", False)] * 5 + run, [], suits=1)
+    scr = tui([Click(a, 6), "-", "-", "+", curses.KEY_RIGHT, ENTER],
+              start_key="spider", game=g, h=19, w=80)
+    assert "| +3 |" in scr.frames[0].replace("\u2502", "|")
+    assert "picked up 11 card(s) from JS" in scr.frames[1]
+    assert "holding 10 cards" in scr.frames[4]
+    assert names(g, b) == [str(c) for c in run[2:]]
+    assert names(g, a)[5:] == ["QS", "JS"]
+
+
 def test_the_hint_key_shows_the_hint(tui):
     g = deal("klondike", 1)
     desc = g.hint()[2]
@@ -803,7 +817,7 @@ def test_a_hinted_card_has_a_background_of_its_own(tui):
     # so it reads on a light terminal as well as a dark one
     g = deal("klondike", 1)
     scr = tui(["h"], game=g)
-    ui = scr.uis[-1]
+    print(scr.frames[0]); print(scr.frames[1]); ui = scr.uis[-1]
     card = g.slots[g.hint()[0]].top
     fg, bg = pair_of(ui.card_attr(card, False, True), scr)
     assert bg != -1 and fg != bg
