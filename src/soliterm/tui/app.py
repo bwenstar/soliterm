@@ -141,6 +141,16 @@ def skip_mouse_event() -> None:
         pass
 
 
+def win_note(before: dict, after: dict, name: str) -> str:
+    """What the banner adds after the best time when a win is worth a word:
+    the first of this game, or a better time than the best before."""
+    if after["wins"] == 1:
+        return f"  (your first {name} win!)"
+    if before["best"] and after["best"] < before["best"]:
+        return f"  (new best, was {store.fmt_time(before['best'])})"
+    return ""
+
+
 def hides_the_board(screen):
     """Stop the game clock while the screen a method shows is up."""
 
@@ -997,11 +1007,14 @@ class App:
         Undo plays on, and replaying the deal counts nothing, as AisleRiot's
         Restart doesn't (see under_way)."""
         seconds = self.seconds()
+        note = ""
         if won and not self.recorded:
-            self.count(True, seconds)
+            before = store.get_stat(self.key)
+            after = self.count(True, seconds)
+            note = win_note(before, after, self.game.gamedef.name)
         # left set if Ctrl-C comes, for play() to see as it goes
         self.ending = True
-        choice = self.end_banner(seconds, won)
+        choice = self.end_banner(seconds, won, note)
         self.ending = False
         if choice == "undo":
             self.do_undo()
@@ -1343,10 +1356,11 @@ class App:
                 self.drop_on(tsid)
 
     # ---- end of game ---- #
-    def banner_lines(self, seconds: int, won: bool, stat: dict) -> list[str]:
+    def banner_lines(self, seconds: int, won: bool, stat: dict, note: str = "") -> list[str]:
         """The rows of the end banner from row 4 down, "" for a blank one.
         The choices go under the last of them. The rows of the best time and
-        the streak are there even when empty, so the choices don't move up."""
+        the streak are there even when empty, so the choices don't move up.
+        A note from win_note goes after the best time."""
         game = self.game
         pct = store.percentage(stat)
         pcts = "N/A" if pct is None else f"{pct:.0f}%"
@@ -1359,15 +1373,16 @@ class App:
             f"Moves       : {game.moves}",
             "",
             f"Wins/Total  : {stat['wins']}/{stat['total']}  ({pcts})",
-            f"Best time   : {store.fmt_time(stat['best'])}" if stat["best"] else "",
+            f"Best time   : {store.fmt_time(stat['best'])}{note}" if stat["best"] else "",
             f"Streak      : {streak}" if streak else "",
         ]
 
     @hides_the_board
-    def end_banner(self, seconds: int, won: bool) -> str:
+    def end_banner(self, seconds: int, won: bool, note: str = "") -> str:
         """Show the end-of-game banner with choices. Returns one of:
         'undo' (take the last move back, when no moves are left), 'same'
-        (replay this deal), 'new' (fresh deal), 'menu'."""
+        (replay this deal), 'new' (fresh deal), 'menu'. The note goes after
+        the best time."""
         CP, safe_add = self.CP, self.safe_add
         game = self.game
         s = store.get_stat(self.key)
@@ -1375,7 +1390,7 @@ class App:
             # a loss is recorded on leaving the banner for a new deal or the
             # menu, so count it already, as the statistics will then
             s = {**s, "total": s["total"] + 1}
-        lines = self.banner_lines(seconds, won, s)
+        lines = self.banner_lines(seconds, won, s, note)
         top = 4 + len(lines) + 1  # the row of the first choice
         choices = [("same", "Replay this deal"), ("new", "New deal"), ("menu", "Back to menu")]
         keys = "s/n/m"

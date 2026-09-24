@@ -904,7 +904,7 @@ def test_the_banner_keeps_its_rows(tui, game_clock):
         "      Moves       : 1",
         "",
         "      Wins/Total  : 1/1  (100%)",
-        "      Best time   : 0:01",
+        "      Best time   : 0:01  (your first Klondike win!)",
         "",  # no streak on a first win
         "",
         "      > Replay this deal",
@@ -947,6 +947,30 @@ def test_the_no_moves_banner_shows_no_streak(tui):
     played_before("golf", [True, True, True])
     stuck = tui(["f", "m"], start_key="golf", game=one_move_left()).frames[1].split("\n")
     assert stuck[12] == ""
+
+
+def banner_after_a_win_in_11_seconds(tui):
+    # moving a king starts the clock, and the win comes 10.6 s on
+    scr = tui(KING_TO_EMPTY + [Later(10.6, -1), "a", "m"], game=near_won())
+    return next(frame for frame in scr.frames if "YOU WIN" in frame)
+
+
+def test_win_note_on_a_first_win(tui, game_clock):
+    banner = banner_after_a_win_in_11_seconds(tui)
+    assert "Best time   : 0:11  (your first Klondike win!)\n" in banner
+
+
+def test_win_note_on_a_new_best(tui, game_clock):
+    store.record_result("klondike", won=True, seconds=300)
+    banner = banner_after_a_win_in_11_seconds(tui)
+    assert "Best time   : 0:11  (new best, was 5:00)\n" in banner
+
+
+@pytest.mark.parametrize("best", [11, 5], ids=["equal", "slower"])
+def test_a_win_equal_to_the_best_gets_no_note(tui, game_clock, best):
+    store.record_result("klondike", won=True, seconds=best)
+    banner = banner_after_a_win_in_11_seconds(tui)
+    assert f"Best time   : {store.fmt_time(best)}\n" in banner
 
 
 def test_the_banner_choices_follow_its_lines(tui, monkeypatch):
