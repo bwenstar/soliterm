@@ -1307,12 +1307,12 @@ def screenshot_tool():
     return shots
 
 
-@pytest.mark.skipif(not os.path.exists(SCREENSHOTS), reason="no tools/ in this tree")
 def scene_start(scene):
     """What the TUI starts on for a scene's --deal."""
     return deals.deal_of(deals.parse(scene.deal), "klondike") if scene.deal else None
 
 
+@pytest.mark.skipif(not os.path.exists(SCREENSHOTS), reason="no tools/ in this tree")
 def test_the_spider_screenshot_deals_two_suits_and_makes_its_move(tui):
     shots = screenshot_tool()
     (scene,) = [s for s in shots.SCENES if s.name == "spider"]
