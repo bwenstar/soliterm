@@ -35,7 +35,10 @@ SYNTAX = {"keyword": KEYWORD, "string": STRING, "number": NUMBER, "comment": COM
 # the pair drawn instead of one a terminal has no room for (0 is the
 # terminal's own colours). With only 8 pairs, as on qnx, a red card picked
 # up is drawn like a black one, and a hint in colours no other card has.
+# With 7, a card back is drawn like a spade's face, its pattern still
+# telling it apart, and not in the hint's colours.
 FALLBACK = {
+    BACK: FACE_BLACK,
     RED_SELECTED: SELECTED,
     HINT: 0,
     KEYWORD: 0,

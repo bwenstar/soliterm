@@ -2196,6 +2196,18 @@ def test_the_four_colour_deck_on_a_terminal_with_room_for_it(tui):
     assert "four-colour deck on" in scr.frames[1] and "show it" not in scr.frames[1]
 
 
+@pytest.mark.parametrize("name", themes.NAMES)
+def test_a_card_back_keeps_a_colour_with_only_7_pairs(tui, name):
+    # pair 7 is the back's. In the terminal's own colours it would look
+    # like a hint, which is drawn in those with fewer than 10 pairs, and
+    # the contrast theme draws its chrome in them too
+    scr = tui(["q"], color_pairs=7, theme=name)
+    ui = scr.uis[-1]
+    back = ui.card_attr(Card(1, "H"), False, False) & 0xFF00
+    hint = ui.card_attr(Card(1, "H", face_up=True), False, True) & 0xFF00
+    assert back == curses.color_pair(themes.FACE_BLACK) != hint
+
+
 def test_a_hinted_card_has_a_background_of_its_own(tui):
     # so it reads on a light terminal as well as a dark one
     g = deal("klondike", 1)
