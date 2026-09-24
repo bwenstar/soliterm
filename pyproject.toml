@@ -123,3 +123,14 @@ testpaths = ["tests"]
 # for the shared helpers module).
 pythonpath = ["src", "tests"]
 addopts = "-ra"
+
+[tool.coverage.run]
+source = ["soliterm"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+exclude_also = [
+    "if TYPE_CHECKING:",
+    'if __name__ == "__main__":',
+]
