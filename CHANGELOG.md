@@ -8,6 +8,9 @@
 - Games played while not sharing statistics, for a game this version
   doesn't have, are kept for the version that recorded them instead of
   being dropped.
+- `--debug-info` prints what a bug report needs: the versions, the
+  terminal, curses and where Soliterm keeps its files. It only reads, and
+  leaves every file as it was.
 
 ## 1.0.0 - 2026-06-29
 
