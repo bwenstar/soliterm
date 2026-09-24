@@ -147,7 +147,8 @@ Each game is one module in `src/soliterm/engine/games/`.
    `golf.py` and `freecell.py` are short ones to start from.
 2. Register it in `src/soliterm/engine/games/__init__.py` by adding the
    class to `GAMES` and its key to `GAME_ORDER`, which is the order of the
-   menu and of `--list`.
+   menu and of `--list`. Import the class in `src/soliterm/engine/__init__.py`
+   too and add it to `__all__`, as the other games are.
 3. If GNOME AisleRiot has the game, add an entry to `GAME_TO_SECTION` in
    `src/soliterm/aisleriot.py` that maps your key to AisleRiot's section
    name, so the statistics are shared. If AisleRiot doesn't have it, leave
@@ -160,7 +161,16 @@ Each game is one module in `src/soliterm/engine/games/`.
    undo and redo replay exactly, every hint is a legal move, and so on.
    The other tests that loop over `GAME_ORDER` cover it too. Add a test
    file of your own for the rules that are particular to the game.
+
+   Then pin the deal. Once it's final, add the game's row to `DEALS` in
+   `tests/test_conformance.py`: the `deal_digest` of deals 1 and 2, made
+   with `deal` from `tests/helpers.py`. Nothing checks a game that has no
+   row, so a later change could quietly make every deal number and share
+   code for it deal a different hand.
 5. Add a row to the games table in `README.md`.
+6. Write `docs/games/<key>.md` in the same sections as the others (the
+   deal, goal, moves, scoring, options and tips), and add it to the table
+   in `docs/games/README.md`.
 
 ## Screenshots
 
