@@ -811,6 +811,8 @@ class App:
         # only a plain start, with no deal number or options, resumes
         plain = deal == Deal(key)
         listed = plain and key in self.waiting
+        # the menu listed it, but another window has had it since
+        gone = listed and not os.path.exists(saves.save_path(key))
         resumed = saves.take(key) if plain else None
         if not os.path.exists(saves.save_path(key)):
             self.waiting.pop(key, None)  # taken or set aside, so there's room
@@ -839,6 +841,8 @@ class App:
             self.clock.resume(seconds)
             done = self.resume_text({"seconds": seconds, "moves": self.game.moves})
             self.message = f"Resumed your game ({done}). n deals a new hand."
+        elif gone:
+            self.message = "Your saved game was picked up somewhere else, so this is a new deal."
         elif listed:
             self.message = "Your saved game couldn't be read, so this is a new deal."
         elif key in self.waiting:

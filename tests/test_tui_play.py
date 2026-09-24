@@ -1256,6 +1256,19 @@ def test_an_unreadable_save_deals_a_new_hand_and_says_so(tui):
     assert "was damaged" in store.notices()[0]
 
 
+def test_a_save_picked_up_in_another_window_says_so(tui, monkeypatch):
+    keep_one()
+    listed = saves.waiting()
+    # taken somewhere else once the menu has listed it
+    monkeypatch.setattr(saves, "waiting", lambda: listed)
+    os.remove(saves.save_path("klondike"))
+    scr = tui([ENTER, "n", "q"], start_key=None)
+    assert "Resume your game" in scr.frames[0]
+    assert "Your saved game was picked up somewhere else, so this is a new deal." in scr.frames[1]
+    assert "new deal" in scr.frames[2]
+    assert store.notices() == []
+
+
 def test_m_mid_game_saves_it(tui):
     scr = tui(["d", "m", "q"])
     assert "> Klondike         Resume your game: 0:00, 1 move" in scr.frames[2]
