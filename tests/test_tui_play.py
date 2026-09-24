@@ -841,7 +841,7 @@ def test_a_hinted_card_has_a_background_of_its_own(tui):
     # so it reads on a light terminal as well as a dark one
     g = deal("klondike", 1)
     scr = tui(["h"], game=g)
-    print(scr.frames[0]); print(scr.frames[1]); ui = scr.uis[-1]
+    ui = scr.uis[-1]
     card = g.slots[g.hint()[0]].top
     fg, bg = pair_of(ui.card_attr(card, False, True), scr)
     assert bg != -1 and fg != bg
