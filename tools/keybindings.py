@@ -211,7 +211,15 @@ def key_table(bindings: list[Binding]) -> str:
 
 def board_section() -> str:
     listed = [b for b in KEYMAP if b.label and b.mode == "play"]
-    return "## On the board\n\n" + key_table(listed)
+    return (
+        "## On the board\n\n"
+        + key_table(listed)
+        + "\n"
+        + paragraph(
+            "`k`, `j` and `l` move up, down and right, as they do in vi. vi's"
+            " `h` for left is the hint here, so left has only its arrow key."
+        )
+    )
 
 
 def keys_for(*wanted: str) -> list[str]:

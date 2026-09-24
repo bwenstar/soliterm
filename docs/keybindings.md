@@ -35,6 +35,9 @@ This page also has the other screens, the mouse and text mode.
 | `m`, `M` | menu |
 | `q`, `Q` | quit |
 
+`k`, `j` and `l` move up, down and right, as they do in vi. vi's `h` for
+left is the hint here, so left has only its arrow key.
+
 ## The other screens
 
 The boss key (`b`, `B` or `F2`) works on every screen. The one exception
