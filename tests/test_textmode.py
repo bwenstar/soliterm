@@ -353,6 +353,15 @@ def test_a_win_in_one_move_says_1_move(capsys):
     assert any(re.fullmatch(r"Score \d+ in \d+:\d\d \(1 move\)\.", line) for line in lines)
 
 
+def test_a_text_win_prints_the_share_code(capsys):
+    g = deal("klondike", 5)
+    script = io.StringIO(f"f {one_card_from_won(g)}\n")
+    assert textmode.run_text(g, False, "klondike", stream=script) == 0
+    lines = capsys.readouterr().out.splitlines()
+    assert lines[-2].startswith("Score ")
+    assert lines[-1] == "Share code: klondike:5"
+
+
 @pytest.mark.parametrize("before,lost", [(["d\n"], 1), (["p\n"], 0)])
 def test_ctrl_c_leaves_quietly_and_counts_like_quitting(before, lost, capsys):
     def script():

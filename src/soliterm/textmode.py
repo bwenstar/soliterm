@@ -14,7 +14,7 @@ import sys
 import time
 
 from . import APP_NAME, camo, store
-from .deals import deal_label
+from .deals import code_of, deal_label
 from .engine import SUIT_SYMBOL, Card, Slot, Solitaire
 
 # --------------------------------------------------------------------------- #
@@ -346,6 +346,7 @@ def run_text(
                     f"Score {g.score} in {store.fmt_time(secs)} ({store.moves_text(g.moves)}).",
                     file=out,
                 )
+                print(f"Share code: {code_of(g)}", file=out)
                 return 0
         give_up()  # the input ran out mid-game
         return 0

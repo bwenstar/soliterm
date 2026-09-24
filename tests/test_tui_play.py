@@ -577,9 +577,9 @@ def test_restarting_the_deal_does_not_count_it(tui):
     assert store.get_stat("klondike")["total"] == 0
 
 
-def near_won():
+def near_won(number=1, **options):
     """Klondike with A-Q home in every suit and the four kings on the tableau."""
-    g = deal("klondike", 1)
+    g = deal("klondike", number, **options)
     fids, tids = g.ids_of("foundation"), g.ids_of("tableau")
     clear_board(g)
     for i, suit in enumerate("SHDC"):
@@ -680,8 +680,8 @@ def test_a_win_after_taking_back_the_dead_end_counts_as_a_win(tui):
     assert store.get_stat("golf")["total"] == 1
 
 
-# the banner's choices sit on rows 12-14 from column 6, marker included
-BANNER_ROW = {"same": 12, "new": 13, "menu": 14}
+# the banner's choices sit on rows 13-15 from column 6, marker included
+BANNER_ROW = {"same": 13, "new": 14, "menu": 15}
 
 
 def test_the_banner_ignores_the_pointer_the_wheel_and_other_buttons(tui):
@@ -712,10 +712,11 @@ def test_a_left_click_on_a_banner_choice_takes_it(tui, bstate):
 
 def test_the_banner_keeps_its_rows(tui, game_clock):
     won = tui(["a", "m"], game=near_won()).frames[1].split("\n")
-    assert won[2:13] == [
+    assert won[2:14] == [
         "      *** YOU WIN! ***",
         "",
         "      Game        : Klondike",
+        "      Deal        : 1   share code klondike:1",
         "      Time        : 0:00",
         "      Score       : 4",
         "      Moves       : 1",
@@ -727,7 +728,12 @@ def test_the_banner_keeps_its_rows(tui, game_clock):
     ]
     # with no best time its row stays empty, so the choices don't move up
     stuck = tui(["f", "m"], start_key="golf", game=one_move_left()).frames[1].split("\n")
-    assert stuck[9:13] == ["      Wins/Total  : 0/1  (0%)", "", "", "      > Undo move"]
+    assert stuck[10:14] == ["      Wins/Total  : 0/1  (0%)", "", "", "      > Undo move"]
+
+
+def test_the_banner_shows_the_deal_and_share_code(tui):
+    banner = tui(["a", "m"], game=near_won(48213, draw=3)).frames[1]
+    assert "      Deal        : 48213   share code klondike:d3:48213\n" in banner
 
 
 def test_the_banner_choices_follow_its_lines(tui, monkeypatch):

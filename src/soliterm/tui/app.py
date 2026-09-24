@@ -1176,6 +1176,7 @@ class App:
         pcts = "N/A" if pct is None else f"{pct:.0f}%"
         return [
             f"Game        : {game.gamedef.name}",
+            f"Deal        : {game.deal_number}   share code {deals.code_of(game)}",
             f"Time        : {store.fmt_time(seconds)}",
             f"Score       : {game.score}",
             f"Moves       : {game.moves}",
