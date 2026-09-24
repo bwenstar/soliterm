@@ -7,6 +7,8 @@ at a time and look at the board, the selection and the message in between.
 
 import curses
 
+import pytest
+
 import soliterm.tui.app
 from soliterm import store
 from soliterm.deals import Deal
@@ -82,6 +84,51 @@ def test_an_app_needs_no_terminal_to_start_a_game():
     app.draw()
     assert "Soliterm  -  Spider" in app.stdscr.text()
     assert store.load_config()["last_game"] == "spider"
+
+
+def board_on(key, w=80, tall=False):
+    """An App on deal 5 of `key` at 24 rows, drawn; with `tall`, a first
+    column long enough that the title gives its row up to the cards."""
+    app = App(KeyScr(h=24, w=w))
+    app.start_game(key, Deal(key, 5))
+    if tall:
+        column = [Card(1, "C", False)] * 5 + [up(r, "SH"[r % 2]) for r in range(13, 0, -1)]
+        app.game.slots[app.game.ids_of("tableau")[0]].cards = column + [up(13, "C")]
+    app.draw()
+    return app, "".join(app.stdscr.grid[24 - 3])
+
+
+# Spider's status leaves room for the deal at 80 columns; Klondike's needs 81
+@pytest.mark.parametrize("key, w", [("spider", 80), ("klondike", 81)])
+def test_the_status_row_names_the_deal_when_the_title_gives_way(key, w):
+    app, status = board_on(key, w, tall=True)
+    assert app.ui._top <= 1
+    assert "Soliterm" not in app.stdscr.text()
+    assert status.endswith("   Deal 5  ")
+    assert status.startswith("  Score 0 ")
+
+
+def test_the_status_row_leaves_the_deal_out_while_the_title_shows_it():
+    app, status = board_on("spider")
+    assert "Soliterm  -  Spider  -  Deal 5" in app.stdscr.text()
+    assert "Deal" not in status
+
+
+@pytest.mark.parametrize("key", ["klondike", "canfield"])
+def test_the_status_row_leaves_the_deal_out_when_it_would_not_fit(key):
+    app, status = board_on(key, tall=True)
+    assert app.ui._top <= 1
+    assert "Deal" not in status
+    # the game's own status is what matters
+    assert app.game.status in status
+
+
+def test_the_code_skin_status_names_the_deal():
+    cfg = store.load_config()
+    cfg["code_skin"] = True
+    store.save_config(cfg)
+    _app, status = board_on("klondike")
+    assert "    # score=0 moves=0 t=0:00 deal=5  Stock: 24" in status
 
 
 def test_main_hands_curses_wrapper_its_settings_by_name(monkeypatch):

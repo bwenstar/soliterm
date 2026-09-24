@@ -338,6 +338,11 @@ def test_a_deal_number_only_fixes_the_first_game(tui):
     assert second.gamedef.key == "klondike" and second.seed is None
 
 
+def test_the_title_names_the_deal(tui):
+    scr = tui([], deal=48213)
+    assert "Soliterm  -  Klondike  -  Deal 48213" in scr.frames[0]
+
+
 def test_the_terminal_is_not_asked_to_report_pointer_motion(tui):
     scr = tui([])
     assert scr.masks

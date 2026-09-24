@@ -14,6 +14,7 @@ import locale
 from collections.abc import Iterator
 
 from .. import APP_NAME, camo, store
+from ..deals import deal_label
 from ..engine import SUIT_SYMBOL, Card, Solitaire
 
 # Geometry of a rendered card. Cards are drawn as multi-line boxes that overlap
@@ -596,7 +597,7 @@ class BoardUI:
             # as far as a board squeezed up to fit leaves room for them
             # above its labels
             if self._top > 1:
-                title = f"{APP_NAME}  -  {g.gamedef.name}"
+                title = f"{APP_NAME}  -  {g.gamedef.name}  -  {deal_label(g)}"
                 self.safe_add(0, 2, title, chrome | curses.A_BOLD)
             if self._top > 2:
                 self.safe_add(1, 2, g.gamedef.blurb, chrome)
@@ -659,19 +660,22 @@ class BoardUI:
             pad = w - self._gutter - 1
             stat = (
                 f"    # score={g.score} moves={g.moves} "
-                f"t={store.fmt_time(elapsed)}  {g.status}{won}"
+                f"t={store.fmt_time(elapsed)} deal={g.deal_number}  {g.status}{won}"
             )
             self.safe_add(sy, self._gutter, stat.ljust(pad)[:pad], dim)
             note = message or "code-skin mode (c to toggle)"
             self.safe_add(sy + 1, self._gutter, f"    # {note}".ljust(pad)[:pad], dim)
         else:
-            self.safe_add(
-                sy,
-                2,
+            left = (
                 f"Score {g.score}   Time {store.fmt_time(elapsed)}   "
-                f"Moves {g.moves}   {g.status}{won}",
-                chrome,
+                f"Moves {g.moves}   {g.status}{won}"
             )
+            self.safe_add(sy, 2, left, chrome)
+            label = deal_label(g)
+            # the title names the deal; without it the status row does, if
+            # there's room after the score and the game's own status
+            if self._top <= 1 and 2 + len(left) + 3 + len(label) + 2 <= w:
+                self.safe_add(sy, w - 2 - len(label), label, chrome)
             self.safe_add(sy + 1, 2, message[: w - 4], self.CP(6) if self.has_color else 0)
         self.stdscr.refresh()
 
