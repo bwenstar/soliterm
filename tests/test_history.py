@@ -3,6 +3,7 @@ gives."""
 
 import json
 import os
+import stat
 
 import pytest
 
@@ -122,3 +123,27 @@ def test_an_unwritable_history_still_counts_the_game_and_says_so():
     assert store.notices() == [
         f"can't write {path} (Permission denied), so that game is missing from the history"
     ]
+
+
+def mode(path):
+    return stat.S_IMODE(os.stat(path).st_mode)
+
+
+@pytest.mark.skipif(os.name != "posix", reason="needs POSIX file modes")
+def test_a_new_history_and_its_copy_are_for_the_player_only():
+    umask = os.umask(0o022)
+    try:
+        history.record(played(), False, 3)
+        kept = history.backup()
+    finally:
+        os.umask(umask)
+    assert mode(history.history_path()) == 0o600
+    assert mode(kept) == 0o600
+
+
+@pytest.mark.skipif(os.name != "posix", reason="needs POSIX file modes")
+def test_a_history_there_already_keeps_its_mode():
+    write("")
+    os.chmod(history.history_path(), 0o644)
+    history.record(played(), False, 3)
+    assert mode(history.history_path()) == 0o644

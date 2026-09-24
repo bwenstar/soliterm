@@ -53,7 +53,7 @@ def _append(entry: dict) -> None:
     path = history_path()
     try:
         os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, "ab+") as fh:
+        with open(path, "ab+", opener=_for_the_player) as fh:
             fh.seek(0, os.SEEK_END)
             if fh.tell() > 0:
                 fh.seek(-1, os.SEEK_END)
@@ -67,6 +67,12 @@ def _append(entry: dict) -> None:
         store._notice(
             f"can't write {path} ({exc.strerror or exc}), so that game is missing from the history"
         )
+
+
+def _for_the_player(path: str, flags: int) -> int:
+    # a new history is the player's alone, as the other files are, where
+    # one there already keeps its mode
+    return os.open(path, flags, 0o600)
 
 
 def games() -> list[dict]:
