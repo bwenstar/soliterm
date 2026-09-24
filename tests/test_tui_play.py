@@ -1145,6 +1145,31 @@ def test_a_played_card_moves_the_cursor_to_the_nearest_card_that_plays(tui):
     assert [str(c) for c in g.cards(g.ids_of("waste")[0])] == ["5C", "6H", "7C"]
 
 
+@pytest.mark.parametrize("double", [False, True])
+@pytest.mark.parametrize(
+    "key, says",
+    [
+        ("klondike", "no foundation move for that card"),
+        # these three have no foundations; f plays on the waste in two
+        ("golf", "that card doesn't go on the waste"),
+        ("triplepeaks", "that card doesn't go on the waste"),
+        ("scorpion", "Scorpion has no foundations"),
+    ],
+)
+def test_an_f_that_does_nothing_says_why(tui, key, says, double):
+    g = deal(key, 1)
+    clear_board(g)
+    first = g.ids_of("tableau")[-1 if key == "triplepeaks" else 0]  # a bottom card
+    g.slots[first].cards = [up(5, "H")]
+    for waste in g.ids_of("waste"):
+        g.slots[waste].cards = [up(9, "S")]
+    before = g.serialize()
+    key_in = Click(first, 0, curses.BUTTON1_DOUBLE_CLICKED) if double else "f"
+    scr = tui([key_in], start_key=key, game=g)
+    assert says in scr.frames[1]
+    assert g.serialize() == before
+
+
 def test_a_win_after_taking_back_the_dead_end_counts_as_a_win(tui):
     # 4D first leaves the 6C and 5S stuck; 6C, 5S, 4D clears the board
     g = deal("golf", 1)

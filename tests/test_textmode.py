@@ -214,6 +214,19 @@ def test_a_command_that_does_nothing_says_so(cmd, says):
     assert g.serialize() == before
 
 
+@pytest.mark.parametrize(
+    "key, says",
+    [("golf", "#2 doesn't go on the waste"), ("scorpion", "Scorpion has no foundations")],
+)
+def test_f_in_a_game_with_no_foundations_says_so(key, says):
+    g = deal(key, 1)
+    clear_board(g)
+    g.slots[2].cards = [Card(5, "H", True)]
+    for waste in g.ids_of("waste"):
+        g.slots[waste].cards = [Card(9, "S", True)]
+    assert textmode.apply_text_command(g, "f 2") == (False, says)
+
+
 def test_text_a_finishes_the_game():
     g = stalled_klondike()
     assert textmode.apply_text_command(g, "a") == (True, "autoplayed 37")
