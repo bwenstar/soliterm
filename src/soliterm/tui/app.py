@@ -828,8 +828,14 @@ class App:
         # statistics, and the next game on that hand counts from its own
         # first move.
         if not self.recorded and not self.game.is_won() and self.clock.started:
-            store.record_result(self.key, False, self.seconds())
-            self.recorded = True
+            self.count(False, self.seconds())
+
+    def count(self, won: bool, seconds: int) -> dict:
+        """Count the game in play in the statistics, once, and return its
+        statistics after. Every game the TUI counts comes through here."""
+        stat = store.record_result(self.key, won, seconds)
+        self.recorded = True
+        return stat
 
     def reset_for(self, new_game_fn: Callable[[], object]):
         """Run a (re)deal and reset the per-game UI state."""
@@ -855,8 +861,7 @@ class App:
         Restart doesn't (see give_up)."""
         seconds = self.seconds()
         if won and not self.recorded:
-            store.record_result(self.key, won, seconds)
-            self.recorded = True
+            self.count(True, seconds)
         choice = self.end_banner(seconds, won)
         if choice == "undo":
             self.do_undo()
