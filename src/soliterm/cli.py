@@ -354,7 +354,12 @@ def main(argv: list[str] | None = None) -> int:
         store.disable_sync()
     try:
         with _leave_on_signals() as came:
-            rc = _run(args, parser)
+            try:
+                rc = _run(args, parser)
+            except KeyboardInterrupt:
+                # one nothing caught, say during --stats: 130, as a game
+                # leaves, and no traceback
+                rc = 130
         # 130 as for Ctrl-C, even when curses couldn't put back a terminal
         # that had hung up
         return 130 if came else rc

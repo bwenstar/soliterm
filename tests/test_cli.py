@@ -1052,6 +1052,20 @@ def test_a_second_signal_waits_for_the_save(quieted):
 
 
 @posix_signals
+@pytest.mark.parametrize("name", ["SIGHUP", "SIGTERM"])
+@pytest.mark.parametrize(
+    "flag, doing",
+    [("--list", "print_list"), ("--stats", "print_stats"), ("--reset-stats", "reset_stats")],
+)
+def test_a_signal_mid_list_stats_or_reset_exits_130_quietly(
+    monkeypatch, capsys, quieted, name, flag, doing
+):
+    monkeypatch.setattr(cli_mod, doing, lambda *args: os.kill(os.getpid(), getattr(signal, name)))
+    assert main([flag]) == 130
+    assert capsys.readouterr().err == ""
+
+
+@posix_signals
 def test_a_hangup_exits_130_whatever_curses_made_of_it(monkeypatch, quieted):
     def hung_up(args, parser):
         try:
