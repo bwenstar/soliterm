@@ -161,7 +161,7 @@ def _locked() -> Iterator[None]:
     advisory (flock on stats.lock beside stats.json) and does nothing where
     there is no fcntl, or when the lock file can't be made.
     """
-    global _lock_depth
+    global _lock_depth  # noqa: PLW0603 (state for this process)
     fh = None
     if _lock_depth == 0 and fcntl is not None:
         try:
@@ -301,7 +301,7 @@ def disable_sync() -> None:
     """Keep this run's statistics local: nothing reads or writes the AisleRiot
     keyfile from now on. Games recorded meanwhile are shared the next time
     sharing is on, as when sync_aisleriot is turned off in the config."""
-    global _no_sync
+    global _no_sync  # noqa: PLW0603 (state for this run)
     _no_sync = True
 
 

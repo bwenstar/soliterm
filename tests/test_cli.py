@@ -367,7 +367,8 @@ def terminal(monkeypatch):
         looked_up[:] = [term]
 
     monkeypatch.setattr(curses, "setupterm", setupterm)
-    monkeypatch.setattr(curses, "tigetstr", lambda cap: TERMINFO[looked_up[0]].get(cap))
+    # the lambda reads looked_up[0] when it is called, not now
+    monkeypatch.setattr(curses, "tigetstr", lambda cap: TERMINFO[looked_up[0]].get(cap))  # noqa: PLW0108
     monkeypatch.setenv("TERM", "xterm")
     monkeypatch.setattr(tui_mod, "main", lambda **kw: started.append("tui") or 0)
     monkeypatch.setattr(cli_mod, "run_text", lambda *a, **kw: started.append("text") or 0)
