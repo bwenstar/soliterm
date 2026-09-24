@@ -100,6 +100,9 @@ played last. In a code, `d1` and `d3` are Klondike's cards to draw, `rs`, `rn`
 and `ru` its standard, no or unlimited redeals, and `s1`, `s2` and `s4`
 Spider's suits. Options left at their default aren't written.
 
+`--draw 3` and `--suits 2` change Klondike's draw or Spider's suits for one
+run without saving them, and start that game if `--game` doesn't name one.
+
 FreeCell deals use Microsoft FreeCell's numbers, so deal 617 here is deal 617
 there, and 11982 is the one deal among the first 32,000 that can't be won.
 
@@ -141,6 +144,7 @@ the local stats.
 
 ```
 --game NAME       start a specific game      --deal N|CODE  a numbered or shared deal
+--draw 1|3        Klondike draw, this run    --suits 1|2|4  Spider suits, this run
 --text            force text mode            --ascii        letter suits S/H/D/C
 --color           force colour in text mode  --no-color     disable colour
 --list            list games and exit        --stats        print statistics

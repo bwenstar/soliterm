@@ -35,6 +35,17 @@ def deal_arg(text: str) -> deals.Code:
         raise argparse.ArgumentTypeError(str(exc)) from None
 
 
+def _owner(name: str) -> str:
+    """The one game with option `name`, which --draw or --suits then picks."""
+    (key,) = [k for k in GAME_ORDER if name in GAMES[k].default_options()]
+    return key
+
+
+def _values(key: str, name: str) -> list:
+    """The values option `name` of game `key` takes."""
+    return next(allowed for k, _, allowed in GAMES[key].option_spec() if k == name)
+
+
 def build_parser() -> argparse.ArgumentParser:
     # allow_abbrev=False: a prefix like --r must not mean --reset-stats
     p = argparse.ArgumentParser(
@@ -57,6 +68,21 @@ def build_parser() -> argparse.ArgumentParser:
     # It stays out of the group, since a hidden option in one is where
     # argparse's usage line has broken before, so _requested_deal checks it.
     p.add_argument("--seed", type=deal_arg, help=argparse.SUPPRESS)
+    draws, suits = _values("klondike", "draw"), _values("spider", "suits")
+    p.add_argument(
+        "--draw",
+        type=int,
+        choices=draws,
+        metavar="|".join(map(str, draws)),
+        help="Klondike: draw 1 or 3 cards, for this run only",
+    )
+    p.add_argument(
+        "--suits",
+        type=int,
+        choices=suits,
+        metavar="|".join(map(str, suits)),
+        help="Spider: play with 1, 2 or 4 suits, for this run only",
+    )
     p.add_argument(
         "--text", action="store_true", help="force text mode (no curses); reads commands from stdin"
     )
@@ -253,16 +279,31 @@ def main(argv: list[str] | None = None) -> int:
 
 def _requested_deal(args: argparse.Namespace, cfg: dict) -> deals.Deal | None:
     """What the command line asks to play, or None for nothing in particular
-    (the menu in the TUI, the last game at random in text mode)."""
+    (the menu in the TUI, the last game at random in text mode). Options
+    from --draw and --suits go over the saved ones and aren't saved."""
     if args.seed is not None and args.deal is not None:
         raise ValueError("argument --seed: not allowed with argument --deal")
     code = args.deal if args.deal is not None else args.seed
+    given = {name: v for name, v in (("draw", args.draw), ("suits", args.suits)) if v is not None}
+    if len(given) > 1:
+        raise ValueError("--draw and --suits are for different games")
     if code is not None and code.key is not None:
         if args.game and args.game != code.key:
             raise ValueError(f"--game {args.game} doesn't match the share code's game ({code.key})")
+        if given:
+            flag = next(iter(given))
+            raise ValueError(f"a share code carries its own options, so leave out --{flag}")
         return deals.Deal(code.key, code.number, code.options)
+    number = None if code is None else code.number
+    if given:
+        (name,) = given
+        key = args.game or _owner(name)
+        if name not in GAMES[key].default_options():
+            owner, game = GAMES[_owner(name)].name, GAMES[key].name
+            raise ValueError(f"--{name} only goes with {owner}, not {game}")
+        return deals.Deal(key, number, given)
     if code is not None:
-        return deals.Deal(args.game or cfg.get("last_game", "klondike"), code.number)
+        return deals.Deal(args.game or cfg.get("last_game", "klondike"), number)
     if args.game:
         return deals.Deal(args.game)
     return None

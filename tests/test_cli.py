@@ -187,6 +187,109 @@ def test_debug_info_still_prints_with_a_deal(cli, flag):
     assert lines[0] == f"soliterm: {soliterm.__version__}"
 
 
+# -- --draw and --suits ----------------------------------------------------------------
+
+
+def test_draw_picks_klondike_for_this_run_only(cli):
+    cfg = store.load_config()
+    cfg["last_game"] = "golf"
+    store.save_config(cfg)
+    out = play_briefly(cli, "--draw", "3", "--deal", "5")
+    assert out.startswith("Soliterm - Klondike - Deal 5 ")
+    assert text_board(deal("klondike", 5, draw=3)) in out
+    # over the saved options, which it leaves as they were
+    cfg = store.load_config()
+    store.set_game_options(cfg, "klondike", {"redeals": "none"})
+    store.save_config(cfg)
+    out = play_briefly(cli, "--game", "klondike", "--draw", "3", "--deal", "5")
+    assert text_board(deal("klondike", 5, draw=3, redeals="none")) in out
+    cfg = store.load_config()
+    assert store.game_options(cfg, "klondike") == {"redeals": "none"}
+    assert cfg["last_game"] == "golf"
+
+
+def test_suits_picks_spider(cli):
+    cfg = store.load_config()
+    store.set_game_options(cfg, "spider", {"suits": 4})
+    store.save_config(cfg)
+    assert text_board(deal("spider", 7, suits=2)) in play_briefly(
+        cli, "--suits", "2", "--seed", "7"
+    )
+    out = play_briefly(cli, "--game", "spider", "--suits", "1", "--deal", "7")
+    assert text_board(deal("spider", 7, suits=1)) in out
+    assert store.game_options(store.load_config(), "spider") == {"suits": 4}
+
+
+def test_the_full_screen_game_is_handed_the_flag_options(terminal, monkeypatch):
+    import soliterm.tui as tui_mod
+
+    starts = []
+    monkeypatch.setattr(tui_mod, "main", lambda start, **kw: starts.append(start) or 0)
+    assert terminal("--draw", "3") == 0
+    assert terminal("--suits", "2", "--deal", "9") == 0
+    assert starts == [Deal("klondike", None, {"draw": 3}), Deal("spider", 9, {"suits": 2})]
+
+
+@pytest.mark.parametrize(
+    "args, error",
+    [
+        (["--game", "spider", "--draw", "3"], "--draw only goes with Klondike, not Spider"),
+        (["--game", "klondike", "--suits", "2"], "--suits only goes with Spider, not Klondike"),
+        (
+            ["--game", "golf", "--deal", "5", "--draw", "1"],
+            "--draw only goes with Klondike, not Golf",
+        ),
+    ],
+)
+def test_draw_with_spider_is_refused(capsys, args, error):
+    with pytest.raises(SystemExit) as exc:
+        main(["--text", *args])
+    assert exc.value.code == 2
+    assert f"soliterm: error: {error}\n" in capsys.readouterr().err
+
+
+def test_draw_and_suits_together_are_refused(capsys):
+    with pytest.raises(SystemExit) as exc:
+        main(["--text", "--draw", "3", "--suits", "2"])
+    assert exc.value.code == 2
+    assert "error: --draw and --suits are for different games" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    "args, flag",
+    [
+        (["--deal", "klondike:5", "--draw", "3"], "--draw"),
+        (["--seed", "klondike:d3:5", "--draw", "3"], "--draw"),
+        (["--deal", "spider:5", "--suits", "2"], "--suits"),
+    ],
+)
+def test_a_share_code_with_draw_is_refused(capsys, args, flag):
+    with pytest.raises(SystemExit) as exc:
+        main(["--text", *args])
+    assert exc.value.code == 2
+    err = capsys.readouterr().err
+    assert f"error: a share code carries its own options, so leave out {flag}" in err
+
+
+@pytest.mark.parametrize("args", [["--draw", "2"], ["--suits", "3"], ["--draw", "three"]])
+def test_draw_and_suits_take_only_the_values_the_game_has(capsys, args):
+    with pytest.raises(SystemExit) as exc:
+        main(["--text", *args])
+    assert exc.value.code == 2
+    assert f"argument {args[0]}: invalid" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("name, key", [("draw", "klondike"), ("suits", "spider")])
+def test_one_game_has_each_option_flag(capsys, name, key):
+    # what lets --draw and --suits pick the game
+    owners = [k for k in GAME_ORDER if name in GAMES[k].default_options()]
+    assert owners == [key]
+    with pytest.raises(SystemExit):
+        main(["--help"])
+    values = "|".join(str(v) for n, _, vals in GAMES[key].option_spec() if n == name for v in vals)
+    assert f"--{name} {values}" in capsys.readouterr().out
+
+
 def test_the_help_fits_a_40_column_terminal(capsys, monkeypatch):
     # argparse's usage wrapping has tripped over option groups before
     monkeypatch.setenv("COLUMNS", "40")

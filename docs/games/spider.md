@@ -70,6 +70,9 @@ deal with your settings, which are remembered for next time.
   build can move as one. Two suits uses spades and hearts, and four is
   two full decks. The more suits, the harder the game.
 
+For a single run, `soliterm --suits 2` sets it without changing what's
+saved.
+
 ## Tips
 
 - When a card could go on either of two others, put it on the one of

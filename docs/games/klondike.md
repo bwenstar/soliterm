@@ -73,6 +73,10 @@ deal with your settings, which are remembered for next time.
     drawing three this plays just like standard, since both leave the
     redeals unlimited.
 
+For a single run, `soliterm --draw 3` sets the cards to draw without
+changing what's saved. A share code sets both, as in
+`soliterm --deal klondike:d3rn:5` for deal 5 drawing three with no redeals.
+
 ## Tips
 
 - Go after the face-down cards. Given a choice, make the move that turns
