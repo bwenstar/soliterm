@@ -58,6 +58,56 @@ where = ["src"]
 [tool.setuptools.package-data]
 soliterm = ["py.typed"]
 
+[tool.ruff]
+target-version = "py39"
+# Most lines are under 88 already. 100 lets the few longer f-strings and
+# test names stay on one line instead of being split up.
+line-length = 100
+
+[tool.ruff.lint]
+# Spelled out rather than left to ruff's default set, which a new ruff
+# release can change.
+select = [
+    "E", "W",   # pycodestyle
+    "F",        # pyflakes
+    "I",        # import order
+    "B",        # bugbear
+    "UP",       # pyupgrade, as far as Python 3.9 allows
+    "FA",       # newer annotation syntax needs from __future__ import annotations
+    "SIM",      # simplify
+    "C4",       # comprehensions
+    "RET",      # return statements
+    "RUF",      # ruff's own
+    "PIE",      # misc
+    "FURB",     # refurb
+    "PL",       # pylint
+    "PT",       # pytest
+    "PGH",      # blanket noqa and type: ignore
+    "BLE",      # blind except
+    "ISC",      # implicit string concatenation
+    "YTT",      # sys.version checks
+    "EXE",      # shebangs
+    "T10",      # leftover breakpoints
+    # the checks from these that catch mistakes rather than style
+    "PERF101", "PERF102", "PERF402",
+    "TC004", "TC005", "TC010",
+    "TRY002", "TRY004", "TRY201", "TRY203",
+]
+ignore = [
+    "PLR09",    # too many branches or arguments: game rules are long
+    "PLR2004",  # ranks and column counts read best as plain numbers
+    "PLC0415",  # imports in functions keep startup quick, break cycles
+    "SIM105",   # try/except/pass is plainer than contextlib.suppress
+    "RUF005",   # a + [b] reads as well as [*a, b]
+    "PT006",    # "a, b" as parametrize names is fine
+    "PT018",    # an assert with "and" is fine in a test
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["soliterm"]
+# tests/helpers.py, imported last in the tests, after the package itself
+known-local-folder = ["helpers"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 # Import the package straight from src/ without installing it (and tests/
