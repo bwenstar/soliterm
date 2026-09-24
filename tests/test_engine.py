@@ -485,6 +485,17 @@ def test_a_random_deal_is_one_of_the_first_million():
     assert len(numbers) > 1
 
 
+def test_new_game_can_change_the_options():
+    g = deal("klondike", 5)
+    g.new_game(options={"draw": 3})
+    assert g.options == {"draw": 3, "redeals": "standard"}
+    assert g.deal_number == 6
+    assert board(g) == board(deal("klondike", 6, draw=3))
+    # and a bad value falls back to the default, as it does from the config
+    g.new_game(options={"draw": "3"})
+    assert g.options["draw"] == 1
+
+
 # -- stuck detection ------------------------------------------------------------------
 
 

@@ -126,8 +126,9 @@ class Solitaire:
             return random.randint(1, RANDOM_DEALS)
         return (self.deal_number + 1) % (MAX_DEAL + 1)
 
-    def new_game(self, number: int | None = None) -> None:
+    def new_game(self, number: int | None = None, options: dict | None = None) -> None:
         """Deal number `number`, or the next deal (see next_deal_number).
+        Given `options`, the game plays by them from this deal on.
 
         The same number always deals the same hand of a game, whatever its
         options and on any Python: the shuffle is our own (see rng).
@@ -136,6 +137,8 @@ class Solitaire:
             number = self.next_deal_number()
         elif not 0 <= number <= MAX_DEAL:
             raise ValueError(f"deal numbers run from 0 to {MAX_DEAL}, not {number}")
+        if options is not None:
+            self.options = self.gamedef.sanitize_options(options)
         self.deal_number = number
         self.rng = Pcg32(number, stream_of(self.gamedef.key))
         self.score = 0

@@ -1084,9 +1084,11 @@ class App:
         store.set_game_options(self.cfg, self.key, newopts)
         store.save_config(self.cfg)
         self.give_up()
-        self.game = self.new_game(newopts)
+        # the next deal, the way n deals it, so a session on a chosen deal
+        # goes on to the next number
+        self.game.new_game(options=newopts)
         self.ui = self.new_board()
-        self.reset_for(lambda: None)  # game already dealt by new_solitaire
+        self.reset_for(lambda: None)  # already dealt, just above
         self.message = "options applied"
 
     def do_stats(self):

@@ -769,6 +769,17 @@ def test_new_options_before_a_move_just_deal_again(tui):
     assert store.get_stat("klondike")["total"] == 0
 
 
+def test_the_options_screen_deals_on_like_n(tui):
+    # a session on a chosen deal goes on to the next one, whichever key
+    # asked for the new deal
+    scr = tui(["o", curses.KEY_LEFT, ENTER], start_key="spider", seed=6)
+    game = scr.uis[-1].game
+    assert game.options["suits"] == 2
+    assert game.deal_number == 7
+    want = deal("spider", 7, suits=2)
+    assert [s.cards for s in game.slots] == [s.cards for s in want.slots]
+
+
 NO_OPTIONS = [key for key in engine.GAME_ORDER if not engine.GAMES[key].option_spec()]
 
 

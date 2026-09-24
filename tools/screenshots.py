@@ -116,9 +116,9 @@ SCENES: list[Scene] = [
         "spider",
         "two-suit Spider after one move, with the next hint showing",
         "spider",
-        7,
+        6,
         # o opens the options, Left switches Suits from 4 to 2 and Enter
-        # deals again with the same seed
+        # deals on to deal 7, the way n would
         [
             Step("o Left Enter"),
             Step("h Enter Right Right Right Right Enter"),
