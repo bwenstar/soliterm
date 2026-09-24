@@ -484,11 +484,12 @@ same way.
   know already, and give the scoring AisleRiot uses.
 - A row in the table in [docs/games/README.md](games/README.md), in menu
   order.
-- A row in the games table in [README.md](../README.md).
+- The same row in the games table in [README.md](../README.md), with
+  the link written out in full as the others are, since PyPI shows the
+  README too.
 - Its name in the Game list of the bug report form,
   [.github/ISSUE_TEMPLATE/bug_report.yml](../.github/ISSUE_TEMPLATE/bug_report.yml).
-  `tests/test_game_lists.py` checks that list and the table in
-  `docs/games/README.md`.
+  `tests/test_game_lists.py` checks that list and both tables.
 - An entry under GAMES in the man page,
   [man/soliterm.6](../man/soliterm.6), in menu order.
   `tests/test_man_page.py` checks every game is there. See how it reads

@@ -1,256 +1,405 @@
-# AisleRiot CLI
+<!-- The links here are full URLs rather than relative ones so that they
+     work on PyPI, which shows this page too. -->
 
-A dependency-free, terminal Solitaire collection, a command-line replica of
-GNOME **AisleRiot** (the `/usr/games/sol` game). Pure Python 3, no third-party
-packages. Plays twelve games with a curses TUI (keyboard **and** mouse) or a
-pipe-friendly text mode, and **shares its statistics with the installed GNOME
-AisleRiot** so games played in either program are mirrored in both.
+# Soliterm
 
-Needs only **Python 3.9+** (with the standard-library `curses`, which ships
-with Python on Linux and macOS). No `pip install` of anything else required.
+Solitaire for your terminal. Twelve games, played by GNOME AisleRiot's
+rules with the keyboard or the mouse, and if you have AisleRiot, one set
+of statistics shared between the two.
 
-## Install / run
+[![CI](https://img.shields.io/github/actions/workflow/status/bwenstar/soliterm/ci.yml?branch=main&label=CI)](https://github.com/bwenstar/soliterm/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/soliterm)](https://pypi.org/project/soliterm/)
+[![Python versions](https://img.shields.io/pypi/pyversions/soliterm)](https://pypi.org/project/soliterm/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](https://github.com/bwenstar/soliterm/blob/main/LICENSE)
 
-Pick whichever suits you:
+![A game of Klondike, deal 946, in a terminal. A few cards are moved with the keyboard, then the game skips ahead to where every card can go up. One key sends them all to the foundations, the cards bounce down the screen, and the win screen shows the time, the score and the share code klondike:946.](https://raw.githubusercontent.com/bwenstar/soliterm/main/docs/img/hero.gif)
 
-**A. Zero install, single file.** Grab `soliterm.pyz` and run it:
+## Try it now
+
+With [pipx](https://pipx.pypa.io), this plays it straight away, without
+installing it:
 
 ```sh
-python3 soliterm.pyz              # menu → pick a game (curses TUI)
-./soliterm.pyz --game freecell    # or run it directly (it's executable)
+pipx run soliterm
 ```
 
-**B. Install with pip** (gives you a `soliterm` command on your PATH):
+To keep it:
 
 ```sh
-pip install .                      # from a checkout
-soliterm                           # then just run "soliterm"
+pipx install soliterm      # or: pip install soliterm
+soliterm
 ```
 
-**C. From source** (no install):
+Or take the single file from the
+[latest release](https://github.com/bwenstar/soliterm/releases/latest)
+and run it with Python:
 
 ```sh
+curl -LO https://github.com/bwenstar/soliterm/releases/latest/download/soliterm.pyz
+python3 soliterm.pyz
+```
+
+Or play from a checkout:
+
+```sh
+git clone https://github.com/bwenstar/soliterm.git
+cd soliterm
 PYTHONPATH=src python3 -m soliterm
 ```
 
-Common flags (all three forms): `--game NAME`, `--deal N`, `--daily`,
-`--list`, `--stats`, `--text` (force text mode), `--ascii`, `--color` /
-`--no-color`, `--theme NAME`, `--no-animation`.
+It needs Python 3.9 or newer, and nothing else on Linux and macOS. On
+Windows, curses comes from the windows-curses package, which pip and pipx
+install along with Soliterm. To play the `.pyz` there, run
+`py -m pip install windows-curses` first, or it plays in text mode.
 
-## Build the distributables
+## What's in it
 
-```sh
-python3 tools/build_pyz.py           # dist/soliterm.pyz, the single-file zipapp
-python3 tools/build_pyz.py --wheel   # plus a wheel and an sdist in dist/
-```
+- **Twelve games:** Klondike, Spider, FreeCell, Golf, Triple Peaks, Yukon
+  and six more, each with AisleRiot's rules and scoring.
+- **Keyboard or mouse.** The arrow keys and Enter, or click and drag.
+  Hints, undo and redo all the way back to the deal, and one key to send
+  every card up once the game is as good as won.
+- **Your statistics, shared with AisleRiot.** When GNOME AisleRiot is
+  installed the two keep one record, so a game won in either shows up in
+  both. Soliterm adds win streaks on top.
+- **Deals you can share.** Every deal has a number, and a code such as
+  `klondike:d3:48213` lets a friend play the same cards. Every game has a
+  daily deal, the same for everyone that day, with nothing going online.
+- **Leave whenever you like.** Quit in the middle of a game and it's
+  waiting on the menu next time, clock and all.
+- **Four themes**, a four-colour deck and a compact view.
+- **A code skin and a boss key**, for playing where you perhaps shouldn't.
+- **A text mode** for pipes, scripts and terminals curses can't drive.
+- **Nothing to install but Python.** The game uses the standard library
+  alone and fits in one `.pyz` file.
 
-The zipapp builds with the standard library alone. `--wheel` runs
-`python -m build`, so it needs `pip install build` first.
+## Screenshots
 
-## Games
+| FreeCell, with a hint | Spider in two suits |
+| --- | --- |
+| ![FreeCell deal 617 after one move: eight columns of face-up cards under four empty free cells and four foundations, with the hint "Move Q♥ onto K♠" on the bottom line.](https://raw.githubusercontent.com/bwenstar/soliterm/main/docs/img/freecell.png) | ![Two-suit Spider deal 7: ten columns of face-down cards with one card face up on each, the stock holding 50 cards, and the hint "Move J♥ onto Q♥".](https://raw.githubusercontent.com/bwenstar/soliterm/main/docs/img/spider.png) |
+| **The code skin** | **Triple Peaks, eight cards into a run** |
+| ![Klondike drawn inside what looks like a Python file called solver.py, with line numbers down the left and the score and the time written as a comment.](https://raw.githubusercontent.com/bwenstar/soliterm/main/docs/img/code-skin.png) | ![Triple Peaks deal 108: three overlapping peaks of cards, a waste fanned out from a run of eight, and the hint "Move 6♥ onto 7♦".](https://raw.githubusercontent.com/bwenstar/soliterm/main/docs/img/triple-peaks.png) |
+| **Yukon in the contrast theme** | **A win** |
+| ![Yukon deal 5 in the contrast theme: white cards with strong red and black suits, the cursor in yellow and the hinted card in cyan, and the hint "Move 3♥ onto 4♣".](https://raw.githubusercontent.com/bwenstar/soliterm/main/docs/img/contrast.png) | ![The win screen after Golf deal 216, with the time, the score, 48 moves, the share code golf:216, and the choices Replay this deal, New deal and Back to menu.](https://raw.githubusercontent.com/bwenstar/soliterm/main/docs/img/win.png) |
 
-| Key | Game | Notes |
-|-----|------|-------|
-| `klondike` | Klondike | the classic; draw 1 or 3 (option) |
-| `spider` | Spider | 4 suits, or 2 or 1 (option) |
-| `spiderette` | Spiderette | one deck, seven columns |
-| `freecell` | FreeCell | four free cells, supermoves |
-| `eightoff` | Eight Off | eight cells, build by suit |
-| `golf` | Golf | clear the tableau onto the waste |
-| `triplepeaks` | Triple Peaks | three peaks onto the waste, K wraps to A |
-| `yukon` | Yukon | move any face-up group |
-| `scorpion` | Scorpion | move any group, build suits in place |
-| `bakersdozen` | Bakers Dozen | no stock, thirteen columns |
-| `fortythieves` | Forty Thieves | two decks, ten columns |
-| `canfield` | Canfield | reserve + deal-three, wrapping |
+## The games
 
-## Controls (TUI)
+Each game has a page with its rules, its scoring and a few tips.
 
-| Keys | Action |
-|------|--------|
-| Arrow keys | move the cursor between piles |
-| Enter / Space | pick up the cursor's run; press again to drop |
-| `+` / `-` | lift one card more / fewer while holding a run |
-| Mouse click | pick up a card/run; click a target to drop |
-| click mid-stack | split a pile and lift from that card down |
-| double-click | send a card to a foundation (or deal, on the stock) |
+| Game | Key | What it's like |
+| --- | --- | --- |
+| [Klondike](https://github.com/bwenstar/soliterm/blob/main/docs/games/klondike.md) | `klondike` | The classic one-deck game: seven columns and a stock, drawing one card or three. |
+| [Spider](https://github.com/bwenstar/soliterm/blob/main/docs/games/spider.md) | `spider` | Two decks, ten columns: build full King to Ace runs in one, two or four suits. |
+| [Spiderette](https://github.com/bwenstar/soliterm/blob/main/docs/games/spiderette.md) | `spiderette` | Spider on one deck and seven columns, dealt like Klondike, in four suits. |
+| [FreeCell](https://github.com/bwenstar/soliterm/blob/main/docs/games/freecell.md) | `freecell` | Every card face up, four free cells, and nearly every deal can be won. |
+| [Eight Off](https://github.com/bwenstar/soliterm/blob/main/docs/games/eightoff.md) | `eightoff` | FreeCell's cousin with eight cells and columns built in suit; nearly all skill. |
+| [Golf](https://github.com/bwenstar/soliterm/blob/main/docs/games/golf.md) | `golf` | Clear seven face-up columns onto the waste, one rank up or down, no wrapping. |
+| [Triple Peaks](https://github.com/bwenstar/soliterm/blob/main/docs/games/triplepeaks.md) | `triplepeaks` | Clear three overlapping peaks onto the waste, a rank up or down, in scoring runs. |
+| [Yukon](https://github.com/bwenstar/soliterm/blob/main/docs/games/yukon.md) | `yukon` | Klondike with no stock, where any face-up group can move, in order or not. |
+| [Scorpion](https://github.com/bwenstar/soliterm/blob/main/docs/games/scorpion.md) | `scorpion` | Seven columns built down in suit, any face-up group moves, and no foundations. |
+| [Bakers Dozen](https://github.com/bwenstar/soliterm/blob/main/docs/games/bakersdozen.md) | `bakersdozen` | One deck, thirteen open columns, no stock; build down by rank in any suit. |
+| [Forty Thieves](https://github.com/bwenstar/soliterm/blob/main/docs/games/fortythieves.md) | `fortythieves` | Two decks, ten columns built down in suit, one pass through the stock. |
+| [Canfield](https://github.com/bwenstar/soliterm/blob/main/docs/games/canfield.md) | `canfield` | Reserve of 13, deal three with unlimited redeals, foundations from a random base rank. |
+
+`soliterm` on its own opens a menu of them, and `soliterm --game spider`
+goes straight to one.
+
+## Playing
+
+These are the keys you need for a first game:
+
+| Keys | What they do |
+| --- | --- |
+| Arrow keys | move the cursor between the piles |
+| `Enter` or `Space` | pick up the cards at the cursor, then press again on another pile to put them down |
 | `d` | deal from the stock |
-| `a` | autoplay safe cards, or finish the game once every card can go up |
-| `f` | send the selected/cursor card to a foundation |
-| `h` | hint: highlight a legal move |
-| `n` / `N` | new deal / restart **this** deal |
-| `g` | play a deal by its number or share code |
-| `u` / `r` | undo / redo a move; `U` / `R` every move (redo is kept) |
-| `o` | game options · `s` statistics · `v` toggle colour |
-| `t` | next colour theme: classic, dark, light, contrast |
-| `4` | four-colour deck: green clubs, orange diamonds |
-| `c` | code skin (keep playing inside a fake source file) |
-| `b` / F2 | boss mode (hide the game behind fake "work" output) |
-| `m` / `q` | back to menu / quit · `?` help |
+| `h` | show a hint |
+| `u`, `r` | undo and redo |
+| `a` | send up every card that's safe to, or finish the game once every card can go up |
+| `n` | deal a new game |
+| `?` | show every key |
+| `q` | quit, keeping the game for next time |
 
-## Themes
+With the mouse, click a card to pick it up along with the cards on it,
+then click where it goes, or drag it there. A double-click sends a card to
+its foundation.
 
-`t` moves on to the next theme and the game remembers it; `--theme NAME`
-picks one for a single run.
-
-| Theme | Looks like |
-|-------|------------|
-| `classic` | the look Soliterm has always had, in your terminal's own colours |
-| `dark` | softer colours for a dark background, on 256-colour terminals |
-| `light` | the same for a light background |
-| `contrast` | text in your terminal's own colours and the strongest card colours |
-
-On a terminal without 256 colours (8, 16 or 88, or direct colour such as
-`xterm-direct`), `dark` and `light` are `classic` as it looks on a dark or
-a light background. `classic` and `contrast` suit themselves to a light
-background, which the game knows from `COLORFGBG` when your terminal sets
-it. If it isn't set, or says the wrong thing, choose `dark` or `light`,
-which always look the same, or set `COLORFGBG=0;15` for a light background
-(`15;0` for a dark one).
-
-`4` swaps the red and black deck for a four-colour one, as bridge players
-use: green clubs and orange diamonds (blue diamonds on terminals without
-256 colours). It works with every theme, and the game remembers it too.
+There's a lot more, from the options and the statistics to the themes and
+the boss key, and
+[docs/keybindings.md](https://github.com/bwenstar/soliterm/blob/main/docs/keybindings.md)
+has every key on every screen.
 
 ## Deals and share codes
 
-Every deal has a number, shown at the top of the board. `soliterm --deal 48213`
-plays deal 48213 of the game you played last (add `--game` for another), and
-`n` then deals 48214, so you can work through them in order. Numbers run from
-0 to 2147483647, and a deal picked at random is one of the first million. The
-same number deals the same cards on any computer and any Python.
+Every deal has a number, shown at the top of the board, and the same
+number deals the same cards on any computer and any Python.
+`soliterm --deal 48213` plays deal 48213 of the game you played last (add
+`--game` for another), and `n` then deals 48214, so you can work through
+them in order. Numbers run from 0 to 2147483647, and a deal picked at
+random is one of the first million, to keep its number short.
 
-A share code names a deal exactly: the game, any options you changed, and the
-number. `klondike:d3:48213` is Klondike drawing three, deal 48213. The end of
-every game shows its code. Anyone can play the same cards with
-`soliterm --deal klondike:d3:48213`, or by pressing `g` in a game (or picking
-Play a deal on the menu) and typing it in. A plain number works there too: `g`
-keeps the game and options you're playing, and the menu plays the game you
-played last. In a code, `d1` and `d3` are Klondike's cards to draw, `rs`, `rn`
-and `ru` its standard, no or unlimited redeals, and `s1`, `s2` and `s4`
-Spider's suits. Options left at their default aren't written.
+A share code names a deal exactly: the game, any options you've changed,
+and the number. `klondike:d3:48213` is Klondike drawing three, deal 48213.
+The end of every game shows its code, and anyone can play the same cards
+with `soliterm --deal klondike:d3:48213`, or by pressing `g` in a game, or
+picking Play a deal on the menu, and typing it in. Options left at their
+standard setting aren't written, so most codes are only the game and the
+number. The ones that can appear are:
 
-`--draw 3` and `--suits 2` change Klondike's draw or Spider's suits for one
-run without saving them, and start that game if `--game` doesn't name one.
+| Game | In a share code |
+| --- | --- |
+| Klondike | `d1` or `d3`, the cards to draw; `rs`, `rn` or `ru`, standard, no or unlimited redeals |
+| Spider | `s1`, `s2` or `s4`, the number of suits |
+| Triple Peaks | `ss` or `sm`, standard or multiplier scoring |
 
-FreeCell deals use Microsoft FreeCell's numbers, so deal 617 here is deal 617
-there, and 11982 is the one deal among the first 32,000 that can't be won.
+FreeCell deals use Microsoft FreeCell's numbers, so deal 617 here is deal
+617 there, and 11982 is the one deal among the first 32,000 that can't be
+won.
+
+`--draw 3` and `--suits 2` change Klondike's draw or Spider's suits for a
+single run without saving them.
 
 ### The daily deal
 
 `soliterm --daily` deals today's hand of the game you played last (add
 `--game` for another), and Daily deal on the menu lists every game's. It's
-the same cards for everyone that day, with the standard options. When it
-ends you get a line to paste to friends, with no cards in it:
+the same cards for everyone that day, with the standard options. Today is
+your computer's date, and nothing goes online. When it ends you get a line
+to paste to friends, which gives no cards away:
 
-    Soliterm daily 2026-09-24, Klondike: won in 3:12, 87 moves
-
-Today is your computer's date, and nothing goes online. A daily is deal
-YYYYMMDD, so `--deal klondike:20260924` plays that day's cards again
-whenever you like.
-
-A daily you leave unfinished is kept like any other game, and its row on the
-menu reads `Resume your daily game`. Picking the game, or that day's daily
-again, carries on with it. A new day's daily leaves it waiting, as a deal you
-chose does.
-
-## Text mode
-
-`--text` (or any non-TTY / piped stdin) runs a scriptable REPL. It is also
-what you get, with a line on stderr saying why, when curses can't run: no
-`curses` module (on Windows, `pip install windows-curses` adds one) or a
-`TERM` that is unset, `dumb` or unknown here. Slots are addressed by the
-`#N` tags shown on the board:
-
+```text
+Soliterm daily 2026-09-24, Klondike: won in 3:12, 87 moves
 ```
-d                deal           a       autoplay or finish
-<src> <dst>      move a run     u / r   undo / redo
-<src> <dst> <n>  move n cards   hint    suggest a move
-f <slot>         to foundation  n / N   new deal / restart   q  quit
-undo all / redo all   take back or redo every move
-```
+
+A daily is deal YYYYMMDD, so `soliterm --deal klondike:20260924` plays that
+day's cards again whenever you like.
 
 ## Saved games
 
-Leave a game you've started with `q`, `m` or Ctrl-C, or close the terminal
-on it, and it's kept for next time in `~/.local/share/soliterm/saves`, with
-its clock, score and undo steps. One game of each kind is kept. Its row on
-the menu then reads `Resume your game: 0:42, 31 moves`, and picking it, or
-starting it with `--game`, carries on where you left off.
+Leave a game with `q`, `m` or Ctrl-C, or close the terminal on it, and it's
+kept for next time with its clock, its score and the moves to undo. One
+game of each kind is kept. Its row on the menu then reads
+`Resume your game: 0:42, 31 moves`, and picking it, or starting it with
+`--game`, carries on where you left off. A daily you leave is kept the same
+way, and that day's daily carries on with it.
 
-`n` for a new deal, `o` when you change the options, and leaving the "No
-moves left" banner give the game up instead, and it counts as a loss. A game
-started on a deal you chose, with `--deal`, `--draw`, `--suits`, `g` or Play
-a deal, always deals the hand you asked for, so a saved game of its kind goes
-on waiting. It's kept when you leave it if nothing of its kind is waiting;
-if something is, it tells you so when it starts and counts as lost when you
-leave. Text mode keeps a game only when you're typing at a terminal, where
-Ctrl-D keeps it as `q` does; from a script or a pipe, leaving a game you've
-started counts it as lost.
+A few things give a game up instead, and it counts as a loss: `n` for a new
+deal, `g` for another deal, changing the game's options with `o`, and
+leaving the "No moves left" screen for a new deal or the menu. A deal you
+ask for by number or code, or with `--draw` or `--suits`, always deals
+what you asked for and leaves a saved game of its kind waiting. It's kept
+when you leave it if nothing of its kind is saved already; if something
+is, it says so when it starts, and the game counts as lost when you leave
+it.
 
 A kept game isn't in the statistics, here or in AisleRiot, until it's
-finished or given up. Then it counts once, with all the time you spent on it.
+finished or given up. Then it counts once, with all the time you spent on
+it.
 
-## Statistics & AisleRiot sharing
+Text mode keeps games too, but only when you're typing at a terminal,
+where Ctrl-D keeps the game as `q` does. From a script or a pipe, leaving a
+game you've started counts it as lost.
 
-Statistics use AisleRiot's own model: **Wins / Total / Percentage / Best &
-Worst winning time**, per game. When the installed GNOME AisleRiot is present,
-this game reads from and writes to its config keyfile
-(`~/.config/gnome-games/aisleriot`), so a game finished here shows up in
-AisleRiot's Statistics dialog and vice versa. Disable by setting
-`"sync_aisleriot": false` in `~/.config/soliterm/config.json`, or for a
-single run with `--no-sync` (or `SOLITERM_NO_AISLERIOT=1` in the
-environment): the keyfile is then neither read nor written, and the games
-you play wait in the local stats until sharing is on again.
+## Statistics and AisleRiot
 
-Two columns go beyond AisleRiot's: **Streak**, the wins in a row you're on,
-and **Longest**, the most you've had. They come from the games played here,
-one line each in `~/.local/share/soliterm/history.jsonl`, so a game played
-in AisleRiot itself doesn't count towards them, and a game with nothing
-counted here yet shows `N/A`.
+Soliterm keeps the statistics AisleRiot does for each game: the games won
+and played, the percentage won, and the best and worst winning times.
+When GNOME AisleRiot is installed, it reads and writes AisleRiot's own
+record in `~/.config/gnome-games/aisleriot`, so a game finished here shows
+up in AisleRiot's Statistics window and a game won there shows up here.
+It only ever changes the entries for its twelve games and leaves the rest
+of that file as it was.
 
-`--stats` prints the table and the last ten games you played here.
-`--reset-stats` clears the statistics, AisleRiot's own record of these twelve
-games included (its other games are left untouched), and the history of the
-games played here. It asks you to type `yes` first, or takes `--yes` when
-there is no terminal to ask on, and keeps a copy of what it clears in
-`aisleriot.soliterm-bak` next to the keyfile, and `stats.json.bak` and
-`history.jsonl.bak` next to the local stats. Saved games are left as they
-are.
+Two columns go beyond AisleRiot's: Streak, the wins in a row you're on,
+and Longest, the most you've had. They come from the games played here, so
+a game played in AisleRiot doesn't count towards them.
+
+`s` in a game shows the statistics, and `soliterm --stats` prints them
+with the last ten games you played. `soliterm --reset-stats` clears them,
+AisleRiot's record of the twelve games included, along with the history of
+games played here. It asks you to type `yes` first (or takes `--yes` when
+there's no terminal to ask at), keeps a copy of what it clears in
+`aisleriot.soliterm-bak` next to AisleRiot's file and in `stats.json.bak`
+and `history.jsonl.bak` next to Soliterm's, and leaves saved games alone.
+
+To keep AisleRiot's statistics out of it:
+
+- for good, set `"sync_aisleriot": false` in `~/.config/soliterm/config.json`;
+- for one run, pass `--no-sync`, or set `SOLITERM_NO_AISLERIOT=1`.
+
+Either way AisleRiot's file is neither read nor written. The games you play
+are counted in Soliterm's own statistics, and go into AisleRiot's with the
+next game that's shared.
+
+## Themes
+
+`t` moves on to the next theme and the game remembers it, and
+`--theme NAME` picks one for a single run.
+
+| Theme | What it looks like |
+| --- | --- |
+| `classic` | the look Soliterm has always had, in your terminal's own colours |
+| `dark` | softer colours for a dark background, on 256-colour terminals |
+| `light` | the same for a light background |
+| `contrast` | text in your terminal's own colours, and the strongest card colours |
+
+On a terminal without 256 colours, `dark` and `light` look like `classic`.
+`classic` and `contrast` suit themselves to a light background when the
+terminal says it has one (see [Terminal notes](#terminal-notes)).
+
+`4` swaps the red and black deck for a four-colour one, as bridge players
+use: green clubs and orange diamonds, or blue diamonds on a terminal
+without 256 colours. It works with every theme, and the game remembers it
+too.
+
+## Text mode
+
+`--text` plays the same games as plain lines of text. It prints the board,
+reads a command, and prints the board again:
+
+```text
+$ soliterm --text --deal golf:216 --ascii
+Soliterm - Golf - Deal 216 (text mode). Type h for help.
+
+=== Golf ===
+stk#0 wst#1
+[###] [   ]
+ (17)
+
+   #2    #3    #4    #5    #6    #7    #8
+[ 7C] [ JC] [ 2C] [ 4D] [ KD] [ QS] [ JS]
+[ 8S] [10C] [ AH] [10D] [ AD] [ QH] [ JD]
+[ 6D] [ 7H] [ KH] [ 6H] [ 5D] [ AS] [ 4C]
+[ 4S] [ QC] [ KS] [ 5C] [ 9H] [ 3S] [ 2S]
+[ 5H] [ JH] [ 9D] [ 7D] [ 9S] [10H] [ 5S]
+
+score=0 moves=0 | Stock: 17 left
+```
+
+A slot is named by the number in its tag, so `12 2` moves cards from
+slot 12 to slot 2, `d` deals, `hint` suggests a move and `h` lists the
+rest. It's also what you get when the input or the output isn't a
+terminal, so `printf 'hint\nq\n' | soliterm --deal golf:216` works, and
+when curses can't run, with a line on stderr saying why.
+[docs/text-mode.md](https://github.com/bwenstar/soliterm/blob/main/docs/text-mode.md)
+has the whole of it.
 
 ## Options
 
-```
---game NAME       start a specific game      --deal N|CODE  a numbered or shared deal
---daily           today's daily deal, the same for everyone
---draw 1|3        Klondike draw, this run    --suits 1|2|4  Spider suits, this run
---text            force text mode            --ascii        letter suits S/H/D/C
---color           force colour in text mode  --no-color     disable colour
---theme NAME      colour theme for this run: classic, dark, light, contrast
---no-animation    finish and win without animating the cards
---list            list games and exit        --stats        print statistics
---reset-stats     clear statistics           --yes          don't ask first
---no-sync         leave AisleRiot's stats alone this run
---debug-info      what to paste into a bug report
-```
+| Option | What it does |
+| --- | --- |
+| `--game NAME` | start a game instead of the menu; `--list` shows the names |
+| `--deal N`, `--deal CODE` | play deal N, or the deal a share code names |
+| `--daily` | play today's daily deal |
+| `--draw 1`, `--draw 3` | Klondike: draw one card or three, for this run only |
+| `--suits 1`, `--suits 2`, `--suits 4` | Spider: play with one, two or four suits, for this run only |
+| `--text` | play in text mode even at a terminal |
+| `--ascii` | show the suits as S, H, D and C and draw the cards in plain ASCII |
+| `--color` | colour in text mode even when the output isn't a terminal, and colour on in the full-screen game |
+| `--no-color` | no colour, in either mode, for this run |
+| `--theme NAME` | `classic`, `dark`, `light` or `contrast`, for this run only |
+| `--no-animation` | finish and win without animating the cards |
+| `--list` | list the games and exit |
+| `--stats` | print the statistics and exit |
+| `--reset-stats` | erase the statistics of every game, asking first, and exit |
+| `--yes` | with `--reset-stats`, don't ask |
+| `--no-sync` | leave AisleRiot's statistics alone this time |
+| `--debug-info` | print what a bug report needs and exit |
+| `--version` | print the version and exit |
+| `-h`, `--help` | print a summary of the options and exit |
 
-Colour, theme, code-skin, and other preferences persist in
-`~/.config/soliterm/config.json`. Set `"animation": false` there to finish
-and win without the cards moving on their own (or pass `--no-animation`
-for one run). Respects `NO_COLOR`. Statistics are in
-`~/.local/share/soliterm/stats.json`, with the saved games in `saves` beside
-it. If you played the game under its old name, the first run copies
-`config.json` and `stats.json` over from the `aisle-cli` folders and leaves
-the old ones where they are.
+In `config.json`, `"animation": false` turns the animation off for good,
+and `"symbols": false` does the same for `--ascii`. `NO_COLOR` turns
+colour off as `--no-color` does, and `v` switches it in the game.
 
-## Tests
+The man page covers all of this along with the environment variables and
+the exit statuses. From a checkout, read it with `man -l man/soliterm.6`.
+
+## Where your files live
+
+| File | What's in it |
+| --- | --- |
+| `~/.config/soliterm/config.json` | your settings: each game's options, the colours and theme, the game last played |
+| `~/.local/share/soliterm/stats.json` | the statistics of every game |
+| `~/.local/share/soliterm/history.jsonl` | a line for every game played here, which the streaks come from |
+| `~/.local/share/soliterm/saves/` | the games kept for next time, one file for each game |
+| `~/.config/gnome-games/aisleriot` | AisleRiot's own statistics, shared when AisleRiot is installed |
+
+`XDG_CONFIG_HOME` takes the place of `~/.config` and `XDG_DATA_HOME` of
+`~/.local/share`, as usual. On Windows, `~` is your user profile folder.
+`soliterm --debug-info` prints where the files are on your machine.
+
+Pointing both variables at an empty folder gives you a fresh start that
+leaves your own files alone, which is handy for trying things out:
 
 ```sh
-python3 -m pytest
+tmp=$(mktemp -d)
+XDG_CONFIG_HOME=$tmp XDG_DATA_HOME=$tmp soliterm --no-sync
 ```
 
-The tests in `tests/` need pytest (the game itself doesn't). They cover the
-engine, all twelve games' rules, scoring, undo / redo, the hint, statistics
-persistence, AisleRiot sharing, and the camouflage / code-skin / colour
-features. They run against temporary config directories and never touch your
-real AisleRiot data.
+## Upgrading from aisle-cli
+
+Soliterm used to be called aisle-cli. The first time `soliterm` runs,
+before it has any folders of its own, it copies aisle-cli's `config.json`
+and `stats.json` across from the `aisle-cli` folders next to its own, and
+says so on stderr. It copies them and never moves them, so the old files
+stay where they were. If aisle-cli was sharing its statistics with
+AisleRiot, its games aren't added to AisleRiot's record a second time.
+
+## Terminal notes
+
+- **Size.** Every game and every screen fits in 80 by 24. Most boards fit
+  in less, down to 40 by 16 for Klondike, but the big ones need more:
+  Bakers Dozen needs 68 columns and Triple Peaks 22 rows. In a window
+  that's too small, Soliterm says what size it needs instead of drawing a
+  cut-off board, and carries on once you make the window bigger. The
+  compact view, `x`, works there too and takes fewer rows.
+- **TERM.** The full-screen game goes by `TERM`, as curses does. When it
+  isn't set, is `dumb`, or names a terminal this system has no entry for,
+  Soliterm plays in text mode and says why. `xterm-256color` suits most
+  terminals.
+- **Colours.** The `dark` and `light` themes need a terminal with 256
+  colours. With 8 or 16, or direct colour such as `xterm-direct`, they look
+  like `classic`.
+- **Light backgrounds.** Some terminals, such as rxvt and Konsole, say
+  what their colours are in `COLORFGBG`, and when it ends in `;7` or `;15`
+  Soliterm takes the background to be light. If yours doesn't set it, or
+  says the wrong thing, pick `dark` or `light`, which look the same
+  everywhere, or set `COLORFGBG=0;15` for a light background.
+- **Suits and card edges.** The cards are drawn with box-drawing
+  characters and suit symbols, which need a UTF-8 locale and a font that
+  has them. When the full-screen game can't encode them (under
+  `LC_ALL=C`, say), it draws letters and plain ASCII by itself, and text
+  mode does the same when its output can't take them. If they come out
+  as boxes or question marks anyway, use `--ascii`.
+- **tmux and screen.** Inside them, `TERM` is theirs. `tmux-256color`,
+  `screen-256color` and `screen.xterm-256color` all have 256 colours, but
+  plain `screen` has 8. `set -g default-terminal tmux-256color` in
+  `~/.tmux.conf`, or `term screen-256color` in `~/.screenrc`, fixes that.
+  If `Esc` is slow to act in tmux, that's its `escape-time`, which is half
+  a second in many versions; `set -sg escape-time 25` brings it down.
+- **Windows.** The game needs the windows-curses package there, which pip
+  and pipx install along with it. Without it, Soliterm plays in text mode
+  and tells you how to add it. `TERM` doesn't matter on Windows.
+
+## Contributing
+
+Bug reports, fixes and new games are all welcome.
+[CONTRIBUTING.md](https://github.com/bwenstar/soliterm/blob/main/CONTRIBUTING.md)
+has the setup, the checks CI runs and the house rules.
+[docs/adding-a-game.md](https://github.com/bwenstar/soliterm/blob/main/docs/adding-a-game.md)
+walks through adding a game, and
+[docs/architecture.md](https://github.com/bwenstar/soliterm/blob/main/docs/architecture.md)
+shows how the pieces fit together. The tests run with `python -m pytest`,
+never touch your real files, and take under a minute. For a security
+problem, see
+[SECURITY.md](https://github.com/bwenstar/soliterm/blob/main/SECURITY.md).
+
+## Licence
+
+Soliterm is MIT licensed; see
+[LICENSE](https://github.com/bwenstar/soliterm/blob/main/LICENSE).
+
+It plays by AisleRiot's rules and shares AisleRiot's statistics file, but
+Soliterm is not affiliated with GNOME or the AisleRiot project.

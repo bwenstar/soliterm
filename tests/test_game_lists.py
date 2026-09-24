@@ -11,10 +11,17 @@ from soliterm.engine import GAME_ORDER, GAMES
 ROOT = Path(__file__).resolve().parents[1]
 BUG_REPORT = ROOT / ".github" / "ISSUE_TEMPLATE" / "bug_report.yml"
 GAMES_INDEX = ROOT / "docs" / "games" / "README.md"
+README = ROOT / "README.md"
+# README.md links with full URLs, as PyPI shows it too
+PAGES_URL = "https://github.com/bwenstar/soliterm/blob/main/docs/games/"
 
 NAMES = [GAMES[key].name for key in GAME_ORDER]
-# a row of a games table: | [Name](key.md) | `key` | ...
+# a row of a games table: | [Name](key.md) | `key` | ..., with the link's
+# path before key.md in the README
 ROW = re.compile(r"^\| \[(.+?)\]\((\w+)\.md\) \| `(\w+)` \|", re.MULTILINE)
+README_ROW = re.compile(
+    rf"^\| \[(.+?)\]\({re.escape(PAGES_URL)}(\w+)\.md\) \| `(\w+)` \|", re.MULTILINE
+)
 
 
 @pytest.mark.skipif(not BUG_REPORT.exists(), reason="no .github/ in this tree")
@@ -32,3 +39,16 @@ def test_the_games_index_links_every_game_in_menu_order():
     assert rows == [(GAMES[key].name, key, key) for key in GAME_ORDER]
     for key in GAME_ORDER:
         assert (GAMES_INDEX.parent / f"{key}.md").exists(), key
+
+
+def test_the_readme_links_every_game_in_menu_order():
+    rows = README_ROW.findall(README.read_text(encoding="utf-8"))
+    assert rows == [(GAMES[key].name, key, key) for key in GAME_ORDER]
+
+
+def test_the_readme_describes_every_game_as_the_games_index_does():
+    if not GAMES_INDEX.exists():
+        pytest.skip("no docs/ in this tree")
+    about = re.compile(r"^\| \[.+?\]\(\S+\) \| `(\w+)` \| (.+) \|$", re.MULTILINE)
+    index = about.findall(GAMES_INDEX.read_text(encoding="utf-8"))
+    assert about.findall(README.read_text(encoding="utf-8")) == index
