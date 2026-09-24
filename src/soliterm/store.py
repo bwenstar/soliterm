@@ -244,7 +244,10 @@ def _locked() -> Iterator[None]:
                 fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
             except BlockingIOError:
                 if _on_wait is not None:
-                    _on_wait()
+                    # a note that can't be written, to a stderr that has
+                    # closed, say, still waits for the lock
+                    with contextlib.suppress(OSError, ValueError):
+                        _on_wait()
                 fcntl.flock(fd, fcntl.LOCK_EX)
         except BaseException as exc:
             if fd is not None:

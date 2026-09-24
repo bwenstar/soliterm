@@ -184,6 +184,23 @@ def test_a_wait_for_the_lock_is_told_of_first():
     assert store.get_stat("golf")["wins"] == 2
 
 
+@needs_flock
+@pytest.mark.parametrize("error", [BrokenPipeError, ValueError])
+def test_a_wait_note_that_fails_still_waits_for_the_lock(error):
+    os.makedirs(store.data_dir())
+    with open(os.path.join(store.data_dir(), "stats.lock"), "a") as other:
+        store.fcntl.flock(other.fileno(), store.fcntl.LOCK_EX)
+
+        def note():
+            store.fcntl.flock(other.fileno(), store.fcntl.LOCK_UN)  # it lets go
+            # as print does on a stderr that has closed, or been closed
+            raise error
+
+        # it has the lock, so another copy can't take it now
+        with store.lock_wait_note(note), store._locked(), pytest.raises(BlockingIOError):
+            store.fcntl.flock(other.fileno(), store.fcntl.LOCK_EX | store.fcntl.LOCK_NB)
+
+
 @pytest.mark.skipif(os.name != "posix", reason="needs POSIX file modes")
 def test_the_lock_file_is_the_players_own():
     old = os.umask(0o022)
