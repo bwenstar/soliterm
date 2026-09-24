@@ -157,6 +157,17 @@ def test_sliding_a_king_column_between_empty_columns_is_a_dead_end(table):
     assert g.no_hint_reason() == DEAD_END
 
 
+def test_a_won_board_is_no_dead_end(table):
+    # its whole suits can still slide into the empty columns, and that is
+    # all it can do
+    g = table
+    for t, s in zip(COLUMNS, "SHDC"):
+        g.slots[t].cards = suit(s)
+    assert g.is_won() and g.legal_moves()
+    assert not g.gamedef.is_dead_end(g)
+    assert g.no_hint_reason() != DEAD_END
+
+
 def test_a_dead_end_needs_the_stock_dealt(table):
     g = table
     kings_and_nothing_else(g)

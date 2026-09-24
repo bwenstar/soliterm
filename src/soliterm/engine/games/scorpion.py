@@ -88,8 +88,9 @@ class Scorpion(GameDef):
 
     def is_dead_end(self, g):
         """Nothing left to deal, and every move just slides a whole column
-        under a King into an empty one, which changes nothing."""
-        if not g.empty(self.stock):
+        under a King into an empty one, which changes nothing. A won board
+        can only do that too, and is no dead end."""
+        if not g.empty(self.stock) or self.is_won(g):
             return False
         moves = g.legal_moves()
         return bool(moves) and all(g.empty(dst) and n == len(g.cards(src)) for src, dst, n in moves)
