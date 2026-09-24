@@ -6,6 +6,7 @@ time the game asked for a key.
 """
 
 import curses
+import functools
 import glob
 import importlib.util
 import json
@@ -73,6 +74,7 @@ class ScriptedScr(FakeScr):
         self.mouse = None
         self.spare = 0
         self.delay = -1  # how long getch waits for a key, in ms; -1 for ever
+        self.delays = []  # the delay each key was read with
 
     def nodelay(self, flag):
         self.delay = 0 if flag else -1
@@ -82,6 +84,7 @@ class ScriptedScr(FakeScr):
 
     def getch(self):
         self.frames.append(self.text())
+        self.delays.append(self.delay)
         if not self.keys:
             # out of script: keep pressing q until the game lets go
             self.spare += 1
@@ -752,6 +755,75 @@ def test_the_offer_shows_after_the_move_that_allows_it(tui):
     assert not any(offer in frame for frame in scr.frames[:moved])
     assert offer in scr.frames[moved]
     assert offer not in scr.frames[moved + 1]
+
+
+# -- the finish, played out ------------------------------------------------------------
+
+
+@pytest.fixture
+def animated(tui, monkeypatch):
+    """tui with the cards moving on their own, as on a real terminal."""
+    monkeypatch.setenv("TERM", "xterm")
+    return functools.partial(tui, animation=True)
+
+
+def test_the_finish_lands_one_card_a_frame(animated):
+    scr = animated(["a", -1, -1, -1, -1], game=near_won())
+    for n in range(1, 5):
+        rows = scr.frames[n].split("\n")
+        assert (rows[5].count("K"), rows[10].count("K")) == (n, 4 - n)
+    # each card waits a moment for a key, where the play screen waits a second
+    assert scr.delays[:5] == [1000, 80, 80, 80, 80]
+    assert store.get_stat("klondike")["wins"] == 1
+
+
+def test_a_key_cuts_the_finish_short(animated):
+    # the rest go up at once, and the key goes no further
+    scr = animated(["a", "z", "m"], game=near_won())
+    assert scr.frames[1].split("\n")[5].count("K") == 1
+    assert "Replay this deal" in scr.frames[2]
+    assert "choose a game" in scr.frames[3]
+    assert store.get_stat("klondike")["wins"] == 1
+
+
+def test_the_boss_key_hides_the_finish_at_once(animated):
+    scr = animated(["a", "b", "x", "m"], game=near_won())
+    assert scr.frames[1].split("\n")[5].count("K") == 1
+    board = {line for line in scr.frames[1].split("\n") if line.strip()}
+    assert not board & set(scr.frames[2].split("\n"))
+    assert "Replay this deal" in scr.frames[3]
+
+
+def test_a_left_press_cuts_the_finish_short_and_a_release_does_not(animated):
+    let_go, press = Mouse(10, 10, curses.BUTTON1_RELEASED), Mouse(10, 10, curses.BUTTON1_PRESSED)
+    scr = animated(["a", let_go, press, "m"], game=near_won())
+    assert scr.frames[2].split("\n")[5].count("K") == 2
+    assert "Replay this deal" in scr.frames[3]
+    assert "choose a game" in scr.frames[4]
+
+
+def test_the_clock_is_paused_while_the_finish_plays(animated, game_clock):
+    scr = animated(KING_TO_EMPTY + ["a", Later(5, -1), -1, -1, -1], game=near_won())
+    banner = next(frame for frame in scr.frames if "Replay this deal" in frame)
+    assert "Time        : 0:00\n" in banner
+
+
+def test_the_offer_goes_once_it_is_taken_up(animated):
+    scr = animated(KING_TO_EMPTY + ["a", -1, -1, -1, -1], game=near_won())
+    offer = soliterm.tui.app.FINISH_OFFER
+    moved = len(KING_TO_EMPTY)
+    assert offer in scr.frames[moved]
+    assert not any(offer in frame for frame in scr.frames[moved + 1 :])
+
+
+def test_ctrl_c_during_the_finish_leaves_as_q_does(animated):
+    # a finish as the first move leaves nothing to keep, one after a move is
+    # kept with the cards it has sent up so far
+    assert animated(["a", -1, KeyboardInterrupt], game=near_won()).rc == 130
+    assert saves.waiting() == {}
+    assert animated(KING_TO_EMPTY + ["a", KeyboardInterrupt], game=near_won()).rc == 130
+    assert store.get_stat("klondike")["total"] == 0
+    assert saves.waiting()["klondike"]["moves"] == 2
 
 
 @pytest.mark.parametrize("keys", [["d"], ["d", "b"], ["d", "?"]])

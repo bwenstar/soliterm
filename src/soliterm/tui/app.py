@@ -42,6 +42,9 @@ START_MESSAGE = "? help  h hint  m menu. Click or use arrows + Enter."
 # shown after any move that leaves every card free to go up
 FINISH_OFFER = "Every card can go up now. Press a to finish."
 UNDONE_ALL = "back at the deal: r redoes a move, R all of them"
+# the longest a finish takes to watch, and the longest one card of it takes
+FINISH_S = 1.5
+FINISH_STEP_MS = 80
 
 # The most the pick-deal box takes. The board's title line, 46 characters
 # at most, has to paste in whole, even copied with the spaces around it.
@@ -759,7 +762,7 @@ class App:
                 self.put_away()
             raise
 
-    def read_key(self) -> int:
+    def read_key(self, wait_ms: int = 1000) -> int:
         """The next key on the play screen or a dialog, or -1 for an Alt
         combination.
 
@@ -768,13 +771,14 @@ class App:
         half should act: Alt+n would otherwise deal a new hand. An Esc with
         a click or a resize behind it is, and both act in turn.
 
-        With no key for a second it returns -1 too, so play() draws the
-        board again and the clock on the status line ticks.
+        With no key for wait_ms (a second unless the caller says) it returns
+        -1 too, so play() draws the board again and the clock on the status
+        line ticks.
         """
         if self.pending_key is not None:
             k, self.pending_key = self.pending_key, None
             return k
-        self.stdscr.timeout(1000)
+        self.stdscr.timeout(wait_ms)
         try:
             k = self.stdscr.getch()
         finally:
@@ -1198,9 +1202,52 @@ class App:
 
     def do_autoplay(self):
         self.hint = None
-        n = self.game.finish() or self.game.autoplay()
-        self.message = f"autoplayed {n}" if n else "nothing to autoplay"
         self.selected = None
+        moves = self.game.finish_moves()
+        if moves:
+            self.play_finish(len(moves))
+            return
+        n = self.game.autoplay()
+        self.message = f"autoplayed {n}" if n else "nothing to autoplay"
+
+    def play_finish(self, steps: int) -> None:
+        """Send every card left up, one at a time, each foundation lit as a
+        card lands on it. A key sends the rest up at once and is not passed
+        on, except the boss key, which hides the screen straight after. The
+        clock stands still while the cards land, so watching costs no time."""
+        wait = max(1, min(FINISH_STEP_MS, int(FINISH_S * 1000 / steps)))
+        cut: list[int] = []
+        self.message = ""  # the offer, which is being taken up
+
+        def land(src: int, dst: int) -> None:
+            if cut:
+                return
+            self.hint = (-1, dst, "")  # lights the foundation only
+            self.draw()
+            k = self.read_key(wait)
+            if self.cuts_short(k):
+                cut.append(k)
+
+        with self.clock.paused():
+            n = self.game.finish(land if self.animation else None)
+        self.hint = None
+        self.message = f"autoplayed {n}"
+        if cut:
+            self.boss_key(cut[0])
+
+    def cuts_short(self, k: int) -> bool:
+        """True if k, read while the cards move on their own, should stop
+        them: any key, a resize or a left click, but not the wheel, a button
+        let go or a click ncurses can't report."""
+        if k == -1:
+            return False
+        if k != curses.KEY_MOUSE:
+            return True
+        try:
+            bstate = curses.getmouse()[4]
+        except curses.error:
+            return False
+        return bool(bstate & LEFT_CLICK)
 
     def do_foundation(self):
         self.to_foundation(self.selected if self.selected is not None else self.cursor)
