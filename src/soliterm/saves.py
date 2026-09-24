@@ -118,8 +118,8 @@ def _read(key: str) -> object:
     save = store._read_json(path)
     if save is None:
         return LEFT_ALONE
-    if not save:
-        return None
+    if not save and not os.path.exists(path):
+        return None  # none there, or it was set aside; a {} has no fields
     fmt = save.get("format")
     if type(fmt) is int and fmt > SAVE_FORMAT:
         store._notice(

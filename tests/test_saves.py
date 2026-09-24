@@ -119,12 +119,20 @@ def damage(save):
     "change",
     [
         lambda path, save: write(path, '{"format": 1, "sec'),
+        lambda path, save: write(path, {}),
         lambda path, save: write(path, {**save, "seconds": True}),
         lambda path, save: write(path, {**save, "format": "1"}),
         lambda path, save: write(path, {**save, **played("spider").snapshot(500)}),
         lambda path, save: damage(save) or write(path, save),
     ],
-    ids=["bad JSON", "a bool for seconds", "a format of text", "a spider game", "a card added"],
+    ids=[
+        "bad JSON",
+        "nothing in it",
+        "a bool for seconds",
+        "a format of text",
+        "a spider game",
+        "a card added",
+    ],
 )
 def test_a_damaged_save_is_set_aside(change):
     assert saves.keep(played(), 42)
