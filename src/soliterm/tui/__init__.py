@@ -9,4 +9,4 @@ from .app import App, main, run
 from .board import MAX_CARD_W, MIN_CARD_W, BoardUI
 from .keys import KEYMAP
 
-__all__ = ["App", "BoardUI", "KEYMAP", "MAX_CARD_W", "MIN_CARD_W", "main", "run"]
+__all__ = ["KEYMAP", "MAX_CARD_W", "MIN_CARD_W", "App", "BoardUI", "main", "run"]
