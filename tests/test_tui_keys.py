@@ -69,6 +69,17 @@ def test_every_listed_key_is_named_in_its_label():
             assert name in words or name.lower() in words, (b.label, name)
 
 
+def test_every_key_a_label_names_is_bound():
+    # the other way round, so a label can't name a key that does nothing
+    for b in keys.KEYMAP:
+        if not b.actions:
+            continue  # the double-click, a gesture with no key of its own
+        bound = {NAMES.get(k) or chr(k) for k in b.actions}
+        for word in re.split(r"[\s,/()]+", b.label):
+            if len(word) == 1 or word in NAMES.values():
+                assert word in bound, (b.label, word)
+
+
 def test_only_a_resize_goes_unlisted():
     hidden = [b for b in keys.KEYMAP if not b.label]
     assert [list(b.actions) for b in hidden] == [[curses.KEY_RESIZE]]
