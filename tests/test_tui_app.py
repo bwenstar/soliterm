@@ -332,8 +332,10 @@ def test_plus_and_minus_change_how_many_cards_are_held():
     press(app, ENTER)
     assert (app.selected, app.selected_n) == (a, 3)
     press(app, "-")
-    assert app.selected_n == 2 and app.message == "holding 2 cards"
-    press(app, "-", "-")
+    assert app.selected_n == 2 and app.message == "holding 2 cards from 8H"
+    press(app, "-")
+    assert app.selected_n == 1 and app.message == "holding 7S"
+    press(app, "-")
     assert app.selected_n == 1 and "fewer" in app.message
     press(app, "+", "+")
     assert app.selected_n == 3

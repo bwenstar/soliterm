@@ -256,7 +256,7 @@ def test_the_lift_keys_reach_cards_squeezed_onto_one_row(tui):
               start_key="spider", game=g, h=18, w=80)
     assert "| +3 |" in scr.frames[0].replace("\u2502", "|")
     assert "picked up 11 card(s) from JS" in scr.frames[1]
-    assert "holding 10 cards" in scr.frames[4]
+    assert "holding 10 cards from 10S" in scr.frames[4]
     assert names(g, b) == [str(c) for c in run[2:]]
     assert names(g, a)[5:] == ["QS", "JS"]
 

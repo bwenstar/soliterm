@@ -971,7 +971,9 @@ class App:
             if self.game.can_pickup(self.selected, n):
                 self.selected_n = n
                 self.selected_exact = True    # the player chose the size
-                self.message = f"holding {n} card{'s' if n > 1 else ''}"
+                # named, as it may be in a row of cards sharing it
+                self.message = (f"holding {n} cards from {pile[-n]}" if n > 1
+                                else f"holding {pile[-1]}")
                 return
             n += step
         self.message = ("can't lift any more cards" if step > 0
