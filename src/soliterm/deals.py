@@ -15,7 +15,7 @@ import re
 from datetime import date, datetime
 from typing import NamedTuple
 
-from . import APP_NAME, engine
+from . import APP_NAME, engine, store
 from .engine import GAMES, MAX_DEAL, Solitaire
 
 EXAMPLE = "klondike:d3:48213"
@@ -194,3 +194,11 @@ def deal_game(deal: Deal, saved: dict) -> Solitaire:
         g.daily = deal.daily
         g.seed = None  # the deals after a daily are random ones
     return g
+
+
+def share_line(name: str, day: str, won: bool, seconds: int, moves: int) -> str:
+    """The line to paste to friends after the daily deal of game `name`
+    on `day`. It names no card, so it gives nothing of the deal away."""
+    how = "won in" if won else "stuck after"
+    result = f"{how} {store.fmt_time(seconds)}, {store.moves_text(moves)}"
+    return f"{APP_NAME} daily {day}, {name}: {result}"

@@ -1189,6 +1189,39 @@ def test_the_banner_says_a_daily_is_one(tui):
     assert "      Deal        : daily 2026-09-24   share code klondike:20260924\n" in banner
 
 
+def test_the_banner_prints_the_share_line_for_a_daily(tui):
+    daily = deals.daily("klondike", DAY)
+    rows = tui(["a", "m"], start=daily, game=near_won(daily.number)).frames[1].split("\n")
+    footer = BANNER_ROW["menu"] + 2
+    assert rows[footer].startswith("      Up/Down + Enter")
+    assert rows[footer + 1 : footer + 4] == [
+        "",
+        "      Soliterm daily 2026-09-24, Klondike: won in 0:00, 1 move",
+        "",
+    ]
+    # and under the Undo move choice when no moves are left
+    golf = deals.daily("golf", DAY)
+    rows = tui(["f", "m"], start=golf, game=one_move_left()).frames[1].split("\n")
+    assert rows[footer + 3] == "      Soliterm daily 2026-09-24, Golf: stuck after 0:00, 1 move"
+    # a deal that isn't a daily has no line to share
+    assert "Soliterm daily" not in tui(["a", "m"], game=near_won()).frames[1]
+
+
+@pytest.mark.parametrize("skin", [False, True])
+def test_the_longest_share_line_fits_80_columns(tui, monkeypatch, skin):
+    if skin:
+        code_skin_on()
+    longest = deals.share_line("Forty Thieves", "2026-09-24", False, 59 * 60 + 59, 1000)
+    monkeypatch.setattr(deals, "share_line", lambda *args: longest)
+    daily = deals.daily("klondike", DAY)
+    banner = tui(["a", "m"], start=daily, game=near_won(daily.number), h=24, w=80).frames[1]
+    assert "Terminal too small" not in banner
+    (row,) = [row for row in banner.split("\n") if "Soliterm daily" in row]
+    # all of it, at the banner's margin, or nearer the edge under the skin
+    assert row.endswith(longest)
+    assert row.index(longest) == (CODE_GUTTER + 2 if skin else 6)
+
+
 def played_before(key, results):
     """Games of `key` won (True) or lost before the one about to be played."""
     g = deal(key, 1)

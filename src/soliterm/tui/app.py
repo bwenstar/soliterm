@@ -1629,6 +1629,9 @@ class App:
             s = {**s, "total": s["total"] + 1}
         lines = self.banner_lines(seconds, won, s, note)
         top = 4 + len(lines) + 1  # the row of the first choice
+        share = ""  # the line a daily leaves to paste to friends
+        if game.daily:
+            share = deals.share_line(game.gamedef.name, game.daily, won, seconds, game.moves)
         choices = [("same", "Replay this deal"), ("new", "New deal"), ("menu", "Back to menu")]
         keys = "s/n/m"
         can_undo = not won and game.can_undo()
@@ -1649,12 +1652,13 @@ class App:
                 marker = "> " if i == sel else "  "
                 attr = (CP(CURSOR) | curses.A_BOLD) if i == sel else 0
                 safe_add(top + i, 6, f"{marker}{label}", attr)
-            safe_add(
-                top + len(choices) + 1,
-                6,
-                f"Up/Down + Enter, or {keys}. Click to choose.",
-                CP(CHROME),
-            )
+            footer = top + len(choices) + 1
+            safe_add(footer, 6, f"Up/Down + Enter, or {keys}. Click to choose.", CP(CHROME))
+            if share:
+                # plain, to copy, and nearer the edge if the margin would clip it
+                w = self.stdscr.getmaxyx()[1]
+                x = 6 if self.page_dx + 6 + len(share) <= w - 1 else 2
+                safe_add(footer + 2, x, share)
             self.end_page()
             k = self.page_key()
             if self.boss_key(k):

@@ -14,7 +14,7 @@ import sys
 import time
 
 from . import APP_NAME, camo, history, saves, store
-from .deals import code_of, deal_label
+from .deals import code_of, deal_label, share_line
 from .engine import SUIT_SYMBOL, Card, Slot, Solitaire
 
 # --------------------------------------------------------------------------- #
@@ -412,6 +412,8 @@ def run_text(
                     file=out,
                 )
                 print(f"Share code: {code_of(g)}", file=out)
+                if g.daily:
+                    print(share_line(g.gamedef.name, g.daily, True, secs, g.moves), file=out)
                 streak = history.streak_text(game_key)
                 if streak:
                     print(f"{streak}.", file=out)

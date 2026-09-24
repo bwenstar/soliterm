@@ -434,6 +434,23 @@ def test_a_text_win_prints_the_share_code(capsys):
     assert lines[-1] == "Share code: klondike:5"
 
 
+def test_text_mode_prints_the_share_line_after_a_daily_win(monkeypatch, capsys):
+    clock = Clock()
+    monkeypatch.setattr(textmode, "time", clock)
+    g = deals.deal_game(deals.daily("klondike", date(2026, 9, 24)), {})
+
+    def script():
+        clock.now += 192
+        yield f"f {one_card_from_won(g)}\n"
+
+    assert textmode.run_text(g, False, "klondike", stream=script()) == 0
+    lines = capsys.readouterr().out.splitlines()
+    assert lines[-2:] == [
+        "Share code: klondike:20260924",
+        "Soliterm daily 2026-09-24, Klondike: won in 3:12, 1 move",
+    ]
+
+
 @pytest.mark.parametrize(
     "before, streak",
     [

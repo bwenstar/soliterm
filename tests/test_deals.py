@@ -184,3 +184,30 @@ def test_a_dailys_code_typed_in_is_not_a_daily():
     g = deals.deal_game(deals.deal_of(parse("klondike:20260924"), "klondike"), {})
     assert g.daily is None and g.seed == 20260924
     assert deals.deal_label(g) == "Deal 20260924"
+
+
+@pytest.mark.parametrize(
+    "won, seconds, moves, line",
+    [
+        (True, 192, 87, "Soliterm daily 2026-09-24, Klondike: won in 3:12, 87 moves"),
+        (False, 543, 212, "Soliterm daily 2026-09-24, Klondike: stuck after 9:03, 212 moves"),
+        (True, 40, 1, "Soliterm daily 2026-09-24, Klondike: won in 0:40, 1 move"),
+    ],
+)
+def test_the_share_line(won, seconds, moves, line):
+    assert deals.share_line("Klondike", "2026-09-24", won, seconds, moves) == line
+
+
+def test_the_longest_share_line_is_71_characters():
+    name = max((cls.name for cls in GAMES.values()), key=len)
+    line = deals.share_line(name, "2026-09-24", False, 59 * 60 + 59, 1000)
+    assert line.endswith(f", {name}: stuck after 59:59, 1000 moves")
+    assert len(line) == 71
+
+
+@pytest.mark.parametrize("key", GAME_ORDER)
+def test_the_share_line_names_no_card(key):
+    g = deals.deal_game(deals.daily(key, DAY), {})
+    line = deals.share_line(g.gamedef.name, g.daily, True, 192, 87)
+    cards = {c.label(symbols) for slot in g.slots for c in slot.cards for symbols in (True, False)}
+    assert cards and not cards & set(re.split(r"[\s,:]+", line))
