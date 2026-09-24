@@ -19,7 +19,7 @@ from typing import Any, Callable
 
 from . import APP_NAME, __version__, debuginfo, engine, migrate, store
 from . import aisleriot as ar
-from .engine import GAME_ORDER, GAMES
+from .engine import GAME_ORDER, GAMES, MAX_DEAL
 from .textmode import run_text
 
 # --------------------------------------------------------------------------- #
@@ -28,13 +28,13 @@ from .textmode import run_text
 
 
 def seed_arg(text: str) -> int:
-    """--seed: a whole number from 0 up (the engine refuses negative seeds)."""
+    """--seed: a deal number, 0 to MAX_DEAL (the engine refuses the rest)."""
     try:
         seed = int(text)
     except ValueError:
         raise argparse.ArgumentTypeError(f"invalid seed: {text!r}") from None
-    if seed < 0:
-        raise argparse.ArgumentTypeError(f"seed must be 0 or more, not {seed}")
+    if not 0 <= seed <= MAX_DEAL:
+        raise argparse.ArgumentTypeError(f"deal numbers run from 0 to {MAX_DEAL}, not {text}")
     return seed
 
 
@@ -54,7 +54,7 @@ def build_parser() -> argparse.ArgumentParser:
         type=seed_arg,
         default=None,
         metavar="N",
-        help="reproducible shuffle (N is 0 or more)",
+        help="play deal number N (0 to 2147483647), then the ones after it",
     )
     p.add_argument(
         "--text", action="store_true", help="force text mode (no curses); reads commands from stdin"

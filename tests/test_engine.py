@@ -440,15 +440,49 @@ def test_dealing_a_number_does_not_use_pythons_random(key, monkeypatch):
     assert board(g.clone()) == want
 
 
-def test_a_negative_seed_is_refused():
-    # random.Random(-5) shuffles exactly like Random(5), so -5 would be a
-    # second name for seed 5's deal
-    with pytest.raises(ValueError, match="seed must be 0 or more"):
-        deal("golf", -5)
+def test_deal_0_and_the_last_deal_both_deal():
+    for number in (0, 2147483647):
+        g = deal("golf", number)
+        assert g.deal_number == number
+        assert board(g) == board(deal("golf", number))
+    assert board(deal("golf", 0)) != board(deal("golf", 2147483647))
+
+
+@pytest.mark.parametrize("number", [-1, 2147483648])
+def test_a_deal_number_out_of_range_is_refused(number):
+    message = f"deal numbers run from 0 to 2147483647, not {number}"
+    with pytest.raises(ValueError, match=message):
+        deal("golf", number)
     g = deal("golf", 5)
-    with pytest.raises(ValueError, match="seed must be 0 or more"):
-        g.new_game(-1)
+    with pytest.raises(ValueError, match=message):
+        g.new_game(number)
     assert board(g) == board(deal("golf", 5))
+
+
+def test_n_after_a_chosen_deal_deals_the_next_number():
+    g = deal("klondike", 5)
+    g.new_game()
+    assert g.deal_number == 6
+    assert board(g) == board(deal("klondike", 6))
+    g.new_game()
+    assert g.deal_number == 7
+
+
+def test_the_last_deal_wraps_to_0():
+    g = deal("klondike", 2147483647)
+    g.new_game()
+    assert g.deal_number == 0
+    assert board(g) == board(deal("klondike", 0))
+
+
+def test_a_random_deal_is_one_of_the_first_million():
+    g = engine.new_solitaire("klondike")
+    numbers = set()
+    for _ in range(50):
+        g.new_game()
+        numbers.add(g.deal_number)
+    assert all(1 <= n <= 1_000_000 for n in numbers)
+    assert len(numbers) > 1
 
 
 # -- stuck detection ------------------------------------------------------------------

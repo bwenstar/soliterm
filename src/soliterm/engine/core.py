@@ -9,6 +9,9 @@ from typing import TYPE_CHECKING
 from .cards import SUITS, Card, make_deck
 from .rng import Pcg32, fisher_yates, stream_of
 
+MAX_DEAL = 2**31 - 1  # deal numbers run from 0 to this
+RANDOM_DEALS = 1_000_000  # a random deal is one of the first million, short to share
+
 if TYPE_CHECKING:
     from .gamedef import GameDef
 
@@ -57,11 +60,10 @@ class Solitaire:
 
     def __init__(self, gamedef: GameDef, seed: int | None = None, options: dict | None = None):
         self.gamedef = gamedef
+        # The number of the first deal, or None for a random one. While it's
+        # set, new deals follow on from it (see next_deal_number).
         self.seed = seed
         self.options = gamedef.sanitize_options(options)
-        # A fixed seed picks the first deal and seeds the run of deals after
-        # it, so a seeded session replays exactly but a new deal is new.
-        self._deal_seeds = random.Random(seed) if seed is not None else None
         self.slots: list[Slot] = []
         self._current_row = 0
         self.deck: list[Card] = []
@@ -117,29 +119,25 @@ class Solitaire:
 
     # -- lifecycle -------------------------------------------------------- #
 
-    def new_game(self, number: int | None = None) -> None:
-        """Deal a new game.
+    def next_deal_number(self) -> int:
+        """The deal n deals: the next number after a chosen deal, so a
+        session started on deal 48213 goes on to 48214, or a random one."""
+        if self.seed is None:
+            return random.randint(1, RANDOM_DEALS)
+        return (self.deal_number + 1) % (MAX_DEAL + 1)
 
-        With an explicit `number` the deal is reproducible. Otherwise a
-        concrete number is chosen, from the run seeded by self.seed (--seed)
-        if there is one or at random if not, and remembered as `deal_number`,
-        so the exact hand can be replayed via restart().
+    def new_game(self, number: int | None = None) -> None:
+        """Deal number `number`, or the next deal (see next_deal_number).
 
         The same number always deals the same hand of a game, whatever its
         options and on any Python: the shuffle is our own (see rng).
-        Numbers are whole numbers from 0 up.
         """
-        if number is not None:
-            if number < 0:
-                raise ValueError(f"seed must be 0 or more, not {number}")
-            deal_seed = number
-        elif self._deal_seeds is not None:
-            deal_seed = self._deal_seeds.randrange(1, 2**31)
-        else:
-            # no fixed seed: pick a concrete one so this deal can be replayed
-            deal_seed = random.randrange(1, 2**31)
-        self.deal_number = deal_seed
-        self.rng = Pcg32(deal_seed, stream_of(self.gamedef.key))
+        if number is None:
+            number = self.next_deal_number()
+        elif not 0 <= number <= MAX_DEAL:
+            raise ValueError(f"deal numbers run from 0 to {MAX_DEAL}, not {number}")
+        self.deal_number = number
+        self.rng = Pcg32(number, stream_of(self.gamedef.key))
         self.score = 0
         self.base_val = 0
         self.moves = 0
@@ -150,7 +148,7 @@ class Solitaire:
         self.gamedef.deal(self)
 
     def restart(self) -> None:
-        """Re-deal the exact same hand (same shuffle) currently in play."""
+        """Deal the hand in play again, from the start."""
         self.new_game(self.deal_number)
 
     # -- simulation + move enumeration (used by hints / end-state) -------- #
@@ -168,7 +166,6 @@ class Solitaire:
         g.deal_number = self.deal_number
         g.options = dict(self.options)
         g.symbols = self.symbols
-        g._deal_seeds = None
         # a clone never deals; the generator only keeps the object whole
         g.rng = Pcg32(self.deal_number, stream_of(self.gamedef.key))
         g.slots = [Slot(s.sid, s.kind, s.expand, list(s.cards), s.row) for s in self.slots]

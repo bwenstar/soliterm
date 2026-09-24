@@ -68,13 +68,13 @@ def test_help_uses_the_soliterm_name(capsys):
     assert "Soliterm" in out and "AisleRiot CLI" not in out
 
 
-@pytest.mark.parametrize("args", [["--seed", "-5"], ["--seed=-1"]])
-def test_a_negative_seed_is_an_argument_error(capsys, args):
+@pytest.mark.parametrize("args", [["--seed=-1"], ["--seed", "2147483648"]])
+def test_a_deal_number_out_of_range_is_an_argument_error(capsys, args):
     with pytest.raises(SystemExit) as exc:
         main(["--text", *args])
     assert exc.value.code == 2
     err = capsys.readouterr().err
-    assert "--seed" in err and "0 or more" in err
+    assert "--seed" in err and "run from 0 to 2147483647" in err
 
 
 # -- --list ----------------------------------------------------------------------------
