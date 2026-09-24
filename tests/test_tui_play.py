@@ -680,6 +680,43 @@ def test_a_left_click_on_a_banner_choice_takes_it(tui, bstate):
     assert "new deal" in scr.frames[2]
 
 
+def test_the_banner_keeps_its_rows(tui, game_clock):
+    won = tui(["a", "m"], game=near_won()).frames[1].split("\n")
+    assert won[2:13] == [
+        "      *** YOU WIN! ***",
+        "",
+        "      Game        : Klondike",
+        "      Time        : 0:00",
+        "      Score       : 4",
+        "      Moves       : 1",
+        "",
+        "      Wins/Total  : 1/1  (100%)",
+        "      Best time   : 0:01",
+        "",
+        "      > Replay this deal",
+    ]
+    # with no best time its row stays empty, so the choices don't move up
+    stuck = tui(["f", "m"], start_key="golf", game=one_move_left()).frames[1].split("\n")
+    assert stuck[9:13] == ["      Wins/Total  : 0/1  (0%)", "", "", "      > Undo move"]
+
+
+def test_the_banner_choices_follow_its_lines(tui, monkeypatch):
+    lines = [f"Line {i}" for i in range(9)]  # rows 4 to 12
+    monkeypatch.setattr(soliterm.tui.app.App, "banner_lines", lambda self, *args: lines)
+    scr = tui(["a", Mouse(14, 8)], game=near_won())
+    banner = scr.frames[1].split("\n")
+    assert banner[12:19] == [
+        "      Line 8",
+        "",
+        "      > Replay this deal",
+        "        New deal",
+        "        Back to menu",
+        "",
+        "      Up/Down + Enter, or s/n/m. Click to choose.",
+    ]
+    assert "replaying the same deal" in scr.frames[2]
+
+
 # -- options -------------------------------------------------------------------------
 
 KING_TO_EMPTY = [ENTER] + [curses.KEY_RIGHT] * 4 + [ENTER]  # a first move on near_won()

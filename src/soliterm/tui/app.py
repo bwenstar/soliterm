@@ -1165,6 +1165,23 @@ class App:
                 self.drop_on(tsid)
 
     # ---- end of game ---- #
+    def banner_lines(self, seconds: int, won: bool, stat: dict) -> list[str]:
+        """The rows of the end banner from row 4 down, "" for a blank one.
+        The choices go under the last of them. The best time's row is there
+        even with no best time, so the choices don't move up."""
+        game = self.game
+        pct = store.percentage(stat)
+        pcts = "N/A" if pct is None else f"{pct:.0f}%"
+        return [
+            f"Game        : {game.gamedef.name}",
+            f"Time        : {store.fmt_time(seconds)}",
+            f"Score       : {game.score}",
+            f"Moves       : {game.moves}",
+            "",
+            f"Wins/Total  : {stat['wins']}/{stat['total']}  ({pcts})",
+            f"Best time   : {store.fmt_time(stat['best'])}" if stat["best"] else "",
+        ]
+
     @hides_the_board
     def end_banner(self, seconds: int, won: bool) -> str:
         """Show the end-of-game banner with choices. Returns one of:
@@ -1177,7 +1194,8 @@ class App:
             # a loss is recorded on leaving the banner for a new deal or the
             # menu, so count it already, as the statistics will then
             s = {**s, "total": s["total"] + 1}
-        pct = store.percentage(s)
+        lines = self.banner_lines(seconds, won, s)
+        top = 4 + len(lines) + 1  # the row of the first choice
         choices = [("same", "Replay this deal"), ("new", "New deal"), ("menu", "Back to menu")]
         keys = "s/n/m"
         can_undo = not won and game.can_undo()
@@ -1191,20 +1209,15 @@ class App:
                 safe_add(2, 6, "*** YOU WIN! ***", CP(6) | curses.A_BOLD)
             else:
                 safe_add(2, 6, "No moves left - game over.", CP(6) | curses.A_BOLD)
-            safe_add(4, 6, f"Game        : {game.gamedef.name}")
-            safe_add(5, 6, f"Time        : {store.fmt_time(seconds)}")
-            safe_add(6, 6, f"Score       : {game.score}")
-            safe_add(7, 6, f"Moves       : {game.moves}")
-            pcts = "N/A" if pct is None else f"{pct:.0f}%"
-            safe_add(9, 6, f"Wins/Total  : {s['wins']}/{s['total']}  ({pcts})")
-            if s["best"]:
-                safe_add(10, 6, f"Best time   : {store.fmt_time(s['best'])}")
+            for i, line in enumerate(lines):
+                if line:
+                    safe_add(4 + i, 6, line)
             for i, (_, label) in enumerate(choices):
                 marker = "> " if i == sel else "  "
                 attr = (CP(5) | curses.A_BOLD) if i == sel else 0
-                safe_add(12 + i, 6, f"{marker}{label}", attr)
+                safe_add(top + i, 6, f"{marker}{label}", attr)
             safe_add(
-                12 + len(choices) + 1, 6, f"Up/Down + Enter, or {keys}. Click to choose.", CP(4)
+                top + len(choices) + 1, 6, f"Up/Down + Enter, or {keys}. Click to choose.", CP(4)
             )
             self.end_page()
             k = self.page_key()
@@ -1231,7 +1244,7 @@ class App:
                     continue
                 # only a left click on a choice's text takes it, never the
                 # pointer passing over it, the wheel or a stray release
-                row, col = my - 12, mx - self.page_dx
+                row, col = my - top, mx - self.page_dx
                 if (
                     bstate & LEFT_CLICK
                     and 0 <= row < len(choices)
