@@ -25,6 +25,19 @@
 - In the full-screen game, `--seed 5` (or `--deal 5`) without `--game`
   goes straight into the game played last instead of the menu, and only
   that first game is deal 5, not every game picked from the menu.
+- A game you've started is kept for next time when you leave it with `q`,
+  `m` or Ctrl-C, or close the terminal on it, instead of counting as lost.
+  Its menu row reads `Resume your game: 0:42, 31 moves`, and picking it or
+  starting it with `--game` carries on where you left off, while a chosen
+  deal or option starts afresh and leaves it waiting. Text mode keeps
+  games too, when you're typing at a terminal.
+- SIGHUP and SIGTERM leave the way Ctrl-C does, so the game is kept, and
+  the exit status is 130.
+- Every game played here goes in `history.jsonl`, one line each. The
+  statistics gain Streak and Longest columns, the win banner and text mode
+  name a run of two or more wins, and `--stats` lists the last ten games.
+- `--reset-stats` clears the history as well, keeping a copy in
+  `history.jsonl.bak`, and leaves saved games alone.
 
 ## 1.0.0 - 2026-06-29
 
