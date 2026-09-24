@@ -984,6 +984,39 @@ def test_the_menu_starts_the_chosen_game_and_remembers_it(tui):
     assert store.load_config()["last_game"] == "spider"
 
 
+PLAY_A_DEAL = 4 + len(engine.GAME_ORDER) + 1  # the menu's row under the games
+
+
+def test_play_a_deal_from_the_menu_plays_the_last_game_for_a_bare_number(tui):
+    cfg = store.load_config()
+    cfg["last_game"] = "spider"
+    store.set_game_options(cfg, "spider", {"suits": 2})
+    store.save_config(cfg)
+    scr = tui([Mouse(PLAY_A_DEAL, 8), "7", ENTER], start_key=None)
+    assert "  Play a deal" in scr.frames[0].split("\n")[PLAY_A_DEAL]
+    box = scr.frames[1]
+    assert "Play a deal" in box and "A number on its own plays Spider." in box
+    assert "This deal" not in box
+    # with the saved options, as a game picked from the menu has
+    g = scr.uis[-1].game
+    assert (g.gamedef.key, g.deal_number, g.options) == ("spider", 7, {"suits": 2})
+    assert soliterm.tui.app.START_MESSAGE in scr.frames[3]
+
+
+def test_play_a_deal_from_the_menu_takes_a_share_code(tui):
+    scr = tui([Mouse(PLAY_A_DEAL, 8), *"golf:5", ENTER], start_key=None)
+    g = scr.uis[-1].game
+    assert (g.gamedef.key, g.deal_number) == ("golf", 5)
+    assert store.load_config()["last_game"] == "golf"
+
+
+def test_esc_on_play_a_deal_goes_back_to_the_menu(tui):
+    scr = tui([Mouse(PLAY_A_DEAL, 8), ESC, -1], start_key=None)
+    assert "A number on its own plays" in scr.frames[1]
+    assert "choose a game" in scr.frames[-1]
+    assert not scr.uis
+
+
 # -- colour --------------------------------------------------------------------------------
 
 
@@ -1132,7 +1165,10 @@ EVERY_SCREEN = [
     ("YOU WIN", "klondike", near_won, ["a"]),
     ("No moves left", "golf", one_move_left, ["f"]),
     ("Play a deal", "klondike", None, ["g"]),
+    ("A number on its own plays", None, None, [Mouse(PLAY_A_DEAL, 8)]),
 ]
+# the screens where b is a letter to type, so only F2 hides them
+TYPED_IN = ("Play a deal", "A number on its own plays")
 # Esc then leaves the pick-deal box, where q is a letter to type. It changes
 # nothing on the other screens, and the -1 says no key came in behind it.
 OUT = [ESC, -1]
@@ -1142,8 +1178,7 @@ OUT = [ESC, -1]
 def test_the_boss_key_works_on_every_screen_and_comes_back_to_it(
     tui, screen, start_key, game, keys
 ):
-    # b is a letter to type in the pick-deal box, so there only F2 hides it
-    boss = curses.KEY_F2 if screen == "Play a deal" else "b"
+    boss = curses.KEY_F2 if screen in TYPED_IN else "b"
     scr = tui(keys + [boss, "z", *OUT], start_key=start_key, game=game and game())
     shown, hidden, back = scr.frames[len(keys) : len(keys) + 3]
     assert screen in shown

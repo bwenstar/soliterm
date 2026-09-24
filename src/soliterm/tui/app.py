@@ -360,7 +360,10 @@ class App:
                 if choice == "__stats__":
                     self.stats_screen()
                     continue
-                if self.play(choice):
+                if isinstance(choice, Deal):
+                    if self.play(choice.key, choice):
+                        return 0
+                elif self.play(choice):
                     return 0
         except KeyboardInterrupt:
             # Ctrl-C quits like q, with no traceback; play() has already
@@ -368,14 +371,18 @@ class App:
             return 130
 
     # ---- menu ---- #
-    def chooser(self) -> str | None:
-        cfg, CP, safe_add = self.cfg, self.CP, self.safe_add
-        sel = (
-            GAME_ORDER.index(cfg.get("last_game", "klondike"))
-            if cfg.get("last_game") in GAME_ORDER
-            else 0
-        )
-        extra = ["__stats__", "__quit__"]
+    def last_game(self) -> str:
+        """The game played last, or Klondike before there is one."""
+        last = self.cfg.get("last_game")
+        return last if last in GAME_ORDER else "klondike"
+
+    def chooser(self) -> str | Deal | None:
+        """The menu. Returns the key of the game picked, the Deal asked for
+        under Play a deal, one of the other rows, or None for q."""
+        CP, safe_add = self.CP, self.safe_add
+        sel = GAME_ORDER.index(self.last_game())
+        extra = ["__deal__", "__stats__", "__quit__"]
+        labels = {"__deal__": "Play a deal", "__stats__": "View statistics", "__quit__": "Quit"}
         items = GAME_ORDER + extra
         while True:
             self.begin_page()
@@ -389,7 +396,7 @@ class App:
             base = 4 + len(GAME_ORDER) + 1
             for j, key in enumerate(extra):
                 i = len(GAME_ORDER) + j
-                label = "View statistics" if key == "__stats__" else "Quit"
+                label = labels[key]
                 marker = "> " if i == sel else "  "
                 attr = (CP(5) | curses.A_BOLD) if i == sel else 0
                 safe_add(base + j, 6, f"{marker}{label}", attr)
@@ -403,6 +410,7 @@ class App:
             k = self.page_key()
             if self.boss_key(k):
                 continue
+            picked = None
             if k in (curses.KEY_UP, ord("k")):
                 sel = (sel - 1) % len(items)
             elif k in (curses.KEY_DOWN, ord("j")):
@@ -418,15 +426,21 @@ class App:
                 if 0 <= idx < len(GAME_ORDER):
                     sel = idx
                     if bstate & (curses.BUTTON1_CLICKED | curses.BUTTON1_PRESSED):
-                        return items[sel]
+                        picked = items[sel]
                 else:
                     bidx = my - base
                     if 0 <= bidx < len(extra):
                         sel = len(GAME_ORDER) + bidx
                         if bstate & (curses.BUTTON1_CLICKED | curses.BUTTON1_PRESSED):
-                            return items[sel]
+                            picked = items[sel]
             elif k in (curses.KEY_ENTER, 10, 13):
-                return items[sel]
+                picked = items[sel]
+            if picked == "__deal__":
+                code = self.pick_deal_screen(None)
+                if code is not None:
+                    return deals.deal_of(code, self.last_game())
+            elif picked is not None:
+                return picked
 
     # ---- statistics dialog (AisleRiot fields) ---- #
     @hides_the_board
@@ -505,22 +519,29 @@ class App:
                 return None
 
     @hides_the_board
-    def pick_deal_screen(self, current: Solitaire) -> Code | None:
+    def pick_deal_screen(self, current: Solitaire | None) -> Code | None:
         """Ask for a deal number or a share code to play instead of
-        `current`. Returns what was typed, read by deals.parse, or None if
-        the player went back."""
+        `current`, or from the menu when that's None. Returns what was
+        typed, read by deals.parse, or None if the player went back."""
         CP, safe_add = self.CP, self.safe_add
         text, error = "", ""
         while True:
             self.begin_page()
             safe_add(1, 4, "Play a deal", CP(4) | curses.A_BOLD)
-            safe_add(3, 6, f"This deal   : {current.deal_number}")
-            safe_add(4, 6, f"Share code  : {deals.code_of(current)}")
-            safe_add(6, 6, f"Type a deal number, or a share code like {deals.EXAMPLE}")
-            safe_add(7, 6, f"> {text}_", CP(5) | curses.A_BOLD)
+            if current is not None:
+                safe_add(3, 6, f"This deal   : {current.deal_number}")
+                safe_add(4, 6, f"Share code  : {deals.code_of(current)}")
+                y = 6
+            else:
+                y = 3
+            safe_add(y, 6, f"Type a deal number, or a share code like {deals.EXAMPLE}")
+            if current is None:
+                y += 1
+                safe_add(y, 6, f"A number on its own plays {GAMES[self.last_game()].name}.")
+            safe_add(y + 1, 6, f"> {text}_", CP(5) | curses.A_BOLD)
             for i, line in enumerate(textwrap.wrap(error, DEAL_ERROR_W)[:2]):
-                safe_add(8 + i, 6, line, CP(6))
-            safe_add(10, 6, "Enter play - Esc back", CP(4))
+                safe_add(y + 2 + i, 6, line, CP(6))
+            safe_add(y + 4, 6, "Enter play - Esc back", CP(4))
             self.end_page()
             k = self.page_key()
             # b is a letter here, so only F2 hides the box, unless it doesn't

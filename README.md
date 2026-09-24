@@ -93,11 +93,12 @@ same number deals the same cards on any computer and any Python.
 A share code names a deal exactly: the game, any options you changed, and the
 number. `klondike:d3:48213` is Klondike drawing three, deal 48213. The end of
 every game shows its code. Anyone can play the same cards with
-`soliterm --deal klondike:d3:48213`, or by pressing `g` in a game and typing
-it in. `g` takes a plain number too, and keeps the game and options you're
-playing. In a code, `d1` and `d3` are Klondike's cards to draw, `rs`, `rn` and
-`ru` its standard, no or unlimited redeals, and `s1`, `s2` and `s4` Spider's
-suits. Options left at their default aren't written.
+`soliterm --deal klondike:d3:48213`, or by pressing `g` in a game (or picking
+Play a deal on the menu) and typing it in. A plain number works there too: `g`
+keeps the game and options you're playing, and the menu plays the game you
+played last. In a code, `d1` and `d3` are Klondike's cards to draw, `rs`, `rn`
+and `ru` its standard, no or unlimited redeals, and `s1`, `s2` and `s4`
+Spider's suits. Options left at their default aren't written.
 
 FreeCell deals use Microsoft FreeCell's numbers, so deal 617 here is deal 617
 there, and 11982 is the one deal among the first 32,000 that can't be won.
