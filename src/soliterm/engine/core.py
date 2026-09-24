@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from .cards import SUITS, Card, make_deck
+from .rng import Pcg32, fisher_yates, stream_of
 
 if TYPE_CHECKING:
     from .gamedef import GameDef
@@ -61,7 +62,6 @@ class Solitaire:
         # A fixed seed picks the first deal and seeds the run of deals after
         # it, so a seeded session replays exactly but a new deal is new.
         self._deal_seeds = random.Random(seed) if seed is not None else None
-        self.rng = random.Random(seed)
         self.slots: list[Slot] = []
         self._current_row = 0
         self.deck: list[Card] = []
@@ -70,7 +70,7 @@ class Solitaire:
         self.status = ""
         self.moves = 0
         self.redeals_done = 0
-        self.deal_number = seed  # the concrete seed of the deal in play
+        self.deal_number = 0  # the number of the deal in play, set by new_game
         # How messages name cards: with suit symbols (2♥) or letters (2H).
         # The front-end sets it to match the board it draws.
         self.symbols = True
@@ -107,7 +107,7 @@ class Solitaire:
         self.deck = make_deck(decks, suits)
 
     def shuffle(self) -> None:
-        self.rng.shuffle(self.deck)
+        fisher_yates(self.deck, self.rng)
 
     def deal_from_deck(self, slot_id: int, n: int = 1, face_up: bool = False) -> None:
         for _ in range(n):
@@ -117,28 +117,29 @@ class Solitaire:
 
     # -- lifecycle -------------------------------------------------------- #
 
-    def new_game(self, seed: int | None = None) -> None:
+    def new_game(self, number: int | None = None) -> None:
         """Deal a new game.
 
-        With an explicit `seed` the deal is reproducible. Otherwise a concrete
-        seed is chosen, from the run seeded by self.seed (--seed) if there is
-        one or at random if not, and remembered as `deal_number`, so the
-        exact hand can be replayed via restart().
+        With an explicit `number` the deal is reproducible. Otherwise a
+        concrete number is chosen, from the run seeded by self.seed (--seed)
+        if there is one or at random if not, and remembered as `deal_number`,
+        so the exact hand can be replayed via restart().
 
-        Seeds are whole numbers from 0 up. A negative one is refused, since
-        random.Random ignores the sign and -5 would deal seed 5's hand.
+        The same number always deals the same hand of a game, whatever its
+        options and on any Python: the shuffle is our own (see rng).
+        Numbers are whole numbers from 0 up.
         """
-        if seed is not None:
-            if seed < 0:
-                raise ValueError(f"seed must be 0 or more, not {seed}")
-            deal_seed = seed
+        if number is not None:
+            if number < 0:
+                raise ValueError(f"seed must be 0 or more, not {number}")
+            deal_seed = number
         elif self._deal_seeds is not None:
             deal_seed = self._deal_seeds.randrange(1, 2**31)
         else:
             # no fixed seed: pick a concrete one so this deal can be replayed
             deal_seed = random.randrange(1, 2**31)
         self.deal_number = deal_seed
-        self.rng = random.Random(deal_seed)
+        self.rng = Pcg32(deal_seed, stream_of(self.gamedef.key))
         self.score = 0
         self.base_val = 0
         self.moves = 0
@@ -150,7 +151,7 @@ class Solitaire:
 
     def restart(self) -> None:
         """Re-deal the exact same hand (same shuffle) currently in play."""
-        self.new_game(seed=getattr(self, "deal_number", self.seed))
+        self.new_game(self.deal_number)
 
     # -- simulation + move enumeration (used by hints / end-state) -------- #
 
@@ -168,7 +169,8 @@ class Solitaire:
         g.options = dict(self.options)
         g.symbols = self.symbols
         g._deal_seeds = None
-        g.rng = random.Random()
+        # a clone never deals; the generator only keeps the object whole
+        g.rng = Pcg32(self.deal_number, stream_of(self.gamedef.key))
         g.slots = [Slot(s.sid, s.kind, s.expand, list(s.cards), s.row) for s in self.slots]
         g._current_row = self._current_row
         g.deck = list(self.deck)

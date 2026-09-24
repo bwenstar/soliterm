@@ -6,7 +6,7 @@ import random
 import pytest
 
 from soliterm import engine
-from soliterm.engine import GAME_ORDER, Card
+from soliterm.engine import GAME_ORDER, Card, core
 
 from helpers import EXPECTED_CARDS, card_count, card_multiset, clear_board, deal, random_op
 
@@ -370,7 +370,7 @@ def test_score_never_goes_below_zero():
 def test_a_game_knows_its_deal_number():
     g = deal("klondike", 5)
     assert g.deal_number == 5
-    g.new_game(seed=8)
+    g.new_game(8)
     assert g.deal_number == 8
     g.deal()
     g.restart()
@@ -426,6 +426,20 @@ def test_restart_replays_a_new_deal_made_under_a_fixed_seed():
     assert board(g) == hand
 
 
+@pytest.mark.parametrize("key", GAME_ORDER)
+def test_dealing_a_number_does_not_use_pythons_random(key, monkeypatch):
+    # random's shuffle has changed between Python versions, so a deal number
+    # that went through it could deal another hand on another Python
+    g, want = deal(key, 3), board(deal(key, 7))
+    monkeypatch.setattr(core, "random", None)
+    g.new_game(7)
+    assert board(g) == want
+    g.deal()
+    g.restart()
+    assert board(g) == want
+    assert board(g.clone()) == want
+
+
 def test_a_negative_seed_is_refused():
     # random.Random(-5) shuffles exactly like Random(5), so -5 would be a
     # second name for seed 5's deal
@@ -433,7 +447,7 @@ def test_a_negative_seed_is_refused():
         deal("golf", -5)
     g = deal("golf", 5)
     with pytest.raises(ValueError, match="seed must be 0 or more"):
-        g.new_game(seed=-1)
+        g.new_game(-1)
     assert board(g) == board(deal("golf", 5))
 
 

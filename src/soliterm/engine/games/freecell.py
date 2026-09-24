@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from ..cards import ACE
 from ..gamedef import GameDef
+from ..rng import microsoft_deal
 
 
 class FreeCell(GameDef):
@@ -13,8 +14,8 @@ class FreeCell(GameDef):
 
     def deal(self, g):
         g.reset_slots()
-        g.make_deck()
-        g.shuffle()
+        # Microsoft's deal: deal_from_deck takes cards off the end
+        g.deck = list(reversed(microsoft_deal(g.deal_number)))
         self.cells = [g.add_slot("freecell") for _ in range(4)]
         self.foundations = [g.add_slot("foundation") for _ in range(4)]
         g.carriage_return()

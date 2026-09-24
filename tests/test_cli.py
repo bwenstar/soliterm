@@ -317,7 +317,8 @@ def test_a_scripted_text_session(cli):
         pos = found + len(chunk)
 
     status = [line.split(" | ")[0] for line in lines if line.startswith("score=")]
-    assert status == ["score=0 moves=0", "score=0 moves=0", "score=0 moves=1", "score=0 moves=0"]
+    shown = (boards[0], boards[0], boards[1], boards[2])
+    assert status == [b.rpartition("\n")[2].split(" | ")[0] for b in shown]
     assert sum(line.startswith("Hint: ") for line in lines) == 1
 
 

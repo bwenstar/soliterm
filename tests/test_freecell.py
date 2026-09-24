@@ -11,6 +11,22 @@ def up(rank, suit):
     return Card(rank, suit, True)
 
 
+def test_the_deal_is_microsofts():
+    # Microsoft FreeCell's deal 617, read across a row at a time (T is a ten)
+    g = deal("freecell", 617)
+    columns = [[str(c).replace("10", "T") for c in g.cards(t)] for t in g.ids_of("tableau")]
+    rows = [" ".join(col[i] for col in columns if i < len(col)) for i in range(7)]
+    assert rows == [
+        "7D AD 5C 3S 5S 8C 2D AH",
+        "TD 7S QD AC 6D 8H AS KH",
+        "TH QC 3H 9D 6S 8D 3D TC",
+        "KD 5H 9S 3C 8S 7H 4D JS",
+        "4C QS 9C 9H 7C 6H 2C 2S",
+        "4S TS 2H 5D JC 6C JH QH",
+        "JD KS KC 4H",
+    ]
+
+
 @pytest.fixture
 def freecell():
     g = deal("freecell", 1)

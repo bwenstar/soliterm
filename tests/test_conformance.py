@@ -130,24 +130,25 @@ def deal_digest(g):
     return hashlib.sha256("\n".join(lines).encode()).hexdigest()[:16]
 
 
-# The first 16 hex digits of a hash of each slot's cards for seeds 1 and 2. A
-# change here means a seed no longer deals the hand it used to.
+# The first 16 hex digits of a hash of each slot's cards for deals 1 and 2.
+# A change here means a deal number no longer deals the hand it used to,
+# and every share code for that game changes with it.
 DEALS = {
-    "klondike": ("19ad3b4a4c41a6ee", "108d2b831ab0e22a"),
-    "freecell": ("1c20857ef5b1da0b", "a97f37a4def2dac8"),
-    "eightoff": ("76b6e3434d3cf673", "c64edf29999d5d51"),
-    "yukon": ("6f4d644c6334eee0", "5c1db43f8409f0c3"),
-    "bakersdozen": ("ab88db458092bed9", "68206629a1145791"),
-    "fortythieves": ("515b7ec5f1f3676a", "96fabcc0b0aab129"),
-    "canfield": ("9672abf40f13f3e6", "261302ffa7680263"),
-    "golf": ("b0ca08182dd57848", "0c336749f723a7ee"),
-    "spider": ("59c2e477fd17b913", "e22770d7a64c394b"),
+    "klondike": ("4fecec8c3c38d7b5", "ed9ca5ada40b2eb1"),
+    "spider": ("16e9476c672a9f48", "eeb4df77cef7433f"),
+    "freecell": ("586e2b0bda55805d", "cf45ea6eb566a0e3"),
+    "eightoff": ("295688b1398793ab", "da12f0b5390ee5a9"),
+    "golf": ("c89f7ca84c5ff69e", "6e6353a85789ea94"),
+    "yukon": ("1d346d96d5dac407", "433b6900ae77fdfb"),
+    "bakersdozen": ("c917882e336c8264", "f5f30c943fcf5229"),
+    "fortythieves": ("f7b8545cae6cd14a", "041e69dca419ad85"),
+    "canfield": ("8b61e252aaeddb8a", "1491a6d84dc72de4"),
 }
 
 
 @pytest.mark.parametrize("key", sorted(DEALS))
-def test_a_seed_still_deals_the_same_hand(key):
-    assert tuple(deal_digest(deal(key, seed)) for seed in (1, 2)) == DEALS[key]
+def test_a_deal_number_still_deals_the_same_hand(key):
+    assert tuple(deal_digest(deal(key, number)) for number in (1, 2)) == DEALS[key]
 
 
 def test_the_draw_option_does_not_change_the_deal():

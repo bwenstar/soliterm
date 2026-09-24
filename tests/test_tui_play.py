@@ -775,7 +775,7 @@ NO_OPTIONS = [key for key in engine.GAME_ORDER if not engine.GAMES[key].option_s
 @pytest.mark.parametrize("key", NO_OPTIONS)
 def test_o_leaves_a_game_without_options_as_it_was(tui, game_clock, key):
     # a move, o ten seconds on, and the statistics five seconds after that
-    g = deal(key, 1)
+    g = deal(key, 3)
     moved = g.clone()
     best = g.best_move()
     if best is None:

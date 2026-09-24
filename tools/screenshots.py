@@ -90,11 +90,11 @@ def shot(keys: str = "", hold: int = 1200, wait: float = PAUSE) -> Step:
     return Step(keys, wait, True, hold)
 
 
-# Klondike, seed 14: the first three hints are 6H onto 7S (column 4 to 1),
-# 7S and 6H onto 8D (1 to 3) and the KH into the column that leaves empty
-# (5 to 1). The cursor starts on column 1.
+# Klondike, deal 946: the first three hints are 6D onto 7C (column 7 to 4),
+# 5S onto 6D (2 to 4) and 8C onto 9D (6 to 2). h puts the cursor on the
+# card it suggests.
 SIX_ON_SEVEN = "h Enter Left Left Left Enter"
-SEVEN_ON_EIGHT = "h Enter Right Right Enter"
+FIVE_ON_SIX = "h Enter Right Right Enter"
 
 SCENES: list[Scene] = [
     Scene("menu", "the game menu", None, None, [shot()]),
@@ -102,21 +102,21 @@ SCENES: list[Scene] = [
         "klondike-in-play",
         "Klondike a few moves in, with a hint showing",
         "klondike",
-        14,
-        [Step(SIX_ON_SEVEN), Step(SEVEN_ON_EIGHT), Step("d d d"), shot("h")],
+        946,
+        [Step(SIX_ON_SEVEN), Step(FIVE_ON_SIX), Step("d d d"), shot("h")],
     ),
     Scene(
         "freecell",
         "FreeCell after one move, with the next hint showing",
         "freecell",
         617,
-        [Step("h Enter Right Enter"), shot("h")],
+        [Step("h Enter Right Right Right Enter"), shot("h")],
     ),
     Scene(
         "spider",
         "two-suit Spider after one move, with the next hint showing",
         "spider",
-        5,
+        7,
         # o opens the options, Left switches Suits from 4 to 2 and Enter
         # deals again with the same seed
         [
@@ -129,14 +129,14 @@ SCENES: list[Scene] = [
         "code-skin",
         "Klondike played inside the code skin",
         "klondike",
-        14,
+        946,
         [Step(SIX_ON_SEVEN), shot("c")],
     ),
     Scene(
         "boss-mode",
         "the boss key's fake build output",
         "klondike",
-        14,
+        946,
         # the output scrolls by itself, so give it time to fill the screen
         [shot("b", wait=3.0)],
     ),
@@ -144,7 +144,7 @@ SCENES: list[Scene] = [
         "hero",
         "animated: a hint and a few Klondike moves",
         "klondike",
-        14,
+        946,
         [
             shot(hold=1600),
             shot("h", hold=1800),
