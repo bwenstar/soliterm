@@ -1,5 +1,5 @@
 """man/soliterm.6 is written by hand, so these check it still names every
-game and every option the code has."""
+game and every option the code has, and the version."""
 
 import argparse
 import re
@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from soliterm import __version__
 from soliterm.cli import build_parser
 from soliterm.engine import GAME_ORDER
 
@@ -41,3 +42,9 @@ def test_every_option_in_the_help_is_described():
         if line.startswith((".TP", ".B", ".BR", ".BI")):
             described.update(re.findall(r"(?<![\w-])-{1,2}[a-z][a-z-]*", line.replace("\\-", "-")))
     assert shown <= described, sorted(shown - described)
+
+
+def test_the_title_line_names_this_version():
+    lines = PAGE.read_text(encoding="utf-8").splitlines()
+    title = next(line for line in lines if line.startswith(".TH "))
+    assert f'"Soliterm {__version__}"' in title, title

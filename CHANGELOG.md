@@ -8,9 +8,15 @@ and Soliterm follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Soliterm grew out of aisle-cli, a private project of mine that played the
 same kind of games in a terminal under the command `aisle`. Its one
 release, aisle-cli 1.0.0 of 2026-06-29, stays at the bottom as history, and
-Unreleased lists the changes since.
+Soliterm 1.0.0 lists the changes since.
 
 ## [Unreleased]
+
+## [1.0.0] - 2026-09-25
+
+Soliterm's first public release. It grew out of aisle-cli, a private
+project of mine, and these are the changes since aisle-cli 1.0.0, which is
+at the bottom of CHANGELOG.md.
 
 ### Added
 
@@ -257,4 +263,5 @@ Unreleased lists the changes since.
 - 17 test files covering the engine, all nine games' rules, scoring, undo/redo,
   hints, statistics persistence, and the rendering modes.
 
-[Unreleased]: https://github.com/bwenstar/soliterm/compare/ddab8952d7abbac919a35409eb7096e55a07f016...HEAD
+[Unreleased]: https://github.com/bwenstar/soliterm/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/bwenstar/soliterm/releases/tag/v1.0.0

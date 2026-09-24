@@ -74,7 +74,7 @@ def build_parser() -> argparse.ArgumentParser:
     which.add_argument(
         "--daily", action="store_true", help="play today's daily deal, the same for everyone"
     )
-    # what --deal was called in 1.0.0; not in the help, but it still works.
+    # what --deal was called in aisle-cli; not in the help, but it still works.
     # It stays out of the group, since a hidden option in one is where
     # argparse's usage line has broken before, so _requested_deal checks it.
     p.add_argument("--seed", type=deal_arg, help=argparse.SUPPRESS)
