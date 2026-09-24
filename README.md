@@ -84,6 +84,25 @@ The zipapp builds with the standard library alone. `--wheel` runs
 | `b` / F2 | boss mode (hide the game behind fake "work" output) |
 | `m` / `q` | back to menu / quit · `?` help |
 
+## Themes
+
+`t` moves on to the next theme and the game remembers it; `--theme NAME`
+picks one for a single run.
+
+| Theme | Looks like |
+|-------|------------|
+| `classic` | the look Soliterm has always had, in your terminal's own colours |
+| `dark` | softer colours for a dark background, on 256-colour terminals |
+| `light` | the same for a light background |
+| `contrast` | text in your terminal's own colours and the strongest card colours |
+
+With only 8 colours, `dark` and `light` are `classic` as it looks on a dark
+or a light background. `classic` and `contrast` suit themselves to a light
+background, which the game knows from `COLORFGBG` when your terminal sets
+it. If it isn't set, or says the wrong thing, choose `dark` or `light`,
+which always look the same, or set `COLORFGBG=0;15` for a light background
+(`15;0` for a dark one).
+
 ## Deals and share codes
 
 Every deal has a number, shown at the top of the board. `soliterm --deal 48213`
@@ -187,7 +206,7 @@ are.
 --debug-info      what to paste into a bug report
 ```
 
-Colour, code-skin, and other preferences persist in
+Colour, theme, code-skin, and other preferences persist in
 `~/.config/soliterm/config.json`. Set `"animation": false` there to finish
 and win without the cards moving on their own (or pass `--no-animation`
 for one run). Respects `NO_COLOR`. Statistics are in
