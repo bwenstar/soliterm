@@ -58,7 +58,7 @@ def new_solitaire(key: str, seed: int | None = None, options: dict | None = None
     return Solitaire(GAMES[key](), seed=seed, options=options)
 
 
-def _is_day(text: object) -> bool:
+def is_day(text: object) -> bool:
     """Whether `text` is a day written the way date.isoformat() writes it."""
     try:
         return isinstance(text, str) and date.fromisoformat(text).isoformat() == text
@@ -85,7 +85,7 @@ def resume_solitaire(snap: dict) -> Solitaire:
     if type(deal) is not int or not 0 <= deal <= MAX_DEAL:
         raise ValueError(f"the deal {deal!r} doesn't fit, as deals run from 0 to {MAX_DEAL}")
     daily = snap.get("daily")  # missing from saves made before the daily deal
-    if daily is not None and not _is_day(daily):
+    if daily is not None and not is_day(daily):
         raise ValueError(f"the daily {daily!r} doesn't fit, as it isn't a day like 2026-09-24")
     chosen = snap.get("chosen", False)  # missing from saves made before it was kept
     if type(chosen) is not bool:

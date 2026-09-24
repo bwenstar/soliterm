@@ -21,7 +21,7 @@ Everything the front-ends need is importable straight from soliterm.engine.
 from .cards import ACE, JACK, KING, QUEEN, RANK_NAME, RED_SUITS, SUIT_SYMBOL, SUITS, Card, make_deck
 from .core import MAX_DEAL, RANDOM_DEALS, Slot, Solitaire
 from .gamedef import GameDef
-from .games import GAME_ORDER, GAMES, new_solitaire, resume_solitaire
+from .games import GAME_ORDER, GAMES, is_day, new_solitaire, resume_solitaire
 from .games.bakersdozen import BakersDozen
 from .games.canfield import Canfield
 from .games.eightoff import EightOff
@@ -64,6 +64,7 @@ __all__ = [
     "Spiderette",
     "TriplePeaks",
     "Yukon",
+    "is_day",
     "make_deck",
     "new_solitaire",
     "resume_solitaire",

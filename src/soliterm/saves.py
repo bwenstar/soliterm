@@ -98,7 +98,7 @@ def waiting(*keys: str) -> dict[str, dict]:
             save = _read(key)
             if isinstance(save, dict):
                 found[key] = {"seconds": save["seconds"], "moves": save["moves"]}
-                if save.get("daily"):
+                if engine.is_day(save.get("daily")):
                     found[key]["daily"] = save["daily"]
     return found
 

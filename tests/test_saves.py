@@ -89,6 +89,15 @@ def test_waiting_says_which_save_is_a_daily():
     assert h.daily == "2026-09-24"
 
 
+@pytest.mark.parametrize("daily", [True, 20260924, "2026-9-24", "2026-02-30", "today"])
+def test_waiting_calls_a_save_a_daily_only_with_a_day_to_it(daily):
+    # which resuming it would find out, and set it aside
+    assert saves.keep(played(), 42)
+    path = saves.save_path("klondike")
+    write(path, {**read(path), "daily": daily})
+    assert saves.waiting() == {"klondike": {"seconds": 42, "moves": 3}}
+
+
 def test_a_save_without_daily_still_resumes():
     g = played()
     assert saves.keep(g, 42)
