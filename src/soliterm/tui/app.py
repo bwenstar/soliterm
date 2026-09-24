@@ -1046,7 +1046,9 @@ class App:
                 self.selected = sid
                 self.selected_n = want
                 self.selected_exact = True
-                self.message = f"picked up {want} card(s) from {pile[card_idx]}" if want > 1 else ""
+                # the card as the board shows it, with a suit symbol or not
+                named = pile[card_idx].label(self.symbols)
+                self.message = f"picked up {want} cards from {named}" if want > 1 else ""
                 return
             # that exact split isn't movable as a unit; fall through to auto
             self.message = "those cards can't be lifted together"
@@ -1358,9 +1360,8 @@ class App:
                 self.selected_n = n
                 self.selected_exact = True  # the player chose the size
                 # named, as it may be in a row of cards sharing it
-                self.message = (
-                    f"holding {n} cards from {pile[-n]}" if n > 1 else f"holding {pile[-1]}"
-                )
+                named = pile[-n].label(self.symbols)
+                self.message = f"holding {n} cards from {named}" if n > 1 else f"holding {named}"
                 return
             n += step
         self.message = "can't lift any more cards" if step > 0 else "can't lift any fewer cards"

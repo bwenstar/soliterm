@@ -297,9 +297,23 @@ def test_a_clicked_split_is_never_shrunk_to_fit(tui, target):
     g, a, b = board("spider", [up(9, "H"), up(4, "S"), up(3, "S")], [up(*target)], suits=4)
     before = g.serialize()
     scr = tui([Click(a, 1), Click(b, 0)], start_key="spider", game=g)
-    assert "picked up 2 card(s) from 4S" in scr.frames[1]
+    assert "picked up 2 cards from 4♠" in scr.frames[1]
     assert "illegal move" in scr.frames[2]
     assert g.serialize() == before
+
+
+@pytest.mark.parametrize(
+    "symbols, encoding, spade",
+    [(True, "utf-8", "♠"), (False, "utf-8", "S"), (True, "ascii", "S")],
+)
+def test_what_is_lifted_is_named_as_the_board_shows_it(tui, monkeypatch, symbols, encoding, spade):
+    # --ascii, or a terminal that can't show the suits, gets the letter
+    monkeypatch.setattr(FakeScr, "encoding", encoding)
+    g, a, _b = board("spider", [up(9, "H"), up(5, "S"), up(4, "S"), up(3, "S")], [], suits=4)
+    scr = tui([Click(a, 1), "-", "-"], start_key="spider", game=g, symbols=symbols)
+    assert f"picked up 3 cards from 5{spade}" in scr.frames[1]
+    assert f"holding 2 cards from 4{spade}" in scr.frames[2]
+    assert f"holding 3{spade}" in scr.frames[3]
 
 
 def test_clicking_the_top_card_lifts_just_that_card(tui):
@@ -321,8 +335,8 @@ def test_the_lift_keys_reach_cards_squeezed_onto_one_row(tui):
         w=80,
     )
     assert "| +3 |" in scr.frames[0].replace("\u2502", "|")
-    assert "picked up 11 card(s) from JS" in scr.frames[1]
-    assert "holding 10 cards from 10S" in scr.frames[4]
+    assert "picked up 11 cards from J♠" in scr.frames[1]
+    assert "holding 10 cards from 10♠" in scr.frames[4]
     assert names(g, b) == [str(c) for c in run[2:]]
     assert names(g, a)[5:] == ["QS", "JS"]
 
