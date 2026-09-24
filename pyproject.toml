@@ -77,7 +77,10 @@ line-length = 100
 
 [tool.ruff.lint]
 # Spelled out rather than left to ruff's default set, which a new ruff
-# release can change.
+# release can change. It holds all of that set as of 0.16.6, bar the
+# async, logging, stub file, gettext and py.path checks (ASYNC, LOG, G,
+# PYI, INT, PTH124), which have nothing to look at in this code, and more
+# besides.
 select = [
     "E", "W",   # pycodestyle
     "F",        # pyflakes
@@ -103,6 +106,9 @@ select = [
     "PERF101", "PERF102", "PERF402",
     "TC004", "TC005", "TC010",
     "TRY002", "TRY004", "TRY201", "TRY203",
+    # the rest of ruff's default set
+    "DTZ", "D419", "FLY002", "N999", "PTH210",
+    "S102", "S110", "S112", "TC007", "TRY401",
 ]
 ignore = [
     "PLR09",    # too many branches or arguments: game rules are long
