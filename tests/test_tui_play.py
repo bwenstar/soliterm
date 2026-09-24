@@ -25,7 +25,7 @@ from soliterm.engine import Card
 from soliterm.tui import cascade
 from soliterm.tui.app import DEAL_TEXT_MAX
 
-from helpers import FakeScr, clear_board, deal, stalled_klondike
+from helpers import FakeScr, clear_board, deal, signal_once_written, stalled_klondike
 
 ENTER = "\n"
 ESC = 27
@@ -928,6 +928,30 @@ def test_a_signal_mid_game_saves_it(tui, monkeypatch, name):
         scr = tui(["d", Signal(name)])
     assert scr.rc == 130
     assert saves.waiting()["klondike"]["moves"] == 1
+
+
+@pytest.mark.skipif(not hasattr(signal, "SIGHUP"), reason="needs POSIX signals")
+@pytest.mark.parametrize("name", ["SIGINT", "SIGHUP", "SIGTERM"])
+def test_a_signal_as_q_saves_the_game_keeps_it_once(tui, monkeypatch, name):
+    monkeypatch.setattr(cli, "_quiet_output", lambda: None)
+    signal_once_written(monkeypatch, saves.save_path("klondike"), getattr(signal, name))
+    with cli._leave_on_signals():
+        scr = tui(["d", "q"])
+    assert scr.rc == 130
+    assert saves.waiting()["klondike"]["moves"] == 1
+    assert store.get_stat("klondike")["total"] == 0
+    assert store.notices() == []
+
+
+@pytest.mark.skipif(not hasattr(signal, "SIGHUP"), reason="needs POSIX signals")
+def test_a_signal_as_n_counts_the_game_leaves_it_unsaved(tui, monkeypatch):
+    signal_once_written(monkeypatch, store.stats_path(), signal.SIGTERM)
+    with cli._leave_on_signals():
+        scr = tui(["d", "n"])
+    assert scr.rc == 130
+    assert store.get_stat("klondike")["total"] == 1
+    assert [e["result"] for e in history.games()] == ["lost"]
+    assert saves.waiting() == {}
 
 
 def test_ctrl_c_before_a_move_or_on_the_menu_records_nothing(tui):

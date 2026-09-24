@@ -1005,16 +1005,17 @@ class App:
         left a notice saying why."""
         if not self.under_way():
             return
-        if saves.keep(self.game, self.seconds()):
-            self.recorded = True
-        else:
+        with store.signals_held():
+            self.recorded = saves.keep(self.game, self.seconds())
+        if not self.recorded:
             self.give_up()
 
     def count(self, won: bool, seconds: int) -> dict:
         """Count the game in play in the statistics, once, and return its
         statistics after. Every game the TUI counts comes through here."""
-        stat = history.record(self.game, won, seconds)
-        self.recorded = True
+        with store.signals_held():
+            stat = history.record(self.game, won, seconds)
+            self.recorded = True
         return stat
 
     def reset_for(self, new_game_fn: Callable[[], object]):

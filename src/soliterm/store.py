@@ -11,6 +11,7 @@ import contextlib
 import json
 import os
 import shutil
+import signal
 import tempfile
 import time
 from collections.abc import Iterator
@@ -165,6 +166,29 @@ def _write_text(path: str, text: str) -> bool:
 # Reentrancy count for _locked(): record_result holds the lock while it
 # calls helpers that take it too.
 _lock_depth = 0
+
+
+# Ctrl-C, the terminal closing and kill: what signals_held holds back
+_LEAVING = [getattr(signal, n) for n in ("SIGINT", "SIGHUP", "SIGTERM") if hasattr(signal, n)]
+
+
+@contextlib.contextmanager
+def signals_held() -> Iterator[None]:
+    """Hold back Ctrl-C, SIGHUP and SIGTERM until the block is done.
+
+    For saving or counting a game and marking it done as one step: one
+    landing between the two would have the game saved or counted again on
+    the way out. A signal that comes meanwhile lands as the block ends.
+    Where signals can't be held (Windows) it does nothing.
+    """
+    if not hasattr(signal, "pthread_sigmask"):
+        yield
+        return
+    old = signal.pthread_sigmask(signal.SIG_BLOCK, _LEAVING)
+    try:
+        yield
+    finally:
+        signal.pthread_sigmask(signal.SIG_SETMASK, old)
 
 
 @contextlib.contextmanager

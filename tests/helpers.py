@@ -1,9 +1,10 @@
 """Helpers shared by the test modules (import them with `from helpers import`)."""
 
 import curses
+import os
 from collections import Counter
 
-from soliterm import engine
+from soliterm import engine, store
 
 # Cards in a full deal of each game.
 EXPECTED_CARDS = {
@@ -22,6 +23,20 @@ EXPECTED_CARDS = {
 def deal(key, seed=1, **options):
     """A seeded game; options go in as keywords, e.g. deal("spider", suits=2)."""
     return engine.new_solitaire(key, seed=seed, options=options or None)
+
+
+def signal_once_written(monkeypatch, path, signum):
+    """Send signum to this process the moment `path` has been written, as a
+    kill landing just then would, before whoever wrote it hears back."""
+    real = store._write_json
+
+    def write(to, obj):
+        done = real(to, obj)
+        if to == path:
+            os.kill(os.getpid(), signum)
+        return done
+
+    monkeypatch.setattr(store, "_write_json", write)
 
 
 def card_count(g):

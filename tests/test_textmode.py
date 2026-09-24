@@ -2,6 +2,7 @@
 
 import io
 import re
+import signal
 
 import pytest
 
@@ -9,7 +10,7 @@ from soliterm import history, saves, store, textmode
 from soliterm.engine import GAME_ORDER, Card, new_solitaire
 from soliterm.textmode import render_text
 
-from helpers import board_state, clear_board, deal, stalled_klondike
+from helpers import board_state, clear_board, deal, signal_once_written, stalled_klondike
 
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 
@@ -460,6 +461,38 @@ def test_ctrl_c_saves_a_game_it_may_keep(monkeypatch, capsys):
     out, err = capsys.readouterr()
     assert out.endswith("\nSaved your game (0:00, 1 move) for next time.\n")
     assert err == "\n"
+
+
+posix_signals = pytest.mark.skipif(not hasattr(signal, "SIGHUP"), reason="needs POSIX signals")
+
+
+@posix_signals
+def test_ctrl_c_as_q_saves_the_game_keeps_it_once(monkeypatch):
+    signal_once_written(monkeypatch, saves.save_path("klondike"), signal.SIGINT)
+    g = deal("klondike", 1)
+    assert textmode.run_text(g, False, "klondike", stream=iter(["d\n", "q\n"]), keep=True) == 130
+    assert saves.waiting()["klondike"]["moves"] == 1
+    assert store.get_stat("klondike")["total"] == 0
+    assert store.notices() == []
+
+
+@posix_signals
+def test_ctrl_c_as_n_counts_the_game_leaves_it_unsaved(monkeypatch):
+    signal_once_written(monkeypatch, store.stats_path(), signal.SIGINT)
+    g = deal("klondike", 1)
+    assert textmode.run_text(g, False, "klondike", stream=iter(["d\n", "n\n"]), keep=True) == 130
+    assert store.get_stat("klondike")["total"] == 1
+    assert saves.waiting() == {}
+
+
+@posix_signals
+def test_ctrl_c_as_a_win_is_counted_still_puts_it_in_the_history(monkeypatch):
+    signal_once_written(monkeypatch, store.stats_path(), signal.SIGINT)
+    g = deal("klondike", 1)
+    script = iter([f"f {one_card_from_won(g)}\n"])
+    assert textmode.run_text(g, False, "klondike", stream=script, keep=True) == 130
+    assert store.get_stat("klondike")["wins"] == 1
+    assert [e["result"] for e in history.games()] == ["won"]
 
 
 def test_n_on_a_resumed_game_counts_it_lost_with_its_saved_time(monkeypatch, capsys):

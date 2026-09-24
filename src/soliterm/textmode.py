@@ -320,18 +320,21 @@ def run_text(
     def give_up() -> None:
         nonlocal recorded
         if under_way():
-            history.record(g, False, seconds())
-            recorded = True
+            with store.signals_held():
+                history.record(g, False, seconds())
+                recorded = True
 
     def put_away() -> None:
         # on leaving: kept for next time if it may be, and otherwise lost,
         # with saves.keep's notice saying why
         nonlocal recorded
-        if keep and under_way() and saves.keep(g, seconds()):
-            recorded = True
-            print(f"Saved your game ({so_far()}) for next time.", file=out)
-        else:
-            give_up()
+        if keep and under_way():
+            with store.signals_held():
+                recorded = saves.keep(g, seconds())
+            if recorded:
+                print(f"Saved your game ({so_far()}) for next time.", file=out)
+                return
+        give_up()
 
     try:
         name = g.gamedef.name
@@ -374,9 +377,10 @@ def run_text(
                 print(msg, file=out)
             print(render_text(g, symbols, color), file=out)
             if g.is_won() and not recorded:
-                recorded = True
                 secs = seconds()
-                history.record(g, True, secs)
+                with store.signals_held():
+                    history.record(g, True, secs)
+                    recorded = True
                 print("Congratulations - you won!", file=out)
                 print(
                     f"Score {g.score} in {store.fmt_time(secs)} ({store.moves_text(g.moves)}).",
