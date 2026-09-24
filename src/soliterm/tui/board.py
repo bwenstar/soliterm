@@ -125,8 +125,10 @@ class BoardUI:
         # screen reads as a code editor while the game stays fully playable.
         self.code_skin = False
         self._gutter = CODE_GUTTER
-        # how far down / right the board sits inside the file when skinned
-        self._code_top = 7
+        # how far down / right the board sits inside the file when skinned;
+        # no lower than without the skin, which would squeeze the columns
+        # harder (a FreeCell deal at 80x24 would lose ranks)
+        self._code_top = self.origin_y
         self._code_indent = 9
 
     def set_view(self, view: str) -> None:

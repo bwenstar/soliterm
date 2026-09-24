@@ -180,6 +180,21 @@ def test_a_squeezed_column_still_shows_every_face_up_rank(down, up):
     assert clickable(ui, col) >= set(range(down, down + up))
 
 
+@pytest.mark.parametrize("code_skin", [False, True])
+@pytest.mark.parametrize("key", GAME_ORDER)
+def test_every_face_up_rank_of_an_opening_deal_shows_at_80x24(key, code_skin):
+    # the code skin sits the board no lower than the plain screen does, so
+    # it squeezes no column harder
+    for seed in range(1, 6):
+        g = deal(key, seed)
+        ui, scr = draw(g, h=24, w=80, code_skin=code_skin)
+        for sid in g.ids_of("tableau"):
+            cards = g.cards(sid)
+            text = "\n".join(column_text(ui, scr, sid)[ui.slot_origin[sid][0]:21])
+            assert all(str(c) in text for c in cards if c.face_up)
+            assert clickable(ui, sid) >= {i for i, c in enumerate(cards) if c.face_up}
+
+
 def test_a_long_waste_leaves_the_foundations_on_screen():
     g = deal("fortythieves", 1)
     waste = g.ids_of("waste")[0]

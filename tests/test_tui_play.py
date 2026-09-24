@@ -441,13 +441,13 @@ def test_the_board_comes_back_as_it_was_once_the_terminal_grows(tui):
     assert "Moves 0" in scr.frames[2] and "Stock: 24" in scr.frames[2]
 
 
-@pytest.mark.parametrize("key, h, small", [
-    ("c", 17, [False, True, False]),    # the code skin needs more rows
-    ("x", 15, [True, False, True]),     # and full cards more than compact ones
+@pytest.mark.parametrize("key, h, w, small", [
+    ("c", 17, 40, [False, True, False]),    # the code skin needs more columns
+    ("x", 15, 80, [True, False, True]),     # and full cards more rows
 ])
-def test_the_skin_and_view_toggles_still_work_on_a_small_terminal(tui, key, h, small):
+def test_the_skin_and_view_toggles_still_work_on_a_small_terminal(tui, key, h, w, small):
     # so the toggle that hid the board can bring it back
-    scr = tui([key, key, "q"], h=h, w=80)
+    scr = tui([key, key, "q"], h=h, w=w)
     assert ["Terminal too small" in frame for frame in scr.frames[:3]] == small
 
 
@@ -938,7 +938,7 @@ def test_the_code_skin_keeps_every_screen_inside_the_code_file(
 
 def test_the_code_skin_keeps_the_too_small_notice_inside_the_code_file(tui):
     code_skin_on()
-    scr = tui([], h=17, w=80)
+    scr = tui([], h=15, w=80)
     rows = scr.frames[0].split("\n")
     assert "solver.py" in rows[0]
     shown = [row for row in rows if "Terminal too small" in row or "needs" in row]
