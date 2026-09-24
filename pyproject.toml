@@ -12,13 +12,16 @@ license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "Brendan Ta" }]
 keywords = [
-    "solitaire", "patience", "card-game", "klondike", "spider", "freecell",
-    "aisleriot", "curses", "tui", "terminal",
+    "solitaire", "patience", "card-game", "cards", "klondike", "spider",
+    "freecell", "golf", "aisleriot", "gnome", "curses", "tui", "terminal",
+    "console", "game",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
+    "Environment :: Console",
     "Environment :: Console :: Curses",
     "Intended Audience :: End Users/Desktop",
+    "Operating System :: POSIX",
     "Operating System :: POSIX :: Linux",
     "Operating System :: MacOS",
     "Operating System :: Microsoft :: Windows",
@@ -30,7 +33,9 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Topic :: Games/Entertainment",
     "Topic :: Games/Entertainment :: Board Games",
+    "Topic :: Games/Entertainment :: Puzzle Games",
     "Typing :: Typed",
 ]
 # Standard library only. curses ships with CPython on Linux and macOS; on
@@ -39,9 +44,10 @@ dependencies = ['windows-curses>=2.3; sys_platform == "win32"']
 
 [project.urls]
 Homepage = "https://github.com/bwenstar/soliterm"
-Source = "https://github.com/bwenstar/soliterm"
-Issues = "https://github.com/bwenstar/soliterm/issues"
+Documentation = "https://github.com/bwenstar/soliterm/tree/main/docs"
 Changelog = "https://github.com/bwenstar/soliterm/blob/main/CHANGELOG.md"
+Issues = "https://github.com/bwenstar/soliterm/issues"
+Source = "https://github.com/bwenstar/soliterm"
 
 [project.scripts]
 soliterm = "soliterm.cli:main"
