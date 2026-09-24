@@ -556,7 +556,6 @@ class Solitaire:
 
         parts = [
             f"game={self.gamedef.key}",
-            f"seed={self.seed}",
             f"score={self.score}",
             f"base={self.base_val}",
             f"moves={self.moves}",

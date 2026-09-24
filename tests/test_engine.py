@@ -496,6 +496,28 @@ def test_new_game_can_change_the_options():
     assert g.options["draw"] == 1
 
 
+# -- saving a position ----------------------------------------------------------
+
+
+@pytest.mark.parametrize("key", GAME_ORDER)
+def test_serialize_leaves_the_session_seed_out(key):
+    # a position is the same whether or not the session began on a chosen deal
+    g = engine.new_solitaire(key)
+    g.new_game(4)
+    assert g.serialize() == deal(key, 4).serialize()
+    assert "seed=" not in g.serialize()
+
+
+def test_undo_steps_with_an_old_seed_line_still_restore():
+    g = deal("klondike", 4)
+    g.deal()
+    lines = g.serialize().splitlines()
+    old = "\n".join([lines[0], "seed=4", *lines[1:]])
+    h = deal("klondike", 4)
+    h._restore(old)
+    assert h.serialize() == g.serialize()
+
+
 # -- stuck detection ------------------------------------------------------------------
 
 
