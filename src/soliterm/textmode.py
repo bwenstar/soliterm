@@ -341,7 +341,7 @@ def run_text(
         print(f"{APP_NAME} - {name} - {deal_label(g)} (text mode). Type h for help.", file=out)
         if resumed:
             print(f"Resumed your {name} game ({so_far()}). Type n for a new deal.", file=out)
-        elif keep and g.gamedef.key in saves.waiting():
+        elif keep and g.gamedef.key in saves.waiting(g.gamedef.key):
             print(f"a saved {name} game is waiting, so this one won't be kept", file=out)
         print(file=out)
         print(render_text(g, symbols, color), file=out)

@@ -83,13 +83,17 @@ def take(key: str) -> tuple[Solitaire, int] | None:
     return g, save["seconds"]
 
 
-def waiting() -> dict[str, dict]:
-    """The games waiting, for the menu: {"klondike": {"seconds": 42, "moves": 31}}."""
+def waiting(*keys: str) -> dict[str, dict]:
+    """The games waiting, for the menu: {"klondike": {"seconds": 42, "moves": 31}}.
+
+    Given keys, only their saves are read, so a damaged save of another
+    game isn't set aside, or told of, on the way.
+    """
     if not os.path.isdir(saves_dir()):
         return {}
     found = {}
     with store._locked():
-        for key in GAMES:
+        for key in keys or GAMES:
             save = _read(key)
             if isinstance(save, dict):
                 found[key] = {"seconds": save["seconds"], "moves": save["moves"]}

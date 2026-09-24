@@ -1,6 +1,7 @@
 """The command line: --list, --stats, --reset-stats and a scripted text session."""
 
 import io
+import json
 import os
 import signal
 import subprocess
@@ -722,6 +723,18 @@ def test_a_chosen_deal_is_kept_but_never_resumed(cli, stopped_clock, chosen):
     assert cli.err == (
         "soliterm: a saved Klondike game was already waiting, so this one counted as lost\n"
     )
+
+
+def test_a_chosen_deal_looks_only_at_its_own_games_save(cli):
+    # a damaged Spider save, for Spider to deal with when it's played
+    os.makedirs(saves.saves_dir())
+    spider = saves.save_path("spider")
+    with open(spider, "w", encoding="utf-8") as fh:
+        json.dump({"format": 1, "game": "klondike"}, fh)
+    _rc, lines = cli("--text", "--deal", "3", stdin="q\n", tty=True)
+    assert lines[1] != "a saved Klondike game is waiting, so this one won't be kept"
+    assert os.path.exists(spider)
+    assert cli.err == ""
 
 
 def test_piped_text_mode_neither_resumes_nor_saves(cli):
