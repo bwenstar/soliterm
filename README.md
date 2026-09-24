@@ -79,7 +79,7 @@ install along with Soliterm. To play the `.pyz` there, run
 
 | FreeCell, with a hint | Spider in two suits |
 | --- | --- |
-| ![FreeCell deal 617 after one move: eight columns of face-up cards under four empty free cells and four foundations, with the hint "Move Q♥ onto K♠" on the bottom line.](https://raw.githubusercontent.com/bwenstar/soliterm/main/docs/img/freecell.png) | ![Two-suit Spider deal 7: ten columns of face-down cards with one card face up on each, the stock holding 50 cards, and the hint "Move J♥ onto Q♥".](https://raw.githubusercontent.com/bwenstar/soliterm/main/docs/img/spider.png) |
+| ![FreeCell deal 617 after one move: eight columns of face-up cards under four empty free cells and four foundations, with the hint "Move Q♥ onto K♠" on the bottom line.](https://raw.githubusercontent.com/bwenstar/soliterm/main/docs/img/freecell.png) | ![Two-suit Spider deal 7 after one move, an A♥ onto a 2♥: ten columns of face-down cards with a card face up on each, two on the fifth, the stock holding 50 cards, and the hint "Move J♥ onto Q♥".](https://raw.githubusercontent.com/bwenstar/soliterm/main/docs/img/spider.png) |
 | **The code skin** | **Triple Peaks, eight cards into a run** |
 | ![Klondike drawn inside what looks like a Python file called solver.py, with line numbers down the left and the score and the time written as a comment.](https://raw.githubusercontent.com/bwenstar/soliterm/main/docs/img/code-skin.png) | ![Triple Peaks deal 108: three overlapping peaks of cards, a waste fanned out from a run of eight, and the hint "Move 6♥ onto 7♦".](https://raw.githubusercontent.com/bwenstar/soliterm/main/docs/img/triple-peaks.png) |
 | **Yukon in the contrast theme** | **A win** |
