@@ -81,6 +81,25 @@ The zipapp builds with the standard library alone. `--wheel` runs
 | `b` / F2 | boss mode (hide the game behind fake "work" output) |
 | `m` / `q` | back to menu / quit · `?` help |
 
+## Deals and share codes
+
+Every deal has a number, shown at the top of the board. `soliterm --deal 48213`
+plays deal 48213 of the game you played last (add `--game` for another), and
+`n` then deals 48214, so you can work through them in order. Numbers run from
+0 to 2147483647, and a deal picked at random is one of the first million. The
+same number deals the same cards on any computer and any Python.
+
+A share code names a deal exactly: the game, any options you changed, and the
+number. `klondike:d3:48213` is Klondike drawing three, deal 48213. The end of
+every game shows its code, and anyone can play the same cards with
+`soliterm --deal klondike:d3:48213`. In a code, `d1` and `d3` are Klondike's
+cards to draw, `rs`, `rn` and `ru` its standard, no or unlimited redeals, and
+`s1`, `s2` and `s4` Spider's suits. Options left at their default aren't
+written.
+
+FreeCell deals use Microsoft FreeCell's numbers, so deal 617 here is deal 617
+there, and 11982 is the one deal among the first 32,000 that can't be won.
+
 ## Text mode
 
 `--text` (or any non-TTY / piped stdin) runs a scriptable REPL. It is also
