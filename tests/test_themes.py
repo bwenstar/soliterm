@@ -117,6 +117,20 @@ def test_256_colour_terminals_get_the_tuned_colours():
     assert (themes.CHROME, curses.COLOR_CYAN, -1) in themes.pair_colours(themes.DARK, 8)
 
 
+# xterm-direct and the other direct-colour terminals have 16777216 colours,
+# and read most numbers as red, green and blue rather than xterm's 256
+@pytest.mark.parametrize("colours", [16, 88, 16777216])
+def test_only_256_colour_terminals_get_the_tuned_colours(colours):
+    assert themes.pick((110, curses.COLOR_CYAN), colours) == curses.COLOR_CYAN
+    assert themes.pick(curses.COLOR_RED, colours) == curses.COLOR_RED
+    for theme in themes.THEMES:
+        for light in (False, True):
+            for four_color in (False, True):
+                rows = themes.pair_colours(theme, colours, light, four_color=four_color)
+                assert rows == themes.pair_colours(theme, 8, light, four_color=four_color)
+                assert all(-1 <= fg < 8 and -1 <= bg < 8 for _, fg, bg in rows), theme.name
+
+
 @pytest.mark.parametrize("light", [False, True])
 def test_on_8_colours_dark_and_light_are_classic_pinned(light):
     classic_on_dark = themes.pair_colours(themes.CLASSIC, 8, light=False)

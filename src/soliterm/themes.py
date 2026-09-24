@@ -44,7 +44,7 @@ FALLBACK = {
 }
 
 # runtime aliases, so no X | Y before Python 3.10
-Colour = Union[int, tuple[int, int]]  # one colour, or (on 256 colours, on fewer)
+Colour = Union[int, tuple[int, int]]  # one colour, or (on 256 colours, on others)
 Pair = tuple[Colour, Colour]  # (text, background)
 
 
@@ -74,7 +74,7 @@ CLASSIC = Theme(
         NUMBER: (YELLOW, DEFAULT),
         COMMENT: (CYAN, DEFAULT),
         # the four-colour deck: orange diamonds and green clubs, and blue
-        # diamonds on 8 colours, which have no orange
+        # diamonds in the basic 8, which have no orange
         DIAMOND_FACE: ((166, BLUE), WHITE),
         CLUB_FACE: ((28, GREEN), WHITE),
     },
@@ -87,9 +87,10 @@ CLASSIC = Theme(
     },
 )
 
-# dark and light are tuned for 256 colours and are classic on 8. They keep
-# to their own background whatever the terminal says, so either one puts
-# right a terminal that says the wrong thing, or says nothing.
+# dark and light are tuned for 256 colours and are classic on any other
+# number. They keep to their own background whatever the terminal says, so
+# either one puts right a terminal that says the wrong thing, or says
+# nothing.
 DARK = Theme(
     "dark",
     {
@@ -179,9 +180,15 @@ def next_theme(theme: Theme) -> Theme:
 
 
 def pick(colour: Colour, colours: int) -> int:
-    """The curses number for `colour` on a terminal with `colours` colours."""
+    """The curses number for `colour` on a terminal with `colours` colours.
+
+    The tuned colours are xterm's 256, so a terminal with any other number
+    gets the basic 8. That includes a direct-colour one (xterm-direct has
+    16777216), which reads most numbers as red, green and blue and would
+    draw the 256 as dark blues.
+    """
     if isinstance(colour, tuple):
-        return colour[0] if colours >= 256 else colour[1]
+        return colour[0] if colours == 256 else colour[1]
     return colour
 
 

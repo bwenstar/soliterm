@@ -97,16 +97,17 @@ picks one for a single run.
 | `light` | the same for a light background |
 | `contrast` | text in your terminal's own colours and the strongest card colours |
 
-With only 8 colours, `dark` and `light` are `classic` as it looks on a dark
-or a light background. `classic` and `contrast` suit themselves to a light
+On a terminal without 256 colours (8, 16 or 88, or direct colour such as
+`xterm-direct`), `dark` and `light` are `classic` as it looks on a dark or
+a light background. `classic` and `contrast` suit themselves to a light
 background, which the game knows from `COLORFGBG` when your terminal sets
 it. If it isn't set, or says the wrong thing, choose `dark` or `light`,
 which always look the same, or set `COLORFGBG=0;15` for a light background
 (`15;0` for a dark one).
 
 `4` swaps the red and black deck for a four-colour one, as bridge players
-use: green clubs and orange diamonds (blue diamonds on terminals with only
-8 colours). It works with every theme, and the game remembers it too.
+use: green clubs and orange diamonds (blue diamonds on terminals without
+256 colours). It works with every theme, and the game remembers it too.
 
 ## Deals and share codes
 
