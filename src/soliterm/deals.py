@@ -67,6 +67,11 @@ def code_of(g: Solitaire) -> str:
     return share_code(g.gamedef.key, g.deal_number, g.options)
 
 
+def deal_label(g: Solitaire) -> str:
+    """What the title and the text header call the deal in play."""
+    return f"Deal {g.deal_number}"
+
+
 def _options(key: str, text: str) -> dict:
     cls = GAMES[key]
     spec = cls.option_spec()

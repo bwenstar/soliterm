@@ -146,7 +146,7 @@ def test_a_bare_number_plays_the_last_game(cli):
     cfg["last_game"] = "golf"
     store.save_config(cfg)
     out = play_briefly(cli, "--deal", "5")
-    assert out.startswith("Soliterm - Golf")
+    assert out.startswith("Soliterm - Golf - Deal 5 ")
     assert text_board(deal("golf", 5)) in out
 
 
@@ -415,7 +415,7 @@ def test_a_scripted_text_session(cli):
     )
     assert rc == 0
     out = "\n".join(lines)
-    assert lines[0] == "Soliterm - Klondike (text mode). Type h for help."
+    assert lines[0] == "Soliterm - Klondike - Deal 1 (text mode). Type h for help."
     assert lines[-1] == "bye"
     assert "\033[" not in out  # --no-color
     assert not any(s in out for s in ("♠", "♥", "♦", "♣"))  # --ascii
@@ -454,7 +454,7 @@ def test_n_in_text_mode_deals_a_new_hand_under_seed(cli):
     )
     out = "\n".join(lines)
     assert out.count(first) == 1
-    assert "new deal" in lines
+    assert "new deal 6" in lines
 
 
 def test_text_mode_survives_a_bad_option_in_the_config(cli):

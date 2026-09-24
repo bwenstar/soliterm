@@ -14,6 +14,7 @@ import sys
 import time
 
 from . import APP_NAME, camo, store
+from .deals import deal_label
 from .engine import SUIT_SYMBOL, Card, Slot, Solitaire
 
 # --------------------------------------------------------------------------- #
@@ -300,7 +301,10 @@ def run_text(
             recorded = True
 
     try:
-        print(f"{APP_NAME} - {g.gamedef.name} (text mode). Type h for help.\n", file=out)
+        print(
+            f"{APP_NAME} - {g.gamedef.name} - {deal_label(g)} (text mode). Type h for help.\n",
+            file=out,
+        )
         print(render_text(g, symbols, color), file=out)
         for raw in inp:
             line = raw.strip()
@@ -315,7 +319,7 @@ def run_text(
                 give_up()
                 g.new_game()
                 start, recorded = time.monotonic(), False
-                msg = "new deal"
+                msg = f"new deal {g.deal_number}"
             elif msg == "__restart__":
                 # the same hand again: AisleRiot does not count a restart
                 g.restart()

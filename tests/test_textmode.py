@@ -206,7 +206,20 @@ def test_small_n_still_deals_a_new_hand(capsys):
     seed = g.deal_number
     textmode.run_text(g, False, "golf", stream=io.StringIO("n\nq\n"))
     assert g.deal_number != seed
-    assert "new deal" in capsys.readouterr().out.splitlines()
+    assert f"new deal {g.deal_number}" in capsys.readouterr().out.splitlines()
+
+
+def test_the_text_header_names_the_deal(capsys):
+    g = deal("klondike", 48213)
+    textmode.run_text(g, False, "klondike", stream=io.StringIO("q\n"))
+    header = capsys.readouterr().out.splitlines()[0]
+    assert header == "Soliterm - Klondike - Deal 48213 (text mode). Type h for help."
+
+
+def test_n_says_the_new_deal_number(capsys):
+    g = deal("klondike", 48213)
+    textmode.run_text(g, False, "klondike", stream=io.StringIO("n\nq\n"))
+    assert "new deal 48214" in capsys.readouterr().out.splitlines()
 
 
 def test_letters_whose_case_means_nothing_work_in_either_case():
