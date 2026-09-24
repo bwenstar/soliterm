@@ -36,7 +36,8 @@ Unreleased lists the changes since.
   starting it with `--game` carries on where you left off, while a chosen
   deal or option starts afresh and leaves it waiting. A daily is kept the
   same way, its menu row says so, and that day's daily carries on with it.
-  Text mode keeps games too, when you're typing at a terminal.
+  Text mode keeps games too, when you're typing at a terminal. On the way
+  out a line says which game was kept and how to pick it up again.
 - Every game played here goes in `history.jsonl`, one line each. The
   statistics gain Streak and Longest columns, the win banner and text mode
   name a run of two or more wins, and `--stats` lists the last ten games
@@ -107,9 +108,10 @@ Unreleased lists the changes since.
   starts with the waste empty, as AisleRiot's does.
 - Autoplay only sends up cards that are safe to send up.
 - A hint can be a move that sets up the next one, and in Spider one that
-  fills an empty column so you can deal. It lights up the whole run it
-  would move, not just the top card, in a colour of its own that shows on
-  any background.
+  fills an empty column so you can deal. When nothing gains, it names a
+  plain move that goes somewhere instead of saying no move helps. It
+  lights up the whole run it would move, not just the top card, in a
+  colour of its own that shows on any background.
 - `o` shows the options before it gives up the game in play. Esc, or
   leaving them as they were, keeps the game, a change mid-game asks
   first, and new options deal the next number, the way `n` does. Where
@@ -118,14 +120,19 @@ Unreleased lists the changes since.
 - A game counts from its first move, even if you undo every move. One
   with no moves left offers Undo on its banner and counts as lost only when
   you leave it for a new deal or the menu.
+- The end-of-game banner shows each choice with its key, as in
+  `Replay this deal (s)`.
+- In Golf and Triple Peaks, Enter or a click on a card that goes on the
+  waste plays it, as a click does in AisleRiot. One that doesn't go is
+  picked up as before.
 - The clock ticks on the status line and stops while another screen hides
   the board, and the banner shows the same time the statistics keep.
 - A board that's short of room closes up before it loses anything. A long
   column piles its face-down cards onto one row that counts them and
-  keeps every face-up rank in view, and a wide game closes up its fans
-  and the gaps between its columns. A board, the menu or a dialog that
-  still doesn't fit says what size it needs instead of drawing off the
-  edge.
+  keeps every face-up rank in view, the columns beside it squeeze alike,
+  and a wide game closes up its fans and the gaps between its columns. A
+  board, the menu or a dialog that still doesn't fit says what size it
+  needs instead of drawing off the edge.
 - Klondike drawing three fans out the last three cards of the waste, as
   AisleRiot does, and the stock's count sits on the stock itself.
 - The code skin stays on for the menu, the dialogs, the banners and the
@@ -145,6 +152,10 @@ Unreleased lists the changes since.
 
 ### Fixed
 
+- The menu gives each game a line short enough to show whole at 80
+  columns, where most were cut off mid-word, and `--list` uses the same
+  line, so it fits in 80 columns too. `--help` sends you to `--list` for
+  the game names instead of spelling them all out twice.
 - The help screen no longer says every game builds its foundations up by
   suit, which isn't true of them all.
 - A text-mode game won in one move says `1 move`, not `1 moves`, and
@@ -164,9 +175,10 @@ Unreleased lists the changes since.
   hand-edited file is read a value at a time, so one bad value doesn't
   lose the rest, and a bad game option falls back to its default.
 - A game kept waiting while another copy of Soliterm finishes with the
-  statistics says so, instead of stopping without a word. If Ctrl-C cuts
-  leaving short while it waits, a note at exit says the game was neither
-  saved nor counted.
+  statistics says so, instead of stopping without a word. If Ctrl-C,
+  SIGTERM or SIGHUP cuts leaving short while it waits, a note at exit says
+  the game was neither saved nor counted, and a deal you haven't touched
+  leaves without waiting at all.
 - Rules that had drifted from AisleRiot's: Klondike drawing one no longer
   redeals forever, FreeCell's foundation cards stay out of play, Aces
   can't slide between foundations for points, Eight Off and Forty Thieves
@@ -178,7 +190,8 @@ Unreleased lists the changes since.
   puts a card that can't go up onto a column.
 - Statistics are only shared when AisleRiot is there, as its keyfile or
   its `sol` program, and not just because there's a `gnome-games` folder,
-  which other GNOME games keep too.
+  which other GNOME games keep too. Until AisleRiot has run once, the
+  statistics screen says they'll be shared from then on.
 - `--reset-stats` only says the statistics are shared with GNOME
   AisleRiot when AisleRiot has a record of one of these games to clear,
   and then says `1 game`, not `1 game(s)`.
