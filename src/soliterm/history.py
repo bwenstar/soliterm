@@ -127,3 +127,26 @@ def recent(n: int) -> list[dict]:
 
 def any_games() -> bool:
     return bool(games())
+
+
+def backup() -> str | None:
+    """Copy the history to history.jsonl.bak before --reset-stats clears it.
+
+    Returns the backup, or None if there is no history; raises OSError if
+    it can't be copied.
+    """
+    kept = history_path() + ".bak"
+    return kept if store._copy_file(history_path(), kept) else None
+
+
+def clear() -> None:
+    path = history_path()
+    with store._locked():
+        try:
+            os.remove(path)
+        except FileNotFoundError:
+            pass
+        except OSError as exc:
+            store._notice(
+                f"couldn't clear {path} ({exc.strerror or exc}), so the history is still there"
+            )

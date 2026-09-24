@@ -12,7 +12,7 @@ import pytest
 import soliterm
 from soliterm import aisleriot as ar
 from soliterm import cli as cli_mod
-from soliterm import store
+from soliterm import history, saves, store
 from soliterm.cli import main
 from soliterm.deals import Deal
 from soliterm.engine import GAME_ORDER, GAMES
@@ -477,6 +477,58 @@ def test_reset_stats_twice_keeps_the_first_backup(cli, keyfile):
     assert rc == 0
     assert any("no statistics" in line.lower() for line in lines)
     assert Path(str(path) + ".soliterm-bak").read_text() == shared
+
+
+def two_games():
+    """Two games counted, so there are statistics and a history of them."""
+    g = deal("golf", 1)
+    g.deal()
+    history.record(g, True, 50)
+    history.record(g, False, 20)
+
+
+def test_reset_stats_backs_up_and_clears_the_history(cli):
+    two_games()
+    before = Path(history.history_path()).read_text()
+    rc, lines = cli("--reset-stats", "--yes")
+    assert rc == 0
+    assert f"Backup saved to {history.history_path()}.bak" in lines
+    assert Path(history.history_path() + ".bak").read_text() == before
+    assert history.games() == []
+    assert store.get_stat("golf")["total"] == 0
+
+
+@pytest.mark.parametrize("with_history", [True, False])
+def test_the_reset_prompt_names_the_history(cli, with_history):
+    if with_history:
+        two_games()
+    else:
+        store.record_result("golf", True, 50)
+    rc, _lines = cli("--reset-stats", stdin="no\n", tty=True)
+    assert rc == 1
+    also = ", and the history of your games" if with_history else ""
+    assert f"This erases the statistics of all {len(GAME_ORDER)} games{also}.\n" in cli.err
+
+
+def test_no_stats_and_no_history_means_nothing_to_clear(cli):
+    rc, lines = cli("--reset-stats", "--yes")
+    assert (rc, lines) == (0, ["There are no statistics to clear."])
+    # a history on its own is still something to clear
+    two_games()
+    store.reset_stats()
+    rc, lines = cli("--reset-stats", "--yes")
+    assert rc == 0 and lines[-1] == "Statistics cleared."
+    assert history.games() == []
+
+
+def test_reset_leaves_saved_games_alone(cli):
+    two_games()
+    g = deal("klondike", 4)
+    g.deal()
+    assert saves.keep(g, 42)
+    rc, _lines = cli("--reset-stats", "--yes")
+    assert rc == 0
+    assert saves.waiting() == {"klondike": {"seconds": 42, "moves": 1}}
 
 
 # -- --no-sync -------------------------------------------------------------------------

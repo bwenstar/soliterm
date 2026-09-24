@@ -20,7 +20,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Any, Callable
 
-from . import APP_NAME, __version__, deals, debuginfo, migrate, store
+from . import APP_NAME, __version__, deals, debuginfo, history, migrate, store
 from . import aisleriot as ar
 from .engine import GAME_ORDER, GAMES
 from .textmode import run_text
@@ -143,7 +143,8 @@ def print_stats() -> None:
 
 def reset_stats(yes: bool) -> int:
     """--reset-stats: check with the player, back up, then clear."""
-    if not store.any_stats():
+    played = history.any_games()
+    if not store.any_stats() and not played:
         print("There are no statistics to clear.")
         return 0
     sharing = store.syncing()
@@ -156,7 +157,11 @@ def reset_stats(yes: bool) -> int:
             )
             return 2
         where = f", here and in GNOME AisleRiot ({ar.keyfile_path()})" if sharing else ""
-        print(f"This erases the statistics of all {len(GAME_ORDER)} games{where}.", file=sys.stderr)
+        also = ", and the history of your games" if played else ""
+        print(
+            f"This erases the statistics of all {len(GAME_ORDER)} games{where}{also}.",
+            file=sys.stderr,
+        )
         print("Type yes to clear them: ", end="", file=sys.stderr, flush=True)
         try:
             answer = sys.stdin.readline()
@@ -169,6 +174,9 @@ def reset_stats(yes: bool) -> int:
             return 1
     try:
         backups = store.backup_stats()
+        kept = history.backup()
+        if kept:
+            backups.append(kept)
     except OSError as exc:
         print(
             f"soliterm: couldn't back up the statistics ({exc}), so nothing was cleared",
@@ -178,6 +186,7 @@ def reset_stats(yes: bool) -> int:
     for path in backups:
         print(f"Backup saved to {path}")
     n = store.reset_stats()
+    history.clear()
     if sharing:
         print(f"Statistics cleared for {n} game(s) (shared with GNOME AisleRiot).")
     else:

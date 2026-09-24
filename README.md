@@ -155,10 +155,11 @@ you play wait in the local stats until sharing is on again.
 
 `--stats` prints the table; `--reset-stats` clears it, and that includes
 AisleRiot's own record of these nine games (its other games are left
-untouched). It asks you to type `yes` first, or takes `--yes` when there is
-no terminal to ask on, and keeps a copy of what it clears in
-`aisleriot.soliterm-bak` next to the keyfile and `stats.json.bak` next to
-the local stats.
+untouched) and the history of the games you played here. It asks you to
+type `yes` first, or takes `--yes` when there is no terminal to ask on, and
+keeps a copy of what it clears in `aisleriot.soliterm-bak` next to the
+keyfile, and `stats.json.bak` and `history.jsonl.bak` next to the local
+stats. Saved games are left as they are.
 
 ## Options
 
