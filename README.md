@@ -180,20 +180,24 @@ day's cards again whenever you like.
 ## Saved games
 
 Leave a game with `q`, `m` or Ctrl-C, or close the terminal on it, and it's
-kept for next time with its clock, its score and the moves to undo. One
-game of each kind is kept. Its row on the menu then reads
+kept for next time with its clock, its score and the moves to undo. Each
+game has room for one saved game, so a Klondike and a Spider can both be
+waiting, but not two Klondikes. The game's row on the menu then reads
 `Resume your game: 0:42, 31 moves`, and picking it, or starting it with
 `--game`, carries on where you left off. A daily you leave is kept the same
 way, and that day's daily carries on with it.
 
 A few things give a game up instead, and it counts as a loss: `n` for a new
-deal, `g` for another deal, changing the game's options with `o`, and
-leaving the "No moves left" screen for a new deal or the menu. A deal you
-ask for by number or code, or with `--draw` or `--suits`, always deals
-what you asked for and leaves a saved game of its kind waiting. It's kept
-when you leave it if nothing of its kind is saved already; if something
-is, it says so when it starts, and the game counts as lost when you leave
-it.
+deal, `g` for another deal, and changing the game's options with `o`. So
+does leaving the "No moves left" screen, whether for a new deal or the
+menu, with `q` or Ctrl-C, or by closing the terminal. Undo and Replay this
+deal on that screen don't count anything.
+
+A deal you ask for by number or share code, or with `--draw` or `--suits`,
+is always the deal you asked for, even when that game has a saved game
+waiting. The saved one stays where it is for later. There's only room for
+one, though, so the new deal says it won't be kept, and it counts as lost
+when you leave it. With nothing waiting, it's kept like any other.
 
 A kept game isn't in the statistics, here or in AisleRiot, until it's
 finished or given up. Then it counts once, with all the time you spent on
