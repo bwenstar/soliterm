@@ -229,3 +229,24 @@ def test_diamonds_and_clubs_match_red_and_black_with_the_deck_off(theme):
             pairs = colours_of(theme, colours, light)
             assert pairs[themes.DIAMOND_FACE] == pairs[themes.FACE_RED]
             assert pairs[themes.CLUB_FACE] == pairs[themes.FACE_BLACK]
+
+
+# -- the code skin ---------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("theme", themes.THEMES, ids=themes.NAMES)
+def test_the_code_skin_pairs_sit_on_the_terminal_background(theme):
+    assert set(themes.SYNTAX) == {"keyword", "string", "number", "comment"}
+    for colours in (8, 256):
+        for light in (False, True):
+            pairs = colours_of(theme, colours, light)
+            for n in themes.SYNTAX.values():
+                assert pairs[n][1] == -1, (n, colours, light)
+
+
+@pytest.mark.parametrize("light", [False, True])
+def test_classic_comments_look_like_its_labels(light):
+    # so the code skin's notes look as they always have
+    for colours in (8, 256):
+        pairs = colours_of(themes.CLASSIC, colours, light)
+        assert pairs[themes.COMMENT] == pairs[themes.CHROME]

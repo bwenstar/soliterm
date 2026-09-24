@@ -1689,8 +1689,9 @@ def test_a_light_terminal_gets_text_that_shows_on_white(tui, monkeypatch):
 def test_a_dark_terminal_keeps_cyan_and_yellow_text(tui, monkeypatch):
     monkeypatch.setenv("COLORFGBG", "15;0")
     scr = tui(["q"])
-    on_the_terminal = {pair[1] for pair in scr.pairs if pair[2] == -1}
-    assert on_the_terminal == {curses.COLOR_CYAN, curses.COLOR_YELLOW}
+    pairs = {n: (fg, bg) for n, fg, bg in scr.pairs}
+    assert pairs[themes.CHROME] == (curses.COLOR_CYAN, -1)
+    assert pairs[themes.MESSAGE] == (curses.COLOR_YELLOW, -1)
 
 
 @pytest.mark.parametrize(
@@ -1757,8 +1758,11 @@ def test_pairs_past_the_terminals_limit_fall_back(tui):
     # the four-colour deck goes back to red and black
     assert ui.CP(themes.DIAMOND_FACE) == ui.CP(themes.FACE_RED)
     assert ui.CP(themes.CLUB_FACE) == ui.CP(themes.FACE_BLACK)
+    # the code skin's comments look like its line numbers
+    assert ui.CP(themes.COMMENT) == ui.CP(themes.CHROME)
     # and the terminal's own colours, for a pair with nothing to stand in
-    assert all(ui.CP(n) == 0 for n in range(10, 14))
+    for n in (themes.KEYWORD, themes.STRING, themes.NUMBER):
+        assert ui.CP(n) == 0
 
 
 def test_the_four_colour_deck_on_a_terminal_with_too_few_pairs(tui):

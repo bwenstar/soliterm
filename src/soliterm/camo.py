@@ -11,9 +11,11 @@ prints a screenful. Themes: build, test, docker, logs, mixed.
 
 from __future__ import annotations
 
+import keyword
 import os
 import platform
 import random
+import re
 import sys
 import time
 from collections.abc import Iterator
@@ -339,3 +341,29 @@ def code_lines(n: int = 80, seed=None) -> list[str]:
             "",
         ]
     return lines[:n]
+
+
+# what the code skin colours: a comment, a string, a number, or a word that
+# is a keyword or a decorator
+_TOKEN = re.compile(
+    r"(?P<comment>#.*)"
+    r"|(?P<string>\"[^\"]*\"|'[^']*')"
+    r"|(?P<number>\b\d+(?:\.\d+)?\b)"
+    r"|(?P<word>@?[A-Za-z_]\w*)"
+)
+_KEYWORDS = frozenset(keyword.kwlist)  # True, False and None among them
+
+
+def code_tokens(line: str) -> list[tuple[int, int, str]]:
+    """Where a line of code_lines() source has its keywords, strings,
+    numbers and comment, as (start, end, kind) in order. A decorator counts
+    as a keyword; any other name is left plain, and so is left out."""
+    spans = []
+    for m in _TOKEN.finditer(line):
+        kind = m.lastgroup or ""
+        if kind == "word":
+            if not (m.group().startswith("@") or m.group() in _KEYWORDS):
+                continue
+            kind = "keyword"
+        spans.append((m.start(), m.end(), kind))
+    return spans

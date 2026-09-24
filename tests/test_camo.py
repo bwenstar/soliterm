@@ -135,3 +135,37 @@ def test_the_test_run_banner_is_for_this_python(monkeypatch):
     assert banner and banner[0].startswith(
         f"platform darwin -- Python {platform.python_version()}, "
     )
+
+
+# -- the code skin's syntax colours ----------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "line, spans",
+    [
+        pytest.param(
+            '    return "x" + 3  # done',
+            [(4, 10, "keyword"), (11, 14, "string"), (17, 18, "number"), (20, 26, "comment")],
+            id="every kind",
+        ),
+        pytest.param('x = "#1"', [(4, 8, "string")], id="a hash inside a string"),
+        pytest.param("k2 = v10", [], id="digits in a name"),
+        pytest.param("n = 0.5", [(4, 7, "number")], id="a decimal"),
+        pytest.param("@dataclass", [(0, 10, "keyword")], id="a decorator"),
+        pytest.param("", [], id="a blank line"),
+    ],
+)
+def test_code_tokens(line, spans):
+    assert camo.code_tokens(line) == spans
+
+
+def test_every_code_line_splits_into_ordered_spans_inside_it():
+    kinds = set()
+    for line in camo.code_lines(200, seed=1):
+        spans = camo.code_tokens(line)
+        end = 0
+        for start, stop, kind in spans:
+            assert end <= start < stop <= len(line), line
+            end = stop
+            kinds.add(kind)
+    assert kinds == {"keyword", "string", "number"}  # the source has no comments

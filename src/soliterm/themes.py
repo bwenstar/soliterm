@@ -22,12 +22,26 @@ MESSAGE = 6  # the message line and headings
 BACK = 7  # a face-down card
 RED_SELECTED = 8  # a red card in the run picked up
 HINT = 9  # a hinted card
+KEYWORD = 10  # the code skin's source
+STRING = 11
+NUMBER = 12
+COMMENT = 13  # and the notes the code skin writes as comments
 DIAMOND_FACE = 14  # a diamond; red unless the four-colour deck is on
 CLUB_FACE = 15  # a club; black unless the four-colour deck is on
 
-# the pair drawn instead of one a terminal has no room for; any other is
-# drawn in the terminal's own colours, pair 0
-FALLBACK = {DIAMOND_FACE: FACE_RED, CLUB_FACE: FACE_BLACK}
+# the kinds camo.code_tokens() finds, and the pair each is drawn in
+SYNTAX = {"keyword": KEYWORD, "string": STRING, "number": NUMBER, "comment": COMMENT}
+
+# the pair drawn instead of one a terminal has no room for (0 is the
+# terminal's own colours)
+FALLBACK = {
+    KEYWORD: 0,
+    STRING: 0,
+    NUMBER: 0,
+    COMMENT: CHROME,
+    DIAMOND_FACE: FACE_RED,
+    CLUB_FACE: FACE_BLACK,
+}
 
 # runtime aliases, so no X | Y before Python 3.10
 Colour = Union[int, tuple[int, int]]  # one colour, or (on 256 colours, on fewer)
@@ -55,6 +69,10 @@ CLASSIC = Theme(
         BACK: (WHITE, BLUE),
         RED_SELECTED: (WHITE, GREEN),
         HINT: (BLACK, CYAN),
+        KEYWORD: (MAGENTA, DEFAULT),
+        STRING: (GREEN, DEFAULT),
+        NUMBER: (YELLOW, DEFAULT),
+        COMMENT: (CYAN, DEFAULT),
         # the four-colour deck: orange diamonds and green clubs, and blue
         # diamonds on 8 colours, which have no orange
         DIAMOND_FACE: ((166, BLUE), WHITE),
@@ -64,6 +82,8 @@ CLASSIC = Theme(
     {
         CHROME: (BLUE, DEFAULT),
         MESSAGE: (MAGENTA, DEFAULT),
+        NUMBER: (RED, DEFAULT),
+        COMMENT: (BLUE, DEFAULT),
     },
 )
 
@@ -82,6 +102,10 @@ DARK = Theme(
         BACK: ((231, WHITE), (24, BLUE)),
         RED_SELECTED: ((231, WHITE), (28, GREEN)),
         HINT: ((16, BLACK), (37, CYAN)),
+        KEYWORD: ((176, MAGENTA), DEFAULT),
+        STRING: ((114, GREEN), DEFAULT),
+        NUMBER: ((173, YELLOW), DEFAULT),
+        COMMENT: ((245, CYAN), DEFAULT),
         DIAMOND_FACE: ((166, BLUE), (254, WHITE)),
         CLUB_FACE: ((28, GREEN), (254, WHITE)),
     },
@@ -100,6 +124,10 @@ LIGHT = Theme(
         BACK: ((231, WHITE), (25, BLUE)),
         RED_SELECTED: ((231, WHITE), (28, GREEN)),
         HINT: ((16, BLACK), (80, CYAN)),
+        KEYWORD: ((90, MAGENTA), DEFAULT),
+        STRING: ((28, GREEN), DEFAULT),
+        NUMBER: ((166, RED), DEFAULT),
+        COMMENT: ((242, BLUE), DEFAULT),
         DIAMOND_FACE: ((166, BLUE), (255, WHITE)),
         CLUB_FACE: ((28, GREEN), (255, WHITE)),
     },
@@ -119,10 +147,19 @@ CONTRAST = Theme(
         BACK: ((231, WHITE), (18, BLUE)),
         RED_SELECTED: ((231, BLACK), (22, GREEN)),
         HINT: ((16, BLACK), (51, CYAN)),
+        KEYWORD: ((213, MAGENTA), DEFAULT),
+        STRING: ((120, GREEN), DEFAULT),
+        NUMBER: ((228, YELLOW), DEFAULT),
+        COMMENT: (DEFAULT, DEFAULT),
         DIAMOND_FACE: ((130, BLUE), (231, WHITE)),
         CLUB_FACE: ((22, GREEN), (231, WHITE)),
     },
-    {},
+    # the code skin's colours, darker for a light background
+    {
+        KEYWORD: ((90, MAGENTA), DEFAULT),
+        STRING: ((22, GREEN), DEFAULT),
+        NUMBER: ((124, RED), DEFAULT),
+    },
 )
 
 THEMES: tuple[Theme, ...] = (CLASSIC, DARK, LIGHT, CONTRAST)

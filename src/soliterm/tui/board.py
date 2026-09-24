@@ -20,6 +20,7 @@ from ..themes import (
     BACK,
     CHROME,
     CLUB_FACE,
+    COMMENT,
     CURSOR,
     DIAMOND_FACE,
     FACE_BLACK,
@@ -29,6 +30,7 @@ from ..themes import (
     MESSAGE,
     RED_SELECTED,
     SELECTED,
+    SYNTAX,
 )
 
 # Geometry of a rendered card. Cards are drawn as multi-line boxes that overlap
@@ -87,6 +89,7 @@ SUIT_FACE = {"H": FACE_RED, "D": DIAMOND_FACE, "S": FACE_BLACK, "C": CLUB_FACE}
 # source it shows around whatever sits in it
 CODE_GUTTER = 5
 _CODE = camo.code_lines(200, seed=1)
+_CODE_TOKENS = [camo.code_tokens(line) for line in _CODE]
 
 
 def draw_code_backdrop(ui, notes: dict[int, str], last_row: int | None = None) -> None:
@@ -101,7 +104,7 @@ def draw_code_backdrop(ui, notes: dict[int, str], last_row: int | None = None) -
     """
     h, w = ui.stdscr.getmaxyx()
     dim = ui.CP(CHROME)
-    code_attr = 0  # source text in the terminal's own colours
+    note = ui.CP(COMMENT)
     # editor-style header / tab bar
     ui.safe_add(
         0,
@@ -115,11 +118,17 @@ def draw_code_backdrop(ui, notes: dict[int, str], last_row: int | None = None) -
         ui.safe_add(screen_y, 0, gutter, dim)
         if screen_y in notes:
             if notes[screen_y]:
-                ui.safe_add(screen_y, CODE_GUTTER, notes[screen_y], dim)
+                ui.safe_add(screen_y, CODE_GUTTER, notes[screen_y], note)
             continue
-        # otherwise fill with a stable line of source
+        # otherwise fill with a stable line of source. It is in the terminal's
+        # own colours, as an editor shows it, with its keywords, strings and
+        # numbers picked out, and never on a background of its own.
         idx = lineno % len(_CODE)
-        ui.safe_add(screen_y, CODE_GUTTER, _CODE[idx], code_attr)
+        line = _CODE[idx]
+        ui.safe_add(screen_y, CODE_GUTTER, line)
+        if ui.has_color:
+            for start, end, kind in _CODE_TOKENS[idx]:
+                ui.safe_add(screen_y, CODE_GUTTER + start, line[start:end], ui.CP(SYNTAX[kind]))
 
 
 def draw_too_small(ui, what: str, need: tuple[int, int], code_skin: bool) -> None:
@@ -682,15 +691,15 @@ class BoardUI:
             # render the status + message as trailing source comments so the
             # bottom of the screen still reads as code. Pad to the screen width
             # so the code background underneath these rows is fully cleared.
-            dim = self.CP(CHROME)
+            comment = self.CP(COMMENT)
             pad = w - self._gutter - 1
             stat = (
                 f"    # score={g.score} moves={g.moves} "
                 f"t={store.fmt_time(elapsed)} deal={g.deal_number}  {g.status}{won}"
             )
-            self.safe_add(sy, self._gutter, stat.ljust(pad)[:pad], dim)
+            self.safe_add(sy, self._gutter, stat.ljust(pad)[:pad], comment)
             note = message or "code-skin mode (c to toggle)"
-            self.safe_add(sy + 1, self._gutter, f"    # {note}".ljust(pad)[:pad], dim)
+            self.safe_add(sy + 1, self._gutter, f"    # {note}".ljust(pad)[:pad], comment)
         else:
             left = (
                 f"Score {g.score}   Time {store.fmt_time(elapsed)}   "

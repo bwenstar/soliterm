@@ -543,21 +543,56 @@ class AttrScr(FakeScr):
                 self.attrs[y][x + i] = attr
 
 
-def test_the_code_skin_source_is_in_the_terminal_colours(monkeypatch):
-    # not on the white of a card face, which shows as bars on a dark screen
-    monkeypatch.setattr(curses, "color_pair", lambda n: n << 8)
+def skinned(has_color):
+    """A code-skinned board drawn on an AttrScr, pair n drawn as n << 8."""
     scr = AttrScr(44, 100)
-    ui = tui.BoardUI(scr, deal("klondike", 1), symbols=False, has_color=True)
+    ui = tui.BoardUI(scr, deal("klondike", 1), symbols=False, has_color=has_color)
     ui.code_skin = True
     ui.draw(None, 1, 0, None, 1.0, "")
-    source = [
+    return ui, scr
+
+
+def source_rows(ui, scr):
+    """(row, line) for the rows of the screen showing the file's source."""
+    rows = [
         (y, line)
         for y, line in enumerate(scr.text().splitlines())
         if line[ui._gutter :].startswith(("import", "def ", "from "))
     ]
-    assert source
-    for y, line in source:
-        assert set(scr.attrs[y][ui._gutter : len(line)]) == {0}
+    assert rows
+    return rows
+
+
+def test_the_code_skin_colours_its_source_on_the_terminal_background(monkeypatch):
+    # never on the white of a card face, which shows as bars on a dark screen
+    monkeypatch.setattr(curses, "color_pair", lambda n: n << 8)
+    ui, scr = skinned(has_color=True)
+    syntax = {n << 8 for n in themes.SYNTAX.values()}
+    for y, line in source_rows(ui, scr):
+        assert set(scr.attrs[y][ui._gutter : len(line)]) <= {0} | syntax, line
+    y, line = next((y, line) for y, line in source_rows(ui, scr) if "import " in line)
+    start = line.index("import")
+    assert set(scr.attrs[y][start : start + 6]) == {themes.KEYWORD << 8}
+    assert scr.attrs[y][start + 6] == 0
+
+
+def test_the_code_skin_has_no_syntax_colour_without_colour():
+    ui, scr = skinned(has_color=False)
+    for y, line in source_rows(ui, scr):
+        assert set(scr.attrs[y][ui._gutter : len(line)]) == {0}, line
+
+
+def test_the_code_skin_notes_are_drawn_as_comments(monkeypatch):
+    monkeypatch.setattr(curses, "color_pair", lambda n: n << 8)
+    ui, scr = skinned(has_color=True)
+    lines = scr.text().splitlines()
+    notes = [y for y, line in enumerate(lines) if line[ui._gutter :].lstrip().startswith("#")]
+    # the board's own, and the score and message under it
+    assert any("board snapshot" in lines[y] for y in notes)
+    assert any("score=" in lines[y] for y in notes)
+    for y in notes:
+        hash_at = lines[y].index("#")
+        assert scr.attrs[y][hash_at] == themes.COMMENT << 8, lines[y]
 
 
 def test_the_code_skin_moves_the_board_into_the_file():
