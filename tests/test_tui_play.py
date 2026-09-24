@@ -1156,6 +1156,14 @@ def test_win_note_on_a_new_best(tui, game_clock):
     assert "Best time   : 0:11  (new best, was 5:00)\n" in banner
 
 
+def test_no_new_best_when_the_best_comes_from_the_games_shared_at_last(tui, game_clock, keyfile):
+    # 0:05 from before sharing, which the first shared win folds in
+    store.record_result("klondike", won=True, seconds=5)
+    keyfile("[klondike.scm]\nStatistic=3;5;300;400;\n")
+    banner = banner_after_a_win_in_11_seconds(tui)
+    assert "Best time   : 0:05\n" in banner
+
+
 @pytest.mark.parametrize("best", [11, 5], ids=["equal", "slower"])
 def test_a_win_equal_to_the_best_gets_no_note(tui, game_clock, best):
     store.record_result("klondike", won=True, seconds=best)

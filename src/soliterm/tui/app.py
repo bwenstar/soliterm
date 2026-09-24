@@ -145,12 +145,16 @@ def skip_mouse_event() -> None:
         pass
 
 
-def win_note(before: dict, after: dict, name: str) -> str:
-    """What the banner adds after the best time when a win is worth a word:
-    the first of this game, or a better time than the best before."""
+def win_note(before: dict, after: dict, seconds: int, name: str) -> str:
+    """What the banner adds after the best time when a win in `seconds` is
+    worth a word: the first of this game, or a better time than the best
+    before. The best after has to be this win's own: the first win shared
+    with AisleRiot brings in the games from before sharing, and a better
+    time among them."""
     if after["wins"] == 1:
         return f"  (your first {name} win!)"
-    if before["best"] and after["best"] < before["best"]:
+    secs = max(1, seconds)  # as the statistics keep a win's time
+    if before["best"] and after["best"] == secs < before["best"]:
         return f"  (new best, was {store.fmt_time(before['best'])})"
     return ""
 
@@ -1051,7 +1055,7 @@ class App:
         if won and not self.recorded:
             before = store.get_stat(self.key)
             after = self.count(True, seconds)
-            note = win_note(before, after, self.game.gamedef.name)
+            note = win_note(before, after, seconds, self.game.gamedef.name)
             # counted first, so Ctrl-C while the cards fly keeps the win
             self.win_cascade()
         # left set if Ctrl-C comes, for play() to see as it goes
