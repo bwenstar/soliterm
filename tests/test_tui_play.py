@@ -19,7 +19,7 @@ import pytest
 
 import soliterm.tui
 from soliterm import aisleriot as ar
-from soliterm import cli, deals, engine, history, saves, store
+from soliterm import cli, deals, engine, history, saves, store, themes
 from soliterm.deals import Deal
 from soliterm.engine import Card
 from soliterm.tui import cascade
@@ -158,6 +158,7 @@ def tui(monkeypatch):
         h=40,
         w=120,
         start=None,
+        colours=8,
         **kwargs,
     ):
         scr = ScriptedScr(h, w, keys, uis)
@@ -166,6 +167,8 @@ def tui(monkeypatch):
         monkeypatch.setattr(curses, "mouseinterval", intervals.append)
         monkeypatch.setattr(curses, "has_colors", lambda: color_capable)
         monkeypatch.setattr(curses, "start_color", lambda: None)
+        # curses only has these once start_color has run
+        monkeypatch.setattr(curses, "COLORS", colours, raising=False)
         monkeypatch.setattr(curses, "init_pair", lambda *a: pairs.append(a))
         monkeypatch.setattr(curses, "color_pair", lambda n: n << 8)
         monkeypatch.setattr(curses, "getmouse", lambda: scr.mouse)
@@ -1676,6 +1679,36 @@ def test_classic_draws_the_pairs_1_0_0_drew(tui, monkeypatch, colorfgbg, chrome,
         (8, curses.COLOR_WHITE, curses.COLOR_GREEN),
         (9, curses.COLOR_BLACK, curses.COLOR_CYAN),
     ]
+
+
+def pairs_on(tui, monkeypatch, colorfgbg, **kwargs):
+    """The init_pair calls of a session on a terminal that says colorfgbg."""
+    monkeypatch.setenv("COLORFGBG", colorfgbg)
+    scr = tui(["q"], **kwargs)
+    pairs = list(scr.pairs)
+    scr.pairs.clear()  # the next session starts its own list
+    return pairs
+
+
+@pytest.mark.parametrize("colours", [8, 256])
+@pytest.mark.parametrize("name", ["dark", "light"])
+def test_dark_and_light_ignore_a_light_background(tui, monkeypatch, name, colours):
+    theme = themes.by_name(name)
+    assert theme.name == name
+    on_dark = pairs_on(tui, monkeypatch, "15;0", theme=name, colours=colours)
+    on_light = pairs_on(tui, monkeypatch, "0;15", theme=name, colours=colours)
+    assert on_dark == on_light == themes.pair_colours(theme, colours)
+
+
+@pytest.mark.parametrize("colours", [8, 256])
+@pytest.mark.parametrize("name", ["classic", "contrast"])
+def test_classic_and_contrast_follow_a_light_background(tui, monkeypatch, name, colours):
+    theme = themes.by_name(name)
+    assert theme.name == name
+    on_dark = pairs_on(tui, monkeypatch, "15;0", theme=name, colours=colours)
+    on_light = pairs_on(tui, monkeypatch, "0;15", theme=name, colours=colours)
+    assert on_dark == themes.pair_colours(theme, colours, light=False)
+    assert on_light == themes.pair_colours(theme, colours, light=True)
 
 
 def test_a_hinted_card_has_a_background_of_its_own(tui):

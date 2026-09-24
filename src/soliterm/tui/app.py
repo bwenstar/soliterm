@@ -187,6 +187,7 @@ class App:
         color: bool | None = None,
         symbols: bool | None = None,
         animation: bool | None = None,
+        theme: str | None = None,
     ):
         self.stdscr = stdscr
         # the game to go straight into, a key or a Deal, or None for the menu
@@ -211,7 +212,7 @@ class App:
         # "show colour" flag the renderer reads, and flips on toggle.
         self.color_capable = False
         self.has_color = False
-        self.theme = themes.CLASSIC
+        self.theme = themes.by_name(theme)
         # the terminal says its background is light, so the theme may want
         # darker text; and whether -1, that background, can be used at all
         self.light = light_background()

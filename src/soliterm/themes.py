@@ -57,7 +57,60 @@ CLASSIC = Theme(
     },
 )
 
-THEMES: tuple[Theme, ...] = (CLASSIC,)
+# dark and light are tuned for 256 colours and are classic on 8. They keep
+# to their own background whatever the terminal says, so either one puts
+# right a terminal that says the wrong thing, or says nothing.
+DARK = Theme(
+    "dark",
+    {
+        FACE_RED: ((160, RED), (254, WHITE)),
+        FACE_BLACK: ((16, BLACK), (254, WHITE)),
+        SELECTED: ((16, BLACK), (28, GREEN)),
+        CHROME: ((110, CYAN), DEFAULT),
+        CURSOR: ((16, BLACK), (214, YELLOW)),
+        MESSAGE: ((179, YELLOW), DEFAULT),
+        BACK: ((231, WHITE), (24, BLUE)),
+        RED_SELECTED: ((231, WHITE), (28, GREEN)),
+        HINT: ((16, BLACK), (37, CYAN)),
+    },
+    {},
+)
+
+LIGHT = Theme(
+    "light",
+    {
+        FACE_RED: ((160, RED), (255, WHITE)),
+        FACE_BLACK: ((16, BLACK), (255, WHITE)),
+        SELECTED: ((16, BLACK), (28, GREEN)),
+        CHROME: ((25, BLUE), DEFAULT),
+        CURSOR: ((16, BLACK), (220, YELLOW)),
+        MESSAGE: ((130, MAGENTA), DEFAULT),
+        BACK: ((231, WHITE), (25, BLUE)),
+        RED_SELECTED: ((231, WHITE), (28, GREEN)),
+        HINT: ((16, BLACK), (80, CYAN)),
+    },
+    {},
+)
+
+# the text in the terminal's own colours, and the cards as stark as can be
+CONTRAST = Theme(
+    "contrast",
+    {
+        FACE_RED: ((124, RED), (231, WHITE)),
+        FACE_BLACK: ((16, BLACK), (231, WHITE)),
+        SELECTED: ((231, BLACK), (22, GREEN)),
+        CHROME: (DEFAULT, DEFAULT),
+        CURSOR: ((16, BLACK), (226, YELLOW)),
+        MESSAGE: (DEFAULT, DEFAULT),
+        BACK: ((231, WHITE), (18, BLUE)),
+        RED_SELECTED: ((231, BLACK), (22, GREEN)),
+        HINT: ((16, BLACK), (51, CYAN)),
+    },
+    {},
+)
+
+THEMES: tuple[Theme, ...] = (CLASSIC, DARK, LIGHT, CONTRAST)
+NAMES: tuple[str, ...] = tuple(t.name for t in THEMES)
 _BY_NAME = {t.name: t for t in THEMES}
 
 
@@ -65,6 +118,11 @@ def by_name(name: str | None) -> Theme:
     """The theme called `name`; classic for None, or for a name this
     version doesn't have (a newer version's theme, a hand edit)."""
     return _BY_NAME.get(name or "", CLASSIC)
+
+
+def next_theme(theme: Theme) -> Theme:
+    """The theme t moves on to, round to the first after the last."""
+    return THEMES[(NAMES.index(theme.name) + 1) % len(THEMES)]
 
 
 def pick(colour: Colour, colours: int) -> int:
