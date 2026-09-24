@@ -136,11 +136,13 @@ so stk#0 is 0, fnd#4 is 4 and #9 is 9:
 
 def _hint_count(g: Solitaire, src: int, dst: int) -> int:
     """How many cards the hinted move from src to dst lifts."""
-    mv = g.best_move()
+    # the hint may be a setup move rather than best_move(), and that can
+    # lift fewer cards than a bare "src dst" would
+    mv = g.hint_move()
     if mv is not None and mv[:2] == (src, dst):
         return mv[2]
-    # not the engine's best move: the longest run that lands, as a bare
-    # "src dst" would pick
+    # not the hinted move: the longest run that lands, as a bare "src dst"
+    # would pick
     for n in range(g.default_pickup(src), 0, -1):
         sim = g.clone()
         if sim.attempt_move(src, dst, n):

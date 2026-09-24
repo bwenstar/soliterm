@@ -127,6 +127,23 @@ def test_typing_a_hint_back_makes_that_move(key, seed):
             assert len(g.cards(dst)) > before, msg
 
 
+def test_typing_a_setup_hint_back_moves_just_the_cards_it_names():
+    # 34 hints into this Yukon deal the hint is to move K♣ alone into an
+    # empty column, which scores nothing itself but sets up the next move;
+    # a bare "7 5" would take the whole pile from the K♠ above it instead
+    g = deal("yukon", 8)
+    for _ in range(34):
+        g.attempt_move(*g.hint_move())
+    src, dst, n = g.hint_move()
+    assert g.best_move() is None and n < g.default_pickup(src)
+    want = g.clone()
+    want.attempt_move(src, dst, n)
+    msg = textmode._hint_message(g)
+    ok, out = textmode.apply_text_command(g, typed(msg))
+    assert ok, f"{msg!r} -> {out!r}"
+    assert board_state(g) == board_state(want), msg
+
+
 def test_a_move_without_a_count_lifts_as_much_as_will_land():
     g = deal("klondike", 1)
     clear_board(g)
