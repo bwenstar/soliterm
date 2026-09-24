@@ -244,3 +244,6 @@ Some tests are worth knowing about before you change the engine:
   full-screen game on a fake window.
 - [`tests/test_keybindings_doc.py`](../tests/test_keybindings_doc.py)
   fails when [keybindings.md](keybindings.md) no longer matches `KEYMAP`.
+
+[adding-a-game.md](adding-a-game.md) walks through a new game from the
+first line to a passing suite.

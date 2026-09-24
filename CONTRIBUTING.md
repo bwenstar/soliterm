@@ -137,40 +137,27 @@ separate commits. That keeps review easy and makes `git bisect` useful.
 
 ## Adding a game
 
-Each game is one module in `src/soliterm/engine/games/`.
+[docs/adding-a-game.md](docs/adding-a-game.md) walks through adding one,
+with a worked example. In short:
 
-1. Create `src/soliterm/engine/games/<key>.py` with a subclass of `GameDef`
-   from `soliterm.engine.gamedef`. Set `key`, `name` and `blurb`, then fill
-   in the callbacks the game needs: at least `deal`, `can_pickup`,
-   `can_drop` and `is_won`, and usually `on_click`, `autoplay`, `status`
-   and options as well. The existing games are the best reference;
-   `golf.py` and `freecell.py` are short ones to start from.
-2. Register it in `src/soliterm/engine/games/__init__.py` by adding the
-   class to `GAMES` and its key to `GAME_ORDER`, which is the order of the
-   menu and of `--list`. Import the class in `src/soliterm/engine/__init__.py`
-   too and add it to `__all__`, as the other games are.
-3. If GNOME AisleRiot has the game, add an entry to `GAME_TO_SECTION` in
-   `src/soliterm/aisleriot.py` that maps your key to AisleRiot's section
-   name, so the statistics are shared. If AisleRiot doesn't have it, leave
-   it out and the stats stay in Soliterm's own file.
-4. Add the number of cards in a full deal to `EXPECTED_CARDS` in
-   `tests/helpers.py`. After that, `tests/test_conformance.py` picks the
-   game up by itself and runs it, with every combination of its options,
-   through the rules every game has to follow: the deal has every card,
-   a deal number always deals the same hand, random play never loses a card,
-   undo and redo replay exactly, every hint is a legal move, and so on.
-   The other tests that loop over `GAME_ORDER` cover it too. Add a test
-   file of your own for the rules that are particular to the game.
-
-   Then pin the deal. Once it's final, add the game's row to `DEALS` in
-   `tests/test_conformance.py`: the `deal_digest` of deals 1 and 2, made
-   with `deal` from `tests/helpers.py`. Nothing checks a game that has no
-   row, so a later change could quietly make every deal number and share
-   code for it deal a different hand.
-5. Add a row to the games table in `README.md`.
-6. Write `docs/games/<key>.md` in the same sections as the others (the
-   deal, goal, moves, scoring, options and tips), and add it to the table
-   in `docs/games/README.md`.
+1. Write `src/soliterm/engine/games/<key>.py`, a subclass of `GameDef`
+   that plays the game by AisleRiot's rules.
+2. Add it to `GAMES` and `GAME_ORDER` in
+   `src/soliterm/engine/games/__init__.py`, and import it in
+   `src/soliterm/engine/__init__.py` and add it to `__all__` there.
+3. If AisleRiot has the game, map the key to AisleRiot's section for it
+   in `GAME_TO_SECTION` in `src/soliterm/aisleriot.py`, and add the pair
+   to `NEW_SECTIONS` in `tests/test_aisleriot_sync.py`.
+4. Add its number of cards to `EXPECTED_CARDS` in `tests/helpers.py`, and
+   if it has no foundations, its key to the list in
+   `test_finish_scores_like_the_moves_one_by_one`. Then
+   `python -m pytest tests/test_conformance.py -k <key>` runs it through
+   the rules every game keeps.
+5. Once the deal is final, pin deals 1 and 2 in `DEALS` in
+   `tests/test_conformance.py`.
+6. Write `tests/test_<key>.py` for the rules that are the game's own.
+7. Write `docs/games/<key>.md`, add a row to the tables in
+   `docs/games/README.md` and `README.md`, and a line to the changelog.
 
 ## The key reference
 
