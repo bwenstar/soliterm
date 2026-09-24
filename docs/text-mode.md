@@ -155,7 +155,7 @@ no slot 99 (slots are 0-12)
   this game. `cc 9` double-clicks slot 9, which usually sends its top
   card up to a foundation. In Golf and Triple Peaks it plays the card to
   the waste instead. When a click does nothing it says so, as in
-  `clicking #5 does nothing`.
+  `clicking fnd#5 does nothing`.
 - `f 12` sends the top card of slot 12 up to its foundation, or says
   `no foundation move from #12`. Golf and Triple Peaks have no
   foundations, so there it plays the card to the waste as `cc` does, or
