@@ -104,6 +104,15 @@ def light_background() -> bool:
     return os.environ.get("COLORFGBG", "").split(";")[-1] in ("7", "15")
 
 
+def skip_mouse_event() -> None:
+    """Take a mouse event the screen has no use for off ncurses' queue,
+    where the next getmouse, on another screen, would find it."""
+    try:
+        curses.getmouse()
+    except curses.error:
+        pass
+
+
 def hides_the_board(screen):
     """Stop the game clock while the screen a method shows is up."""
     @functools.wraps(screen)
@@ -277,10 +286,7 @@ class App:
                 or PLAY_ACTIONS.get(k) == "boss"):
             return k
         if k == curses.KEY_MOUSE:
-            try:
-                curses.getmouse()         # take the click off the queue
-            except curses.error:
-                pass
+            skip_mouse_event()
         return -1
 
     def wait_for_key(self, draw: Callable[[], None]) -> int:
@@ -294,10 +300,7 @@ class App:
             draw()
             k = self.page_key()
             if k == curses.KEY_MOUSE:
-                try:
-                    curses.getmouse()
-                except curses.error:
-                    pass
+                skip_mouse_event()
             elif self.boss_key(k):
                 continue
             elif k not in (-1, curses.KEY_RESIZE):
@@ -447,7 +450,9 @@ class App:
                 continue
             okey, label, values = spec[sel]
             cur = opts.get(okey, values[0])
-            if k in (curses.KEY_UP, ord("k")):
+            if k == curses.KEY_MOUSE:
+                skip_mouse_event()
+            elif k in (curses.KEY_UP, ord("k")):
                 sel = (sel - 1) % len(spec)
             elif k in (curses.KEY_DOWN, ord("j")):
                 sel = (sel + 1) % len(spec)
@@ -473,9 +478,11 @@ class App:
             k = self.page_key()
             if self.boss_key(k):
                 continue
-            if k in (ord("y"), ord("Y"), curses.KEY_ENTER, 10, 13):
+            if k == curses.KEY_MOUSE:
+                skip_mouse_event()
+            elif k in (ord("y"), ord("Y"), curses.KEY_ENTER, 10, 13):
                 return True
-            if k in (ord("n"), ord("N"), ord("q"), ord("Q"), 27):
+            elif k in (ord("n"), ord("N"), ord("q"), ord("Q"), 27):
                 return False
 
     # ---- help overlay ---- #

@@ -159,6 +159,16 @@ def test_a_hint_with_nothing_to_suggest_says_what_the_game_says(monkeypatch):
     assert app.message == "nothing helps"
 
 
+def test_the_dialogs_take_a_click_off_the_queue(monkeypatch):
+    # left there, ncurses hands it to the next getmouse on the board
+    taken = []
+    monkeypatch.setattr(curses, "getmouse", lambda: taken.append(1) or (0, 1, 1, 0, 0))
+    app = App(KeyScr([curses.KEY_MOUSE, "n", curses.KEY_MOUSE, ENTER]))
+    assert app.confirm("Give up this game?") is False
+    assert app.options_screen("klondike", {}) is not None
+    assert len(taken) == 2
+
+
 def test_an_illegal_drop_says_so_and_changes_nothing():
     app, a, b = klondike_app([up(5, "H")], [up(4, "H")])
     before = app.game.serialize()
