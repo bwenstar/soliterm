@@ -683,3 +683,8 @@ def percentage(stat: dict) -> float | None:
 def fmt_time(seconds: float) -> str:
     seconds = int(seconds)
     return f"{seconds // 60:d}:{seconds % 60:02d}"
+
+
+def moves_text(n: int) -> str:
+    """A count of moves as it reads in a sentence: 1 move, 2 moves."""
+    return "1 move" if n == 1 else f"{n} moves"

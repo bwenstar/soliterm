@@ -325,6 +325,21 @@ def test_a_win_is_timed_from_its_own_deal(again, total, secs, shown, monkeypatch
     assert f"in {store.fmt_time(shown)} " in capsys.readouterr().out
 
 
+@pytest.mark.parametrize(
+    "n,text", [(0, "0 moves"), (1, "1 move"), (2, "2 moves"), (31, "31 moves")]
+)
+def test_moves_text(n, text):
+    assert store.moves_text(n) == text
+
+
+def test_a_win_in_one_move_says_1_move(capsys):
+    g = deal("klondike", 1)
+    script = io.StringIO(f"f {one_card_from_won(g)}\n")
+    assert textmode.run_text(g, False, "klondike", stream=script) == 0
+    lines = capsys.readouterr().out.splitlines()
+    assert any(re.fullmatch(r"Score \d+ in \d+:\d\d \(1 move\)\.", line) for line in lines)
+
+
 @pytest.mark.parametrize("before,lost", [(["d\n"], 1), (["p\n"], 0)])
 def test_ctrl_c_leaves_quietly_and_counts_like_quitting(before, lost, capsys):
     def script():

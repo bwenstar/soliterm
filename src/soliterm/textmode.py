@@ -338,7 +338,10 @@ def run_text(
                 secs = seconds()
                 store.record_result(game_key, True, secs)
                 print("Congratulations - you won!", file=out)
-                print(f"Score {g.score} in {store.fmt_time(secs)} ({g.moves} moves).", file=out)
+                print(
+                    f"Score {g.score} in {store.fmt_time(secs)} ({store.moves_text(g.moves)}).",
+                    file=out,
+                )
                 return 0
         give_up()  # the input ran out mid-game
         return 0
