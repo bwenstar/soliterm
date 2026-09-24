@@ -698,9 +698,10 @@ def test_restarting_the_deal_does_not_count_it(tui):
     assert saves.waiting() == {}
 
 
-def near_won(number=1, **options):
-    """Klondike with A-Q home in every suit and the four kings on the tableau."""
-    g = deal("klondike", number, **options)
+def near_won(number=1, key="klondike", **options):
+    """Klondike (or `key`) with A-Q home in every suit and the four kings on
+    the tableau."""
+    g = deal(key, number, **options)
     fids, tids = g.ids_of("foundation"), g.ids_of("tableau")
     clear_board(g)
     for i, suit in enumerate("SHDC"):
@@ -818,8 +819,8 @@ def test_a_win_after_taking_back_the_dead_end_counts_as_a_win(tui):
     assert store.get_stat("golf")["total"] == 1
 
 
-# the banner's choices sit on rows 13-15 from column 6, marker included
-BANNER_ROW = {"same": 13, "new": 14, "menu": 15}
+# the banner's choices sit on rows 14-16 from column 6, marker included
+BANNER_ROW = {"same": 14, "new": 15, "menu": 16}
 
 
 def test_the_banner_ignores_the_pointer_the_wheel_and_other_buttons(tui):
@@ -850,7 +851,7 @@ def test_a_left_click_on_a_banner_choice_takes_it(tui, bstate):
 
 def test_the_banner_keeps_its_rows(tui, game_clock):
     won = tui(["a", "m"], game=near_won()).frames[1].split("\n")
-    assert won[2:14] == [
+    assert won[2:15] == [
         "      *** YOU WIN! ***",
         "",
         "      Game        : Klondike",
@@ -861,17 +862,48 @@ def test_the_banner_keeps_its_rows(tui, game_clock):
         "",
         "      Wins/Total  : 1/1  (100%)",
         "      Best time   : 0:01",
+        "",  # no streak on a first win
         "",
         "      > Replay this deal",
     ]
-    # with no best time its row stays empty, so the choices don't move up
+    # with no best time or streak their rows stay empty, so the choices
+    # don't move up
     stuck = tui(["f", "m"], start_key="golf", game=one_move_left()).frames[1].split("\n")
-    assert stuck[10:14] == ["      Wins/Total  : 0/1  (0%)", "", "", "      > Undo move"]
+    assert stuck[10:15] == ["      Wins/Total  : 0/1  (0%)", "", "", "", "      > Undo move"]
 
 
 def test_the_banner_shows_the_deal_and_share_code(tui):
     banner = tui(["a", "m"], game=near_won(48213, draw=3)).frames[1]
     assert "      Deal        : 48213   share code klondike:d3:48213\n" in banner
+
+
+def played_before(key, results):
+    """Games of `key` won (True) or lost before the one about to be played."""
+    g = deal(key, 1)
+    for won in results:
+        history.record(g, won, 60)
+
+
+@pytest.mark.parametrize(
+    "before, streak",
+    [
+        ([True], "Streak      : 2 wins in a row, your longest yet"),
+        ([True, True, True, False, True], "Streak      : 2 wins in a row (longest 3)"),
+        ([True, False], ""),
+    ],
+    ids=["two in a row", "short of the longest", "one after a loss"],
+)
+def test_the_banner_shows_a_streak_of_two_or_more(tui, before, streak):
+    played_before("klondike", before)
+    banner = tui(["a", "m"], game=near_won()).frames[1].split("\n")
+    assert banner[12].strip() == streak
+    assert banner[14] == "      > Replay this deal"
+
+
+def test_the_no_moves_banner_shows_no_streak(tui):
+    played_before("golf", [True, True, True])
+    stuck = tui(["f", "m"], start_key="golf", game=one_move_left()).frames[1].split("\n")
+    assert stuck[12] == ""
 
 
 def test_the_banner_choices_follow_its_lines(tui, monkeypatch):
@@ -1141,9 +1173,11 @@ def test_the_release_of_the_click_on_the_menu_does_nothing_on_the_board(tui):
 
 def test_the_release_of_the_click_on_the_banner_does_nothing_on_the_new_deal(tui):
     new = BANNER_ROW["new"]
+    # FreeCell, as its next deal has a card under the choice
     scr = tui(
         ["a", Mouse(new, 12, curses.BUTTON1_PRESSED), Mouse(new, 12, curses.BUTTON1_RELEASED)],
-        game=near_won(),
+        start_key="freecell",
+        game=near_won(key="freecell"),
     )
     ui = scr.uis[0]
     assert ui.hit_test(new, 12) is not None

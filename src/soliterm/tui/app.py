@@ -1330,11 +1330,12 @@ class App:
     # ---- end of game ---- #
     def banner_lines(self, seconds: int, won: bool, stat: dict) -> list[str]:
         """The rows of the end banner from row 4 down, "" for a blank one.
-        The choices go under the last of them. The best time's row is there
-        even with no best time, so the choices don't move up."""
+        The choices go under the last of them. The rows of the best time and
+        the streak are there even when empty, so the choices don't move up."""
         game = self.game
         pct = store.percentage(stat)
         pcts = "N/A" if pct is None else f"{pct:.0f}%"
+        streak = history.streak_text(self.key) if won else ""
         return [
             f"Game        : {game.gamedef.name}",
             f"Deal        : {game.deal_number}   share code {deals.code_of(game)}",
@@ -1344,6 +1345,7 @@ class App:
             "",
             f"Wins/Total  : {stat['wins']}/{stat['total']}  ({pcts})",
             f"Best time   : {store.fmt_time(stat['best'])}" if stat["best"] else "",
+            f"Streak      : {streak}" if streak else "",
         ]
 
     @hides_the_board

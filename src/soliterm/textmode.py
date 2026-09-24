@@ -347,6 +347,9 @@ def run_text(
                     file=out,
                 )
                 print(f"Share code: {code_of(g)}", file=out)
+                streak = history.streak_text(game_key)
+                if streak:
+                    print(f"{streak}.", file=out)
                 return 0
         give_up()  # the input ran out mid-game
         return 0

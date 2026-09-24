@@ -362,6 +362,27 @@ def test_a_text_win_prints_the_share_code(capsys):
     assert lines[-1] == "Share code: klondike:5"
 
 
+@pytest.mark.parametrize(
+    "before, streak",
+    [
+        ([True], ["2 wins in a row, your longest yet."]),
+        ([True, True, True, False, True], ["2 wins in a row (longest 3)."]),
+        ([], []),
+        ([True, False], []),
+    ],
+    ids=["two in a row", "short of the longest", "a first win", "one after a loss"],
+)
+def test_a_text_win_prints_the_streak(before, streak, capsys):
+    for won in before:
+        history.record(deal("klondike", 1), won, 60)
+    g = deal("klondike", 1)
+    script = io.StringIO(f"f {one_card_from_won(g)}\n")
+    assert textmode.run_text(g, False, "klondike", stream=script) == 0
+    lines = capsys.readouterr().out.splitlines()
+    score = [i for i, line in enumerate(lines) if line.startswith("Score ")]
+    assert lines[score[0] + 1 :] == ["Share code: klondike:1", *streak]
+
+
 def test_text_games_go_in_the_history(capsys):
     play_text("klondike", "d\nq\n")
     g = deal("klondike", 1)

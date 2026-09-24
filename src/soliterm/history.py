@@ -118,6 +118,17 @@ def streaks() -> dict[str, Streak]:
     return found
 
 
+def streak_text(key: str) -> str:
+    """The win streak a game of `key` is on, as the win banner and text mode
+    put it, or "" if it is under two wins."""
+    cur, longest = streaks().get(key, Streak(0, 0))
+    if cur < 2:
+        return ""
+    if cur == longest:
+        return f"{cur} wins in a row, your longest yet"
+    return f"{cur} wins in a row (longest {longest})"
+
+
 def recent(n: int) -> list[dict]:
     """The last n games in the history, newest first."""
     return games()[::-1][:n]
