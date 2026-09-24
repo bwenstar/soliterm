@@ -5,13 +5,13 @@ body:
   - type: markdown
     attributes:
       value: |
-        CONTRIBUTING.md has a section on adding a game if you'd like to
-        write it yourself.
+        If you'd like to write it yourself, docs/adding-a-game.md walks
+        through it, and CONTRIBUTING.md has the checklist.
   - type: input
     id: name
     attributes:
       label: Game name
-      placeholder: Tri Peaks
+      placeholder: Pyramid
     validations:
       required: true
   - type: textarea
