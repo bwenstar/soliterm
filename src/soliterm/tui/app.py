@@ -466,17 +466,19 @@ class App:
                     _, _mx, my, _, bstate = curses.getmouse()
                 except curses.error:
                     continue
+                if not bstate & LEFT_CLICK:
+                    # a release, say of the click on the banner's Back to
+                    # menu, which sits on the row of Quit here
+                    continue
                 idx = my - 4
                 if 0 <= idx < len(GAME_ORDER):
                     sel = idx
-                    if bstate & (curses.BUTTON1_CLICKED | curses.BUTTON1_PRESSED):
-                        picked = items[sel]
+                    picked = items[sel]
                 else:
                     bidx = my - base
                     if 0 <= bidx < len(extra):
                         sel = len(GAME_ORDER) + bidx
-                        if bstate & (curses.BUTTON1_CLICKED | curses.BUTTON1_PRESSED):
-                            picked = items[sel]
+                        picked = items[sel]
             elif k in (curses.KEY_ENTER, 10, 13):
                 picked = items[sel]
             if picked == "__deal__":

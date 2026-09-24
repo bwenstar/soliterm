@@ -1455,6 +1455,24 @@ def test_the_release_of_the_click_on_the_banner_does_nothing_on_the_new_deal(tui
     assert ui.selections[-1] is None
 
 
+def test_the_release_of_the_click_on_back_to_menu_leaves_the_menu_cursor_alone(tui):
+    menu = BANNER_ROW["menu"]  # the row of Quit on the menu
+    scr = tui(
+        [
+            "a",
+            Mouse(menu, 8, curses.BUTTON1_PRESSED),
+            Mouse(menu, 8, curses.BUTTON1_RELEASED),
+            ENTER,
+            "q",
+        ],
+        game=near_won(),
+    )
+    assert "choose a game" in scr.frames[2]
+    assert "> Klondike" in scr.frames[3]
+    assert "> Quit" not in scr.frames[3]
+    assert len(scr.uis) == 2  # Enter played Klondike, not quit
+
+
 def test_the_menu_starts_the_chosen_game_and_remembers_it(tui):
     scr = tui([curses.KEY_DOWN, ENTER, "m", "q"], start_key=None)
     assert scr.rc == 0
