@@ -459,7 +459,7 @@ def _one_game(won: bool, seconds: float) -> dict:
     """A record of one finished game, to add to a stat with _combined().
 
     Best/Worst are winning times only, so a loss adds nothing to them."""
-    secs = max(1, int(round(seconds))) if won else 0
+    secs = max(1, round(seconds)) if won else 0
     return {"wins": int(won), "total": 1, "best": secs, "worst": secs}
 
 
