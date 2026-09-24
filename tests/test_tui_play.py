@@ -157,6 +157,7 @@ def tui(monkeypatch):
         **kwargs,
     ):
         scr = ScriptedScr(h, w, keys, uis)
+        kwargs.setdefault("animation", False)  # a test that wants it says so
         monkeypatch.setattr(curses, "mousemask", lambda mask: masks.append(mask) or (mask, 0))
         monkeypatch.setattr(curses, "mouseinterval", intervals.append)
         monkeypatch.setattr(curses, "has_colors", lambda: color_capable)
@@ -1328,6 +1329,17 @@ def test_the_tui_hears_whether_a_colour_flag_was_given(monkeypatch):
     for argv, color in ([], None), (["--color"], True), (["--no-color"], False):
         cli.main(["--game", "klondike"] + argv)
         assert seen["color"] is color
+
+
+def test_no_animation_reaches_the_tui(monkeypatch):
+    seen = {}
+    monkeypatch.setattr(soliterm.tui, "main", lambda *a, **kw: seen.update(kw) or 0)
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+    monkeypatch.setattr(cli, "_terminal_problem", lambda: None)
+    for argv, animation in ([], None), (["--no-animation"], False):
+        cli.main(["--game", "klondike"] + argv)
+        assert seen["animation"] is animation
 
 
 def pair_of(attr, scr):

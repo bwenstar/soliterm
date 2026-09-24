@@ -90,6 +90,18 @@ def test_the_offer_never_shows_after_a_win():
     assert app.message == "autoplayed 2"
 
 
+def test_animation_off_in_config_or_by_flag(monkeypatch):
+    monkeypatch.setenv("TERM", "xterm")
+    assert App(FakeScr()).animation is True
+    assert App(FakeScr(), animation=False).animation is False
+    store.save_config({**store.load_config(), "animation": False})
+    assert App(FakeScr()).animation is False
+    assert App(FakeScr(), animation=True).animation is True  # the caller's word goes
+    # a dumb terminal can't move a card without drawing the screen again
+    monkeypatch.setenv("TERM", "dumb")
+    assert App(FakeScr(), animation=True).animation is False
+
+
 def test_an_app_needs_no_terminal_to_start_a_game():
     app = App(FakeScr())
     app.start_game("spider")

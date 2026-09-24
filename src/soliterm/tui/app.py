@@ -177,6 +177,7 @@ class App:
         *,
         color: bool | None = None,
         symbols: bool | None = None,
+        animation: bool | None = None,
     ):
         self.stdscr = stdscr
         # the game to go straight into, a key or a Deal, or None for the menu
@@ -189,6 +190,11 @@ class App:
         if symbols is None:
             symbols = bool(self.cfg.get("symbols", True))
         self.symbols = symbols and can_draw_unicode(stdscr)
+        # cards moving on their own (the finish, the win's cascade); None
+        # means the saved setting. A dumb terminal never gets them.
+        if animation is None:
+            animation = bool(self.cfg.get("animation", True))
+        self.animation = animation and os.environ.get("TERM") != "dumb"
         # Separate the terminal's colour CAPABILITY from the player's
         # PREFERENCE so colour can be toggled live (even if launched with
         # --no-color). setup_curses() fills both in; `has_color` is the live

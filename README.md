@@ -34,7 +34,8 @@ PYTHONPATH=src python3 -m soliterm
 ```
 
 Common flags (all three forms): `--game NAME`, `--deal N`, `--list`,
-`--stats`, `--text` (force text mode), `--ascii`, `--color` / `--no-color`.
+`--stats`, `--text` (force text mode), `--ascii`, `--color` / `--no-color`,
+`--no-animation`.
 
 ## Build the distributables
 
@@ -177,6 +178,7 @@ are.
 --draw 1|3        Klondike draw, this run    --suits 1|2|4  Spider suits, this run
 --text            force text mode            --ascii        letter suits S/H/D/C
 --color           force colour in text mode  --no-color     disable colour
+--no-animation    finish and win without animating the cards
 --list            list games and exit        --stats        print statistics
 --reset-stats     clear statistics           --yes          don't ask first
 --no-sync         leave AisleRiot's stats alone this run
@@ -184,7 +186,9 @@ are.
 ```
 
 Colour, code-skin, and other preferences persist in
-`~/.config/soliterm/config.json`. Respects `NO_COLOR`. Statistics are in
+`~/.config/soliterm/config.json`. Set `"animation": false` there to finish
+and win without the cards moving on their own (or pass `--no-animation`
+for one run). Respects `NO_COLOR`. Statistics are in
 `~/.local/share/soliterm/stats.json`, with the saved games in `saves` beside
 it. If you played the game under its old name, the first run copies
 `config.json` and `stats.json` over from the `aisle-cli` folders and leaves

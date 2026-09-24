@@ -235,7 +235,8 @@ def load_config() -> dict:
         #   code_skin  - play wrapped in source (the 'c' toggle)
         #   camo_theme - boss-mode disguise theme
         #   view       - board view: "expanded" cards or "legacy" cells
-        for key in ("color", "code_skin"):
+        #   animation  - cards move on their own: the finish and the win's cascade
+        for key in ("color", "code_skin", "animation"):
             if isinstance(data.get(key), bool):
                 cfg[key] = data[key]
         if isinstance(data.get("camo_theme"), str):

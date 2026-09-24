@@ -109,6 +109,18 @@ def test_json_booleans_still_load():
     assert cfg["color"] is False and cfg["code_skin"] is True
 
 
+def test_animation_is_kept_when_it_is_a_bool():
+    # no toggle saves it: it is only ever there by hand
+    write_config({"animation": "no"})
+    assert "animation" not in store.load_config()
+    write_config({"animation": False})
+    cfg = store.load_config()
+    assert cfg["animation"] is False
+    cfg["color"] = True  # as v saves it
+    store.save_config(cfg)
+    assert store.load_config()["animation"] is False
+
+
 @pytest.mark.parametrize(
     "saved",
     [

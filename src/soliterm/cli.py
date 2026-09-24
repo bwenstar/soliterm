@@ -100,6 +100,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="force coloured suits in text mode (red/black on white)",
     )
     p.add_argument("--no-color", dest="color", action="store_false", help="disable coloured output")
+    p.add_argument(
+        "--no-animation", action="store_true", help="finish and win without animating the cards"
+    )
     once = p.add_mutually_exclusive_group()
     once.add_argument("--list", action="store_true", help="list the games and exit")
     once.add_argument("--stats", action="store_true", help="print statistics and exit")
@@ -420,7 +423,12 @@ def _run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
     if not args.text and sys.stdout.isatty() and sys.stdin.isatty():
         tui, why = _load_tui()
         if tui is not None:
-            return tui.main(start, color=args.color, symbols=symbols)
+            return tui.main(
+                start,
+                color=args.color,
+                symbols=symbols,
+                animation=False if args.no_animation else None,
+            )
         print(f"soliterm: {why}", file=sys.stderr)
 
     # text mode, which keeps games only for someone typing at a terminal:
