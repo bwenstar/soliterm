@@ -305,6 +305,22 @@ def test_text_undo_all_and_redo_all():
     assert "undo all" in textmode.TEXT_HELP and "redo all" in textmode.TEXT_HELP
 
 
+def test_text_undo_all_says_when_a_resumed_game_stops_short_of_the_deal(monkeypatch):
+    # a save keeps only the newest undo steps
+    monkeypatch.setattr(saves, "SAVED_STEPS", 3)
+    g = deal("klondike", 4)
+    for _ in range(5):
+        g.deal()
+    assert saves.keep(g, 42)
+    g, _seconds = saves.take("klondike")
+    assert textmode.apply_text_command(g, "undo all") == (True, "back to the oldest move saved")
+    assert g.moves == 2
+    # back at the deal it says nothing, as before
+    g.new_game()
+    g.deal()
+    assert textmode.apply_text_command(g, "undo all") == (True, "")
+
+
 def test_text_U_still_undoes_one():
     g = deal("golf", 1)
     g.deal()

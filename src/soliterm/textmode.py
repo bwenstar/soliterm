@@ -221,8 +221,11 @@ def apply_text_command(g: Solitaire, cmd: str) -> tuple[bool, str]:
         n = g.finish() or g.autoplay()
         return n > 0, f"autoplayed {n}" if n else "nothing to autoplay"
     if cmd.split() == ["undo", "all"]:
-        n = g.undo_all()
-        return n > 0, "" if n else "nothing to undo"
+        if not g.undo_all():
+            return False, "nothing to undo"
+        # a save keeps only the newest undo steps, and each step back takes
+        # a move off, so a long resumed game stops short of the deal
+        return True, "back to the oldest move saved" if g.moves else ""
     if cmd.split() == ["redo", "all"]:
         n = g.redo_all()
         return n > 0, "" if n else "nothing to redo"
