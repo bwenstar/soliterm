@@ -2,9 +2,11 @@
 migrating a single file.
 """
 
+import io
 import json
 import os
 import shutil
+import sys
 from pathlib import Path
 
 import pytest
@@ -270,6 +272,21 @@ def test_debug_info_says_when_a_file_cant_be_read(debug_info, isolated_home):
     stats_file(isolated_home).mkdir(parents=True)
     path = tilde(".local", "share", "soliterm", "stats.json")
     assert value(debug_info(), "stats").startswith(f"{path} (can't be read (")
+
+
+def test_debug_info_prints_what_the_terminal_cant_show_as_escapes(monkeypatch):
+    monkeypatch.setattr(cli, "_terminal_problem", lambda: None)
+    # a byte the locale couldn't decode, and a letter ASCII can't hold
+    monkeypatch.setenv("TERM_PROGRAM", "caf\udce9")
+    monkeypatch.setenv("COLORTERM", "caf\u00e9")
+    raw = io.BytesIO()
+    out = io.TextIOWrapper(raw, encoding="ascii")
+    monkeypatch.setattr(sys, "stdout", out)
+    assert main(["--debug-info"]) == 0
+    out.flush()
+    text = raw.getvalue().decode("ascii")
+    assert "TERM_PROGRAM=caf\\udce9" in text
+    assert "COLORTERM=caf\\xe9" in text
 
 
 # -- the command line --------------------------------------------------------------------

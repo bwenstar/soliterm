@@ -235,7 +235,7 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.debug_info:
         # before the migration, so the report writes, moves and copies nothing
-        print("\n".join(debuginfo.report(no_sync=args.no_sync)))
+        print(debuginfo.text(args.no_sync, sys.stdout.encoding))
         return 0
     # before anything reads the config or the stats
     migrate.ensure()

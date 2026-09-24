@@ -47,6 +47,15 @@ def report(no_sync: bool = False) -> list[str]:
     ]
 
 
+def text(no_sync: bool = False, encoding: str | None = None) -> str:
+    """The report as one string that `encoding` can always write. A name
+    from the environment or a path that the terminal can't show comes out
+    as a backslash escape, so the report still prints in full."""
+    encoding = encoding or "utf-8"
+    joined = "\n".join(report(no_sync))
+    return joined.encode(encoding, "backslashreplace").decode(encoding)
+
+
 def _tilde(path: str) -> str:
     """`path` with the home folder written as ~, which also keeps the
     player's name out of a public bug report."""
