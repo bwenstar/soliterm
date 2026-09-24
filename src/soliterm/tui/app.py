@@ -847,6 +847,8 @@ class App:
             self.clock.resume(seconds)
             done = self.resume_text({"seconds": seconds, "moves": self.game.moves})
             self.message = f"Resumed your game ({done}). n deals a new hand."
+            if self.game.finish_moves():
+                self.message = FINISH_OFFER  # as after the move that left it so
         elif gone:
             self.message = "Your saved game was picked up somewhere else, so this is a new deal."
         elif listed:

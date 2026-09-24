@@ -772,6 +772,26 @@ def test_the_offer_shows_after_the_move_that_allows_it(tui):
     assert offer not in scr.frames[moved + 1]
 
 
+def test_R_back_to_where_every_card_can_go_up_offers_the_finish(tui):
+    scr = tui(KING_TO_EMPTY + ["U", "R"], game=queen_under_a_king())
+    offer = soliterm.tui.app.FINISH_OFFER
+    moved = len(KING_TO_EMPTY)
+    assert offer not in scr.frames[moved + 1]
+    assert offer in scr.frames[moved + 2]
+
+
+def test_U_back_to_a_deal_where_every_card_can_go_up_offers_the_finish(tui):
+    scr = tui(KING_TO_EMPTY + ["U"], game=near_won())
+    assert soliterm.tui.app.FINISH_OFFER in scr.frames[len(KING_TO_EMPTY) + 1]
+
+
+def test_a_game_resumed_where_every_card_can_go_up_offers_the_finish(tui):
+    tui(KING_TO_EMPTY + ["q"], game=near_won())
+    scr = tui(["a", "m"])
+    assert soliterm.tui.app.FINISH_OFFER in scr.frames[0]
+    assert "YOU WIN!" in scr.frames[1]
+
+
 # -- the finish, played out ------------------------------------------------------------
 
 
