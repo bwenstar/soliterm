@@ -2,7 +2,7 @@
 
 A dependency-free, terminal Solitaire collection, a command-line replica of
 GNOME **AisleRiot** (the `/usr/games/sol` game). Pure Python 3, no third-party
-packages. Plays nine games with a curses TUI (keyboard **and** mouse) or a
+packages. Plays twelve games with a curses TUI (keyboard **and** mouse) or a
 pipe-friendly text mode, and **shares its statistics with the installed GNOME
 AisleRiot** so games played in either program are mirrored in both.
 
@@ -192,7 +192,7 @@ in AisleRiot itself doesn't count towards them, and a game with nothing
 counted here yet shows `N/A`.
 
 `--stats` prints the table and the last ten games you played here.
-`--reset-stats` clears the statistics, AisleRiot's own record of these nine
+`--reset-stats` clears the statistics, AisleRiot's own record of these twelve
 games included (its other games are left untouched), and the history of the
 games played here. It asks you to type `yes` first, or takes `--yes` when
 there is no terminal to ask on, and keeps a copy of what it clears in
@@ -231,7 +231,7 @@ python3 -m pytest
 ```
 
 The tests in `tests/` need pytest (the game itself doesn't). They cover the
-engine, all nine games' rules, scoring, undo / redo, the hint, statistics
+engine, all twelve games' rules, scoring, undo / redo, the hint, statistics
 persistence, AisleRiot sharing, and the camouflage / code-skin / colour
 features. They run against temporary config directories and never touch your
 real AisleRiot data.

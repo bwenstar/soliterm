@@ -1,4 +1,4 @@
-"""Engine basics shared by all nine games: dealing, card conservation, undo
+"""Engine basics shared by every game: dealing, card conservation, undo
 and redo, win detection, the score clamp and end-of-game detection."""
 
 import random
