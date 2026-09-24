@@ -537,7 +537,7 @@ class BoardUI:
                 self._blit_card(sy, sx, card, cw, True, attr)
                 self._register_hit(sy, sx, self.card_h, cw, sid, n - 1)
                 if slot.kind == "stock":
-                    self.safe_add(sy + self.card_h, sx, f" {n:>2}", chrome)
+                    self._draw_stock_count(sy, sx, cw, n, attr)
 
         # status bar
         h, w = self.stdscr.getmaxyx()
@@ -561,6 +561,19 @@ class BoardUI:
             self.safe_add(sy + 1, 2, message[: w - 4],
                           self.CP(6) if self.has_color else 0)
         self.stdscr.refresh()
+
+    def _draw_stock_count(self, sy, sx, cw, n, attr) -> None:
+        """Write how many cards are left on the stock's back. Under the box
+        is the next row's labels, which would write over it."""
+        num = str(n)
+        inner = cw - 2
+        if self.view == "legacy":
+            y, x = sy, sx + 1 + max(0, inner - len(num))
+        else:
+            if len(num) + 2 <= inner:
+                num = f" {num} "
+            y, x = sy + self.card_h - 2, sx + 1 + max(0, (inner - len(num)) // 2)
+        self.safe_add(y, x, num[:inner], attr | curses.A_BOLD)
 
     def _slot_label(self, slot) -> str:
         kindmap = {"stock": "Stock", "waste": "Waste", "foundation": "Fnd",

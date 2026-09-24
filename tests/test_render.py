@@ -105,6 +105,28 @@ def test_klondike_drawing_one_shows_only_the_top_of_the_waste():
     assert clickable(ui, waste) == {1}
 
 
+def box_text(ui, scr, sid):
+    """The screen text inside the box of slot sid's top card."""
+    y, x = ui.slot_origin[sid]
+    lines = scr.text().splitlines()
+    return [lines[y + dy][x:x + ui._cw] for dy in range(ui.card_h)]
+
+
+@pytest.mark.parametrize("view", ["expanded", "legacy"])
+@pytest.mark.parametrize("key", ["canfield", "klondike", "spider"])
+def test_the_stock_count_shows_on_the_stock(key, view):
+    # below it, Canfield's reserve label wrote over it
+    g = deal(key, 1)
+    stock = g.ids_of("stock")[0]
+    n = len(g.cards(stock))
+    ui, scr = draw(g, h=40, w=120, view=view)
+    assert any(str(n) in row for row in box_text(ui, scr, stock))
+    if key == "canfield":
+        reserve = g.ids_of("reserve")[0]
+        y, x = ui.slot_origin[reserve]
+        assert scr.text().splitlines()[y - 1][x:].startswith("Res")
+
+
 # -- squeezing onto the screen ------------------------------------------------------
 
 @pytest.mark.parametrize("h, w", [(24, 100), (24, 110)])
