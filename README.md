@@ -33,9 +33,9 @@ soliterm                           # then just run "soliterm"
 PYTHONPATH=src python3 -m soliterm
 ```
 
-Common flags (all three forms): `--game NAME`, `--deal N`, `--list`,
-`--stats`, `--text` (force text mode), `--ascii`, `--color` / `--no-color`,
-`--theme NAME`, `--no-animation`.
+Common flags (all three forms): `--game NAME`, `--deal N`, `--daily`,
+`--list`, `--stats`, `--text` (force text mode), `--ascii`, `--color` /
+`--no-color`, `--theme NAME`, `--no-animation`.
 
 ## Build the distributables
 
@@ -136,6 +136,24 @@ run without saving them, and start that game if `--game` doesn't name one.
 FreeCell deals use Microsoft FreeCell's numbers, so deal 617 here is deal 617
 there, and 11982 is the one deal among the first 32,000 that can't be won.
 
+### The daily deal
+
+`soliterm --daily` deals today's hand of the game you played last (add
+`--game` for another), and Daily deal on the menu lists every game's. It's
+the same cards for everyone that day, with the standard options. When it
+ends you get a line to paste to friends, with no cards in it:
+
+    Soliterm daily 2026-09-24, Klondike: won in 3:12, 87 moves
+
+Today is your computer's date, and nothing goes online. A daily is deal
+YYYYMMDD, so `--deal klondike:20260924` plays that day's cards again
+whenever you like.
+
+A daily you leave unfinished is kept like any other game, and its row on the
+menu reads `Resume your daily game`. Picking the game, or that day's daily
+again, carries on with it. A new day's daily leaves it waiting, as a deal you
+chose does.
+
 ## Text mode
 
 `--text` (or any non-TTY / piped stdin) runs a scriptable REPL. It is also
@@ -204,6 +222,7 @@ are.
 
 ```
 --game NAME       start a specific game      --deal N|CODE  a numbered or shared deal
+--daily           today's daily deal, the same for everyone
 --draw 1|3        Klondike draw, this run    --suits 1|2|4  Spider suits, this run
 --text            force text mode            --ascii        letter suits S/H/D/C
 --color           force colour in text mode  --no-color     disable colour
