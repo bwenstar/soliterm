@@ -583,9 +583,11 @@ class App:
         safe_add(1, 4, "Statistics", CP(CHROME) | curses.A_BOLD)
         safe_add(2, 4, "Wins / Total / Percentage / Best & Worst winning time", CP(CHROME))
         if store.syncing():
-            safe_add(
-                3, 4, "(shared with GNOME AisleRiot - sol)", CP(MESSAGE) if self.has_color else 0
-            )
+            if store.sharing_waits():
+                shared = "(will be shared with GNOME AisleRiot once sol has run)"
+            else:
+                shared = "(shared with GNOME AisleRiot - sol)"
+            safe_add(3, 4, shared, CP(MESSAGE) if self.has_color else 0)
         y = 4
         header = (
             f"  {'Game':<16}{'Wins':>6}{'Total':>7}{'Win%':>7}{'Best':>8}{'Worst':>8}"

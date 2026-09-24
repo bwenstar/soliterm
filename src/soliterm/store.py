@@ -422,6 +422,12 @@ def syncing() -> bool:
     return bool(cfg.get("sync_aisleriot", True)) and ar.available()
 
 
+def sharing_waits() -> bool:
+    """True while sharing is on but AisleRiot has yet to be run and make the
+    folder its keyfile goes in, so results wait here until it has."""
+    return syncing() and not os.path.isdir(ar.gnome_games_dir())
+
+
 def _unreadable_keyfile() -> None:
     _notice(
         f"can't read {ar.keyfile_path()}, so statistics are not shared "

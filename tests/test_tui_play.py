@@ -2644,6 +2644,20 @@ def test_the_stats_screen_shows_streak_columns(tui):
     assert "      Spider               0      0    N/A     N/A     N/A     N/A     N/A" in lines
 
 
+def test_the_stats_screen_says_they_are_shared_with_aisleriot(tui, keyfile):
+    keyfile("")
+    assert "(shared with GNOME AisleRiot - sol)" in tui(["s", "z"]).frames[1]
+
+
+def test_the_stats_screen_says_sharing_waits_for_aisleriot_to_run(tui, monkeypatch):
+    # sol is installed but has never been run, so its keyfile has no folder
+    # to go in yet and results wait here
+    monkeypatch.setattr(ar, "installed", lambda: True)
+    frame = tui(["s", "z"]).frames[1]
+    assert "(will be shared with GNOME AisleRiot once sol has run)" in frame
+    assert "(shared with" not in frame
+
+
 def test_the_help_screen_lists_the_toggles(tui):
     scr = tui(["?", "z"])
     assert "toggle colour" in scr.frames[1]
