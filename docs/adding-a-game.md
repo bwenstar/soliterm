@@ -482,8 +482,13 @@ same way.
   paragraph on what the game is like, then The deal, Goal, Moves,
   Scoring, Options and Tips. Say where it differs from games a player may
   know already, and give the scoring AisleRiot uses.
-- A row in the table in [docs/games/README.md](games/README.md).
+- A row in the table in [docs/games/README.md](games/README.md), in menu
+  order.
 - A row in the games table in [README.md](../README.md).
+- Its name in the Game list of the bug report form,
+  [.github/ISSUE_TEMPLATE/bug_report.yml](../.github/ISSUE_TEMPLATE/bug_report.yml).
+  `tests/test_game_lists.py` checks that list and the table in
+  `docs/games/README.md`.
 - An entry under GAMES in the man page,
   [man/soliterm.6](../man/soliterm.6), in menu order.
   `tests/test_man_page.py` checks every game is there. See how it reads
