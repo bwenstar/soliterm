@@ -1525,6 +1525,29 @@ def test_q_with_the_slot_taken_counts_a_loss_and_says_why(tui):
     ]
 
 
+@pytest.mark.skipif(not hasattr(signal, "SIGHUP"), reason="needs POSIX signals")
+def test_a_signal_after_a_save_that_cant_be_kept_still_counts_the_loss(tui, monkeypatch):
+    keep_one()
+    real = saves.keep
+
+    def keep(g, seconds):
+        kept = real(g, seconds)
+        # the waiting game is picked up in another window just then
+        os.remove(saves.save_path("klondike"))
+        os.kill(os.getpid(), signal.SIGTERM)
+        return kept
+
+    monkeypatch.setattr(saves, "keep", keep)
+    with cli._leave_on_signals():
+        tui(["d", "q"], deal=5)
+    # as the notice says, the game counted as lost, and it wasn't kept after
+    assert store.notices() == [
+        "a saved Klondike game was already waiting, so this one counted as lost"
+    ]
+    assert store.get_stat("klondike")["total"] == 1
+    assert saves.waiting() == {}
+
+
 def test_n_on_a_resumed_game_counts_one_loss_with_the_whole_time(tui, game_clock, monkeypatch):
     counted = []
     real = store.record_result

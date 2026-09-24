@@ -535,10 +535,11 @@ posix_signals = pytest.mark.skipif(not hasattr(signal, "SIGHUP"), reason="needs 
 
 
 @posix_signals
-def test_ctrl_c_as_q_saves_the_game_keeps_it_once(monkeypatch):
+def test_ctrl_c_as_q_saves_the_game_keeps_it_once(monkeypatch, capsys):
     signal_once_written(monkeypatch, saves.save_path("klondike"), signal.SIGINT)
     g = deal("klondike", 1)
     assert textmode.run_text(g, False, "klondike", stream=iter(["d\n", "q\n"]), keep=True) == 130
+    assert "Saved your game (0:00, 1 move) for next time." in capsys.readouterr().out
     assert saves.waiting()["klondike"]["moves"] == 1
     assert store.get_stat("klondike")["total"] == 0
     assert store.notices() == []

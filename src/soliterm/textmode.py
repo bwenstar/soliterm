@@ -350,18 +350,19 @@ def run_text(
     def put_away() -> None:
         # on leaving: kept for next time if it may be, and otherwise lost,
         # with saves.keep's notice saying why; a win not counted yet, as
-        # when Ctrl-C comes just as it's made, counts as won
+        # when Ctrl-C comes just as it's made, counts as won. Signals wait
+        # until it's done, so one can't cut it off halfway.
         nonlocal recorded
-        if g.is_won() and not recorded:
-            count(True, seconds())
-            return
-        if keep and under_way():
-            with store.signals_held():
-                recorded = saves.keep(g, seconds())
-            if recorded:
-                print(f"Saved your game ({so_far()}) for next time.", file=out)
+        with store.signals_held():
+            if g.is_won() and not recorded:
+                count(True, seconds())
                 return
-        give_up()
+            if keep and under_way():
+                recorded = saves.keep(g, seconds())
+                if recorded:
+                    print(f"Saved your game ({so_far()}) for next time.", file=out)
+                    return
+            give_up()
 
     try:
         if resume:

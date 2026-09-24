@@ -1103,16 +1103,20 @@ class App:
         """Keep the game in play for next time, on q, m, Ctrl-C, SIGHUP or
         SIGTERM. One that can't be kept counts as lost, and saves.keep has
         left a notice saying why. One won but not counted yet, as when
-        Ctrl-C comes as the finish lands the last card, counts as won."""
-        if self.game.is_won() and not self.recorded:
-            self.count(True, self.seconds())
-            return
-        if not self.under_way():
-            return
+        Ctrl-C comes as the finish lands the last card, counts as won.
+
+        Signals wait until it is done, so one can't land between a save
+        that failed and the loss it leaves, and have the save tried again.
+        """
         with store.signals_held():
+            if self.game.is_won() and not self.recorded:
+                self.count(True, self.seconds())
+                return
+            if not self.under_way():
+                return
             self.recorded = saves.keep(self.game, self.seconds())
-        if not self.recorded:
-            self.give_up()
+            if not self.recorded:
+                self.give_up()
 
     def count(self, won: bool, seconds: int) -> dict:
         """Count the game in play in the statistics, once, and return its
