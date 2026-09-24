@@ -332,6 +332,77 @@ def test_every_face_up_rank_of_an_opening_deal_shows_at_80x24(key, code_skin):
             assert clickable(ui, sid) >= {i for i, c in enumerate(cards) if c.face_up}
 
 
+def peeks(ui, sid):
+    """How each covered card of slot sid shows, as (face up, rows a click
+    finds it on), leaving out the face-down cards piled onto the row of the
+    one under them."""
+    top, x = ui.slot_origin[sid]
+    hits = [ui.hit_test(y, x + 1) for y in range(top, ui.stdscr.getmaxyx()[0] - 3)]
+    covered = ui.game.cards(sid)[:-1]
+    shown = {(c.face_up, hits.count((sid, i))) for i, c in enumerate(covered)}
+    return shown - {(False, 0)}
+
+
+def squeezed_alike(ui, g):
+    """Whether the columns of each row show their covered cards alike."""
+    rows = {}
+    for sid in g.ids_of("tableau"):
+        rows.setdefault(g.slots[sid].row, set()).update(peeks(ui, sid))
+    return all(
+        len({n for up, n in shown if up is face_up}) <= 1
+        for shown in rows.values()
+        for face_up in (False, True)
+    )
+
+
+@pytest.mark.parametrize("h, w", [(24, 80), (30, 100)])
+@pytest.mark.parametrize("key", GAME_ORDER)
+def test_the_columns_of_an_opening_deal_squeeze_alike(key, h, w):
+    for seed in range(1, 6):
+        g = deal(key, seed)
+        ui, _scr = draw(g, h=h, w=w)
+        assert squeezed_alike(ui, g), seed
+
+
+def test_a_long_column_squeezes_the_short_ones_with_it():
+    # as in FreeCell after its first move at 80x24, where the short column
+    # showed two rows a card while the rest showed one
+    g = deal("freecell", 1)
+    clear_board(g)
+    long, short = g.ids_of("tableau")[:2]
+    g.slots[long].cards = KING_TO_ACE[:8]
+    g.slots[short].cards = KING_TO_ACE[8:]
+    ui, scr = draw(g, h=24, w=80)
+    assert squeezed_alike(ui, g)
+    assert peeks(ui, short) == {(True, 1)}
+    assert rows_of_their_own(ui, scr, short) == set(range(5))
+
+
+def test_only_a_column_that_has_to_piles_its_face_down_cards_onto_one_row():
+    g = deal("klondike", 1)
+    long, short = g.ids_of("tableau")[2], g.ids_of("tableau")[6]
+    g.slots[long].cards = g.slots[long].cards[:-1] + RUN
+    ui, _scr = draw(g, h=24, w=80)
+    assert 1 not in clickable(ui, long)  # piled onto the row of card 0
+    assert clickable(ui, short) == set(range(7))
+    assert squeezed_alike(ui, g)
+
+
+def test_a_column_squeezed_to_its_top_label_leaves_the_other_top_cards_whole():
+    g = deal("spider", 1)
+    clear_board(g)
+    long, short = g.ids_of("tableau")[:2]
+    g.slots[long].cards = [Card(1, "C", False)] * 5 + KING_TO_ACE + DEALT[:2]
+    g.slots[short].cards = [Card(1, "C", False), Card(9, "D", True)]
+    ui, _scr = draw(g, h=24, w=80)
+    top, x = ui.slot_origin[long]
+    rows = [y for y in range(top, 21) if ui.hit_test(y, x + 1) == (long, 16)]
+    assert len(rows) < ui.card_h  # the long column's top card is squeezed
+    top, x = ui.slot_origin[short]
+    rows = [y for y in range(top, 21) if ui.hit_test(y, x + 1) == (short, 1)]
+    assert len(rows) == ui.card_h
+
+
 def test_a_long_waste_leaves_the_foundations_on_screen():
     g = deal("fortythieves", 1)
     waste = g.ids_of("waste")[0]

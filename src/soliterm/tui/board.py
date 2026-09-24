@@ -381,7 +381,7 @@ class BoardUI:
         cards = slot.cards
         n = len(cards)
         sel_start = n - selected_n if sel_here else n
-        rows, top_h = self._down_rows(cards, self._room(sy))
+        rows, top_h = self._column_rows(sid, self._room(sy))
         first = 0  # the deepest card sharing this card's row
         for i, card in enumerate(cards):
             is_top = i == n - 1
@@ -480,17 +480,67 @@ class BoardUI:
         """Rows from screen row sy down to the status line."""
         return self.stdscr.getmaxyx()[0] - 3 - sy
 
-    def _down_rows(self, cards: list[Card], room: int, tuck: bool = True) -> tuple[list[int], int]:
+    def _squeezes(self) -> list[tuple[int, int, int]]:
+        """The ways a down-column can squeeze, roomiest first, as the rows
+        for a face-down card, for a face-up one and for the top card. A
+        face-down 0 piles each run of them onto one row."""
+        py, ch = self.peek_y, self.card_h
+        return [(py, py, ch), (1, py, ch), (0, py, ch), (0, 1, ch), (0, 1, min(2, ch)), (0, 1, 1)]
+
+    def _steps(self, covered: list[Card], squeeze: tuple[int, int, int]) -> list[int]:
+        """The rows each covered card takes in a squeeze."""
+        down, up, _top_h = squeeze
+        # the face-down cards under another face-down card, which go onto
+        # its row once each run of them shares one
+        piled = [
+            not c.face_up and i + 1 < len(covered) and not covered[i + 1].face_up
+            for i, c in enumerate(covered)
+        ]
+        return [
+            up if c.face_up else (down or (0 if pile else 1)) for c, pile in zip(covered, piled)
+        ]
+
+    def _squeeze(self, cards: list[Card], room: int) -> tuple[int, int, int]:
+        """The roomiest of _squeezes() a column of cards fits in `room`
+        rows in, or the tightest."""
+        squeezes = self._squeezes()
+        return next(
+            (sq for sq in squeezes if sum(self._steps(cards[:-1], sq)) + sq[2] <= room),
+            squeezes[-1],
+        )
+
+    def _column_rows(self, sid: int, room: int) -> tuple[list[int], int]:
+        """_down_rows for slot sid, its covered cards squeezed as far as
+        those of any column of its kind in its row, so the columns look
+        alike. That goes down to a row a card and no further: a column only
+        piles its face-down cards onto one row, or squeezes its top card,
+        when it has to itself."""
+        slot = self.game.slots[sid]
+        down, up, top_h = self._squeeze(slot.cards, room)
+        for s in self.game.slots:
+            if (s.row, s.kind, s.expand) == (slot.row, slot.kind, "down") and len(s.cards) > 1:
+                d, u, _ = self._squeeze(s.cards, room)
+                down, up = min(down, max(d, 1)), min(up, u)
+        return self._down_rows(slot.cards, room, squeeze=(down, up, top_h))
+
+    def _down_rows(
+        self,
+        cards: list[Card],
+        room: int,
+        tuck: bool = True,
+        squeeze: tuple[int, int, int] | None = None,
+    ) -> tuple[list[int], int]:
         """Lay a down-column out in `room` rows: each card's top row,
         counted from the column top, and how many rows the top card shows.
 
         A covered card shows peek_y rows (its top border and rank label)
         and the top card its full box when there's room. A long column
-        squeezes a step at a time: its face-down cards to a row each, then
-        each run of them onto one row that counts them, then the face-up
-        cards to their label alone, then the top card to its label and
-        bottom edge, then to its label. Every face-up card keeps a row of
-        its own through all of that.
+        squeezes a step at a time, as _squeezes lists them: its face-down
+        cards to a row each, then each run of them onto one row that counts
+        them, then the face-up cards to their label alone, then the top
+        card to its label and bottom edge, then to its label. Every face-up
+        card keeps a row of its own through all of that. Given a squeeze,
+        it takes that one instead (see _column_rows).
 
         Past that, and only with tuck, face-up cards give up their rows one
         at a time to share the row of the card on them, from just above
@@ -499,30 +549,10 @@ class BoardUI:
         it holds (see _draw_down_pile).
         """
         covered = cards[:-1]
-        py, ch = self.peek_y, self.card_h
         if not covered:
-            return [0], ch
-        # the face-down cards under another face-down card, which go onto
-        # its row once each run of them shares one
-        piled = [
-            not c.face_up and i + 1 < len(covered) and not covered[i + 1].face_up
-            for i, c in enumerate(covered)
-        ]
-        # rows for a face-down card, for a face-up one and for the top card,
-        # roomiest first; a face-down 0 piles each run of them onto one row
-        for down, up, top_h in (
-            (py, py, ch),
-            (1, py, ch),
-            (0, py, ch),
-            (0, 1, ch),
-            (0, 1, min(2, ch)),
-            (0, 1, 1),
-        ):
-            steps = [
-                up if c.face_up else (down or (0 if pile else 1)) for c, pile in zip(covered, piled)
-            ]
-            if sum(steps) + top_h <= room:
-                break
+            return [0], self.card_h
+        squeeze = squeeze or self._squeeze(cards, room)
+        steps, top_h = self._steps(covered, squeeze), squeeze[2]
         if tuck:
             ups = [i for i, c in enumerate(covered) if c.face_up]
             for i in ups[1:-1]:
@@ -538,7 +568,7 @@ class BoardUI:
         """Screen rows slot sid takes, a column given `room` rows for it."""
         slot = self.game.slots[sid]
         if slot.expand == "down" and len(slot.cards) > 1:
-            rows, top_h = self._down_rows(slot.cards, room)
+            rows, top_h = self._column_rows(sid, room)
             return rows[-1] + top_h
         return self.card_h
 
