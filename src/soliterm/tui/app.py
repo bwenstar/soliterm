@@ -20,7 +20,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Callable
 
-from .. import APP_NAME, camo, deals, store
+from .. import APP_NAME, camo, deals, saves, store
 from ..deals import Code, Deal
 from ..engine import GAME_ORDER, GAMES, Solitaire
 from .board import (
@@ -92,6 +92,12 @@ class GameClock:
             self.started = True
             if not self.holds:
                 self.since = clock()
+
+    def resume(self, seconds: float) -> None:
+        """Run on from the seconds a saved game had been played."""
+        self.reset()
+        self.banked = float(seconds)
+        self.start()
 
     def elapsed(self) -> float:
         if self.since is None:
@@ -186,6 +192,8 @@ class App:
         # a click or resize that came in just behind an Esc, for read_key
         # to hand out next
         self.pending_key: int | None = None
+        # the saved games the menu offers, as saves.waiting() gives them
+        self.waiting: dict[str, dict] = {}
         # per-game state, reset by start_game()
         self.clock = GameClock()
         self.selected: int | None = None
@@ -354,8 +362,10 @@ class App:
     def run(self) -> int:
         self.setup_curses()
         try:
-            if self.start and self.play(self.start.key, self.start):
-                return 0
+            if self.start:
+                self.waiting = saves.waiting()
+                if self.play(self.start.key, self.start):
+                    return 0
             while True:
                 choice = self.chooser()
                 if choice is None or choice == "__quit__":
@@ -387,6 +397,8 @@ class App:
         extra = ["__deal__", "__stats__", "__quit__"]
         labels = {"__deal__": "Play a deal", "__stats__": "View statistics", "__quit__": "Quit"}
         items = GAME_ORDER + extra
+        # every game picked here is a plain start, so each save is offered
+        self.waiting = saves.waiting()
         while True:
             self.begin_page()
             safe_add(1, 4, f"{APP_NAME}  -  choose a game", CP(4) | curses.A_BOLD)
@@ -395,7 +407,10 @@ class App:
                 cls = GAMES[key]
                 marker = "> " if i == sel else "  "
                 attr = (CP(5) | curses.A_BOLD) if i == sel else 0
-                safe_add(4 + i, 6, f"{marker}{cls.name:<16} {cls.blurb}", attr)
+                about = cls.blurb
+                if key in self.waiting:
+                    about = f"Resume your game: {self.resume_text(self.waiting[key])}"
+                safe_add(4 + i, 6, f"{marker}{cls.name:<16} {about}", attr)
             base = 4 + len(GAME_ORDER) + 1
             for j, key in enumerate(extra):
                 i = len(GAME_ORDER) + j
@@ -747,10 +762,18 @@ class App:
         return 27 if follow == -1 else -1
 
     def start_game(self, key: str, deal: Deal | None = None) -> None:
-        """Deal a game of `key` (`deal` if given) and set the play screen up
-        for it."""
+        """Deal a game of `key` (`deal` if given), or resume the one saved
+        for it, and set the play screen up for it."""
         self.key = key
-        self.game = self.new_game(deal or Deal(key))
+        deal = deal or Deal(key)
+        # only a plain start, with no deal number or options, resumes
+        plain = deal == Deal(key)
+        resumed = saves.take(key) if plain else None
+        if resumed is None:
+            self.game = self.new_game(deal)
+        else:
+            self.game = resumed[0]
+            self.game.symbols = self.symbols
         self.cfg["last_game"] = key
         store.save_config(self.cfg)
         self.ui = self.new_board()
@@ -765,6 +788,20 @@ class App:
         self.message = START_MESSAGE
         self.recorded = False
         self.dead_end_undone = False
+        if resumed is not None:
+            seconds = resumed[1]
+            self.clock.resume(seconds)
+            done = self.resume_text({"seconds": seconds, "moves": self.game.moves})
+            self.message = f"Resumed your game ({done}). n deals a new hand."
+        elif key in self.waiting and plain:
+            self.message = "Your saved game couldn't be read, so this is a new deal."
+        elif key in self.waiting:
+            self.message = f"a saved {GAMES[key].name} game is waiting, so this one won't be kept"
+
+    @staticmethod
+    def resume_text(save: dict) -> str:
+        """How far a saved game got, as in 0:42, 31 moves."""
+        return f"{store.fmt_time(save['seconds'])}, {store.moves_text(save['moves'])}"
 
     def new_game(self, deal: Deal) -> Solitaire:
         """Deal what `deal` asks for, over the saved options."""

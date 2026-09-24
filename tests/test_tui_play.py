@@ -6,7 +6,9 @@ time the game asked for a key.
 """
 
 import curses
+import glob
 import importlib.util
+import json
 import os
 import re
 import sys
@@ -15,7 +17,7 @@ import pytest
 
 import soliterm.tui
 from soliterm import aisleriot as ar
-from soliterm import cli, deals, engine, store
+from soliterm import cli, deals, engine, saves, store
 from soliterm.deals import Deal
 from soliterm.engine import Card
 from soliterm.tui.app import DEAL_TEXT_MAX
@@ -854,6 +856,82 @@ def test_the_banner_choices_follow_its_lines(tui, monkeypatch):
         "      Up/Down + Enter, or s/n/m. Click to choose.",
     ]
     assert "replaying the same deal" in scr.frames[2]
+
+
+# -- saved games ---------------------------------------------------------------------
+
+
+def keep_one():
+    """Put a Klondike game one deal in, 31 moves and 0:42 on, in the saves
+    folder, as leaving it would have."""
+    g = deal("klondike", 4)
+    g.deal()
+    g.moves = 31
+    assert saves.keep(g, 42)
+
+
+def test_the_menu_offers_a_saved_game(tui):
+    keep_one()
+    menu = tui(["q"], start_key=None).frames[0]
+    assert "> Klondike         Resume your game: 0:42, 31 moves" in menu
+    assert f"  Spider           {engine.GAMES['spider'].blurb}" in menu
+
+
+def test_enter_on_it_resumes_with_the_clock_at_0_42(tui, game_clock):
+    keep_one()
+    scr = tui([ENTER, Later(10, -1), "n", "q"], start_key=None)
+    assert "Resumed your game (0:42, 31 moves). n deals a new hand." in scr.frames[1]
+    assert "Moves 31   Stock: 23  Waste: 1" in scr.frames[1]
+    assert times(scr) == ["0:42", "0:52", "0:00"]
+    assert saves.waiting() == {}
+
+
+def test_game_flag_resumes_a_saved_game(tui):
+    keep_one()
+    scr = tui(["n", "q"])
+    assert "Resumed your game (0:42, 31 moves)" in scr.frames[0]
+    assert "Moves 31   Stock: 23  Waste: 1" in scr.frames[0]
+    assert saves.waiting() == {}
+
+
+@pytest.mark.parametrize(
+    "start",
+    [Deal("klondike", 5), Deal("klondike", None, {"draw": 3})],
+    ids=["a deal number", "an option"],
+)
+def test_a_chosen_deal_leaves_the_save_waiting_and_says_so(tui, start):
+    keep_one()
+    scr = tui(["d", "q"], start=start)
+    assert "a saved Klondike game is waiting, so this one won't be kept" in scr.frames[0]
+    assert scr.uis[-1].game.moves == 1
+    assert saves.waiting() == {"klondike": {"seconds": 42, "moves": 31}}
+    assert store.get_stat("klondike")["total"] == 1
+
+
+def test_play_a_deal_from_the_menu_leaves_the_save_waiting(tui):
+    keep_one()
+    scr = tui([Mouse(PLAY_A_DEAL, 8), "5", ENTER, "q"], start_key=None)
+    assert "Resume your game" in scr.frames[0]
+    assert scr.uis[-1].game.deal_number == 5
+    assert "a saved Klondike game is waiting, so this one won't be kept" in scr.frames[-1]
+    assert saves.waiting() == {"klondike": {"seconds": 42, "moves": 31}}
+
+
+def test_an_unreadable_save_deals_a_new_hand_and_says_so(tui):
+    keep_one()
+    path = saves.save_path("klondike")
+    with open(path, encoding="utf-8") as fh:
+        save = json.load(fh)
+    # a card too many in the waste
+    save["position"] = save["position"].replace("\ns1|waste|none|0|", "\ns1|waste|none|0|1SU,")
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(save, fh)
+    scr = tui([ENTER, "q"], start_key=None)
+    assert "Resume your game" in scr.frames[0]
+    assert "Your saved game couldn't be read, so this is a new deal." in scr.frames[1]
+    assert "Moves 0" in scr.frames[1]
+    assert glob.glob(path + ".corrupt-*")
+    assert "was damaged" in store.notices()[0]
 
 
 # -- options -------------------------------------------------------------------------
