@@ -1765,6 +1765,25 @@ def test_pairs_past_the_terminals_limit_fall_back(tui):
         assert ui.CP(n) == 0
 
 
+def test_a_red_card_picked_up_stays_green_with_only_8_pairs(tui):
+    # qnx and a few others have room for pairs 0 to 7 only
+    scr = tui(["q"], color_pairs=8)
+    assert scr.rc == 0
+    assert scr.pairs and all(n < 8 for n, _, _ in scr.pairs)
+    ui = scr.uis[-1]
+    red, black = Card(1, "H", face_up=True), Card(1, "S", face_up=True)
+    assert ui.card_attr(red, True, False) == ui.card_attr(black, True, False)
+    assert ui.card_attr(red, True, False) & 0xFF00 == curses.color_pair(themes.SELECTED)
+    # a hint is in the terminal's own colours, which no other card is drawn
+    # in, so it can't be taken for the cursor or the selection
+    hinted = ui.card_attr(red, False, True) & 0xFF00
+    assert hinted == 0
+    others = {ui.card_attr(red, False, False), ui.card_attr(black, False, False)}
+    others |= {ui.card_attr(None, False, False), ui.card_attr(Card(1, "H"), False, False)}
+    others |= {ui.card_attr(red, False, False, cursor=True)}
+    assert hinted not in {attr & 0xFF00 for attr in others}
+
+
 def test_the_four_colour_deck_on_a_terminal_with_too_few_pairs(tui):
     scr = tui(["4", "q"], color_pairs=10)
     assert scr.rc == 0

@@ -33,8 +33,11 @@ CLUB_FACE = 15  # a club; black unless the four-colour deck is on
 SYNTAX = {"keyword": KEYWORD, "string": STRING, "number": NUMBER, "comment": COMMENT}
 
 # the pair drawn instead of one a terminal has no room for (0 is the
-# terminal's own colours)
+# terminal's own colours). With only 8 pairs, as on qnx, a red card picked
+# up is drawn like a black one, and a hint in colours no other card has.
 FALLBACK = {
+    RED_SELECTED: SELECTED,
+    HINT: 0,
     KEYWORD: 0,
     STRING: 0,
     NUMBER: 0,
