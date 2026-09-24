@@ -1,0 +1,139 @@
+"""Share codes: what they look like, and reading them back however they
+were pasted."""
+
+import itertools
+import re
+
+import pytest
+
+from soliterm.deals import Code, code_of, parse, share_code
+from soliterm.engine import GAME_ORDER, GAMES
+
+from helpers import deal
+
+KLONDIKE = {"draw": 1, "redeals": "standard"}
+
+
+@pytest.mark.parametrize(
+    "key, number, options, code",
+    [
+        ("klondike", 48213, {"draw": 3}, "klondike:d3:48213"),
+        ("klondike", 48213, None, "klondike:48213"),
+        ("klondike", 48213, {"draw": 1, "redeals": "standard"}, "klondike:48213"),
+        ("klondike", 1, {"draw": 3, "redeals": "none"}, "klondike:d3rn:1"),
+        ("klondike", 77, {"redeals": "unlimited"}, "klondike:ru:77"),
+        ("spider", 7, {"suits": 2}, "spider:s2:7"),
+        ("spider", 5, None, "spider:5"),
+        ("freecell", 617, None, "freecell:617"),
+        ("golf", 0, None, "golf:0"),
+    ],
+)
+def test_share_code(key, number, options, code):
+    assert share_code(key, number, options) == code
+
+
+@pytest.mark.parametrize(
+    "text, key, number, options",
+    [
+        ("klondike:d3:48213", "klondike", 48213, {"draw": 3, "redeals": "standard"}),
+        ("Klondike D3RN 48213", "klondike", 48213, {"draw": 3, "redeals": "none"}),
+        # the game's own defaults, not whatever the player has saved
+        ("klondike:48213", "klondike", 48213, KLONDIKE),
+        ("klondike:d1rs:48213", "klondike", 48213, KLONDIKE),
+        ("Forty Thieves 5", "fortythieves", 5, {}),
+        ("forty-thieves/5", "fortythieves", 5, {}),
+        ("baker's dozen:5", "bakersdozen", 5, {}),
+        ("eight-off/9", "eightoff", 9, {}),
+        ("freecell #617", "freecell", 617, {}),
+        ("FreeCell deal 617", "freecell", 617, {}),
+        ("Klondike, deal 48213", "klondike", 48213, KLONDIKE),
+        # the board's title line, pasted whole
+        ("Soliterm  -  Klondike  -  Deal 48213", "klondike", 48213, KLONDIKE),
+        ("klondike:d3:48213.", "klondike", 48213, {"draw": 3, "redeals": "standard"}),
+        ("spider:s2:7", "spider", 7, {"suits": 2}),
+        ("golf:0", "golf", 0, {}),
+        ("klondike:2147483647", "klondike", 2147483647, KLONDIKE),
+        # a bare number leaves the game open
+        ("48213", None, 48213, None),
+        ("+5", None, 5, None),
+        ("007", None, 7, None),
+        ("#617", None, 617, None),
+        ("0", None, 0, None),
+        (" 2147483647 ", None, 2147483647, None),
+    ],
+)
+def test_parse(text, key, number, options):
+    assert parse(text) == Code(key, number, options)
+
+
+@pytest.mark.parametrize(
+    "text, error",
+    [
+        ("", "a share code looks like klondike:d3:48213"),
+        (":::", "a share code looks like klondike:d3:48213"),
+        ("#", "a share code looks like klondike:d3:48213"),
+        ("-5", "deal numbers run from 0 to 2147483647, not -5"),
+        ("2147483648", "deal numbers run from 0 to 2147483647, not 2147483648"),
+        ("99999999999", "deal numbers run from 0 to 2147483647, not 99999999999"),
+        ("klondike:2147483648", "deal numbers run from 0 to 2147483647, not 2147483648"),
+        ("klondike", "klondike needs a deal number too, as in klondike:48213"),
+        ("klondike:d3", "klondike needs a deal number too, as in klondike:48213"),
+        ("chess:5", "no game called 'chess'"),
+        ("5 klondike", "the game goes first in a share code, as in klondike:d3:48213"),
+        ("12x", "'12x' isn't a deal number"),
+        # a fullwidth 5, which str.isdigit takes for a digit
+        ("\uff15", "'\uff15' isn't a deal number"),
+        (
+            "klondike:d2:5",
+            "'d2' isn't a Klondike option in a share code (it takes d1, d3, rs, rn, ru)",
+        ),
+        ("klondike:d3d1:5", "the share code sets draw twice"),
+        ("spider:s3:5", "'s3' isn't a Spider option in a share code (it takes s1, s2, s4)"),
+        ("freecell:d3:5", "FreeCell has no options, so 'd3' can't be in its share code"),
+    ],
+)
+def test_parse_refuses(text, error):
+    with pytest.raises(ValueError, match=f"^{re.escape(error)}$"):
+        parse(text)
+
+
+def every_option_set():
+    for key in GAME_ORDER:
+        spec = GAMES[key].option_spec()
+        names = [name for name, _, _ in spec]
+        for values in itertools.product(*(vals for _, _, vals in spec)):
+            opts = dict(zip(names, values))
+            label = key + "".join(f"-{n}{v}" for n, v in opts.items())
+            yield pytest.param(key, opts, id=label)
+
+
+@pytest.mark.parametrize("key, opts", list(every_option_set()))
+def test_share_codes_round_trip_for_every_game_and_option(key, opts):
+    code = share_code(key, 48213, opts)
+    assert parse(code) == Code(key, 48213, opts)
+    # and it reads the same however it's written
+    assert parse(code.upper().replace(":", " ")) == Code(key, 48213, opts)
+
+
+def test_code_of_the_game_in_play():
+    g = deal("spider", 7, suits=2)
+    assert code_of(g) == "spider:s2:7"
+    g.new_game()
+    assert code_of(g) == "spider:s2:8"
+    assert code_of(deal("canfield", 20260924)) == "canfield:20260924"
+
+
+@pytest.mark.parametrize("key", GAME_ORDER)
+def test_every_option_has_a_letter_and_values_of_its_own(key):
+    # what a share code needs to tell the options and their values apart
+    spec = GAMES[key].option_spec()
+    assert len({name[0] for name, _, _ in spec}) == len(spec)
+    for name, _, values in spec:
+        assert len(set(values)) == len(values)
+        kinds = {type(v) for v in values}
+        assert kinds in ({int}, {str}), name
+        if kinds == {str}:
+            assert len({v[0] for v in values}) == len(values), name
+        for value in values:
+            token = name[0] + (str(value) if kinds == {int} else value[0])
+            assert token.isalnum() and token.isascii(), token
