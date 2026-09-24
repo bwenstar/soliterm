@@ -38,9 +38,7 @@ class Klondike(GameDef):
         g.make_deck()
         g.shuffle()
         self.stock = g.add_slot("stock")
-        # drawing three, the waste fans the last three out, as in AisleRiot
-        fan = "right" if g.options.get("draw", 1) == 3 else "none"
-        self.waste = g.add_slot("waste", fan)
+        self.waste = g.add_slot("waste")
         g.add_slot("foundation"); g.add_slot("foundation")
         g.add_slot("foundation"); g.add_slot("foundation")
         g.carriage_return()
@@ -54,7 +52,10 @@ class Klondike(GameDef):
         g.update_status()
 
     def fan_limit(self, g, sid):
-        return 3 if sid == self.waste else None
+        # drawing three, the board fans the last three out, as in AisleRiot
+        if sid == self.waste and g.options.get("draw", 1) == 3:
+            return 3
+        return None
 
     def can_pickup(self, g, sid, n):
         if g.kind(sid) == "tableau":

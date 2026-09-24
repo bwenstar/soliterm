@@ -370,10 +370,14 @@ class BoardUI:
     def fan_room(self, slot) -> int:
         """How many cards the board makes room for in a slot: the most a
         right-fanned one shows, so the slots beside it don't move as it
-        grows, and one for any other."""
-        if slot.expand != "right":
+        grows, and one for any other. A game can fan a slot that text mode
+        shows as one card, as the Klondike waste drawing three."""
+        if slot.expand == "down":
             return 1
-        return self.game.gamedef.fan_limit(self.game, slot.sid) or MAX_RIGHT_FAN
+        limit = self.game.gamedef.fan_limit(self.game, slot.sid)
+        if slot.expand == "right":
+            return limit or MAX_RIGHT_FAN
+        return limit or 1
 
     def fan_shown(self, slot) -> int:
         """How many of a right-fanned slot's cards the board shows."""
@@ -531,7 +535,7 @@ class BoardUI:
             if slot.expand == "down":
                 self._draw_down_pile(slot, sid, sy, sx, cw, sel_here, cur_here,
                                      selected_n, hint_src, hint_dst, hint_n)
-            elif slot.expand == "right":
+            elif slot.expand == "right" or self.fan_room(slot) > 1:
                 self._draw_right_fan(slot, sid, sy, sx, cw, sel_here, cur_here,
                                      hint_src, hint_dst)
             else:  # "none": stock / single-card slots show just the top card

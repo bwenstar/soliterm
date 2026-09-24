@@ -116,9 +116,10 @@ class GameDef:
         return ""
 
     def fan_limit(self, g: Solitaire, sid: int) -> Optional[int]:
-        """Most cards a "right" slot fans out, as AisleRiot's partially
-        extended slots do, or None to show as many as the board has room
-        for."""
+        """Most cards the board fans out to the right in a slot, as
+        AisleRiot's partially extended slots do. None shows a "right" slot
+        as full as there is room for and any other slot's top card alone.
+        Text mode goes by the slot's expand and ignores this."""
         return None
 
     # ---- shared helpers ---- #

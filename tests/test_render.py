@@ -6,11 +6,13 @@ checks here are about which cards end up clickable.
 """
 
 import curses
+import re
 
 import pytest
 
 from soliterm import camo, tui
 from soliterm.engine import GAME_ORDER, Card
+from soliterm.textmode import render_text
 from helpers import FakeScr, clear_board, deal
 
 
@@ -103,6 +105,20 @@ def test_klondike_drawing_one_shows_only_the_top_of_the_waste():
     g.deal()
     ui, scr = draw(g)
     assert clickable(ui, waste) == {1}
+
+
+@pytest.mark.parametrize("draw_n", [1, 3])
+def test_text_mode_shows_only_the_top_of_the_klondike_waste(draw_n):
+    # the fan is the board's alone: text mode keeps one card to a slot on
+    # the top row, so the foundations stay where their tags say
+    g = deal("klondike", 3, draw=draw_n)
+    for _ in range(4):
+        g.deal()
+    waste = g.ids_of("waste")[0]
+    assert len(g.cards(waste)) > 3
+    row = render_text(g, symbols=False).splitlines()[2]
+    top = g.cards(waste)[-1].label(False)
+    assert re.findall(r"\[[^]]*\]", row) == ["[###]", f"[{top:>3}]"] + ["[   ]"] * 4
 
 
 def box_text(ui, scr, sid):
