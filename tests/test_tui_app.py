@@ -13,9 +13,10 @@ import soliterm.tui.app
 from soliterm import saves, store
 from soliterm.deals import Deal
 from soliterm.engine import Card, Solitaire
+from soliterm.tui import cascade
 from soliterm.tui.app import MENU, QUIT, App
 
-from helpers import FakeScr
+from helpers import FakeScr, clear_board
 
 ENTER = 10
 
@@ -100,6 +101,49 @@ def test_animation_off_in_config_or_by_flag(monkeypatch):
     # a dumb terminal can't move a card without drawing the screen again
     monkeypatch.setenv("TERM", "dumb")
     assert App(FakeScr(), animation=True).animation is False
+
+
+def cascade_app(monkeypatch, scr, number=None):
+    """An App that has just won Klondike, deal `number` if given, with the
+    cards free to fly."""
+    monkeypatch.setenv("TERM", "xterm")
+    app = App(scr, animation=True)
+    app.start_game("klondike", Deal("klondike", number))
+    clear_board(app.game)
+    for f, suit in zip(app.game.ids_of("foundation"), "SHDC"):
+        app.game.slots[f].cards = [up(r, suit) for r in range(1, 14)]
+    app.draw()
+    return app
+
+
+def test_the_cascade_draws_the_cards_down_the_board(monkeypatch):
+    scr = KeyScr()
+    app = cascade_app(monkeypatch, scr)
+    before = scr.text().split("\n")
+    app.win_cascade()
+    after = scr.text().split("\n")
+    # below the empty columns, where nothing was, the trails build up
+    assert not any(row.strip() for row in before[14:36])
+    trails = [row for row in after[14:36] if row.strip()]
+    assert len(trails) > 10 and any(set(row) & set("♠♥♦♣") for row in trails)
+    assert 1 < len(scr.frames) <= cascade.MAX_FRAMES
+
+
+def test_the_cascade_follows_the_deal_number(monkeypatch):
+    screens = []
+    for number in (5, 5, 6):
+        app = cascade_app(monkeypatch, KeyScr(), number)
+        app.win_cascade()
+        screens.append(app.stdscr.text())
+    assert screens[0] == screens[1] != screens[2]
+
+
+def test_no_cascade_when_the_board_does_not_fit(monkeypatch):
+    scr = KeyScr()
+    app = cascade_app(monkeypatch, scr)
+    monkeypatch.setattr(app.ui, "fits", lambda: False)
+    app.win_cascade()
+    assert scr.frames == []
 
 
 def test_an_app_needs_no_terminal_to_start_a_game():

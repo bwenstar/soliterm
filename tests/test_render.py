@@ -558,3 +558,41 @@ def test_the_code_skin_moves_the_board_into_the_file():
     sid = next(iter(on))
     assert on[sid][1] > off[sid][1]  # indented further right
     assert on[sid][0] >= off[sid][0]  # and no higher
+
+
+# -- the win's cascade ---------------------------------------------------------------
+
+
+def won_klondike():
+    g = deal("klondike", 1)
+    clear_board(g)
+    for f, suit in zip(g.ids_of("foundation"), "SHDC"):
+        g.slots[f].cards = [Card(r, suit, True) for r in range(1, 14)]
+    return g
+
+
+def test_the_cascade_starts_from_each_foundation_top():
+    g = won_klondike()
+    ui, _scr = draw(g)
+    fids = g.ids_of("foundation")
+    assert ui.cascade_piles() == [(*ui.slot_origin[f], g.cards(f)) for f in fids]
+
+
+def test_golf_bounces_its_waste_from_the_top_card():
+    g = deal("golf", 1)
+    waste = g.ids_of("waste")[0]
+    g.slots[waste].cards = [Card(r, "S", True) for r in range(1, 6)]
+    ui, _scr = draw(g)
+    [(y, x, cards)] = ui.cascade_piles()
+    assert cards == g.cards(waste)
+    assert ui.hit[(y, x)] == (waste, 4)
+    assert (y, x) != ui.slot_origin[waste]  # the waste fans to the right
+
+
+def test_a_card_in_flight_is_cut_off_at_the_edges():
+    ui, scr = draw(won_klondike())
+    ui.draw_card_at(20, -2, Card(13, "S", True))
+    ui.draw_card_at(20, 117, None)  # curses never writes the last column
+    rows = scr.text().split("\n")[20:24]
+    assert [row[:6] for row in rows] == ["-----+", "KS   |", "     |", "-----+"]
+    assert [row[117:] for row in rows] == ["+-", "|", "|", "+-"]

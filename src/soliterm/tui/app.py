@@ -31,6 +31,7 @@ from .board import (
     draw_code_backdrop,
     draw_too_small,
 )
+from .cascade import FRAME_MS, MAX_S, Cascade
 from .keys import BOSS_ACTIONS, PLAY_ACTIONS, help_lines
 
 # What a play-screen handler returns to leave the game in play: back to the
@@ -198,6 +199,7 @@ class App:
         if animation is None:
             animation = bool(self.cfg.get("animation", True))
         self.animation = animation and os.environ.get("TERM") != "dumb"
+        self.skip_cascade = False  # a key cut the finish short: no cascade either
         # Separate the terminal's colour CAPABILITY from the player's
         # PREFERENCE so colour can be toggled live (even if launched with
         # --no-color). setup_curses() fills both in; `has_color` is the live
@@ -824,6 +826,7 @@ class App:
         self.message = START_MESSAGE
         self.recorded = False
         self.dead_end_undone = False
+        self.skip_cascade = False
         if resumed is not None:
             seconds = resumed[1]
             self.clock.resume(seconds)
@@ -1000,6 +1003,7 @@ class App:
         self.clock.reset()
         self.recorded = False
         self.dead_end_undone = False
+        self.skip_cascade = False
         self.selected = None
         self.selected_exact = False
         self.pressed = None
@@ -1012,9 +1016,10 @@ class App:
         playing (undo, same or new deal chosen) or False to go back to the
         menu.
 
-        A win is recorded at once. A game with no moves left is recorded as
-        lost only when the player gives it up for a new deal or the menu.
-        Undo plays on, and replaying the deal counts nothing, as AisleRiot's
+        A win is recorded at once, and the cards bounce off the board before
+        the banner comes up. A game with no moves left is recorded as lost
+        only when the player gives it up for a new deal or the menu. Undo
+        plays on, and replaying the deal counts nothing, as AisleRiot's
         Restart doesn't (see under_way)."""
         seconds = self.seconds()
         note = ""
@@ -1022,6 +1027,8 @@ class App:
             before = store.get_stat(self.key)
             after = self.count(True, seconds)
             note = win_note(before, after, self.game.gamedef.name)
+            # counted first, so Ctrl-C while the cards fly keeps the win
+            self.win_cascade()
         # left set if Ctrl-C comes, for play() to see as it goes
         self.ending = True
         choice = self.end_banner(seconds, won, note)
@@ -1212,9 +1219,10 @@ class App:
 
     def play_finish(self, steps: int) -> None:
         """Send every card left up, one at a time, each foundation lit as a
-        card lands on it. A key sends the rest up at once and is not passed
-        on, except the boss key, which hides the screen straight after. The
-        clock stands still while the cards land, so watching costs no time."""
+        card lands on it. A key sends the rest up at once, skips the win's
+        cascade, and is not passed on, except the boss key, which hides the
+        screen straight after. The clock stands still while the cards land,
+        so watching costs no time."""
         wait = max(1, min(FINISH_STEP_MS, int(FINISH_S * 1000 / steps)))
         cut: list[int] = []
         self.message = ""  # the offer, which is being taken up
@@ -1233,6 +1241,7 @@ class App:
         self.hint = None
         self.message = f"autoplayed {n}"
         if cut:
+            self.skip_cascade = True
             self.boss_key(cut[0])
 
     def cuts_short(self, k: int) -> bool:
@@ -1409,6 +1418,33 @@ class App:
                 self.drop_on(tsid)
 
     # ---- end of game ---- #
+    def win_cascade(self) -> None:
+        """Bounce the cards off the board after a win, as the old Windows
+        Solitaire did, until they have gone, a few seconds are up or a key
+        is pressed. The boss key hides the screen at once.
+
+        It draws over the board play() has just drawn and never erases, so
+        the cards leave trails. Not under the code skin, where flying cards
+        would give the game away."""
+        skip, self.skip_cascade = self.skip_cascade, False
+        ui = self.ui
+        if skip or not self.animation or ui.code_skin or not ui.fits():
+            return
+        piles = ui.cascade_piles()
+        if not piles:
+            return
+        h, w = self.stdscr.getmaxyx()
+        fall = Cascade(piles, h, w, ui.card_h, ui.card_w, seed=self.game.deal_number)
+        started = clock()
+        while not fall.done and clock() - started < MAX_S:
+            for y, x, card in fall.step():
+                ui.draw_card_at(y, x, card)
+            self.stdscr.refresh()
+            k = self.read_key(FRAME_MS)
+            if self.cuts_short(k):
+                self.boss_key(k)  # b or F2: the disguise, straight away
+                return
+
     def banner_lines(self, seconds: int, won: bool, stat: dict, note: str = "") -> list[str]:
         """The rows of the end banner from row 4 down, "" for a blank one.
         The choices go under the last of them. The rows of the best time and

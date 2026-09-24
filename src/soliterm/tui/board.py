@@ -705,3 +705,34 @@ class BoardUI:
 
     def hit_test(self, y, x) -> tuple[int, int] | None:
         return self.hit.get((y, x))
+
+    # -- the win's cascade -- #
+    @property
+    def card_w(self) -> int:
+        """How wide a card is drawn this frame."""
+        return self._cw
+
+    def cascade_piles(self) -> list[tuple[int, int, list[Card]]]:
+        """Where the cascade's cards come from, as drawn in the last frame:
+        each foundation, or the waste in a game without foundations (Golf).
+        Each gives the top-left cell of its top card and its cards."""
+        g = self.game
+        piles = []
+        for sid in g.ids_of("foundation") or g.ids_of("waste"):
+            cards = g.cards(sid)
+            if not cards:
+                continue
+            cells = [yx for yx, hit in self.hit.items() if hit == (sid, len(cards) - 1)]
+            y, x = min(cells) if cells else self.slot_origin[sid]
+            piles.append((y, x, list(cards)))
+        return piles
+
+    def draw_card_at(self, y: int, x: int, card: Card | None) -> None:
+        """A whole card face up (or an empty slot for None) at (y, x), cut
+        off where it hangs over the left or right edge."""
+        attr = self.card_attr(card, False, False)
+        for dy, line in enumerate(self._card_rows(card, self._cw, True)):
+            if x < 0:
+                self.safe_add(y + dy, 0, line[-x:], attr)
+            else:
+                self.safe_add(y + dy, x, line, attr)

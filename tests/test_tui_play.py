@@ -22,6 +22,7 @@ from soliterm import aisleriot as ar
 from soliterm import cli, deals, engine, history, saves, store
 from soliterm.deals import Deal
 from soliterm.engine import Card
+from soliterm.tui import cascade
 from soliterm.tui.app import DEAL_TEXT_MAX
 
 from helpers import FakeScr, clear_board, deal, stalled_klondike
@@ -824,6 +825,76 @@ def test_ctrl_c_during_the_finish_leaves_as_q_does(animated):
     assert animated(KING_TO_EMPTY + ["a", KeyboardInterrupt], game=near_won()).rc == 130
     assert store.get_stat("klondike")["total"] == 0
     assert saves.waiting()["klondike"]["moves"] == 2
+
+
+# -- the win's cascade ------------------------------------------------------------------
+
+LANDINGS = ["a", -1, -1, -1, -1]  # near_won() finished, a card a frame
+
+
+def test_any_key_skips_the_cascade(animated):
+    # and goes no further: n would deal again from the banner
+    scr = animated([*LANDINGS, -1, "n", "m"], game=near_won())
+    assert all("Moves 1" in frame for frame in scr.frames[5:7])
+    assert "Replay this deal" in scr.frames[7]
+    assert "choose a game" in scr.frames[8]
+    assert len(scr.uis) == 1
+
+
+def test_the_cascade_waits_a_frame_for_a_key(animated):
+    scr = animated([*LANDINGS, -1, -1, "z", "m"], game=near_won())
+    assert scr.delays[5:9] == [cascade.FRAME_MS] * 3 + [1000]
+
+
+def test_a_left_press_skips_the_cascade_and_a_release_does_not(animated):
+    let_go, press = Mouse(10, 10, curses.BUTTON1_RELEASED), Mouse(10, 10, curses.BUTTON1_PRESSED)
+    scr = animated([*LANDINGS, let_go, press, "m"], game=near_won())
+    assert "Replay this deal" not in scr.frames[6]
+    assert "Replay this deal" in scr.frames[7]
+
+
+def test_the_boss_key_hides_the_cascade_at_once(animated):
+    scr = animated([*LANDINGS, "b", "x", "m"], game=near_won())
+    board = {line for line in scr.frames[5].split("\n") if line.strip()}
+    assert "Moves 1" in scr.frames[5]
+    assert not board & set(scr.frames[6].split("\n"))
+    assert "Replay this deal" in scr.frames[7]
+
+
+def test_a_resize_stops_the_cascade(animated):
+    scr = animated([*LANDINGS, Resize(30, 100), "m"], game=near_won())
+    assert "Moves 1" in scr.frames[5]
+    assert "Replay this deal" in scr.frames[6]
+
+
+def test_ctrl_c_during_the_cascade_keeps_the_win(animated):
+    scr = animated([*LANDINGS, -1, KeyboardInterrupt], game=near_won())
+    assert scr.rc == 130
+    assert store.get_stat("klondike")["wins"] == 1
+
+
+def test_no_cascade_under_the_code_skin(animated):
+    # card boxes flying about would give the game away
+    code_skin_on()
+    scr = animated([*LANDINGS, "m"], game=near_won())
+    assert "Replay this deal" in scr.frames[5]
+
+
+@pytest.mark.parametrize("way", ["flag", "config", "dumb terminal"])
+def test_no_cascade_without_the_animation(tui, monkeypatch, way):
+    monkeypatch.setenv("TERM", "dumb" if way == "dumb terminal" else "xterm")
+    if way == "config":
+        store.save_config({**store.load_config(), "animation": False})
+    scr = tui(["a", "m"], game=near_won(), animation=False if way == "flag" else None)
+    assert "Replay this deal" in scr.frames[1]
+
+
+@pytest.mark.parametrize("ending", [["z"], ["b", "x"]], ids=["a key", "the boss key"])
+def test_no_cascade_after_a_finish_cut_short(animated, ending):
+    # the key that stopped the cards stops the cascade too, however soon
+    scr = animated(["a", *ending, "m"], game=near_won())
+    assert "Replay this deal" in scr.frames[1 + len(ending)]
+    assert store.get_stat("klondike")["wins"] == 1
 
 
 @pytest.mark.parametrize("keys", [["d"], ["d", "b"], ["d", "?"]])
