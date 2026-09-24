@@ -101,6 +101,14 @@ def test_recent_games_come_newest_first():
     assert len(history.recent(10)) == 3
 
 
+def test_a_line_shows_a_game_the_way_stats_lists_it():
+    e = {"at": AT, "game": "golf", "result": "won", "seconds": 48, "moves": 1}
+    assert history.line(e) == "2026-09-24 14:05  Golf            won     0:48    1 move"
+    # a game only a newer version knows goes by its key
+    e = {**e, "game": "chess", "result": "lost", "moves": 212}
+    assert history.line(e) == "2026-09-24 14:05  chess           lost    0:48  212 moves"
+
+
 @pytest.mark.skipif(
     os.name != "posix" or os.geteuid() == 0, reason="needs POSIX file modes, not root"
 )

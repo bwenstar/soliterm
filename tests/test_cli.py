@@ -325,9 +325,10 @@ def test_list_writes_nothing(cli):
 def test_stats_on_a_fresh_home_are_all_empty(cli):
     rc, lines = cli("--stats")
     assert rc == 0
-    assert lines[0].split() == ["Game", "Wins", "Total", "Win%", "Best", "Worst"]
+    assert lines[0] == "Game              Wins  Total   Win%    Best   Worst  Streak Longest"
     for key in GAME_ORDER:
-        assert stats_row(lines, key) == ["0", "0", "N/A", "N/A", "N/A"]
+        assert stats_row(lines, key) == ["0", "0", "N/A", "N/A", "N/A", "N/A", "N/A"]
+    assert len(lines) == 1 + len(GAME_ORDER)
 
 
 def test_stats_show_recorded_games(cli):
@@ -336,15 +337,44 @@ def test_stats_show_recorded_games(cli):
     store.record_result("klondike", False, 30)
     store.record_result("eightoff", False, 10)
     _rc, lines = cli("--stats")
-    assert stats_row(lines, "klondike") == ["2", "3", "67%", "1:05", "3:20"]
-    assert stats_row(lines, "eightoff") == ["0", "1", "0%", "N/A", "N/A"]
-    assert stats_row(lines, "spider") == ["0", "0", "N/A", "N/A", "N/A"]
+    assert stats_row(lines, "klondike") == ["2", "3", "67%", "1:05", "3:20", "N/A", "N/A"]
+    assert stats_row(lines, "eightoff") == ["0", "1", "0%", "N/A", "N/A", "N/A", "N/A"]
+    assert stats_row(lines, "spider") == ["0", "0", "N/A", "N/A", "N/A", "N/A", "N/A"]
+
+
+def test_stats_flag_prints_recent_games(cli, monkeypatch):
+    days = iter(range(1, 13))
+    monkeypatch.setattr(history, "now", lambda: f"2026-09-{next(days):02d}T14:05:11+10:00")
+    g = deal("klondike", 1)
+    g.moves = 131
+    for _ in range(11):
+        history.record(g, False, 543)
+    g.moves = 1
+    history.record(g, True, 142)
+    _rc, lines = cli("--stats")
+    assert stats_row(lines, "klondike") == ["1", "12", "8%", "2:22", "2:22", "1", "1"]
+    at = lines.index("Recent games")
+    assert lines[at - 1] == ""
+    assert lines[at + 1 :] == [
+        "2026-09-12 14:05  Klondike        won     2:22    1 move",
+        *[
+            f"2026-09-{day:02d} 14:05  Klondike        lost    9:03  131 moves"
+            for day in range(11, 2, -1)
+        ],
+    ]
+
+
+def test_stats_flag_leaves_recent_out_with_no_history(cli):
+    store.record_result("golf", True, 50)  # counted, but not in the history
+    _rc, lines = cli("--stats")
+    assert stats_row(lines, "golf") == ["1", "1", "100%", "0:50", "0:50", "N/A", "N/A"]
+    assert len(lines) == 1 + len(GAME_ORDER)
 
 
 def test_stats_read_through_to_aisleriot(cli, keyfile):
     keyfile(f"[{ar.GAME_TO_SECTION['freecell']}]\nStatistic=3;4;75;300;\n")
     _rc, lines = cli("--stats")
-    assert stats_row(lines, "freecell") == ["3", "4", "75%", "1:15", "5:00"]
+    assert stats_row(lines, "freecell") == ["3", "4", "75%", "1:15", "5:00", "N/A", "N/A"]
 
 
 @pytest.mark.skipif(
@@ -373,7 +403,7 @@ def test_reset_stats_clears_local_statistics(cli):
     for key in GAME_ORDER:
         assert store.get_stat(key)["total"] == 0
     rc, lines = cli("--stats")
-    assert stats_row(lines, "golf") == ["0", "0", "N/A", "N/A", "N/A"]
+    assert stats_row(lines, "golf") == ["0", "0", "N/A", "N/A", "N/A", "N/A", "N/A"]
 
 
 def test_reset_stats_clears_the_shared_aisleriot_record(cli, keyfile):
@@ -538,7 +568,7 @@ def test_no_sync_shows_and_clears_only_the_local_stats(cli, keyfile):
     path = keyfile(f"[{ar.GAME_TO_SECTION['freecell']}]\nStatistic=3;4;75;300;\n")
     before = path.read_text()
     rc, lines = cli("--no-sync", "--stats")
-    assert stats_row(lines, "freecell") == ["0", "0", "N/A", "N/A", "N/A"]
+    assert stats_row(lines, "freecell") == ["0", "0", "N/A", "N/A", "N/A", "N/A", "N/A"]
     store.record_result("golf", True, 50)
     rc, lines = cli("--no-sync", "--reset-stats", "--yes")
     assert rc == 0

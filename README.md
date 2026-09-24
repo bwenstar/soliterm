@@ -159,13 +159,14 @@ one line each in `~/.local/share/soliterm/history.jsonl`, so a game played
 in AisleRiot itself doesn't count towards them, and a game with nothing
 counted here yet shows `N/A`.
 
-`--stats` prints the table; `--reset-stats` clears it, and that includes
-AisleRiot's own record of these nine games (its other games are left
-untouched) and the history of the games you played here. It asks you to
-type `yes` first, or takes `--yes` when there is no terminal to ask on, and
-keeps a copy of what it clears in `aisleriot.soliterm-bak` next to the
-keyfile, and `stats.json.bak` and `history.jsonl.bak` next to the local
-stats. Saved games are left as they are.
+`--stats` prints the table and the last ten games you played here.
+`--reset-stats` clears the statistics, AisleRiot's own record of these nine
+games included (its other games are left untouched), and the history of the
+games played here. It asks you to type `yes` first, or takes `--yes` when
+there is no terminal to ask on, and keeps a copy of what it clears in
+`aisleriot.soliterm-bak` next to the keyfile, and `stats.json.bak` and
+`history.jsonl.bak` next to the local stats. Saved games are left as they
+are.
 
 ## Options
 

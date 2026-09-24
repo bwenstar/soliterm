@@ -6,12 +6,10 @@ from __future__ import annotations
 import datetime
 import json
 import os
-from typing import TYPE_CHECKING, NamedTuple
+from typing import NamedTuple
 
 from . import store
-
-if TYPE_CHECKING:
-    from .engine import Solitaire
+from .engine import GAMES, Solitaire
 
 
 class Streak(NamedTuple):
@@ -127,6 +125,17 @@ def recent(n: int) -> list[dict]:
 
 def any_games() -> bool:
     return bool(games())
+
+
+def line(e: dict) -> str:
+    """A game as --stats lists it, as in
+    2026-09-24 14:05  Klondike        won     2:22  131 moves
+    """
+    when = e["at"][:16].replace("T", " ")
+    key, moves = e["game"], e["moves"]
+    name = GAMES[key].name if key in GAMES else key  # a game from a newer version
+    secs = store.fmt_time(e["seconds"])
+    return f"{when}  {name:<16}{e['result']:<6}{secs:>6}{moves:>5} move{'' if moves == 1 else 's'}"
 
 
 def backup() -> str | None:

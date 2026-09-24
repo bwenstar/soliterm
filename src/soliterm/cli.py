@@ -130,15 +130,31 @@ def print_list() -> None:
         print(f"  {key:<14} {cls.name:<16} {cls.blurb}")
 
 
+RECENT_LINES = 10  # the most games --stats lists under Recent games
+
+
 def print_stats() -> None:
-    print(f"{'Game':<16}{'Wins':>6}{'Total':>7}{'Win%':>7}{'Best':>8}{'Worst':>8}")
+    print(
+        f"{'Game':<16}{'Wins':>6}{'Total':>7}{'Win%':>7}{'Best':>8}{'Worst':>8}"
+        f"{'Streak':>8}{'Longest':>8}"
+    )
+    streaks = history.streaks()
     for key in GAME_ORDER:
         s = store.get_stat(key)
         pct = store.percentage(s)
         pcts = "N/A" if pct is None else f"{pct:.0f}%"
         best = "N/A" if s["best"] == 0 else store.fmt_time(s["best"])
         worst = "N/A" if s["worst"] == 0 else store.fmt_time(s["worst"])
-        print(f"{GAMES[key].name:<16}{s['wins']:>6}{s['total']:>7}{pcts:>7}{best:>8}{worst:>8}")
+        cur, longest = streaks.get(key, ("N/A", "N/A"))
+        print(
+            f"{GAMES[key].name:<16}{s['wins']:>6}{s['total']:>7}{pcts:>7}{best:>8}{worst:>8}"
+            f"{cur:>8}{longest:>8}"
+        )
+    recent = history.recent(RECENT_LINES)
+    if recent:
+        print("\nRecent games")
+        for e in recent:
+            print(history.line(e))
 
 
 def reset_stats(yes: bool) -> int:
