@@ -5,6 +5,7 @@ import os
 import signal
 import subprocess
 import sys
+import types
 from pathlib import Path
 
 import pytest
@@ -12,7 +13,7 @@ import pytest
 import soliterm
 from soliterm import aisleriot as ar
 from soliterm import cli as cli_mod
-from soliterm import history, saves, store
+from soliterm import history, saves, store, textmode
 from soliterm.cli import main
 from soliterm.deals import Deal
 from soliterm.engine import GAME_ORDER, GAMES
@@ -665,6 +666,72 @@ def test_a_saved_spider_suits_choice_beats_the_default(cli, suits):
     board = deal("spider", 1, suits=suits)
     assert without_status(render_text(board, symbols=False)) in out
     assert without_status(render_text(deal("spider", 1), symbols=False)) not in out
+
+
+# -- saved games in text mode ----------------------------------------------------------
+
+
+@pytest.fixture
+def stopped_clock(monkeypatch):
+    """Text mode's clock, stopped, so the times it prints are known."""
+    monkeypatch.setattr(textmode, "time", types.SimpleNamespace(monotonic=lambda: 1000.0))
+
+
+def test_text_mode_saves_on_q_at_a_tty(cli, stopped_clock):
+    rc, lines = cli("--text", stdin="d\nq\n", tty=True)
+    assert rc == 0
+    assert lines[-2:] == ["Saved your game (0:00, 1 move) for next time.", "bye"]
+    assert saves.waiting() == {"klondike": {"seconds": 0, "moves": 1}}
+    assert store.get_stat("klondike")["total"] == 0
+
+
+def test_ctrl_d_at_a_tty_saves(cli, stopped_clock):
+    rc, lines = cli("--text", stdin="d\n", tty=True)
+    assert rc == 0
+    assert lines[-1] == "Saved your game (0:00, 1 move) for next time."
+    assert saves.waiting() == {"klondike": {"seconds": 0, "moves": 1}}
+    assert store.get_stat("klondike")["total"] == 0
+
+
+def test_text_mode_resumes_at_a_tty(cli, stopped_clock):
+    g = deal("klondike", 7)
+    g.deal()
+    g.moves = 31
+    assert saves.keep(g, 42)
+    rc, lines = cli("--text", "--ascii", "--no-color", stdin="q\n", tty=True)
+    assert rc == 0
+    assert lines[0] == "Soliterm - Klondike - Deal 7 (text mode). Type h for help."
+    assert lines[1] == "Resumed your Klondike game (0:42, 31 moves). Type n for a new deal."
+    assert without_status(render_text(g, symbols=False)) in "\n".join(lines)
+    # still under way without a move made, so it goes back as it was
+    assert lines[-2:] == ["Saved your game (0:42, 31 moves) for next time.", "bye"]
+    assert saves.waiting() == {"klondike": {"seconds": 42, "moves": 31}}
+    assert store.get_stat("klondike")["total"] == 0
+
+
+@pytest.mark.parametrize(
+    "chosen", [("--deal", "3"), ("--draw", "3")], ids=["a deal number", "an option"]
+)
+def test_a_chosen_deal_is_kept_but_never_resumed(cli, stopped_clock, chosen):
+    _rc, lines = cli("--text", *chosen, stdin="d\nq\n", tty=True)
+    assert lines[-2] == "Saved your game (0:00, 1 move) for next time."
+    _rc, lines = cli("--text", *chosen, stdin="d\nd\nq\n", tty=True)
+    assert lines[1] == "a saved Klondike game is waiting, so this one won't be kept"
+    assert saves.waiting() == {"klondike": {"seconds": 0, "moves": 1}}
+    assert store.get_stat("klondike")["total"] == 1
+    assert cli.err == (
+        "soliterm: a saved Klondike game was already waiting, so this one counted as lost\n"
+    )
+
+
+def test_piped_text_mode_neither_resumes_nor_saves(cli):
+    g = deal("klondike", 7)
+    g.deal()
+    assert saves.keep(g, 42)
+    _rc, lines = cli("--text", stdin="d\nq\n")
+    assert not any(line.startswith(("Resumed", "Saved")) for line in lines)
+    assert saves.waiting() == {"klondike": {"seconds": 42, "moves": 1}}
+    assert store.get_stat("klondike")["total"] == 1
 
 
 # -- the full-screen game or text mode -------------------------------------------------

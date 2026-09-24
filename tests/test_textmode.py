@@ -5,7 +5,7 @@ import re
 
 import pytest
 
-from soliterm import history, store, textmode
+from soliterm import history, saves, store, textmode
 from soliterm.engine import GAME_ORDER, Card, new_solitaire
 from soliterm.textmode import render_text
 
@@ -405,3 +405,38 @@ def test_ctrl_c_leaves_quietly_and_counts_like_quitting(before, lost, capsys):
     s = store.get_stat("klondike")
     assert (s["wins"], s["total"]) == (0, lost)
     assert "Traceback" not in capsys.readouterr().err
+
+
+# -- saved games ---------------------------------------------------------------------------
+
+
+def test_ctrl_c_saves_a_game_it_may_keep(monkeypatch, capsys):
+    monkeypatch.setattr(textmode, "time", Clock())
+
+    def script():
+        yield "d\n"
+        raise KeyboardInterrupt
+
+    g = deal("klondike", 1)
+    assert textmode.run_text(g, False, "klondike", stream=script(), keep=True) == 130
+    assert saves.waiting() == {"klondike": {"seconds": 0, "moves": 1}}
+    assert store.get_stat("klondike")["total"] == 0
+    out, err = capsys.readouterr()
+    assert out.endswith("\nSaved your game (0:00, 1 move) for next time.\n")
+    assert err == "\n"
+
+
+def test_n_on_a_resumed_game_counts_it_lost_with_its_saved_time(monkeypatch, capsys):
+    clock = Clock()
+    monkeypatch.setattr(textmode, "time", clock)
+
+    def script():
+        clock.now += 5
+        yield "n\n"
+        yield "q\n"
+
+    g = deal("klondike", 1)
+    assert textmode.run_text(g, False, "klondike", stream=script(), keep=True, played=42) == 0
+    # the resumed game was under way before a move; the new deal never was
+    assert [(e["result"], e["seconds"], e["moves"]) for e in history.games()] == [("lost", 47, 0)]
+    assert saves.waiting() == {}

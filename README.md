@@ -135,8 +135,9 @@ started on a deal you chose, with `--deal`, `--draw`, `--suits`, `g` or Play
 a deal, always deals the hand you asked for, so a saved game of its kind goes
 on waiting. It's kept when you leave it if nothing of its kind is waiting;
 if something is, it tells you so when it starts and counts as lost when you
-leave. Text mode keeps nothing: leaving a game you've started counts it as
-lost.
+leave. Text mode keeps a game only when you're typing at a terminal, where
+Ctrl-D keeps it as `q` does; from a script or a pipe, leaving a game you've
+started counts it as lost.
 
 A kept game isn't in the statistics, here or in AisleRiot, until it's
 finished or given up. Then it counts once, with all the time you spent on it.

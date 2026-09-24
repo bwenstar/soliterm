@@ -13,7 +13,7 @@ import shutil
 import sys
 import time
 
-from . import APP_NAME, camo, history, store
+from . import APP_NAME, camo, history, saves, store
 from .deals import code_of, deal_label
 from .engine import SUIT_SYMBOL, Card, Slot, Solitaire
 
@@ -267,15 +267,23 @@ def run_text(
     stream=None,
     color: bool = False,
     camo_theme: str | None = None,
+    keep: bool = False,
+    played: int | None = None,
 ) -> int:
+    """Play g at a prompt, reading commands from `stream` (stdin by default).
+
+    With `keep`, a game left under way is saved for next time rather than
+    counted lost. `played` is the seconds a resumed game has on its clock.
+    """
     out = sys.stdout
     inp = stream if stream is not None else sys.stdin
     # a cp1252 or ASCII stdout has no suit symbols; letters beat a crash
     symbols = symbols and _can_write(out, "".join(SUIT_SYMBOL.values()))
     g.symbols = symbols  # hints name cards as the board does
     theme = camo_theme if camo_theme in camo.THEMES else camo.DEFAULT_THEME
-    start = time.monotonic()  # one clock per deal
+    start = time.monotonic() - (played or 0)  # one clock per deal
     recorded = False
+    resumed = played is not None
 
     def seconds() -> int:
         """This deal's time in whole seconds, as it is printed and stored."""
@@ -292,19 +300,39 @@ def run_text(
         for line in camo.screenful(theme, lines=rows):
             print(line, file=out)
 
+    def so_far() -> str:
+        return f"{store.fmt_time(seconds())}, {store.moves_text(g.moves)}"
+
+    def under_way() -> bool:
+        # from the first move, as in the TUI and AisleRiot, or from the start
+        # of a resumed game, until it is counted or saved; a deal nobody
+        # touched does not count at all
+        return not recorded and not g.is_won() and (g.moves > 0 or resumed)
+
     def give_up() -> None:
-        # A deal left unfinished after a move counts as a loss, as in the TUI
-        # and AisleRiot; one nobody touched does not count at all.
         nonlocal recorded
-        if not recorded and not g.is_won() and g.moves > 0:
+        if under_way():
             history.record(g, False, seconds())
             recorded = True
 
+    def put_away() -> None:
+        # on leaving: kept for next time if it may be, and otherwise lost,
+        # with saves.keep's notice saying why
+        nonlocal recorded
+        if keep and under_way() and saves.keep(g, seconds()):
+            recorded = True
+            print(f"Saved your game ({so_far()}) for next time.", file=out)
+        else:
+            give_up()
+
     try:
-        print(
-            f"{APP_NAME} - {g.gamedef.name} - {deal_label(g)} (text mode). Type h for help.\n",
-            file=out,
-        )
+        name = g.gamedef.name
+        print(f"{APP_NAME} - {name} - {deal_label(g)} (text mode). Type h for help.", file=out)
+        if resumed:
+            print(f"Resumed your {name} game ({so_far()}). Type n for a new deal.", file=out)
+        elif keep and g.gamedef.key in saves.waiting():
+            print(f"a saved {name} game is waiting, so this one won't be kept", file=out)
+        print(file=out)
         print(render_text(g, symbols, color), file=out)
         for raw in inp:
             line = raw.strip()
@@ -312,18 +340,18 @@ def run_text(
                 continue
             _ok, msg = apply_text_command(g, line)
             if msg == "__quit__":
-                give_up()
+                put_away()
                 print("bye", file=out)
                 return 0
             if msg == "__newdeal__":
                 give_up()
                 g.new_game()
-                start, recorded = time.monotonic(), False
+                start, recorded, resumed = time.monotonic(), False, False
                 msg = f"new deal {g.deal_number}"
             elif msg == "__restart__":
                 # the same hand again: AisleRiot does not count a restart
                 g.restart()
-                start, recorded = time.monotonic(), False
+                start, recorded, resumed = time.monotonic(), False, False
                 msg = "restarted this deal"
             if msg == "__print__":
                 print(render_text(g, symbols, color), file=out)
@@ -351,10 +379,11 @@ def run_text(
                 if streak:
                     print(f"{streak}.", file=out)
                 return 0
-        give_up()  # the input ran out mid-game
+        put_away()  # the input ran out: Ctrl-D, or the end of a script
         return 0
     except KeyboardInterrupt:
-        # Ctrl-C leaves like q does, minus the traceback
-        give_up()
+        # Ctrl-C leaves like q does, minus the traceback, and so do SIGHUP
+        # and SIGTERM, which the command line turns into this
         print(file=sys.stderr)
+        put_away()
         return 130

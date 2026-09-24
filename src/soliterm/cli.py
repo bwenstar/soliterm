@@ -20,7 +20,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Any, Callable
 
-from . import APP_NAME, __version__, deals, debuginfo, history, migrate, store
+from . import APP_NAME, __version__, deals, debuginfo, history, migrate, saves, store
 from . import aisleriot as ar
 from .engine import GAME_ORDER, GAMES
 from .textmode import run_text
@@ -423,10 +423,27 @@ def _run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
             return tui.main(start, color=args.color, symbols=symbols)
         print(f"soliterm: {why}", file=sys.stderr)
 
-    # text mode
+    # text mode, which keeps games only for someone typing at a terminal:
+    # a script or a pipe plays its deal and counts it, as it always has
     deal = start or deals.Deal(cfg.get("last_game", "klondike"))
-    g = deals.deal_game(deal, store.game_options(cfg, deal.key))
-    return run_text(g, symbols, deal.key, color=text_color, camo_theme=cfg.get("camo_theme"))
+    keep = sys.stdin.isatty()
+    # as in the TUI, only a plain start, with no deal number or options,
+    # resumes
+    taken = saves.take(deal.key) if keep and deal == deals.Deal(deal.key) else None
+    played: int | None = None
+    if taken is None:
+        g = deals.deal_game(deal, store.game_options(cfg, deal.key))
+    else:
+        g, played = taken
+    return run_text(
+        g,
+        symbols,
+        deal.key,
+        color=text_color,
+        camo_theme=cfg.get("camo_theme"),
+        keep=keep,
+        played=played,
+    )
 
 
 if __name__ == "__main__":
