@@ -699,6 +699,18 @@ def _copy_file(src: str, dst: str) -> bool:
     return True
 
 
+def shared_record() -> bool:
+    """True if AisleRiot has one of our games on record, for reset_stats()
+    to clear there too. It may have none: not run yet, or run only for
+    games we don't play."""
+    if not syncing():
+        return False
+    try:
+        return any(s["total"] > 0 for s in ar.all_known_stats().values())
+    except OSError:
+        return False  # unreadable, so reset_stats() leaves it as it is
+
+
 def reset_stats() -> int:
     """Clear statistics for the games we manage. Returns how many were cleared.
 

@@ -174,7 +174,8 @@ def reset_stats(yes: bool) -> int:
     if not store.any_stats() and not played:
         print("There are no statistics to clear.")
         return 0
-    sharing = store.syncing()
+    # only when AisleRiot has a game of ours to clear
+    sharing = store.shared_record()
     if not yes:
         if not sys.stdin.isatty():
             print(

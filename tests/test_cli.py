@@ -523,6 +523,38 @@ def test_reset_stats_clears_the_shared_aisleriot_record(cli, keyfile):
     assert store.get_stat("canfield")["total"] == 0
     assert ar.read_stat(ar.GAME_TO_SECTION["canfield"])["total"] == 0
     assert "Theme=tigullio.svgz" in path.read_text()
+    assert lines[-1] == "Statistics cleared for 1 game(s) (shared with GNOME AisleRiot)."
+
+
+@pytest.mark.parametrize("tty", [False, True])
+def test_a_reset_before_aisleriot_has_run_leaves_it_out(cli, monkeypatch, tty):
+    # installed, but with no keyfile yet there is nothing of its to clear
+    monkeypatch.setattr(ar, "installed", lambda: True)
+    store.record_result("golf", True, 50)
+    rc, lines = cli("--reset-stats", *([] if tty else ["--yes"]), stdin="yes\n", tty=tty)
+    assert rc == 0
+    assert lines[-1] == "Statistics cleared."
+    assert "AisleRiot" not in cli.err
+    assert not os.path.exists(ar.keyfile_path())
+
+
+@pytest.mark.parametrize("tty", [False, True])
+def test_a_reset_leaves_out_an_aisleriot_with_no_record_of_ours(cli, keyfile, monkeypatch, tty):
+    # played before AisleRiot had run, so it waits here to be shared
+    monkeypatch.setattr(ar, "installed", lambda: True)
+    store.record_result("klondike", True, 50)
+    # AisleRiot has run since, and has only a game we don't play on record
+    path = keyfile(
+        "[General]\nRecent=freecell.scm\n\n[Freecell]\nStatistic=1;2;30;40;\n\n"
+        f"[{ar.GAME_TO_SECTION['golf']}]\nStatistic=0;0;0;0;\n"
+    )
+    before = path.read_text()
+    rc, lines = cli("--reset-stats", *([] if tty else ["--yes"]), stdin="yes\n", tty=tty)
+    assert rc == 0
+    assert lines[-1] == "Statistics cleared."
+    assert "AisleRiot" not in cli.err
+    assert store.get_stat("klondike")["total"] == 0
+    assert path.read_text() == before
 
 
 @pytest.mark.parametrize("flag", ["--r", "--reset", "--reset-stat"])
