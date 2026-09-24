@@ -76,6 +76,14 @@ def test_help_uses_the_soliterm_name(capsys):
     assert "Soliterm" in out and "AisleRiot CLI" not in out
 
 
+def test_no_source_calls_soliterm_a_replica_or_by_its_old_name():
+    # pydoc shows the package's docstrings, and the tools are read too
+    root = Path(__file__).resolve().parents[1]
+    for path in [*(root / "src").rglob("*.py"), *(root / "tools").rglob("*.py")]:
+        text = path.read_text(encoding="utf-8")
+        assert "replica" not in text.lower() and "AisleRiot CLI" not in text, path
+
+
 @pytest.mark.parametrize("args", [["--seed=-1"], ["--seed", "2147483648"]])
 def test_a_deal_number_out_of_range_is_an_argument_error(capsys, args):
     with pytest.raises(SystemExit) as exc:

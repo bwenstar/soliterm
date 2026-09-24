@@ -1,4 +1,4 @@
-"""soliterm.engine - a command-line replica of GNOME AisleRiot (`/usr/games/sol`).
+"""soliterm.engine - Solitaire for your terminal, AisleRiot-compatible.
 
 AisleRiot is a collection of solitaire card games sharing one engine: a set of
 "slots" holding cards, and per-game rule modules that answer a handful of
