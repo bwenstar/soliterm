@@ -58,7 +58,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     p.add_argument(
-        "--game", choices=GAME_ORDER, default=None, help="game to start (default: menu in the TUI)"
+        "--game",
+        choices=GAME_ORDER,
+        default=None,
+        metavar="GAME",
+        help="game to start, as --list names it (default: menu in the TUI)",
     )
     which = p.add_mutually_exclusive_group()
     which.add_argument(
@@ -138,7 +142,7 @@ def print_list() -> None:
     print("Games:")
     for key in GAME_ORDER:
         cls = GAMES[key]
-        print(f"  {key:<14} {cls.name:<16} {cls.blurb}")
+        print(f"  {key:<14} {cls.name:<16} {cls.short_blurb}")
 
 
 RECENT_LINES = 10  # the most games --stats lists under Recent games

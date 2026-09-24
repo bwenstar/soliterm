@@ -297,7 +297,7 @@ has the whole of it.
 
 | Option | What it does |
 | --- | --- |
-| `--game NAME` | start a game instead of the menu; `--list` shows the names |
+| `--game GAME` | start a game instead of the menu; `--list` shows the names |
 | `--deal N`, `--deal CODE` | play deal N, or the deal a share code names |
 | `--daily` | play today's daily deal |
 | `--draw 1`, `--draw 3` | Klondike: draw one card or three, for this run only |

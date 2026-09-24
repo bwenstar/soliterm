@@ -409,6 +409,15 @@ def test_the_help_fits_a_40_column_terminal(capsys, monkeypatch):
     assert "--deal N|CODE" in capsys.readouterr().out
 
 
+def test_the_help_leaves_the_list_of_games_to_list(capsys):
+    with pytest.raises(SystemExit):
+        main(["--help"])
+    out = capsys.readouterr().out
+    assert "{klondike," not in out
+    about = out.split("  --game GAME", 1)[1].split("\n  --", 1)[0]
+    assert "--list" in about
+
+
 # -- --list ----------------------------------------------------------------------------
 
 
@@ -419,6 +428,15 @@ def test_list_names_every_game_in_menu_order(cli):
     assert [key for key, _ in rows] == GAME_ORDER
     for key, rest in rows:
         assert rest.startswith(GAMES[key].name)
+
+
+def test_every_list_row_fits_80_columns(cli):
+    _, lines = cli("--list")
+    rows = [line for line in lines if line.startswith("  ")]
+    assert len(rows) == len(GAME_ORDER)
+    for key, row in zip(GAME_ORDER, rows):
+        assert len(row) <= 80
+        assert row.endswith(GAMES[key].short_blurb)
 
 
 def test_list_writes_nothing(cli):

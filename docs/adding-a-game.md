@@ -38,8 +38,8 @@ other keys are the name in lower case with the spaces taken out, as in
 `bakersdozen`.
 
 The name is what the menu, the board and the statistics show. The blurb
-is the line about the game under the board's title and in `--list`, and
-`short_blurb` is the shorter one on the menu. An 80-column menu with the
+is the line about the game under the board's title, and `short_blurb` is
+the shorter one on the menu and in `--list`. An 80-column menu with the
 code skin on has room for 49 characters of it, and a test checks that
 every game's fits whole there, so keep it to a few words and leave the
 detail to the blurb. The menu and `--stats` leave 16 characters for the
