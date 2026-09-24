@@ -1125,14 +1125,50 @@ TMUX_KEYS = {
 }
 
 
-@pytest.mark.skipif(not os.path.exists(SCREENSHOTS), reason="no tools/ in this tree")
-def test_the_spider_screenshot_deals_two_suits_and_makes_its_move(tui):
+def screenshot_tool():
     spec = importlib.util.spec_from_file_location("screenshots", SCREENSHOTS)
     shots = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(shots)
+    return shots
+
+
+@pytest.mark.skipif(not os.path.exists(SCREENSHOTS), reason="no tools/ in this tree")
+def test_the_spider_screenshot_deals_two_suits_and_makes_its_move(tui):
+    shots = screenshot_tool()
     (scene,) = [s for s in shots.SCENES if s.name == "spider"]
     keys = [TMUX_KEYS.get(k, k) for step in scene.steps for k in step.keys.split()]
     scr = tui(keys, start_key=scene.game, seed=scene.seed, h=shots.ROWS, w=shots.COLS)
     last = scr.frames[len(keys)]
     assert "♥" in last and "♠" in last
     assert "Moves 1 " in last and "Hint: Move" in last
+
+
+# the moves each scene makes on its way to its last shot, and whether that
+# shot shows a hint
+SCENE_MOVES = {
+    "klondike-in-play": (5, True),
+    "freecell": (1, True),
+    "spider": (1, True),
+    "code-skin": (1, False),
+    "boss-mode": (0, False),
+    "hero": (3, False),
+}
+
+
+@pytest.mark.skipif(not os.path.exists(SCREENSHOTS), reason="no tools/ in this tree")
+def test_screenshot_scenes_still_reach_their_shots(tui):
+    # the keys were worked out by hand for each deal, so they go stale the
+    # moment a deal number deals another hand
+    shots = screenshot_tool()
+    scenes = [s for s in shots.SCENES if s.game]
+    assert sorted(s.name for s in scenes) == sorted(SCENE_MOVES)
+    for scene in scenes:
+        keys = [TMUX_KEYS.get(k, k) for step in scene.steps for k in step.keys.split()]
+        # b and c would hide the board this test reads
+        keys = [k for k in keys if k not in ("b", "c")]
+        scr = tui(keys, start_key=scene.game, seed=scene.seed, h=shots.ROWS, w=shots.COLS)
+        frames = scr.frames[: len(keys) + 1]
+        assert not any("illegal move" in frame for frame in frames), scene.name
+        moves, hint = SCENE_MOVES[scene.name]
+        assert f"Moves {moves} " in frames[-1], scene.name
+        assert ("Hint: Move" in frames[-1]) is hint, scene.name
