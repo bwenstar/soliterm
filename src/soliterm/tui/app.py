@@ -467,22 +467,26 @@ class App:
 
     @hides_the_board
     def confirm(self, *lines: str) -> bool:
-        """Ask a yes or no question: y or Enter is yes, n, Esc or q is no."""
+        """Ask a yes or no question: y is yes, n, Esc, q or Enter is no.
+
+        Enter says no so that an Enter too many, after the one that closed
+        the screen before, can't answer yes to giving a game up."""
         CP, safe_add = self.CP, self.safe_add
         while True:
             self.begin_page()
             for i, line in enumerate(lines):
                 safe_add(2 + i, 6, line, (CP(6) | curses.A_BOLD) if i == 0 else 0)
-            safe_add(3 + len(lines), 6, "y / Enter  yes     n / Esc  no", CP(4))
+            safe_add(3 + len(lines), 6, "y  yes     n / Esc / Enter  no", CP(4))
             self.end_page()
             k = self.page_key()
             if self.boss_key(k):
                 continue
             if k == curses.KEY_MOUSE:
                 skip_mouse_event()
-            elif k in (ord("y"), ord("Y"), curses.KEY_ENTER, 10, 13):
+            elif k in (ord("y"), ord("Y")):
                 return True
-            elif k in (ord("n"), ord("N"), ord("q"), ord("Q"), 27):
+            elif k in (ord("n"), ord("N"), ord("q"), ord("Q"), 27,
+                       curses.KEY_ENTER, 10, 13):
                 return False
 
     # ---- help overlay ---- #

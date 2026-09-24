@@ -652,6 +652,14 @@ def test_new_options_mid_game_ask_before_dealing_again(tui):
     assert store.get_stat("klondike")["total"] == 1
 
 
+def test_enter_twice_on_new_options_keeps_the_game(tui):
+    # the second Enter lands on the question the first one raised
+    scr = tui(["d", "o", curses.KEY_RIGHT, ENTER, ENTER])
+    assert "count as lost" in scr.frames[4] and "Enter  no" in scr.frames[4]
+    assert len(scr.uis) == 1 and "Moves 1" in scr.frames[5]
+    assert store.get_stat("klondike")["total"] == 1       # from the q
+
+
 def test_new_options_before_a_move_just_deal_again(tui):
     scr = tui(["o", curses.KEY_RIGHT, ENTER])
     assert not any("count as lost" in frame for frame in scr.frames)
