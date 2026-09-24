@@ -810,7 +810,10 @@ class App:
         deal = deal or Deal(key)
         # only a plain start, with no deal number or options, resumes
         plain = deal == Deal(key)
+        listed = plain and key in self.waiting
         resumed = saves.take(key) if plain else None
+        if not os.path.exists(saves.save_path(key)):
+            self.waiting.pop(key, None)  # taken or set aside, so there's room
         if resumed is None:
             self.game = self.new_game(deal)
         else:
@@ -836,10 +839,17 @@ class App:
             self.clock.resume(seconds)
             done = self.resume_text({"seconds": seconds, "moves": self.game.moves})
             self.message = f"Resumed your game ({done}). n deals a new hand."
-        elif key in self.waiting and plain:
+        elif listed:
             self.message = "Your saved game couldn't be read, so this is a new deal."
         elif key in self.waiting:
-            self.message = f"a saved {GAMES[key].name} game is waiting, so this one won't be kept"
+            self.message = self.unkept_note()
+
+    def unkept_note(self) -> str:
+        """What a new deal says while a game of its kind is saved, as then
+        leaving this one can't keep it too; "" when there's room for it."""
+        if self.key not in self.waiting:
+            return ""
+        return f"a saved {GAMES[self.key].name} game is waiting, so this one won't be kept"
 
     @staticmethod
     def resume_text(save: dict) -> str:
@@ -1048,7 +1058,7 @@ class App:
         self.give_up()
         if choice == "new":
             self.reset_for(self.game.new_game)
-            self.message = "new deal"
+            self.message = self.unkept_note() or "new deal"
             return True
         return False  # menu
 
@@ -1289,7 +1299,7 @@ class App:
         # new deal: an abandoned game counts as a loss first
         self.give_up()
         self.reset_for(self.game.new_game)
-        self.message = "new deal"
+        self.message = self.unkept_note() or "new deal"
 
     def do_restart(self):
         # restart THIS deal (replay the same shuffle); no loss recorded,
@@ -1319,7 +1329,7 @@ class App:
             return
         self.give_up()
         self.start_game(deal.key, deal)
-        self.message = f"playing {label}"
+        self.message = self.unkept_note() or f"playing {label}"
 
     def do_options(self):
         # Every option there is changes the deal (the draw, the suits), so
@@ -1345,7 +1355,7 @@ class App:
         self.game.new_game(options=newopts)
         self.ui = self.new_board()
         self.reset_for(lambda: None)  # already dealt, just above
-        self.message = "options applied"
+        self.message = self.unkept_note() or "options applied"
 
     def do_stats(self):
         self.stats_screen(self.key)

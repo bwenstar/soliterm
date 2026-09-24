@@ -1207,6 +1207,36 @@ def test_play_a_deal_from_the_menu_leaves_the_save_waiting(tui):
     assert saves.waiting() == {"klondike": {"seconds": 42, "moves": 31}}
 
 
+UNKEPT = "a saved Klondike game is waiting, so this one won't be kept"
+
+
+@pytest.mark.parametrize(
+    "keys",
+    [["g", "6", ENTER], ["n"], ["o", curses.KEY_RIGHT, ENTER]],
+    ids=["g", "n", "new options"],
+)
+def test_every_new_deal_says_the_save_waiting_leaves_no_room(tui, keys):
+    keep_one()
+    scr = tui([*keys, "q"], deal=5)
+    assert UNKEPT in scr.frames[0]
+    assert UNKEPT in scr.frames[len(keys)]
+
+
+def test_the_banners_new_deal_says_so_too(tui):
+    keep_one()
+    scr = tui(KING_TO_EMPTY + ["a", "n", "q"], start=Deal("klondike", 5), game=near_won())
+    assert "YOU WIN!" in scr.frames[-2]
+    assert UNKEPT in scr.frames[-1]
+
+
+def test_a_resumed_game_leaves_the_slot_free_for_the_next(tui):
+    keep_one()
+    scr = tui(["g", "6", ENTER, "y", "q"])
+    assert "Resumed your game" in scr.frames[0]
+    assert "playing klondike:6" in scr.frames[4]
+    assert UNKEPT not in scr.frames[4]
+
+
 def test_an_unreadable_save_deals_a_new_hand_and_says_so(tui):
     keep_one()
     path = saves.save_path("klondike")
@@ -1216,10 +1246,12 @@ def test_an_unreadable_save_deals_a_new_hand_and_says_so(tui):
     save["position"] = save["position"].replace("\ns1|waste|none|0|", "\ns1|waste|none|0|1SU,")
     with open(path, "w", encoding="utf-8") as fh:
         json.dump(save, fh)
-    scr = tui([ENTER, "q"], start_key=None)
+    scr = tui([ENTER, "n", "q"], start_key=None)
     assert "Resume your game" in scr.frames[0]
     assert "Your saved game couldn't be read, so this is a new deal." in scr.frames[1]
     assert "Moves 0" in scr.frames[1]
+    # set aside, it leaves room to keep the next
+    assert "new deal" in scr.frames[2]
     assert glob.glob(path + ".corrupt-*")
     assert "was damaged" in store.notices()[0]
 
