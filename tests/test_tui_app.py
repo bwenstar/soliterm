@@ -9,7 +9,7 @@ import curses
 
 import soliterm.tui.app
 from soliterm import store
-from soliterm.engine import Card
+from soliterm.engine import Card, Solitaire
 from soliterm.tui.app import MENU, QUIT, App
 from helpers import FakeScr
 
@@ -146,6 +146,17 @@ def test_a_hint_marks_every_card_it_would_move():
               if sid == a and app.stdscr.attrs[yx] & curses.A_UNDERLINE}
     assert marked == {1, 2}
     assert app.stdscr.attrs[cell_of(app, a, 3)] & curses.A_BOLD
+
+
+def test_a_hint_with_nothing_to_suggest_says_what_the_game_says(monkeypatch):
+    # the game knows whether dealing or undoing could still help
+    monkeypatch.setattr(Solitaire, "no_hint_reason", lambda self: "nothing helps")
+    app, a, b = klondike_app([up(13, "S")], [up(13, "H")])
+    for sid in app.game.ids_of("stock") + app.game.ids_of("waste"):
+        app.game.slots[sid].cards = []
+    assert app.game.hint() is None
+    press(app, "h")
+    assert app.message == "nothing helps"
 
 
 def test_an_illegal_drop_says_so_and_changes_nothing():

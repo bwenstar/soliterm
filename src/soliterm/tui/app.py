@@ -896,6 +896,7 @@ class App:
     def do_hint(self):
         self.hint = self.game.hint()
         if self.hint is None:
+            # the game says why, and whether an undo could still help
             self.message = self.game.no_hint_reason()
         else:
             hsrc, hdst, desc = self.hint
