@@ -232,9 +232,9 @@ def apply_text_command(g: Solitaire, cmd: str) -> tuple[bool, str]:
             missing = _missing_slot(g, src, dst)
             if missing:
                 return False, missing
-            n = int(parts[2]) if len(parts) == 3 else None
-            ok = g.attempt_move(src, dst, n)
-            if not ok and n is None:
+            count = int(parts[2]) if len(parts) == 3 else None
+            ok = g.attempt_move(src, dst, count)
+            if not ok and count is None:
                 # like a drop in the TUI: when the whole run won't land,
                 # try the shorter runs off its top, longest first
                 for k in range(g.default_pickup(src) - 1, 0, -1):
