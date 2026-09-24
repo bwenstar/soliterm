@@ -20,20 +20,10 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Callable
 
-from .. import APP_NAME, camo, deals, history, saves, store
+from .. import APP_NAME, camo, deals, history, saves, store, themes
 from ..deals import Code, Deal
 from ..engine import GAME_ORDER, GAMES, Solitaire
-from ..themes import (
-    BACK,
-    CHROME,
-    CURSOR,
-    FACE_BLACK,
-    FACE_RED,
-    HINT,
-    MESSAGE,
-    RED_SELECTED,
-    SELECTED,
-)
+from ..themes import CHROME, CURSOR, MESSAGE
 from .board import (
     CODE_GUTTER,
     MIN_COLS,
@@ -221,6 +211,11 @@ class App:
         # "show colour" flag the renderer reads, and flips on toggle.
         self.color_capable = False
         self.has_color = False
+        self.theme = themes.CLASSIC
+        # the terminal says its background is light, so the theme may want
+        # darker text; and whether -1, that background, can be used at all
+        self.light = light_background()
+        self.default_colours = True
         # what the screen being drawn has put up so far, held back until it
         # is known to fit (see begin_page), how far right the code skin put
         # it, and whether the last one fit
@@ -283,28 +278,17 @@ class App:
             # can't hand it over, and black stands in for it there.
             try:
                 curses.use_default_colors()
-                bg = -1
             except curses.error:
-                bg = curses.COLOR_BLACK
-            # cyan and yellow text wash out on white, so a terminal that
-            # says its background is light gets blue and magenta instead
-            if bg == -1 and light_background():
-                chrome, note = curses.COLOR_BLUE, curses.COLOR_MAGENTA
-            else:
-                chrome, note = curses.COLOR_CYAN, curses.COLOR_YELLOW
-            # Face-up cards are drawn like real cards: a white card face with the
-            # suit colour as the text - red for hearts/diamonds, true black for
-            # spades/clubs - so black suits read as black, not white, on any
-            # terminal background.
-            curses.init_pair(FACE_RED, curses.COLOR_RED, curses.COLOR_WHITE)
-            curses.init_pair(FACE_BLACK, curses.COLOR_BLACK, curses.COLOR_WHITE)
-            curses.init_pair(SELECTED, curses.COLOR_BLACK, curses.COLOR_GREEN)
-            curses.init_pair(CHROME, chrome, bg)
-            curses.init_pair(CURSOR, curses.COLOR_BLACK, curses.COLOR_YELLOW)
-            curses.init_pair(MESSAGE, note, bg)
-            curses.init_pair(BACK, curses.COLOR_WHITE, curses.COLOR_BLUE)
-            curses.init_pair(RED_SELECTED, curses.COLOR_WHITE, curses.COLOR_GREEN)
-            curses.init_pair(HINT, curses.COLOR_BLACK, curses.COLOR_CYAN)
+                self.default_colours = False
+            self.init_pairs()
+
+    def init_pairs(self) -> None:
+        """Set the colour pairs up for the theme. Cells already on screen
+        change with them, so a new theme shows at once."""
+        for n, fg, bg in themes.pair_colours(
+            self.theme, getattr(curses, "COLORS", 8), self.light, self.default_colours
+        ):
+            curses.init_pair(n, fg, bg)
 
     def CP(self, n):
         return curses.color_pair(n) if self.has_color else 0
