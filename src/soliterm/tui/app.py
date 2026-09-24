@@ -20,7 +20,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Callable
 
-from .. import APP_NAME, camo, deals, saves, store
+from .. import APP_NAME, camo, deals, history, saves, store
 from ..deals import Code, Deal
 from ..engine import GAME_ORDER, GAMES, Solitaire
 from .board import (
@@ -960,7 +960,7 @@ class App:
     def count(self, won: bool, seconds: int) -> dict:
         """Count the game in play in the statistics, once, and return its
         statistics after. Every game the TUI counts comes through here."""
-        stat = store.record_result(self.key, won, seconds)
+        stat = history.record(self.game, won, seconds)
         self.recorded = True
         return stat
 

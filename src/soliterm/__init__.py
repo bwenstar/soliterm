@@ -13,6 +13,7 @@ Modules:
   tui        the curses front-end
   store      config and statistics under the XDG directories
   saves      unfinished games kept for next time
+  history    every game counted, for streaks and recent games
   aisleriot  reads and writes GNOME AisleRiot's statistics keyfile
   camo       boss-mode and code-skin text
 """

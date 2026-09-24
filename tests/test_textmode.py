@@ -5,7 +5,7 @@ import re
 
 import pytest
 
-from soliterm import store, textmode
+from soliterm import history, store, textmode
 from soliterm.engine import GAME_ORDER, Card, new_solitaire
 from soliterm.textmode import render_text
 
@@ -360,6 +360,17 @@ def test_a_text_win_prints_the_share_code(capsys):
     lines = capsys.readouterr().out.splitlines()
     assert lines[-2].startswith("Score ")
     assert lines[-1] == "Share code: klondike:5"
+
+
+def test_text_games_go_in_the_history(capsys):
+    play_text("klondike", "d\nq\n")
+    g = deal("klondike", 1)
+    script = io.StringIO(f"f {one_card_from_won(g)}\n")
+    assert textmode.run_text(g, False, "klondike", stream=script) == 0
+    assert [(e["result"], e["moves"], e["deal"]) for e in history.games()] == [
+        ("lost", 1, 1),
+        ("won", 1, 1),
+    ]
 
 
 @pytest.mark.parametrize("before,lost", [(["d\n"], 1), (["p\n"], 0)])

@@ -1,0 +1,116 @@
+"""The history: one line per game counted here, and the win streaks it
+gives."""
+
+import json
+import os
+
+import pytest
+
+from soliterm import history, store
+from soliterm.history import Streak
+
+from helpers import deal
+
+AT = "2026-09-24T14:05:11+10:00"
+
+
+@pytest.fixture(autouse=True)
+def fixed_time(monkeypatch):
+    monkeypatch.setattr(history, "now", lambda: AT)
+
+
+def lines():
+    with open(history.history_path(), encoding="utf-8") as fh:
+        return fh.read().splitlines()
+
+
+def write(text):
+    path = history.history_path()
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(text)
+
+
+def played(key="klondike", seed=4, deals=3):
+    g = deal(key, seed)
+    for _ in range(deals):
+        g.deal()
+    return g
+
+
+def test_record_appends_one_line():
+    stat = history.record(played(), True, 141.6)
+    assert stat == store.get_stat("klondike")
+    assert (stat["wins"], stat["total"], stat["best"]) == (1, 1, 142)
+    assert [json.loads(line) for line in lines()] == [
+        {
+            "at": AT,
+            "game": "klondike",
+            "options": {"draw": 1, "redeals": "standard"},
+            "deal": 4,
+            "result": "won",
+            "seconds": 142,
+            "moves": 3,
+            "score": 0,
+        }
+    ]
+    history.record(played("golf", deals=1), False, 7.4)
+    assert len(lines()) == 2
+    assert history.games()[1]["result"] == "lost"
+
+
+@pytest.mark.parametrize("won,secs,kept", [(True, 0.2, 1), (False, 0.2, 0), (False, 9.6, 10)])
+def test_a_loss_keeps_its_time_and_a_win_is_at_least_a_second(won, secs, kept):
+    history.record(played(), won, secs)
+    assert history.games()[0]["seconds"] == kept
+
+
+def test_bad_lines_are_skipped():
+    good = {"at": AT, "game": "golf", "result": "won", "seconds": 5, "moves": 2}
+    bad = [
+        [1, 2],
+        {**good, "game": 5},
+        {**good, "result": "drew"},
+        {**good, "seconds": -1},
+        {**good, "moves": True},
+        {**good, "at": None},
+    ]
+    text = "\n".join([json.dumps(good), *map(json.dumps, bad), "", "not json", '{"at": "2026-'])
+    write(text)  # the last line cut short, with no newline after it
+    history.record(played(), False, 3)
+    assert [e["game"] for e in history.games()] == ["golf", "klondike"]
+    assert json.loads(lines()[-1])["game"] == "klondike"
+    assert store.notices() == []
+
+
+def test_streaks_count_wins_in_a_row_per_game():
+    assert history.streaks() == {}
+    for won in [True, True, False, True]:
+        history.record(played(), won, 60)
+    for won in [True, True]:
+        history.record(played("golf", deals=1), won, 60)
+    assert history.streaks() == {"klondike": Streak(1, 2), "golf": Streak(2, 2)}
+
+
+def test_recent_games_come_newest_first():
+    assert not history.any_games()
+    for key in ["klondike", "golf", "spider"]:
+        history.record(played(key, deals=1), False, 60)
+    assert history.any_games()
+    assert [e["game"] for e in history.recent(2)] == ["spider", "golf"]
+    assert len(history.recent(10)) == 3
+
+
+@pytest.mark.skipif(
+    os.name != "posix" or os.geteuid() == 0, reason="needs POSIX file modes, not root"
+)
+def test_an_unwritable_history_still_counts_the_game_and_says_so():
+    write("")
+    path = history.history_path()
+    os.chmod(path, 0o400)
+    history.record(played(), False, 3)
+    assert store.get_stat("klondike")["total"] == 1
+    assert lines() == []
+    assert store.notices() == [
+        f"can't write {path} (Permission denied), so that game is missing from the history"
+    ]

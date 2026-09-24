@@ -13,7 +13,7 @@ import shutil
 import sys
 import time
 
-from . import APP_NAME, camo, store
+from . import APP_NAME, camo, history, store
 from .deals import code_of, deal_label
 from .engine import SUIT_SYMBOL, Card, Slot, Solitaire
 
@@ -297,7 +297,7 @@ def run_text(
         # and AisleRiot; one nobody touched does not count at all.
         nonlocal recorded
         if not recorded and not g.is_won() and g.moves > 0:
-            store.record_result(game_key, False, seconds())
+            history.record(g, False, seconds())
             recorded = True
 
     try:
@@ -340,7 +340,7 @@ def run_text(
             if g.is_won() and not recorded:
                 recorded = True
                 secs = seconds()
-                store.record_result(game_key, True, secs)
+                history.record(g, True, secs)
                 print("Congratulations - you won!", file=out)
                 print(
                     f"Score {g.score} in {store.fmt_time(secs)} ({store.moves_text(g.moves)}).",

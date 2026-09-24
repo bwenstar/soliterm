@@ -18,7 +18,7 @@ import pytest
 
 import soliterm.tui
 from soliterm import aisleriot as ar
-from soliterm import cli, deals, engine, saves, store
+from soliterm import cli, deals, engine, history, saves, store
 from soliterm.deals import Deal
 from soliterm.engine import Card
 from soliterm.tui.app import DEAL_TEXT_MAX
@@ -740,6 +740,11 @@ def test_finishing_a_game_records_the_win_and_shows_the_banner(tui):
     assert "YOU WIN" in scr.frames[1]
     s = store.get_stat("klondike")
     assert s["wins"] == 1 and s["total"] == 1
+
+
+def test_a_win_and_a_loss_both_go_in_the_history(tui):
+    tui(["a", "n", "d", "n", "q"], game=near_won())
+    assert [(e["result"], e["moves"]) for e in history.games()] == [("won", 1), ("lost", 1)]
 
 
 def test_playing_again_from_the_menu_does_not_double_aisleriot_stats(tui, keyfile):

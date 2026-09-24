@@ -3,10 +3,9 @@ saves folder for next time."""
 
 from __future__ import annotations
 
-import datetime
 import os
 
-from . import __version__, engine, store
+from . import __version__, engine, history, store
 from .engine import GAMES, Solitaire
 
 SAVE_FORMAT = 1
@@ -23,10 +22,6 @@ def saves_dir() -> str:
 
 def save_path(key: str) -> str:
     return os.path.join(saves_dir(), f"{key}.json")
-
-
-def _now() -> str:
-    return datetime.datetime.now().astimezone().isoformat(timespec="seconds")
 
 
 def keep(g: Solitaire, seconds: float) -> bool:
@@ -49,7 +44,7 @@ def keep(g: Solitaire, seconds: float) -> bool:
         save = {
             "format": SAVE_FORMAT,
             "version": __version__,
-            "saved": _now(),
+            "saved": history.now(),
             "seconds": int(seconds),
             **g.snapshot(SAVED_STEPS),
         }
