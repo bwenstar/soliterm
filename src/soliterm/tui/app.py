@@ -280,7 +280,7 @@ class App:
                 top, bottom = min(rows), max(rows)
                 # a comment mark at the gutter down the rows the screen uses,
                 # and its text after it, so the whole block reads as a comment
-                draw_code_backdrop(self, {y: "#" for y in range(top, bottom + 1)},
+                draw_code_backdrop(self, dict.fromkeys(range(top, bottom + 1), "#"),
                                    last_row=max(h - 2, bottom))
             for y, x, text, attr in page:
                 self.safe_add(y, x + self.page_dx, text, attr)

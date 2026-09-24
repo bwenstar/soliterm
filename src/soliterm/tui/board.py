@@ -35,8 +35,8 @@ SHARING_NOTE = "some cards share a row; a taller terminal shows them all"
 
 # Box-drawing glyphs: unicode for a real card look, ASCII fallback for --ascii.
 _GLYPHS = {
-    True:  dict(tl="┌", tr="┐", bl="└", br="┘", h="─", v="│", back="▒"),
-    False: dict(tl="+", tr="+", bl="+", br="+", h="-", v="|", back="#"),
+    True:  {"tl": "┌", "tr": "┐", "bl": "└", "br": "┘", "h": "─", "v": "│", "back": "▒"},
+    False: {"tl": "+", "tr": "+", "bl": "+", "br": "+", "h": "-", "v": "|", "back": "#"},
 }
 # the legacy view's card back is the one unicode glyph not in _GLYPHS
 _UNICODE = "".join(_GLYPHS[True].values()) + "░" + "".join(SUIT_SYMBOL.values())
@@ -538,7 +538,7 @@ class BoardUI:
         like a snapshot embedded in the source.
         """
         board_rows = self._board_row_span()
-        notes = {y: "" for y in board_rows}
+        notes = dict.fromkeys(board_rows, "")
         if board_rows:
             notes[min(board_rows)] = "    # --- board snapshot (live) ---"
         draw_code_backdrop(self, notes)

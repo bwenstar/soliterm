@@ -26,7 +26,7 @@ def bind(keys: Iterable[Union[str, int]], action: str, label: str, text: str,
     """A Binding where every key in `keys` (characters or key codes) does
     the same action."""
     codes = [ord(k) if isinstance(k, str) else k for k in keys]
-    return Binding(label, text, {k: action for k in codes}, **kw)
+    return Binding(label, text, dict.fromkeys(codes, action), **kw)
 
 
 KEYMAP: Tuple[Binding, ...] = (
