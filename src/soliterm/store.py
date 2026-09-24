@@ -462,7 +462,7 @@ def _record_result(game_key: str, won: bool, seconds: float) -> dict:
         # the merge won't run again, so note the game for the keyfile
         waiting = _unsynced(stats)
         waiting[game_key] = _combined(waiting.get(game_key, dict(EMPTY_STAT)), one)
-        meta["unsynced"] = waiting
+        meta["unsynced"] = {**_foreign(meta.get("unsynced")), **waiting}
     stats[META_KEY] = meta
     save_stats(stats)
     return updated
@@ -489,6 +489,18 @@ def _unsynced(stats: dict) -> dict[str, dict]:
     return {k: v for k, v in out.items() if v["total"] > 0}
 
 
+def _foreign(unsynced: object) -> dict:
+    """The entries of an unsynced list for games this version doesn't have.
+
+    A newer version with more games put them there while it wasn't sharing.
+    We can't share them, but they are kept as they are, so that version can
+    once it is back.
+    """
+    if not isinstance(unsynced, dict):
+        return {}
+    return {k: v for k, v in unsynced.items() if k not in ar.GAME_TO_SECTION}
+
+
 def _share(stats: dict, waiting: dict[str, dict], game_key: str) -> None:
     """Add the games in `waiting` to the keyfile, then save `stats` (whose
     own records already count them) with whatever didn't make it.
@@ -498,7 +510,9 @@ def _share(stats: dict, waiting: dict[str, dict], game_key: str) -> None:
     counting them twice.
     """
     meta = {**_meta(stats), "merged_into_aisleriot": True}
-    meta.pop("unsynced", None)
+    foreign = _foreign(meta.pop("unsynced", None))
+    if foreign:
+        meta["unsynced"] = foreign
     stats[META_KEY] = meta
     if not save_stats(stats):
         # the others are still listed in the file on disk; sending them
@@ -521,7 +535,7 @@ def _share(stats: dict, waiting: dict[str, dict], game_key: str) -> None:
             stats[key] = written  # our copy follows the keyfile
     if left:
         _unwritable_keyfile()
-        meta["unsynced"] = left
+        meta["unsynced"] = {**foreign, **left}
     save_stats(stats)
 
 
@@ -540,8 +554,11 @@ def _merge_local_into_aisleriot_once() -> None:
     if _merged(local):
         return
     # the whole history goes in, so nothing is left waiting on its own
+    # (bar a newer version's games, which only it can share)
     meta = {**_meta(local), "merged_into_aisleriot": True}
-    meta.pop("unsynced", None)
+    foreign = _foreign(meta.pop("unsynced", None))
+    if foreign:
+        meta["unsynced"] = foreign
     local[META_KEY] = meta
     if not save_stats(local):
         return
@@ -565,7 +582,7 @@ def _merge_local_into_aisleriot_once() -> None:
     if left:
         # what the keyfile didn't take waits with the other unshared games
         _unwritable_keyfile()
-        meta["unsynced"] = left
+        meta["unsynced"] = {**foreign, **left}
         save_stats(local)
 
 

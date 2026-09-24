@@ -508,6 +508,37 @@ def test_a_reset_forgets_games_not_yet_shared(keyfile):
     assert ar.read_stat("klondike.scm") == stat(0, 1, 0, 0)
 
 
+# a game from a newer version, which this one can't share
+FUTURE = {"futuregame": stat(2, 3, 50, 70)}
+
+
+def test_games_a_newer_version_left_unshared_are_kept(keyfile):
+    keyfile(AR_KLONDIKE + "\n[golf.scm]\nStatistic=4;10;30;90;\n")
+    golf = stat(1, 1, 60, 60)
+    meta = {"merged_into_aisleriot": True, "unsynced": {"golf": golf, **FUTURE}}
+    write_json(store.stats_path(), {"golf": golf, "_meta": meta})
+    store.record_result("golf", won=True, seconds=40)
+    assert ar.read_stat("golf.scm") == stat(6, 12, 30, 90)
+    assert store.load_stats()["_meta"]["unsynced"] == FUTURE
+
+
+def test_games_a_newer_version_left_unshared_survive_a_local_result():
+    share(False)
+    meta = {"merged_into_aisleriot": True, "unsynced": dict(FUTURE)}
+    write_json(store.stats_path(), {"_meta": meta})
+    store.record_result("golf", won=True, seconds=40)
+    unsynced = store.load_stats()["_meta"]["unsynced"]
+    assert unsynced == {**FUTURE, "golf": stat(1, 1, 40, 40)}
+
+
+def test_games_a_newer_version_left_unshared_survive_the_first_merge(keyfile):
+    keyfile(AR_KLONDIKE)
+    write_json(store.stats_path(), {"_meta": {"unsynced": dict(FUTURE)}})
+    store.record_result("klondike", won=True, seconds=100)
+    assert ar.read_stat("klondike.scm") == stat(11, 41, 100, 900)
+    assert store.load_stats()["_meta"]["unsynced"] == FUTURE
+
+
 def test_reset_zeroes_only_the_games_we_manage(keyfile):
     keyfile(
         "[Aisleriot Config]\nRecent=spider;\n\n"
