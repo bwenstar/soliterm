@@ -22,6 +22,7 @@ from ..themes import (
     CURSOR,
     FACE_BLACK,
     FACE_RED,
+    FALLBACK,
     HINT,
     MESSAGE,
     RED_SELECTED,
@@ -66,6 +67,14 @@ def can_draw_unicode(stdscr) -> bool:
     except (LookupError, UnicodeEncodeError):
         return False
     return True
+
+
+def color_attr(n: int) -> int:
+    """curses.color_pair(n), or the pair drawn in its place on a terminal
+    with too few pairs to have set it up."""
+    if n >= getattr(curses, "COLOR_PAIRS", 256):
+        n = FALLBACK.get(n, 0)
+    return curses.color_pair(n)
 
 
 # The code skin's file: the width of its " 12  " line-number gutter, and the
@@ -181,7 +190,7 @@ class BoardUI:
 
     # -- colour helpers -- #
     def CP(self, n):
-        return curses.color_pair(n) if self.has_color else 0
+        return color_attr(n) if self.has_color else 0
 
     def card_attr(
         self, card: Card | None, selected: bool, hinted: bool, cursor: bool = False

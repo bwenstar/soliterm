@@ -23,6 +23,10 @@ BACK = 7  # a face-down card
 RED_SELECTED = 8  # a red card in the run picked up
 HINT = 9  # a hinted card
 
+# the pair drawn instead of one a terminal has no room for; any other is
+# drawn in the terminal's own colours, pair 0
+FALLBACK: dict[int, int] = {}
+
 # runtime aliases, so no X | Y before Python 3.10
 Colour = Union[int, tuple[int, int]]  # one colour, or (on 256 colours, on fewer)
 Pair = tuple[Colour, Colour]  # (text, background)

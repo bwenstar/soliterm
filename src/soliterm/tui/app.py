@@ -29,6 +29,7 @@ from .board import (
     MIN_COLS,
     BoardUI,
     can_draw_unicode,
+    color_attr,
     draw_code_backdrop,
     draw_too_small,
 )
@@ -287,14 +288,17 @@ class App:
 
     def init_pairs(self) -> None:
         """Set the colour pairs up for the theme. Cells already on screen
-        change with them, so a new theme shows at once."""
+        change with them, so a new theme shows at once. A pair the terminal
+        has no room for is left out, and color_attr draws another."""
+        room = getattr(curses, "COLOR_PAIRS", 256)
         for n, fg, bg in themes.pair_colours(
             self.theme, getattr(curses, "COLORS", 8), self.light, self.default_colours
         ):
-            curses.init_pair(n, fg, bg)
+            if n < room:
+                curses.init_pair(n, fg, bg)
 
     def CP(self, n):
-        return curses.color_pair(n) if self.has_color else 0
+        return color_attr(n) if self.has_color else 0
 
     def safe_add(self, y, x, text, attr=0):
         if self.page is not None:

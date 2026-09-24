@@ -159,6 +159,7 @@ def tui(monkeypatch):
         w=120,
         start=None,
         colours=8,
+        color_pairs=256,
         **kwargs,
     ):
         scr = ScriptedScr(h, w, keys, uis)
@@ -169,7 +170,16 @@ def tui(monkeypatch):
         monkeypatch.setattr(curses, "start_color", lambda: None)
         # curses only has these once start_color has run
         monkeypatch.setattr(curses, "COLORS", colours, raising=False)
-        monkeypatch.setattr(curses, "init_pair", lambda *a: pairs.append(a))
+        monkeypatch.setattr(curses, "COLOR_PAIRS", color_pairs, raising=False)
+
+        def init_pair(*pair):
+            # as curses does, near enough, for a pair the terminal has no
+            # room for
+            if pair[0] >= color_pairs:
+                raise ValueError(f"Color pair is greater than COLOR_PAIRS-1 ({color_pairs - 1}).")
+            pairs.append(pair)
+
+        monkeypatch.setattr(curses, "init_pair", init_pair)
         monkeypatch.setattr(curses, "color_pair", lambda n: n << 8)
         monkeypatch.setattr(curses, "getmouse", lambda: scr.mouse)
         if game is not None:
@@ -1734,6 +1744,18 @@ def test_classic_and_contrast_follow_a_light_background(tui, monkeypatch, name, 
     on_light = pairs_on(tui, monkeypatch, "0;15", theme=name, colours=colours)
     assert on_dark == themes.pair_colours(theme, colours, light=False)
     assert on_light == themes.pair_colours(theme, colours, light=True)
+
+
+def test_pairs_past_the_terminals_limit_fall_back(tui):
+    # a terminal with room for pairs 0 to 9 only
+    scr = tui(["d", "q"], color_pairs=10)
+    assert scr.rc == 0
+    assert "Moves 1" in scr.frames[1]
+    assert scr.pairs and all(n < 10 for n, _, _ in scr.pairs)
+    ui = scr.uis[-1]
+    assert ui.CP(themes.HINT) == curses.color_pair(themes.HINT)
+    # the terminal's own colours, for a pair that was never set up
+    assert all(ui.CP(n) == 0 for n in range(10, 16))
 
 
 def test_a_hinted_card_has_a_background_of_its_own(tui):
