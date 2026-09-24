@@ -78,6 +78,17 @@ body:
     validations:
       required: true
   - type: textarea
+    id: debug-info
+    attributes:
+      label: Output of soliterm --debug-info
+      description: |
+        It shows your terminal, Python, curses and where Soliterm keeps its
+        files, with your home folder written as ~. Running it changes
+        nothing and sends nothing anywhere.
+      render: text
+    validations:
+      required: true
+  - type: textarea
     id: output
     attributes:
       label: Error output or screenshot
