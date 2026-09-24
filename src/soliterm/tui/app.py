@@ -157,6 +157,9 @@ class App:
         self.page_skinned = False
         self.page_dx = 0
         self.page_fits = True
+        # a click or resize that came in just behind an Esc, for read_key
+        # to hand out next
+        self.pending_key: Optional[int] = None
         # per-game state, reset by start_game()
         self.clock = GameClock()
         self.selected: Optional[int] = None
@@ -611,11 +614,15 @@ class App:
 
         A terminal sends Alt+key as Esc and the key together. An Esc with
         another key already queued behind it is not the Esc key, and neither
-        half should act: Alt+n would otherwise deal a new hand.
+        half should act: Alt+n would otherwise deal a new hand. An Esc with
+        a click or a resize behind it is, and both act in turn.
 
         With no key for a second it returns -1 too, so play() draws the
         board again and the clock on the status line ticks.
         """
+        if self.pending_key is not None:
+            k, self.pending_key = self.pending_key, None
+            return k
         self.stdscr.timeout(1000)
         try:
             k = self.stdscr.getch()
@@ -628,6 +635,11 @@ class App:
             follow = self.stdscr.getch()
         finally:
             self.stdscr.nodelay(False)
+        if follow in (curses.KEY_MOUSE, curses.KEY_RESIZE):
+            # the next read hands it out, so a click is still taken off
+            # ncurses' queue with getmouse rather than left for a later one
+            self.pending_key = follow
+            return 27
         return 27 if follow == -1 else -1
 
     def start_game(self, key: str) -> None:

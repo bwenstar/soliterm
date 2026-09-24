@@ -311,6 +311,17 @@ def test_alt_and_a_key_does_not_act_as_esc_then_the_key(tui):
     assert scr.uis[0].selections[-1] is not None
 
 
+@pytest.mark.parametrize("event", ["click", "resize"])
+def test_a_click_or_a_resize_just_after_esc_is_not_taken_for_alt(tui, event):
+    # neither comes as Alt, so both the Esc and what follows it act
+    t = deal("klondike", 1).ids_of("tableau")
+    follow = Click(t[1], 1) if event == "click" else Resize(40, 120)
+    scr = tui([ENTER, ESC, follow])
+    picked, *rest = scr.uis[0].selections[1:]
+    assert picked == t[0] and None in rest
+    assert rest[-1] == (t[1] if event == "click" else None)
+
+
 def test_alt_and_a_key_does_nothing_on_the_menu_or_the_banner(tui):
     # Alt+j would have moved the menu to Spider, Alt+n dealt a new hand
     scr = tui([ESC, "j", ENTER], start_key=None)
