@@ -9,6 +9,7 @@ import pytest
 
 from soliterm.tui import keys
 from soliterm.tui.app import App
+from soliterm.tui.board import CODE_GUTTER
 
 from helpers import FakeScr
 
@@ -99,10 +100,20 @@ def test_the_help_screen_names_the_easily_missed_keys(label):
 
 
 def test_the_help_screen_fits_an_80x24_terminal():
-    rows = help_screen().split("\n")
-    assert "Press any key to continue." in rows[-1]
+    # it is all on screen: a help too big for it says so instead
+    assert "Press any key to continue." in help_screen()
     # drawn from column 2, and curses leaves the last column alone
     assert all(2 + len(line) < 79 for line in keys.help_lines())
+
+
+def test_every_help_line_fits_inside_the_code_skin():
+    # the code skin moves the help right by its gutter
+    assert all(len(line) <= 80 - 1 - 2 - CODE_GUTTER for line in keys.help_lines())
+
+
+def test_the_help_screen_names_no_game_rules():
+    # the foundations don't build up by suit in Spider or Golf
+    assert "Foundations" not in help_screen()
 
 
 def test_tab_is_the_boss_mode_key():

@@ -531,7 +531,6 @@ class App:
             "",
             *help_lines(),
             "",
-            "  Foundations build up by suit; tableau rules vary by game.",
             "  Press any key to continue.",
         ]
 
