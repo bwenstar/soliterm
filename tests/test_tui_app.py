@@ -184,15 +184,20 @@ def test_the_cursor_skips_an_empty_placed_slot():
 
 
 def test_the_cursor_leaves_a_slot_that_empties():
-    app, (top, left, _right) = steps_app()
+    app, (top, left, right) = steps_app()
     app.cursor = left
     app.draw()
     app.game.slots[left].cards = []  # as a card played from it would
     app.draw()
-    assert app.cursor == top  # the nearest card still there
+    # the face-down card is nearer, but the face-up one can be picked up
+    assert app.cursor == right
     app.game.slots[left].cards = [up(5, "H")]
     app.draw()
-    assert app.cursor == top
+    assert app.cursor == right
+    app.game.slots[right].cards = []
+    app.game.slots[left].cards = []
+    app.draw()
+    assert app.cursor == top  # the only card left
 
 
 def board_on(key, w=80, tall=False):

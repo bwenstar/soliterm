@@ -1312,6 +1312,22 @@ def test_a_played_card_moves_the_cursor_to_the_nearest_card_that_plays(tui):
     assert [str(c) for c in g.cards(g.ids_of("waste")[0])] == ["5C", "6H", "7C"]
 
 
+def test_with_nothing_to_play_the_cursor_goes_to_a_face_up_card(tui):
+    # once the 6H goes, only the stock plays; the face-down 7S above it is
+    # nearer, but the QD beside it is a card to pick up
+    g = deal("triplepeaks", 1)
+    clear_board(g)
+    peaks = g.ids_of("tableau")
+    g.slots[g.ids_of("stock")[0]].cards = [Card(9, "S", False)]
+    g.slots[g.ids_of("waste")[0]].cards = [up(5, "C")]
+    g.slots[peaks[9]].cards = [Card(7, "S", False)]
+    g.slots[peaks[18]].cards = [up(6, "H")]
+    g.slots[peaks[19]].cards = [up(12, "D")]
+    g.slots[peaks[27]].cards = [up(2, "C")]
+    scr = tui(["f", "\n", "m", "q"], start_key="triplepeaks", game=g, h=24, w=80)
+    assert peaks[19] in scr.uis[-1].selections
+
+
 @pytest.mark.parametrize("double", [False, True])
 @pytest.mark.parametrize(
     "key, says",
