@@ -66,10 +66,12 @@ sends a finished run up.
 
 Only `attempt_move` and `finish` move the cards themselves, so only those
 two call the game's `after_move` for the cards that moved, which is where
-most games score. `click`, `double_click` and `autoplay` leave the moving
-to the game's `on_click`, `on_double_click` and `autoplay`, which do
-their own scoring, so anything a game has to do after every move belongs
-in `post_move`.
+most games score. The finish counts as one move, but it sends the cards
+up one at a time and calls `after_move` and `post_move` for each.
+`click`, `double_click` and `autoplay` leave the moving to the game's
+`on_click`, `on_double_click` and `autoplay`, which do their own
+scoring, so anything a game has to do after every move belongs in
+`post_move`.
 
 Undo and redo swap whole positions, written out by `serialize()`, so no
 game has to know how to take a move back.

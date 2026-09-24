@@ -683,6 +683,16 @@ def test_reset_stats_backs_up_both_files_first(cli, keyfile):
     assert str(kept) in out and store.stats_path() + ".bak" in out
 
 
+def test_security_md_names_what_the_reset_leaves_beside_the_keyfile(cli, keyfile):
+    path = keyfile(f"[{ar.GAME_TO_SECTION['canfield']}]\nStatistic=2;9;100;400;\n")
+    assert cli("--reset-stats", "--yes")[0] == 0
+    security = (Path(__file__).resolve().parents[1] / "SECURITY.md").read_text(encoding="utf-8")
+    left = sorted(p.name for p in path.parent.iterdir())
+    assert left == ["aisleriot", "aisleriot.soliterm-bak"]
+    for name in left:
+        assert f"{name}`" in security, name
+
+
 def test_reset_stats_clears_nothing_when_the_backup_fails(cli, keyfile, monkeypatch):
     path = keyfile(f"[{ar.GAME_TO_SECTION['canfield']}]\nStatistic=2;9;100;400;\n")
     before = path.read_text()

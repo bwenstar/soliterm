@@ -421,6 +421,28 @@ def test_finish_says_where_each_card_lands_as_it_goes():
     assert landed[0][2] == 5  # the 5H is already on the hearts
 
 
+def test_the_finish_counts_one_move_and_calls_the_game_after_every_card(monkeypatch):
+    g = stalled_klondike()
+    rules, calls = g.gamedef, []
+    after_move, post_move = rules.after_move, rules.post_move
+
+    def after(on, src, cards, dst):
+        if on is g:  # not the copy finish_moves() plans on
+            calls.append(("after_move", g.moves))
+        after_move(on, src, cards, dst)
+
+    def post(on):
+        if on is g:
+            calls.append(("post_move", g.moves))
+        post_move(on)
+
+    monkeypatch.setattr(rules, "after_move", after)
+    monkeypatch.setattr(rules, "post_move", post)
+    sent = g.finish()
+    assert calls == [("after_move", 1), ("post_move", 1)] * sent
+    assert g.moves == 1
+
+
 def test_nothing_to_finish_adds_no_undo_step():
     g = stalled_klondike(blocked=True)
     assert g.finish() == 0

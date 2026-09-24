@@ -38,26 +38,36 @@ HOW_MANY = re.compile(
 )
 
 
+def same_list(found, wanted, path):
+    """Check found is wanted, and if not, say which file to put right."""
+    assert found == wanted, f"{path.relative_to(ROOT).as_posix()} needs every game, in menu order"
+
+
+def test_a_list_out_of_order_names_the_file_to_put_right():
+    with pytest.raises(AssertionError, match=r"^docs/games/README\.md needs every game"):
+        same_list(NAMES[::-1], NAMES, GAMES_INDEX)
+
+
 @pytest.mark.skipif(not BUG_REPORT.exists(), reason="no .github/ in this tree")
 def test_the_bug_report_offers_every_game_in_menu_order():
     lines = BUG_REPORT.read_text(encoding="utf-8").splitlines()
     start = lines.index("    id: game")
     end = next(i for i in range(start, len(lines)) if "validations:" in lines[i])
     offered = [line.split("- ", 1)[1] for line in lines[start:end] if line.strip().startswith("- ")]
-    assert offered == ["Not game specific", *NAMES]
+    same_list(offered, ["Not game specific", *NAMES], BUG_REPORT)
 
 
 @pytest.mark.skipif(not GAMES_INDEX.exists(), reason="no docs/ in this tree")
 def test_the_games_index_links_every_game_in_menu_order():
     rows = ROW.findall(GAMES_INDEX.read_text(encoding="utf-8"))
-    assert rows == [(GAMES[key].name, key, key) for key in GAME_ORDER]
+    same_list(rows, [(GAMES[key].name, key, key) for key in GAME_ORDER], GAMES_INDEX)
     for key in GAME_ORDER:
-        assert (GAMES_INDEX.parent / f"{key}.md").exists(), key
+        assert (GAMES_INDEX.parent / f"{key}.md").exists(), f"no docs/games/{key}.md"
 
 
 def test_the_readme_links_every_game_in_menu_order():
     rows = README_ROW.findall(README.read_text(encoding="utf-8"))
-    assert rows == [(GAMES[key].name, key, key) for key in GAME_ORDER]
+    same_list(rows, [(GAMES[key].name, key, key) for key in GAME_ORDER], README)
 
 
 def test_the_readme_describes_every_game_as_the_games_index_does():
@@ -65,7 +75,9 @@ def test_the_readme_describes_every_game_as_the_games_index_does():
         pytest.skip("no docs/ in this tree")
     about = re.compile(r"^\| \[.+?\]\(\S+\) \| `(\w+)` \| (.+) \|$", re.MULTILINE)
     index = about.findall(GAMES_INDEX.read_text(encoding="utf-8"))
-    assert about.findall(README.read_text(encoding="utf-8")) == index
+    assert about.findall(README.read_text(encoding="utf-8")) == index, (
+        "README.md should describe each game as docs/games/README.md does"
+    )
 
 
 @pytest.mark.parametrize("path", [README, PYPROJECT, PACKAGE, MAN_PAGE], ids=lambda p: p.name)

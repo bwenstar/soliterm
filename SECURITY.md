@@ -14,7 +14,8 @@ reads and writes three things, all in your home directory:
   `~/.config/soliterm` and `~/.local/share/soliterm` (or the
   `XDG_CONFIG_HOME` and `XDG_DATA_HOME` you set);
 - GNOME AisleRiot's keyfile, `~/.config/gnome-games/aisleriot`, when
-  statistics sharing is on and AisleRiot is installed;
+  statistics sharing is on and AisleRiot is installed, and the copy of it
+  that `--reset-stats` keeps beside it, `aisleriot.soliterm-bak`;
 - the old aisle-cli folders, which it reads once to copy your settings
   and statistics across, and never writes.
 
