@@ -489,7 +489,7 @@ def test_the_code_skin_keeps_the_board_clickable(key):
     ui, _ = draw(g, h=40, w=140, code_skin=True, hint=g.hint())
     assert ui.hit
     assert min(x for (_, x) in ui.hit) >= ui._gutter
-    for sid, idx in ui.hit.values():
+    for sid, _idx in ui.hit.values():
         assert 0 <= sid < len(g.slots)
 
 

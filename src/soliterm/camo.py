@@ -137,12 +137,12 @@ def _docker_scene(rng: random.Random) -> Iterator[str]:
 def _git_scene(rng: random.Random) -> Iterator[str]:
     branch = rng.choice(["main", "develop", "feature/cache-layer",
                          "fix/retry-backoff", "release/2.1"])
-    yield f"$ git status"
+    yield "$ git status"
     yield f"On branch {branch}"
     yield "Your branch is up to date with 'origin/" + branch + "'."
     yield ""
     yield "nothing to commit, working tree clean"
-    yield f"$ git pull --rebase"
+    yield "$ git pull --rebase"
     yield "Already up to date."
     yield "$ "
 
@@ -274,7 +274,7 @@ def code_lines(n: int = 80, seed=None) -> List[str]:
         lines += [
             f"def {name}_weight(state, k={k}):",
             "    acc = 0",
-            f"    for i in range(k):",
+            "    for i in range(k):",
             f"        acc += state.rank_at(i) * {rng.randint(2, 7)}",
             "    return acc",
             "",

@@ -186,7 +186,7 @@ def test_reset_stats_without_a_terminal_wants_yes(cli, keyfile):
 
 
 def test_reset_stats_on_a_terminal_asks_for_yes(cli, keyfile):
-    path = keyfile(f"[{ar.GAME_TO_SECTION['canfield']}]\nStatistic=2;9;100;400;\n")
+    keyfile(f"[{ar.GAME_TO_SECTION['canfield']}]\nStatistic=2;9;100;400;\n")
     rc, _lines = cli("--reset-stats", stdin="yes\n", tty=True)
     assert rc == 0
     assert "yes" in cli.err and ar.keyfile_path() in cli.err
