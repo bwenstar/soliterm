@@ -524,6 +524,21 @@ def test_restart_replays_the_same_hand():
     assert g.deal_number == seed
 
 
+def test_restart_keeps_the_daily_and_n_drops_it():
+    g = deal("klondike", 20260924)
+    assert g.daily is None
+    g.daily = "2026-09-24"
+    g.deal()
+    assert g.clone().daily == "2026-09-24"
+    g.restart()
+    assert g.daily == "2026-09-24"
+    g.new_game()
+    assert g.daily is None
+    g.daily = "2026-09-24"
+    g.new_game(options={"draw": 3})  # the options screen deals on too
+    assert g.daily is None
+
+
 def test_unseeded_new_games_differ():
     g = engine.new_solitaire("klondike")
     seeds = set()
@@ -734,7 +749,7 @@ def test_snapshot_keeps_the_newest_steps(steps):
     want = {0: ([], []), 1: (undo[-1:], redo[-1:]), 500: (undo, redo)}[steps]
     snap = g.snapshot(steps)
     assert (snap["undo"], snap["redo"]) == want
-    assert snap["game"] == "klondike" and snap["deal"] == 4
+    assert snap["game"] == "klondike" and snap["deal"] == 4 and snap["daily"] is None
     assert snap["options"] == g.options and snap["options"] is not g.options
     assert (snap["moves"], snap["score"]) == (4, g.score)
     assert snap["position"] == g.serialize()
@@ -771,6 +786,10 @@ def test_every_game_resumes_where_it_was(key):
         lambda s: s.update(deal=2**31),
         lambda s: s.update(deal=True),
         lambda s: s.update(undo=s["position"]),
+        lambda s: s.update(daily="24/09/2026"),
+        lambda s: s.update(daily="2026-02-30"),
+        lambda s: s.update(daily="20260924"),
+        lambda s: s.update(daily=20260924),
     ],
     ids=[
         "an unknown game",
@@ -782,6 +801,10 @@ def test_every_game_resumes_where_it_was(key):
         "a deal past the last",
         "a bool deal",
         "undo not a list",
+        "a daily that isn't a date",
+        "a daily on a day there wasn't",
+        "a daily without its dashes",
+        "a daily as a number",
     ],
 )
 def test_resume_refuses(change):
@@ -790,6 +813,18 @@ def test_resume_refuses(change):
     change(snap)
     with pytest.raises(ValueError, match="fit"):
         engine.resume_solitaire(snap)
+
+
+def test_a_daily_resumes_as_a_daily():
+    g = deal("klondike", 20260924)
+    g.daily = "2026-09-24"
+    g.deal()
+    snap = g.snapshot(500)
+    assert snap["daily"] == "2026-09-24"
+    assert engine.resume_solitaire(snap).daily == "2026-09-24"
+    del snap["daily"]  # a save from before there were dailies
+    assert engine.resume_solitaire(snap).daily is None
+    assert engine.resume_solitaire({**snap, "daily": None}).daily is None
 
 
 def test_a_resumed_game_deals_at_random_after():

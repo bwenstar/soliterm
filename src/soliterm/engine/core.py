@@ -86,6 +86,9 @@ class Solitaire:
         self.moves = 0
         self.redeals_done = 0
         self.deal_number = 0  # the number of the deal in play, set by new_game
+        # The day, as "2026-09-24", when the deal in play is that day's daily
+        # deal. It stays the same past midnight, and the next deal clears it.
+        self.daily: str | None = None
         # How messages name cards: with suit symbols (2♥) or letters (2H).
         # The front-end sets it to match the board it draws.
         self.symbols = True
@@ -153,6 +156,7 @@ class Solitaire:
         if options is not None:
             self.options = self.gamedef.sanitize_options(options)
         self.deal_number = number
+        self.daily = None
         self.rng = Pcg32(number, stream_of(self.gamedef.key))
         self.score = 0
         self.base_val = 0
@@ -165,7 +169,9 @@ class Solitaire:
 
     def restart(self) -> None:
         """Deal the hand in play again, from the start."""
+        daily = self.daily
         self.new_game(self.deal_number)
+        self.daily = daily
 
     # -- simulation + move enumeration (used by hints / end-state) -------- #
 
@@ -180,6 +186,7 @@ class Solitaire:
         g.gamedef = self.gamedef
         g.seed = self.seed
         g.deal_number = self.deal_number
+        g.daily = self.daily
         g.options = dict(self.options)
         g.symbols = self.symbols
         # a clone never deals; the generator only keeps the object whole
@@ -668,6 +675,7 @@ class Solitaire:
             "game": self.gamedef.key,
             "options": dict(self.options),
             "deal": self.deal_number,
+            "daily": self.daily,
             "moves": self.moves,
             "score": self.score,
             "position": self.serialize(),

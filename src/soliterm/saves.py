@@ -84,7 +84,8 @@ def take(key: str) -> tuple[Solitaire, int] | None:
 
 
 def waiting(*keys: str) -> dict[str, dict]:
-    """The games waiting, for the menu: {"klondike": {"seconds": 42, "moves": 31}}.
+    """The games waiting, for the menu: {"klondike": {"seconds": 42, "moves": 31}},
+    plus "daily": "2026-09-24" for a daily deal.
 
     Given keys, only their saves are read, so a damaged save of another
     game isn't set aside, or told of, on the way.
@@ -97,6 +98,8 @@ def waiting(*keys: str) -> dict[str, dict]:
             save = _read(key)
             if isinstance(save, dict):
                 found[key] = {"seconds": save["seconds"], "moves": save["moves"]}
+                if save.get("daily"):
+                    found[key]["daily"] = save["daily"]
     return found
 
 

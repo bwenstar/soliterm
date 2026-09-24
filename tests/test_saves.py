@@ -75,6 +75,32 @@ def test_waiting_lists_seconds_and_moves():
     }
 
 
+def test_waiting_says_which_save_is_a_daily():
+    g = played()
+    g.daily = "2026-09-24"
+    assert saves.keep(g, 42)
+    assert saves.keep(played("golf"), 7)
+    assert saves.waiting() == {
+        "klondike": {"seconds": 42, "moves": 3, "daily": "2026-09-24"},
+        "golf": {"seconds": 7, "moves": 3},
+    }
+    assert read(saves.save_path("klondike"))["daily"] == "2026-09-24"
+    h, _ = saves.take("klondike")
+    assert h.daily == "2026-09-24"
+
+
+def test_a_save_without_daily_still_resumes():
+    g = played()
+    assert saves.keep(g, 42)
+    path = saves.save_path("klondike")
+    save = read(path)
+    del save["daily"]  # as the first saves were written
+    write(path, save)
+    assert saves.waiting() == {"klondike": {"seconds": 42, "moves": 3}}
+    h, seconds = saves.take("klondike")
+    assert (h.serialize(), seconds, h.daily) == (g.serialize(), 42, None)
+
+
 def damage(save):
     # a card too many in the waste
     save["position"] = save["position"].replace("\ns1|waste|none|0|", "\ns1|waste|none|0|1SU,")
@@ -131,7 +157,7 @@ def test_unknown_keys_in_a_save_are_ignored():
     g = played()
     assert saves.keep(g, 42)
     path = saves.save_path("klondike")
-    write(path, {**read(path), "daily": "2026-09-24", "colour": [1, 2]})
+    write(path, {**read(path), "colour": [1, 2], "theme": "dark"})
     assert saves.waiting() == {"klondike": {"seconds": 42, "moves": 3}}
     h, _ = saves.take("klondike")
     assert h.serialize() == g.serialize()

@@ -3,6 +3,8 @@ and resume_solitaire()."""
 
 from __future__ import annotations
 
+from datetime import date
+
 from ..core import MAX_DEAL, Solitaire
 from ..gamedef import GameDef
 from .bakersdozen import BakersDozen
@@ -56,6 +58,14 @@ def new_solitaire(key: str, seed: int | None = None, options: dict | None = None
     return Solitaire(GAMES[key](), seed=seed, options=options)
 
 
+def _is_day(text: object) -> bool:
+    """Whether `text` is a day written the way date.isoformat() writes it."""
+    try:
+        return isinstance(text, str) and date.fromisoformat(text).isoformat() == text
+    except ValueError:
+        return False
+
+
 def resume_solitaire(snap: dict) -> Solitaire:
     """The game a Solitaire.snapshot() was taken of, ready to play on.
 
@@ -74,6 +84,9 @@ def resume_solitaire(snap: dict) -> Solitaire:
         raise ValueError(f"the options {opts!r} don't fit {key}")
     if type(deal) is not int or not 0 <= deal <= MAX_DEAL:
         raise ValueError(f"the deal {deal!r} doesn't fit, as deals run from 0 to {MAX_DEAL}")
+    daily = snap.get("daily")  # missing from saves made before the daily deal
+    if daily is not None and not _is_day(daily):
+        raise ValueError(f"the daily {daily!r} doesn't fit, as it isn't a day like 2026-09-24")
     position, undo, redo = snap.get("position"), snap.get("undo"), snap.get("redo")
     if not (
         isinstance(position, str)
@@ -88,5 +101,6 @@ def resume_solitaire(snap: dict) -> Solitaire:
     g._restore(position)
     g._undo = [t.encode() for t in undo]
     g._redo = [t.encode() for t in redo]
+    g.daily = daily
     g.seed = None  # n deals at random from here, not the number after
     return g

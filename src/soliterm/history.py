@@ -43,6 +43,8 @@ def record(g: Solitaire, won: bool, seconds: float) -> dict:
         "moves": g.moves,
         "score": g.score,
     }
+    if g.daily:
+        entry["daily"] = g.daily
     with store._locked():
         stat = store.record_result(g.gamedef.key, won, seconds)
         _append(entry)
@@ -147,12 +149,15 @@ def any_games() -> bool:
 def line(e: dict) -> str:
     """A game as --stats lists it, as in
     2026-09-24 14:05  Klondike        won     2:22  131 moves
+    with "  daily" after it for a daily deal.
     """
     when = e["at"][:16].replace("T", " ")
     key, moves = e["game"], e["moves"]
     name = GAMES[key].name if key in GAMES else key  # a game from a newer version
     secs = store.fmt_time(e["seconds"])
-    return f"{when}  {name:<16}{e['result']:<6}{secs:>6}{moves:>5} move{'' if moves == 1 else 's'}"
+    plural = "" if moves == 1 else "s"
+    daily = "  daily" if e.get("daily") else ""
+    return f"{when}  {name:<16}{e['result']:<6}{secs:>6}{moves:>5} move{plural}{daily}"
 
 
 def backup() -> str | None:

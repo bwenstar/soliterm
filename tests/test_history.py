@@ -60,6 +60,18 @@ def test_record_appends_one_line():
     assert history.games()[1]["result"] == "lost"
 
 
+def test_a_daily_says_so_in_its_line():
+    g = played()
+    g.daily = "2026-09-24"
+    history.record(g, False, 543)
+    history.record(played(), False, 60)
+    daily, other = history.games()
+    assert daily["daily"] == "2026-09-24"
+    assert "daily" not in other
+    assert history.line(daily) == "2026-09-24 14:05  Klondike        lost    9:03    3 moves  daily"
+    assert history.line(other).endswith("3 moves")
+
+
 @pytest.mark.parametrize("won,secs,kept", [(True, 0.2, 1), (False, 0.2, 0), (False, 9.6, 10)])
 def test_a_loss_keeps_its_time_and_a_win_is_at_least_a_second(won, secs, kept):
     history.record(played(), won, secs)
