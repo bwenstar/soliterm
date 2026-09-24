@@ -10,7 +10,7 @@ import curses
 import pytest
 
 import soliterm.tui.app
-from soliterm import store
+from soliterm import saves, store
 from soliterm.deals import Deal
 from soliterm.engine import Card, Solitaire
 from soliterm.tui.app import MENU, QUIT, App
@@ -184,7 +184,8 @@ def test_a_short_session_moves_undoes_hints_and_quits():
     assert app.stdscr.keys == []  # the help took the "z"
 
     assert press(app, "q") == QUIT
-    assert store.get_stat("klondike")["total"] == 1
+    assert store.get_stat("klondike")["total"] == 0
+    assert "klondike" in saves.waiting()
 
 
 def test_esc_drops_the_selection_and_the_hint():
@@ -292,7 +293,8 @@ def test_double_clicking_an_ace_sends_it_home():
 def test_play_goes_back_to_the_menu_or_quits():
     app = App(KeyScr(["d", "m"]))
     assert app.play("klondike") is False
-    assert store.get_stat("klondike")["total"] == 1
+    assert store.get_stat("klondike")["total"] == 0
+    assert "klondike" in saves.waiting()
     app = App(KeyScr(["q"]))
     assert app.play("golf") is True
     assert store.get_stat("golf")["total"] == 0

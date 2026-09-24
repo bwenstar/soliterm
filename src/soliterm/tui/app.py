@@ -205,7 +205,9 @@ class App:
         self.hint: tuple[int, int, str] | None = None
         self.hint_n = 1  # how many cards the hint would move
         self.message = ""
-        self.recorded = False
+        self.recorded = False  # counted, or put away in the saves folder
+        # the end banner is up, so leaving now gives the game up
+        self.ending = False
         # the player took back the move that left no moves: the banner
         # isn't shown again until they make another
         self.dead_end_undone = False
@@ -380,7 +382,7 @@ class App:
                     return 0
         except KeyboardInterrupt:
             # Ctrl-C quits like q, with no traceback; play() has already
-            # counted a started game as lost
+            # saved or counted the game
             return 130
 
     # ---- menu ---- #
@@ -723,8 +725,12 @@ class App:
                 if outcome is not None:
                     return outcome == QUIT
         except KeyboardInterrupt:
-            # Ctrl-C, wherever in the game it comes, leaves the way q does
-            self.give_up()
+            # Ctrl-C, wherever in the game it comes, leaves the way q does,
+            # but on the end banner there is nothing left to come back to
+            if self.ending:
+                self.give_up()
+            else:
+                self.put_away()
             raise
 
     def read_key(self) -> int:
@@ -926,15 +932,30 @@ class App:
         if not self.game.click(sid):
             self.message = self.game.deal_blocked_reason()
 
-    def give_up(self):
-        # A game left unfinished counts as a loss once it is under way, as in
-        # AisleRiot: from the first move, even if undo takes every move back.
+    def under_way(self) -> bool:
+        # A game is under way from its first move, as in AisleRiot, even if
+        # undo takes every move back, until it is counted or put away.
         # Restarting the deal (N, or Replay on the banner) is the exception.
         # AisleRiot's Restart deals the same hand again without touching the
         # statistics, and the next game on that hand counts from its own
         # first move.
-        if not self.recorded and not self.game.is_won() and self.clock.started:
+        return self.clock.started and not self.recorded and not self.game.is_won()
+
+    def give_up(self):
+        """Count the game in play as lost, if it is under way."""
+        if self.under_way():
             self.count(False, self.seconds())
+
+    def put_away(self):
+        """Keep the game in play for next time, on q, m, Ctrl-C, SIGHUP or
+        SIGTERM. One that can't be kept counts as lost, and saves.keep has
+        left a notice saying why."""
+        if not self.under_way():
+            return
+        if saves.keep(self.game, self.seconds()):
+            self.recorded = True
+        else:
+            self.give_up()
 
     def count(self, won: bool, seconds: int) -> dict:
         """Count the game in play in the statistics, once, and return its
@@ -964,11 +985,14 @@ class App:
         A win is recorded at once. A game with no moves left is recorded as
         lost only when the player gives it up for a new deal or the menu.
         Undo plays on, and replaying the deal counts nothing, as AisleRiot's
-        Restart doesn't (see give_up)."""
+        Restart doesn't (see under_way)."""
         seconds = self.seconds()
         if won and not self.recorded:
             self.count(True, seconds)
+        # left set if Ctrl-C comes, for play() to see as it goes
+        self.ending = True
         choice = self.end_banner(seconds, won)
+        self.ending = False
         if choice == "undo":
             self.do_undo()
             self.dead_end_undone = True
@@ -1010,11 +1034,11 @@ class App:
         return None
 
     def do_quit(self):
-        self.give_up()
+        self.put_away()
         return QUIT
 
     def do_menu(self):
-        self.give_up()
+        self.put_away()
         return MENU
 
     def do_help(self):
@@ -1168,7 +1192,7 @@ class App:
 
     def do_restart(self):
         # restart THIS deal (replay the same shuffle); no loss recorded,
-        # as in AisleRiot (see give_up)
+        # as in AisleRiot (see under_way)
         self.reset_for(self.game.restart)
         self.message = "restarted this deal"
 

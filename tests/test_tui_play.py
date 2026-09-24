@@ -662,24 +662,29 @@ def test_the_clock_the_banner_and_the_statistics_agree_on_the_time(tui, game_clo
 def test_quitting_before_moving_records_nothing(tui):
     tui(["q"])
     assert store.get_stat("klondike")["total"] == 0
+    assert saves.waiting() == {}
 
 
-def test_quitting_mid_game_records_a_loss(tui):
+def test_quitting_mid_game_saves_it(tui):
     tui(["d", "q"])
-    assert store.get_stat("klondike") == {"wins": 0, "total": 1, "best": 0, "worst": 0}
+    assert store.get_stat("klondike")["total"] == 0
+    assert saves.waiting()["klondike"]["moves"] == 1
 
 
-def test_undoing_every_move_still_counts_the_game(tui):
-    # AisleRiot counts a game from its first move, however many are taken back
+def test_undoing_every_move_still_keeps_the_game(tui):
+    # AisleRiot counts a game from its first move, however many are taken
+    # back, so it is worth keeping from then on too
     scr = tui(["d", "d", "d", "u", "u", "u", "q"])
     assert "Moves 0" in scr.frames[-1]
-    assert store.get_stat("klondike")["total"] == 1
+    assert store.get_stat("klondike")["total"] == 0
+    assert saves.waiting()["klondike"]["moves"] == 0
 
 
 def test_restarting_the_deal_does_not_count_it(tui):
     # nor does AisleRiot's Restart, which deals the same hand again
     tui(["d", "N", "q"])
     assert store.get_stat("klondike")["total"] == 0
+    assert saves.waiting() == {}
 
 
 def near_won(number=1, **options):
@@ -694,10 +699,11 @@ def near_won(number=1, **options):
 
 
 @pytest.mark.parametrize("keys", [["d"], ["d", "b"], ["d", "?"]])
-def test_ctrl_c_mid_game_quits_quietly_and_counts_the_loss(tui, keys):
+def test_ctrl_c_mid_game_quits_quietly_and_saves_it(tui, keys):
     scr = tui(keys + [KeyboardInterrupt])
     assert scr.rc == 130
-    assert store.get_stat("klondike")["total"] == 1
+    assert store.get_stat("klondike")["total"] == 0
+    assert saves.waiting()["klondike"]["moves"] == 1
 
 
 def test_ctrl_c_before_a_move_or_on_the_menu_records_nothing(tui):
@@ -718,7 +724,7 @@ def test_playing_again_from_the_menu_does_not_double_aisleriot_stats(tui, keyfil
     # every return to the menu and every toggle saves the config the TUI
     # loaded at start, which must not undo the one-time merge
     keyfile("[klondike.scm]\nStatistic=10;40;120;900;\n")
-    tui(["d", "m", ENTER, "v", "d", "q"])
+    tui(["d", "n", "m", ENTER, "v", "d", "n", "q"])
     assert ar.read_stat("klondike.scm") == {"wins": 10, "total": 42, "best": 120, "worst": 900}
 
 
@@ -934,6 +940,48 @@ def test_an_unreadable_save_deals_a_new_hand_and_says_so(tui):
     assert "was damaged" in store.notices()[0]
 
 
+def test_m_mid_game_saves_it(tui):
+    scr = tui(["d", "m", "q"])
+    assert "> Klondike         Resume your game: 0:00, 1 move" in scr.frames[2]
+    assert store.get_stat("klondike")["total"] == 0
+
+
+def test_q_with_the_slot_taken_counts_a_loss_and_says_why(tui):
+    keep_one()
+    tui(["d", "q"], deal=5)
+    assert store.get_stat("klondike")["total"] == 1
+    assert saves.waiting() == {"klondike": {"seconds": 42, "moves": 31}}
+    assert store.notices() == [
+        "a saved Klondike game was already waiting, so this one counted as lost"
+    ]
+
+
+def test_n_on_a_resumed_game_counts_one_loss_with_the_whole_time(tui, game_clock, monkeypatch):
+    counted = []
+    real = store.record_result
+    monkeypatch.setattr(store, "record_result", lambda *args: counted.append(args) or real(*args))
+    tui(["d", Later(5, "q")])
+    tui([Later(3, "n")])
+    assert counted == [("klondike", False, 8)]
+    assert saves.waiting() == {}
+
+
+@pytest.mark.skipif(
+    os.name != "posix" or os.geteuid() == 0, reason="needs POSIX file modes, not root"
+)
+def test_a_save_that_cant_be_written_counts_a_loss(tui):
+    os.makedirs(saves.saves_dir())
+    os.chmod(saves.saves_dir(), 0o500)
+    try:
+        tui(["d", "q"])
+    finally:
+        os.chmod(saves.saves_dir(), 0o700)
+    assert store.get_stat("klondike")["total"] == 1
+    assert store.notices() == [
+        f"couldn't save your Klondike game to {saves.save_path('klondike')}, so it counts as lost"
+    ]
+
+
 # -- options -------------------------------------------------------------------------
 
 KING_TO_EMPTY = [ENTER] + [curses.KEY_RIGHT] * 4 + [ENTER]  # a first move on near_won()
@@ -956,7 +1004,8 @@ def test_leaving_the_options_as_they_were_keeps_the_game(tui):
     scr = tui(["d", "o", ENTER])
     assert len(scr.uis) == 1
     assert "Moves 1" in scr.frames[-1] and "options unchanged" in scr.frames[-1]
-    assert store.get_stat("klondike")["total"] == 1  # from the q
+    assert store.get_stat("klondike")["total"] == 0
+    assert saves.waiting()["klondike"]["moves"] == 1  # from the q
 
 
 def test_new_options_mid_game_ask_before_dealing_again(tui):
@@ -976,7 +1025,8 @@ def test_enter_twice_on_new_options_keeps_the_game(tui):
     scr = tui(["d", "o", curses.KEY_RIGHT, ENTER, ENTER])
     assert "count as lost" in scr.frames[4] and "Enter  no" in scr.frames[4]
     assert len(scr.uis) == 1 and "Moves 1" in scr.frames[5]
-    assert store.get_stat("klondike")["total"] == 1  # from the q
+    assert store.get_stat("klondike")["total"] == 0
+    assert saves.waiting()["klondike"]["moves"] == 1  # from the q
 
 
 def test_new_options_before_a_move_just_deal_again(tui):
@@ -1023,7 +1073,8 @@ def test_o_leaves_a_game_without_options_as_it_was(tui, game_clock, key):
     assert times(scr)[m : m + 3] == ["0:00", "0:10", "0:15"]
     assert len(scr.uis) == 1 and scr.uis[0].game is g
     assert g.serialize() == moved.serialize()
-    assert store.get_stat(key)["total"] == 1  # from the q
+    assert store.get_stat(key)["total"] == 0
+    assert saves.waiting() == {key: {"seconds": 15, "moves": 1}}  # from the q
 
 
 # -- the menu ------------------------------------------------------------------------
