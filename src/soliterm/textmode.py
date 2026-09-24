@@ -123,7 +123,7 @@ Text-mode commands. A slot is named by the number in its tag on the board,
 so stk#0 is 0, fnd#4 is 4 and #9 is 9:
   p / .            reprint the board
   d                deal from the stock
-  a                autoplay safe cards to foundations
+  a                autoplay safe cards, or finish once all can go up
   <src> <dst>      move the longest run from slot src that dst takes, e.g.  9 12
   <src> <dst> <n>  move exactly n cards
   c <slot>         click a slot (deal / play, game-specific)
@@ -196,7 +196,7 @@ def apply_text_command(g: Solitaire, cmd: str) -> tuple[bool, str]:
         ok = g.deal()
         return ok, "" if ok else g.deal_blocked_reason()
     if cmd in ("a", "auto"):
-        n = g.autoplay()
+        n = g.finish() or g.autoplay()
         return n > 0, f"autoplayed {n}" if n else "nothing to autoplay"
     if cmd in ("u", "undo"):
         ok = g.undo()

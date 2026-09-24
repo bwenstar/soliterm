@@ -23,7 +23,7 @@ from soliterm.deals import Deal
 from soliterm.engine import Card
 from soliterm.tui.app import DEAL_TEXT_MAX
 
-from helpers import FakeScr, clear_board, deal
+from helpers import FakeScr, clear_board, deal, stalled_klondike
 
 ENTER = "\n"
 ESC = 27
@@ -708,6 +708,13 @@ def near_won(number=1, key="klondike", **options):
         g.slots[fids[i]].cards = [up(r, suit) for r in range(1, 13)]
         g.slots[tids[i]].cards = [up(13, suit)]
     return g
+
+
+def test_tui_a_finishes_and_wins(tui):
+    # safe autoplay would send up the 5S and stop there
+    scr = tui(["a", "m", "q"], game=stalled_klondike())
+    assert "YOU WIN" in scr.frames[1]
+    assert store.get_stat("klondike")["wins"] == 1
 
 
 @pytest.mark.parametrize("keys", [["d"], ["d", "b"], ["d", "?"]])

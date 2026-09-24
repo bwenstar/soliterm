@@ -5,7 +5,7 @@ from __future__ import annotations
 import random
 import re
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 from .cards import SUITS, Card, make_deck
 from .rng import Pcg32, fisher_yates, stream_of
@@ -598,6 +598,23 @@ class Solitaire:
             rules.post_move(g)
             out.append(move)
         return out if g.is_won() else None
+
+    def finish(self, on_card: Callable[[int, int], None] | None = None) -> int:
+        """Send every card left up to the foundations, as finish_moves()
+        plans, as one move and one undo step. on_card(src, dst) is called as
+        each lands, for the TUI to show it. Returns how many cards went up."""
+        moves = self.finish_moves()
+        if not moves:
+            return 0
+        self._checkpoint()
+        self.moves += 1
+        for src, dst in moves:
+            cards = self._move_cards(src, dst, 1)
+            self.gamedef.after_move(self, src, cards, dst)
+            self.gamedef.post_move(self)
+            if on_card is not None:
+                on_card(src, dst)
+        return len(moves)
 
     def update_status(self) -> None:
         self.status = self.gamedef.status(self)

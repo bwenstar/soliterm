@@ -6,9 +6,17 @@ import random
 
 import pytest
 
-from soliterm.engine import GAME_ORDER, GAMES
+from soliterm.engine import GAME_ORDER, GAMES, Card
 
-from helpers import EXPECTED_CARDS, board_state, card_multiset, deal, legal_walk, random_op
+from helpers import (
+    EXPECTED_CARDS,
+    board_state,
+    card_multiset,
+    clear_board,
+    deal,
+    legal_walk,
+    random_op,
+)
 
 
 def variants():
@@ -116,6 +124,40 @@ def test_every_hint_is_a_legal_move(key, opts):
             assert (src, dst) == mv[:2]
             assert mv in g.legal_moves()
             assert g.clone().attempt_move(*mv)
+
+
+# -- finishing -------------------------------------------------------------------------
+
+
+def every_suit_in_its_own_column(key):
+    """Every card face up, a whole suit to each tableau column with its king
+    at the bottom and its ace on top."""
+    g = deal(key, 1)
+    clear_board(g)
+    suits = "SHDC" * (EXPECTED_CARDS[key] // 52)
+    for col, suit in zip(g.ids_of("tableau"), suits):
+        g.slots[col].cards = [Card(r, suit, True) for r in range(13, 0, -1)]
+    if key == "canfield":
+        g.base_val = 1  # its foundations start from a dealt rank
+    return g
+
+
+@pytest.mark.parametrize("key", GAME_ORDER)
+def test_finish_scores_like_the_moves_one_by_one(key):
+    g = every_suit_in_its_own_column(key)
+    moves = g.finish_moves()
+    if key in ("spider", "golf"):
+        # Spider's foundations only take a whole suit, and Golf has none
+        assert moves is None
+        assert g.finish() == 0
+        return
+    by_hand = g.clone()
+    for src, dst in moves:
+        assert by_hand.attempt_move(src, dst, 1)
+    assert g.finish() == len(moves) == EXPECTED_CARDS[key]
+    assert g.is_won() and by_hand.is_won()
+    assert g.score == by_hand.score
+    assert board_state(g) == board_state(by_hand)
 
 
 # -- the deals themselves --------------------------------------------------------------

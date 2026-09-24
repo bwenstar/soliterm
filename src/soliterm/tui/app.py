@@ -1174,7 +1174,7 @@ class App:
 
     def do_autoplay(self):
         self.hint = None
-        n = self.game.autoplay()
+        n = self.game.finish() or self.game.autoplay()
         self.message = f"autoplayed {n}" if n else "nothing to autoplay"
         self.selected = None
 

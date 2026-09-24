@@ -9,7 +9,7 @@ from soliterm import history, saves, store, textmode
 from soliterm.engine import GAME_ORDER, Card, new_solitaire
 from soliterm.textmode import render_text
 
-from helpers import board_state, clear_board, deal
+from helpers import board_state, clear_board, deal, stalled_klondike
 
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 
@@ -183,6 +183,18 @@ def test_a_command_that_does_nothing_says_so(cmd, says):
     ok, msg = textmode.apply_text_command(g, cmd)
     assert (ok, msg) == (False, says)
     assert g.serialize() == before
+
+
+def test_text_a_finishes_the_game():
+    g = stalled_klondike()
+    assert textmode.apply_text_command(g, "a") == (True, "autoplayed 37")
+    assert g.is_won()
+
+
+def test_text_a_still_autoplays_when_it_cant_finish():
+    g = stalled_klondike(blocked=True)
+    assert textmode.apply_text_command(g, "a") == (True, "autoplayed 1")
+    assert not g.is_won()
 
 
 @pytest.mark.parametrize("cmd", ["99 2", "9 99", "9 99 1", "c 99", "cc 99", "f 99"])

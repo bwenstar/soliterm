@@ -23,6 +23,8 @@ Build all 52 cards onto the four foundations, one suit to each, from Ace up to K
 
 Autoplay only runs when you ask for it, and it's careful. Aces and twos always go up when they can, but a higher card stays put while any card one rank below it (of any suit) is still in the columns, because that card might want to build on it.
 
+Once every card left can go up, a sends them all up as one move.
+
 ## Scoring
 
 You get 1 point for each card you put on a foundation, and lose it again if that card comes back down, so the score is always the number of cards on the foundations. A won game scores 52. That's AisleRiot's scoring too: one point a card, 52 at most.

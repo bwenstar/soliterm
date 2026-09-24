@@ -71,7 +71,7 @@ The zipapp builds with the standard library alone. `--wheel` runs
 | click mid-stack | split a pile and lift from that card down |
 | double-click | send a card to a foundation (or deal, on the stock) |
 | `d` | deal from the stock |
-| `a` | autoplay safe cards to the foundations |
+| `a` | autoplay safe cards, or finish the game once every card can go up |
 | `f` | send the selected/cursor card to a foundation |
 | `h` | hint: highlight a legal move |
 | `n` / `N` | new deal / restart **this** deal |
@@ -115,7 +115,7 @@ what you get, with a line on stderr saying why, when curses can't run: no
 `#N` tags shown on the board:
 
 ```
-d                deal           a       autoplay
+d                deal           a       autoplay or finish
 <src> <dst>      move a run     u / r   undo / redo
 <src> <dst> <n>  move n cards   hint    suggest a move
 f <slot>         to foundation  n / N   new deal / restart   q  quit

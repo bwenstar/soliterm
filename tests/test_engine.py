@@ -357,6 +357,35 @@ def test_finish_moves_is_none(position):
     assert g.serialize() == before
 
 
+def test_finish_is_one_undo_step():
+    g = stalled_klondike()
+    assert g.autoplay() == 1
+    assert g.undo()
+    before, score = g.serialize(), g.score
+    assert g.finish() == 37
+    assert g.is_won()
+    assert (g.moves, g.score) == (1, score + 37)
+    assert not g.can_redo()
+    assert g.undo()
+    assert not g.can_undo()
+    assert g.serialize() == before
+
+
+def test_finish_says_where_each_card_lands_as_it_goes():
+    g = stalled_klondike()
+    moves = g.finish_moves()
+    landed = []
+    g.finish(lambda src, dst: landed.append((src, dst, len(g.cards(dst)))))
+    assert [(src, dst) for src, dst, _ in landed] == moves
+    assert landed[0][2] == 5  # the 5H is already on the hearts
+
+
+def test_nothing_to_finish_adds_no_undo_step():
+    g = stalled_klondike(blocked=True)
+    assert g.finish() == 0
+    assert not g.can_undo()
+
+
 # -- double click -------------------------------------------------------------------
 
 

@@ -66,7 +66,7 @@ KEYMAP: tuple[Binding, ...] = (
     Binding("Mouse double-click", "send a card to a foundation; deal on stock", {}),
     bind((27,), "cancel", "Esc", "cancel the current selection / clear hint"),
     bind("dD", "deal", "d", "deal from the stock (where applicable)"),
-    bind("aA", "autoplay", "a", "autoplay safe cards to the foundations"),
+    bind("aA", "autoplay", "a", "autoplay safe cards, or finish once all can go up"),
     bind("fF", "foundation", "f", "send the selected/cursor card to a foundation"),
     bind("hH", "hint", "h", "show a hint (highlights a legal move)"),
     bind(("b", "B", curses.KEY_F2), "boss", "b / F2", "boss mode: hide any screen behind 'work'"),
