@@ -382,9 +382,10 @@ keep:
 - every hint is a legal move, and asking for one changes nothing;
 - the finish scores the same as sending the cards up one at a time.
 
-A game with no foundations can't be finished that way, so add its key to
-the list in `test_finish_scores_like_the_moves_one_by_one`, with Golf,
-Triple Peaks and Scorpion.
+A game with no foundations, or with ones that only take a whole suit as
+Spider's do, can't be finished that way, so add its key to the list in
+`test_finish_scores_like_the_moves_one_by_one`, with Spider, Spiderette,
+Golf, Triple Peaks and Scorpion.
 
 When one fails, the test's name says which game and options, as in
 `[fortress]` or `[klondike-draw3-redealsnone]`. The rest of the suite goes

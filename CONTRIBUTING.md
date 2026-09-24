@@ -149,8 +149,8 @@ with a worked example. In short:
    in `GAME_TO_SECTION` in `src/soliterm/aisleriot.py`, and add the pair
    to `NEW_SECTIONS` in `tests/test_aisleriot_sync.py`.
 4. Add its number of cards to `EXPECTED_CARDS` in `tests/helpers.py`, and
-   if it has no foundations, its key to the list in
-   `test_finish_scores_like_the_moves_one_by_one`. Then
+   if it has no foundations, or ones that only take a whole suit, its key
+   to the list in `test_finish_scores_like_the_moves_one_by_one`. Then
    `python -m pytest tests/test_conformance.py -k <key>` runs it through
    the rules every game keeps.
 5. Once the deal is final, pin deals 1 and 2 in `DEALS` in
