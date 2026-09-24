@@ -23,12 +23,12 @@ from __future__ import annotations
 import os
 import re
 import shutil
-from typing import Callable, Dict, List, Optional
+from typing import Callable
 
 # Our game keys -> AisleRiot section names. AisleRiot's config sections use the
 # Scheme file name with hyphens converted to underscores (e.g. the file
 # eight-off.scm is recorded under [eight_off.scm], as triple_peaks.scm shows).
-GAME_TO_SECTION: Dict[str, str] = {
+GAME_TO_SECTION: dict[str, str] = {
     "klondike": "klondike.scm",
     "spider": "spider.scm",
     "freecell": "freecell.scm",
@@ -40,7 +40,7 @@ GAME_TO_SECTION: Dict[str, str] = {
     "canfield": "canfield.scm",
 }
 
-SECTION_TO_GAME: Dict[str, str] = {v: k for k, v in GAME_TO_SECTION.items()}
+SECTION_TO_GAME: dict[str, str] = {v: k for k, v in GAME_TO_SECTION.items()}
 
 
 def _config_base() -> str:
@@ -111,7 +111,7 @@ class _Changed(Exception):
     """The keyfile is no longer what we based our edit on."""
 
 
-def _write_text(text: str, expect: Optional[str] = None) -> bool:
+def _write_text(text: str, expect: str | None = None) -> bool:
     """Write the keyfile atomically.
 
     The file is shared with a live program (AisleRiot), so we write a temp file
@@ -129,7 +129,7 @@ def _write_text(text: str, expect: Optional[str] = None) -> bool:
     try:
         d = gnome_games_dir()
         try:
-            mode: Optional[int] = os.stat(keyfile_path()).st_mode & 0o7777
+            mode: int | None = os.stat(keyfile_path()).st_mode & 0o7777
         except OSError:
             mode = None
         fd, tmp = tempfile.mkstemp(dir=d, prefix=".aisleriot.", suffix=".tmp")
@@ -163,7 +163,7 @@ def _write_text(text: str, expect: Optional[str] = None) -> bool:
 _SPACE = " \t\n\f\r"
 
 
-def _split(text: str) -> List[str]:
+def _split(text: str) -> list[str]:
     """`text` in lines as GLib splits it: at "\n" only, dropping the "\r" of
     a "\r\n". On a last line with no "\n" after it, a "\r" is kept as part
     of the line.
@@ -173,7 +173,7 @@ def _split(text: str) -> List[str]:
             for i, s in enumerate(lines)]
 
 
-def _is_header(line: str) -> Optional[str]:
+def _is_header(line: str) -> str | None:
     s = line.lstrip(_SPACE).rstrip(" \t")
     if len(s) >= 2 and s.startswith("[") and s.endswith("]") and "]" not in s[1:-1]:
         return s[1:-1]
@@ -183,12 +183,12 @@ def _is_header(line: str) -> Optional[str]:
 _ESCAPES = {"s": " ", "n": "\n", "t": "\t", "r": "\r", "\\": "\\", ";": ";"}
 
 
-def _list_items(value: str) -> Optional[List[str]]:
+def _list_items(value: str) -> list[str] | None:
     """A list value split at its ";"s with escapes undone, or None if it has
     an escape GLib rejects. As in GLib, a last ";" ends the list rather than
     starting an empty item.
     """
-    items: List[str] = []
+    items: list[str] = []
     item = ""
     chars = iter(value)
     for c in chars:
@@ -211,7 +211,7 @@ def _list_items(value: str) -> Optional[List[str]]:
 _STRTOL = re.compile(r"[ \t\n\v\f\r]*[+-]?[0-9]+")
 
 
-def _glib_int(item: str) -> Optional[int]:
+def _glib_int(item: str) -> int | None:
     """`item` as g_key_file_get_integer_list() reads it, or None where GLib
     says it isn't a number (so "+5", "007" and "5 x" pass, "5x" and "0x5"
     don't, and a blank item is 0).
@@ -226,7 +226,7 @@ def _glib_int(item: str) -> Optional[int]:
     return n if -2**31 <= n < 2**31 else None
 
 
-def _parse_statistic(value: str) -> Dict[str, int]:
+def _parse_statistic(value: str) -> dict[str, int]:
     """A Statistic value as AisleRiot reads it: four integers, or all zeros if
     GLib can't read the list or it doesn't hold exactly four.
     """
@@ -237,7 +237,7 @@ def _parse_statistic(value: str) -> Dict[str, int]:
     return {k: n or 0 for k, n in zip(("wins", "total", "best", "worst"), nums)}
 
 
-def read_stat(section: str) -> Optional[Dict[str, int]]:
+def read_stat(section: str) -> dict[str, int] | None:
     """The (wins,total,best,worst) dict for a section, or None if not present.
 
     As in GLib, the last Statistic line wins, and a section that appears
@@ -248,9 +248,9 @@ def read_stat(section: str) -> Optional[Dict[str, int]]:
     return _stat_in(_read_text(), section)
 
 
-def _stat_in(text: str, section: str) -> Optional[Dict[str, int]]:
+def _stat_in(text: str, section: str) -> dict[str, int] | None:
     current = None
-    value: Optional[str] = None
+    value: str | None = None
     for line in _split(text):
         head = _is_header(line)
         if head is not None:
@@ -261,7 +261,7 @@ def _stat_in(text: str, section: str) -> Optional[Dict[str, int]]:
     return None if value is None else _parse_statistic(value)
 
 
-def _format_statistic(stat: Dict[str, int]) -> str:
+def _format_statistic(stat: dict[str, int]) -> str:
     return (f"Statistic={int(stat.get('wins', 0))};{int(stat.get('total', 0))};"
             f"{int(stat.get('best', 0))};{int(stat.get('worst', 0))};")
 
@@ -280,7 +280,7 @@ def _is_statistic_line(line: str) -> bool:
     return key.rstrip(_SPACE) == "Statistic"
 
 
-def write_stat(section: str, stat: Dict[str, int]) -> bool:
+def write_stat(section: str, stat: dict[str, int]) -> bool:
     """Surgically set a section's Statistic line, preserving everything else.
 
     Only the targeted Statistic line changes; all other keys, sections,
@@ -296,8 +296,8 @@ _UPDATE_TRIES = 5
 
 
 def update_stat(section: str,
-                change: Callable[[Optional[Dict[str, int]]], Optional[Dict[str, int]]]
-                ) -> Optional[Dict[str, int]]:
+                change: Callable[[dict[str, int] | None], dict[str, int] | None]
+                ) -> dict[str, int] | None:
     """Set a section's Statistic from its value at the moment of writing.
 
     `change` gets the current stat (None if there is none) and returns the
@@ -330,7 +330,7 @@ def update_stat(section: str,
     return None
 
 
-def _with_stat(text: str, section: str, stat: Dict[str, int]) -> str:
+def _with_stat(text: str, section: str, stat: dict[str, int]) -> str:
     """`text` with the section's Statistic line set to `stat`."""
     # GLib ends a line at "\n" and nowhere else. splitlines() would also
     # break at "\r", "\x0c", "\u2028" and others, which can sit inside a
@@ -345,8 +345,8 @@ def _with_stat(text: str, section: str, stat: Dict[str, int]) -> str:
 
     new_line = _format_statistic(stat)
     in_section = False
-    header_idx: Optional[int] = None
-    stat_idx: Optional[int] = None
+    header_idx: int | None = None
+    stat_idx: int | None = None
 
     for i in range(len(lines)):
         head = _is_header(seen[i])
@@ -384,9 +384,9 @@ def _with_stat(text: str, section: str, stat: Dict[str, int]) -> str:
     return "\n".join(lines) + final
 
 
-def all_known_stats() -> Dict[str, Dict[str, int]]:
+def all_known_stats() -> dict[str, dict[str, int]]:
     """Every stat we recognise from the keyfile, keyed by OUR game key."""
-    out: Dict[str, Dict[str, int]] = {}
+    out: dict[str, dict[str, int]] = {}
     for section, game_key in SECTION_TO_GAME.items():
         s = read_stat(section)
         if s is not None:

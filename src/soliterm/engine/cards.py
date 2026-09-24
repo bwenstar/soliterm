@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List
 
 SUITS = "SHDC"                       # Spades, Hearts, Diamonds, Clubs
 SUIT_SYMBOL = {"S": "♠", "H": "♥", "D": "♦", "C": "♣"}
@@ -34,7 +33,7 @@ class Card:
     def rank_str(self) -> str:
         return RANK_NAME.get(self.rank, str(self.rank))
 
-    def up(self, face_up: bool = True) -> "Card":
+    def up(self, face_up: bool = True) -> Card:
         return Card(self.rank, self.suit, face_up)
 
     def label(self, symbols: bool = True) -> str:
@@ -45,9 +44,9 @@ class Card:
         return self.label(symbols=False)
 
 
-def make_deck(decks: int = 1, suits: str = SUITS) -> List[Card]:
+def make_deck(decks: int = 1, suits: str = SUITS) -> list[Card]:
     """A deck of `decks` copies over the given suits (all face down)."""
-    out: List[Card] = []
+    out: list[Card] = []
     for _ in range(decks):
         for suit in suits:
             for rank in range(1, 14):

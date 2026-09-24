@@ -16,7 +16,7 @@ import platform
 import random
 import sys
 import time
-from typing import Iterator, List
+from collections.abc import Iterator
 
 THEMES = ["build", "test", "docker", "logs", "mixed"]
 DEFAULT_THEME = "build"
@@ -206,7 +206,7 @@ def stream(theme: str = DEFAULT_THEME, seed=None) -> Iterator[str]:
                 yield ""
 
 
-def screenful(theme: str = DEFAULT_THEME, lines: int = 40, seed=None) -> List[str]:
+def screenful(theme: str = DEFAULT_THEME, lines: int = 40, seed=None) -> list[str]:
     """A fixed block of `lines` work lines (for the text-mode boss command)."""
     gen = stream(theme, seed=seed)
     return [next(gen) for _ in range(lines)]
@@ -260,7 +260,7 @@ _CODE_PREAMBLE = [
 ]
 
 
-def code_lines(n: int = 80, seed=None) -> List[str]:
+def code_lines(n: int = 80, seed=None) -> list[str]:
     """`n` plausible Python source lines (no line numbers), deterministic.
 
     Used to frame the live board so the screen reads as a code file. Starts

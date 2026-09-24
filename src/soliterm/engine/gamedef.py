@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import List, Optional, Tuple
-
 from .cards import ACE, Card
 from .core import Solitaire
 
@@ -21,12 +19,12 @@ class GameDef:
         return {}
 
     @classmethod
-    def option_spec(cls) -> List[Tuple[str, str, list]]:
+    def option_spec(cls) -> list[tuple[str, str, list]]:
         """List of (option_key, label, [allowed values]) for the Options UI."""
         return []
 
     @classmethod
-    def sanitize_options(cls, options: Optional[dict]) -> dict:
+    def sanitize_options(cls, options: dict | None) -> dict:
         """The options to play with: the defaults, overridden by every value
         in `options` that option_spec() allows.
 
@@ -53,7 +51,7 @@ class GameDef:
     def can_pickup(self, g: Solitaire, sid: int, n: int) -> bool:
         return False
 
-    def can_drop(self, g: Solitaire, src: int, cards: List[Card], dst: int) -> bool:
+    def can_drop(self, g: Solitaire, src: int, cards: list[Card], dst: int) -> bool:
         return False
 
     def on_click(self, g: Solitaire, sid: int) -> bool:
@@ -62,7 +60,7 @@ class GameDef:
     def on_double_click(self, g: Solitaire, sid: int) -> bool:
         return False
 
-    def after_move(self, g: Solitaire, src: int, cards: List[Card], dst: int) -> None:
+    def after_move(self, g: Solitaire, src: int, cards: list[Card], dst: int) -> None:
         pass
 
     def post_move(self, g: Solitaire) -> None:
@@ -73,10 +71,10 @@ class GameDef:
     def is_won(self, g: Solitaire) -> bool:
         return False
 
-    def hint(self, g: Solitaire) -> Optional[Tuple[int, int, str]]:
+    def hint(self, g: Solitaire) -> tuple[int, int, str] | None:
         return None
 
-    def fallback_move(self, g: Solitaire) -> Optional[Tuple[int, int, int]]:
+    def fallback_move(self, g: Solitaire) -> tuple[int, int, int] | None:
         """A move for the hint when nothing else helps, as (src, dst, n).
 
         Only asked once no move advances the game, dealing would change
@@ -90,7 +88,7 @@ class GameDef:
         moved, though some still can be. The default never says so."""
         return False
 
-    def no_hint_reason(self, g: Solitaire) -> Optional[str]:
+    def no_hint_reason(self, g: Solitaire) -> str | None:
         """Why there is no hint, when the game can say better than the
         generic message does (see Solitaire.no_hint_reason)."""
         return None
@@ -115,7 +113,7 @@ class GameDef:
     def status(self, g: Solitaire) -> str:
         return ""
 
-    def fan_limit(self, g: Solitaire, sid: int) -> Optional[int]:
+    def fan_limit(self, g: Solitaire, sid: int) -> int | None:
         """Most cards the board fans out to the right in a slot, as
         AisleRiot's partially extended slots do. None shows a "right" slot
         as full as there is room for and any other slot's top card alone.
@@ -132,7 +130,7 @@ class GameDef:
     def same_suit_up(prev: Card, nxt: Card) -> bool:
         return prev.suit == nxt.suit and nxt.rank == prev.rank + 1
 
-    def foundation_for(self, g: Solitaire, card: Card) -> Optional[int]:
+    def foundation_for(self, g: Solitaire, card: Card) -> int | None:
         """The foundation a card can go to right now (up-by-suit, ace base)."""
         for sid in g.ids_of("foundation"):
             top = g.top(sid)

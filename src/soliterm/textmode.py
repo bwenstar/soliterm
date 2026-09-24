@@ -12,7 +12,6 @@ import re
 import shutil
 import sys
 import time
-from typing import List, Optional, Tuple
 
 from . import APP_NAME, camo, store
 from .engine import SUIT_SYMBOL, Card, Slot, Solitaire
@@ -41,7 +40,7 @@ _CELL_W = 5
 _FAN = 4
 
 
-def _cell(card: Optional[Card], symbols: bool, color: bool = False) -> str:
+def _cell(card: Card | None, symbols: bool, color: bool = False) -> str:
     if card is None:
         return "[   ]"
     if not card.face_up:
@@ -75,7 +74,7 @@ def slot_tag(g: Solitaire, sid: int) -> str:
     return f"{_KIND_TAG.get(g.kind(sid), g.kind(sid)[:3])}#{sid}"
 
 
-def _column(s: Slot, symbols: bool, color: bool) -> List[str]:
+def _column(s: Slot, symbols: bool, color: bool) -> list[str]:
     """The lines a slot draws under its tag, top to bottom."""
     if s.expand == "down":
         return [_cell(c, symbols, color) for c in s.cards] or [_cell(None, symbols)]
@@ -89,7 +88,7 @@ def _column(s: Slot, symbols: bool, color: bool) -> List[str]:
 
 
 def render_text(g: Solitaire, symbols: bool = True, color: bool = False) -> str:
-    lines: List[str] = []
+    lines: list[str] = []
     lines.append(f"=== {g.gamedef.name} ===")
     for row in sorted({s.row for s in g.slots}):
         slots = [s for s in g.slots if s.row == row]
@@ -173,7 +172,7 @@ def _missing_slot(g: Solitaire, *sids: int) -> str:
     return ""
 
 
-def apply_text_command(g: Solitaire, cmd: str) -> Tuple[bool, str]:
+def apply_text_command(g: Solitaire, cmd: str) -> tuple[bool, str]:
     raw = cmd.strip()
     cmd = raw.lower()
     if not cmd:
@@ -256,7 +255,7 @@ def _can_write(out, text: str) -> bool:
 
 
 def run_text(g: Solitaire, symbols: bool, game_key: str, stream=None,
-             color: bool = False, camo_theme: Optional[str] = None) -> int:
+             color: bool = False, camo_theme: str | None = None) -> int:
     out = sys.stdout
     inp = stream if stream is not None else sys.stdin
     # a cp1252 or ASCII stdout has no suit symbols; letters beat a crash

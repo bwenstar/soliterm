@@ -22,7 +22,6 @@ import sys
 import tempfile
 import zipapp
 from pathlib import Path
-from typing import List, Optional
 
 ROOT = Path(__file__).resolve().parent.parent
 PACKAGE = ROOT / "src" / "soliterm"
@@ -43,7 +42,7 @@ sys.exit({func}())
 """
 
 
-def _not_shipped(folder: str, names: List[str]) -> List[str]:
+def _not_shipped(folder: str, names: list[str]) -> list[str]:
     """copytree ignore hook: keep the sources and py.typed, drop the rest.
 
     A checkout collects caches and editor files next to the code, and none
@@ -90,7 +89,7 @@ def build_dist() -> int:
                             "--outdir", str(DIST), str(ROOT)])
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="build_pyz.py",
                                 description="Build dist/soliterm.pyz.")
     p.add_argument("--wheel", action="store_true",

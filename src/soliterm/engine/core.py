@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, List, Optional, Tuple
+from typing import TYPE_CHECKING
 
 from .cards import SUITS, Card, make_deck
 
@@ -33,7 +33,7 @@ class Slot:
     sid: int
     kind: str
     expand: str = "none"             # "none" | "down" | "right"
-    cards: List[Card] = field(default_factory=list)
+    cards: list[Card] = field(default_factory=list)
     # `row` groups slots onto display lines (set as slots are added).
     row: int = 0
 
@@ -42,7 +42,7 @@ class Slot:
         return not self.cards
 
     @property
-    def top(self) -> Optional[Card]:
+    def top(self) -> Card | None:
         return self.cards[-1] if self.cards else None
 
 
@@ -54,8 +54,8 @@ class Slot:
 class Solitaire:
     """Holds the slots and the shared state; dispatches to a GameDef."""
 
-    def __init__(self, gamedef: "GameDef", seed: Optional[int] = None,
-                 options: Optional[dict] = None):
+    def __init__(self, gamedef: GameDef, seed: int | None = None,
+                 options: dict | None = None):
         self.gamedef = gamedef
         self.seed = seed
         self.options = gamedef.sanitize_options(options)
@@ -63,9 +63,9 @@ class Solitaire:
         # it, so a seeded session replays exactly but a new deal is new.
         self._deal_seeds = random.Random(seed) if seed is not None else None
         self.rng = random.Random(seed)
-        self.slots: List[Slot] = []
+        self.slots: list[Slot] = []
         self._current_row = 0
-        self.deck: List[Card] = []
+        self.deck: list[Card] = []
         self._score = 0
         self.base_val = 0            # Canfield foundation base rank
         self.status = ""
@@ -75,8 +75,8 @@ class Solitaire:
         # How messages name cards: with suit symbols (2♥) or letters (2H).
         # The front-end sets it to match the board it draws.
         self.symbols = True
-        self._undo: List[bytes] = []
-        self._redo: List[bytes] = []
+        self._undo: list[bytes] = []
+        self._redo: list[bytes] = []
         self.new_game(seed)
 
     # Score is clamped at 0: AisleRiot never displays a negative score, and
@@ -100,7 +100,7 @@ class Solitaire:
         self._current_row += 1
 
     def add_slot(self, kind: str, expand: str = "none",
-                 cards: Optional[List[Card]] = None) -> int:
+                 cards: list[Card] | None = None) -> int:
         sid = len(self.slots)
         self.slots.append(Slot(sid, kind, expand, list(cards) if cards else [], self._current_row))
         return sid
@@ -119,7 +119,7 @@ class Solitaire:
 
     # -- lifecycle -------------------------------------------------------- #
 
-    def new_game(self, seed: Optional[int] = None) -> None:
+    def new_game(self, seed: int | None = None) -> None:
         """Deal a new game.
 
         With an explicit `seed` the deal is reproducible. Otherwise a concrete
@@ -156,7 +156,7 @@ class Solitaire:
 
     # -- simulation + move enumeration (used by hints / end-state) -------- #
 
-    def clone(self) -> "Solitaire":
+    def clone(self) -> Solitaire:
         """A cheap, independent copy of the position for what-if simulation.
 
         Cards are immutable (frozen dataclass) so copying the slot lists is
@@ -184,7 +184,7 @@ class Solitaire:
         g._redo = []
         return g
 
-    def legal_moves(self) -> List[Tuple[int, int, int]]:
+    def legal_moves(self) -> list[tuple[int, int, int]]:
         """Every legal slot->slot move right now, as (src, dst, n) tuples.
 
         Enumerates each pickup size the game accepts from a slot (1..len) against
@@ -192,7 +192,7 @@ class Solitaire:
         moves, and partial sub-run moves that uncover a card are all surfaced.
         Cheap enough to run on demand (boards are tiny; cards are immutable).
         """
-        out: List[Tuple[int, int, int]] = []
+        out: list[tuple[int, int, int]] = []
         n_slots = len(self.slots)
         for src in range(n_slots):
             pile = self.cards(src)
@@ -260,16 +260,16 @@ class Solitaire:
 
     # -- slot queries ----------------------------------------------------- #
 
-    def slots_of(self, kind: str) -> List[Slot]:
+    def slots_of(self, kind: str) -> list[Slot]:
         return [s for s in self.slots if s.kind == kind]
 
-    def ids_of(self, kind: str) -> List[int]:
+    def ids_of(self, kind: str) -> list[int]:
         return [s.sid for s in self.slots if s.kind == kind]
 
-    def cards(self, sid: int) -> List[Card]:
+    def cards(self, sid: int) -> list[Card]:
         return self.slots[sid].cards
 
-    def top(self, sid: int) -> Optional[Card]:
+    def top(self, sid: int) -> Card | None:
         return self.slots[sid].top
 
     def empty(self, sid: int) -> bool:
@@ -285,7 +285,7 @@ class Solitaire:
         if pile and not pile[-1].face_up:
             pile[-1] = pile[-1].up(True)
 
-    def _move_cards(self, src: int, dst: int, n: int) -> List[Card]:
+    def _move_cards(self, src: int, dst: int, n: int) -> list[Card]:
         pile = self.slots[src].cards
         moving = pile[len(pile) - n:]
         del pile[len(pile) - n:]
@@ -308,7 +308,7 @@ class Solitaire:
     def can_pickup(self, sid: int, n: int) -> bool:
         return self.gamedef.can_pickup(self, sid, n)
 
-    def attempt_move(self, src: int, dst: int, n: Optional[int] = None) -> bool:
+    def attempt_move(self, src: int, dst: int, n: int | None = None) -> bool:
         """Try to move card(s) from src to dst. Returns True if performed."""
         if not (0 <= src < len(self.slots)) or not (0 <= dst < len(self.slots)):
             return False
@@ -393,7 +393,7 @@ class Solitaire:
     def is_won(self) -> bool:
         return self.gamedef.is_won(self)
 
-    def best_move(self) -> Optional[Tuple[int, int, int]]:
+    def best_move(self) -> tuple[int, int, int] | None:
         """The single most useful move that ADVANCES the game, as (src,dst,n).
 
         Simulates every legal move and keeps the one that most improves a
@@ -405,8 +405,8 @@ class Solitaire:
         found = self._most_progress(self.legal_moves(), self.progress())
         return None if found is None else found[0]
 
-    def _most_progress(self, moves: List[Tuple[int, int, int]], base: int
-                       ) -> Optional[Tuple[Tuple[int, int, int], int]]:
+    def _most_progress(self, moves: list[tuple[int, int, int]], base: int
+                       ) -> tuple[tuple[int, int, int], int] | None:
         """The move in `moves` that takes progress furthest above `base`, with
         its gain, or None if none of them gets above it."""
         best = None
@@ -426,7 +426,7 @@ class Solitaire:
                 best = ((src, dst, n), gain)
         return best
 
-    def setup_move(self) -> Optional[Tuple[int, int, int]]:
+    def setup_move(self) -> tuple[int, int, int] | None:
         """A move that gains nothing itself but opens up one that does.
 
         Parking a card in a free cell, or moving a king aside to get at the
@@ -465,7 +465,7 @@ class Solitaire:
                 best = (src, dst, n)
         return best
 
-    def hint_move(self) -> Optional[Tuple[int, int, int]]:
+    def hint_move(self) -> tuple[int, int, int] | None:
         """The move hint() suggests, as (src, dst, n), or None.
 
         A move that advances the game comes first, then a deal if dealing
@@ -488,7 +488,7 @@ class Solitaire:
             return mv
         return self.gamedef.fallback_move(self)
 
-    def hint(self) -> Optional[Tuple[int, int, str]]:
+    def hint(self) -> tuple[int, int, str] | None:
         """What hint_move() suggests, as (src, dst, description) for the UI."""
         mv = self.hint_move()
         if mv is None:
@@ -574,7 +574,7 @@ class Solitaire:
         def dec(t: str) -> Card:
             return Card(int(t[:-2]), t[-2], t[-1] == "U")
 
-        new_slots: List[Slot] = []
+        new_slots: list[Slot] = []
         for line in text.splitlines():
             if line.startswith("score="):
                 self.score = int(line[6:])

@@ -13,7 +13,7 @@ import os
 import shutil
 import tempfile
 import time
-from typing import Dict, Iterator, List, Optional
+from collections.abc import Iterator
 
 from . import aisleriot as ar
 
@@ -28,10 +28,10 @@ APP_DIR_NAME = "soliterm"
 
 # Things the player should hear about (say, a keyfile we could not read),
 # collected here for the command line to print when the game is over.
-_notices: List[str] = []
+_notices: list[str] = []
 
 
-def notices() -> List[str]:
+def notices() -> list[str]:
     """What went wrong with the stats files so far in this run, in order."""
     return list(_notices)
 
@@ -68,7 +68,7 @@ def stats_path() -> str:
 # Reading and writing our JSON files
 # --------------------------------------------------------------------------- #
 
-def _read_json(path: str) -> Optional[dict]:
+def _read_json(path: str) -> dict | None:
     """The object in a JSON file: {} if there is no file, None if it is there
     but can't be read (and so must not be written over either).
 
@@ -286,7 +286,7 @@ def _count(value: object) -> int:
     return value if isinstance(value, int) and value > 0 else 0
 
 
-def _norm(s: Optional[dict]) -> dict:
+def _norm(s: dict | None) -> dict:
     out = dict(EMPTY_STAT)
     if isinstance(s, dict):
         out.update({k: _count(s.get(k, 0)) for k in EMPTY_STAT})
@@ -463,7 +463,7 @@ def _one_game(won: bool, seconds: float) -> dict:
     return {"wins": int(won), "total": 1, "best": secs, "worst": secs}
 
 
-def _unsynced(stats: dict) -> Dict[str, dict]:
+def _unsynced(stats: dict) -> dict[str, dict]:
     """Games recorded here that the keyfile hasn't been given yet, per game.
 
     They were played while we weren't sharing (sharing off, or the keyfile
@@ -476,7 +476,7 @@ def _unsynced(stats: dict) -> Dict[str, dict]:
     return {k: v for k, v in out.items() if v["total"] > 0}
 
 
-def _share(stats: dict, waiting: Dict[str, dict], game_key: str) -> None:
+def _share(stats: dict, waiting: dict[str, dict], game_key: str) -> None:
     """Add the games in `waiting` to the keyfile, then save `stats` (whose
     own records already count them) with whatever didn't make it.
 
@@ -491,11 +491,11 @@ def _share(stats: dict, waiting: Dict[str, dict], game_key: str) -> None:
         # the others are still listed in the file on disk; sending them
         # now would send them again next time
         waiting = {game_key: waiting[game_key]} if game_key in waiting else {}
-    left: Dict[str, dict] = {}
+    left: dict[str, dict] = {}
     for key, games in waiting.items():
         ours = _norm(stats.get(key))
 
-        def add(cur: Optional[dict], games: dict = games, ours: dict = ours) -> dict:
+        def add(cur: dict | None, games: dict = games, ours: dict = ours) -> dict:
             # A game the keyfile has no record of (a fresh keyfile, or sol
             # saving its own copy over ours) starts from our record, which
             # counts these games already, rather than from nothing.
@@ -534,7 +534,7 @@ def _merge_local_into_aisleriot_once() -> None:
     cfg = load_config()
     cfg["merged_into_aisleriot"] = True
     save_config(cfg)
-    left: Dict[str, dict] = {}
+    left: dict[str, dict] = {}
     for game_key, lstat in local.items():
         sect = ar.GAME_TO_SECTION.get(game_key)
         if sect is None:
@@ -543,7 +543,7 @@ def _merge_local_into_aisleriot_once() -> None:
         if ours["total"] == 0:
             continue
 
-        def add(cur: Optional[dict], ours: dict = ours) -> dict:
+        def add(cur: dict | None, ours: dict = ours) -> dict:
             return _combined(_norm(cur), ours)
 
         if ar.update_stat(sect, add) is None:
@@ -574,7 +574,7 @@ def any_stats() -> bool:
                for k in GAME_ORDER)
 
 
-def backup_stats() -> List[str]:
+def backup_stats() -> list[str]:
     """Copy what reset_stats() would clear to backups beside the originals:
     the keyfile (when sharing) to aisleriot.soliterm-bak, and stats.json to
     stats.json.bak. Returns the backups made; raises OSError if one fails.
@@ -635,9 +635,9 @@ def _reset_stats() -> int:
             sect = ar.GAME_TO_SECTION.get(game_key)
             if sect is None:
                 continue
-            played: List[bool] = []
+            played: list[bool] = []
 
-            def clear(cur: Optional[dict]) -> Optional[dict]:
+            def clear(cur: dict | None) -> dict | None:
                 # update_stat calls this before the loop moves on
                 played.append(bool(cur and cur.get("total", 0) > 0))  # noqa: B023
                 return dict(EMPTY_STAT) if cur is not None else None
@@ -656,7 +656,7 @@ def _reset_stats() -> int:
     return cleared
 
 
-def percentage(stat: dict) -> Optional[float]:
+def percentage(stat: dict) -> float | None:
     if stat["total"] <= 0:
         return None
     return 100.0 * stat["wins"] / stat["total"]

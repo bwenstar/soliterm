@@ -8,7 +8,8 @@ wired up in one place and forgotten in the other.
 from __future__ import annotations
 
 import curses
-from typing import Dict, Iterable, List, NamedTuple, Tuple, Union
+from collections.abc import Iterable
+from typing import NamedTuple
 
 
 class Binding(NamedTuple):
@@ -16,12 +17,12 @@ class Binding(NamedTuple):
 
     label: str                # the keys as the help screen names them
     text: str                 # what they do; each "\n" starts another help line
-    actions: Dict[int, str]   # key code -> action, run as App.do_<action>()
+    actions: dict[int, str]   # key code -> action, run as App.do_<action>()
     compact: bool = False     # listed several to a line at the foot of the help
     mode: str = "play"        # the screen the keys work on: "play" or "boss"
 
 
-def bind(keys: Iterable[Union[str, int]], action: str, label: str, text: str,
+def bind(keys: Iterable[str | int], action: str, label: str, text: str,
          **kw) -> Binding:
     """A Binding where every key in `keys` (characters or key codes) does
     the same action."""
@@ -29,7 +30,7 @@ def bind(keys: Iterable[Union[str, int]], action: str, label: str, text: str,
     return Binding(label, text, dict.fromkeys(codes, action), **kw)
 
 
-KEYMAP: Tuple[Binding, ...] = (
+KEYMAP: tuple[Binding, ...] = (
     # h is taken by the hint, so the vi-style keys stop at k, j and l
     Binding("Arrow keys, k j l",
             "move between the slots (k up, j down, l right)",
@@ -72,9 +73,9 @@ KEYMAP: Tuple[Binding, ...] = (
 )
 
 
-def actions(mode: str = "play") -> Dict[int, str]:
+def actions(mode: str = "play") -> dict[int, str]:
     """Key code -> action for the keys that work on the given screen."""
-    table: Dict[int, str] = {}
+    table: dict[int, str] = {}
     for b in KEYMAP:
         if b.mode == mode:
             table.update(b.actions)
@@ -88,11 +89,11 @@ HELP_KEY_W = 20     # the help's key column, gap before the text included
 HELP_PACK_W = 60    # how wide a line of compact entries may get
 
 
-def help_lines() -> List[str]:
+def help_lines() -> list[str]:
     """The key list on the help screen, one entry per line and the compact
     ones packed together at the end."""
-    lines: List[str] = []
-    packed: List[str] = []
+    lines: list[str] = []
+    packed: list[str] = []
     for b in KEYMAP:
         if not b.label:
             continue

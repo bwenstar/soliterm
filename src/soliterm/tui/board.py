@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import curses
 import locale
-from typing import Dict, Iterator, List, Optional, Tuple
+from collections.abc import Iterator
 
 from .. import APP_NAME, camo, store
 from ..engine import SUIT_SYMBOL, Card, Solitaire
@@ -62,8 +62,8 @@ CODE_GUTTER = 5
 _CODE = camo.code_lines(200, seed=1)
 
 
-def draw_code_backdrop(ui, notes: Dict[int, str],
-                       last_row: Optional[int] = None) -> None:
+def draw_code_backdrop(ui, notes: dict[int, str],
+                       last_row: int | None = None) -> None:
     """Paint the code-editor backdrop a skinned screen is drawn on top of.
 
     A line-number gutter down the left, source lines filling the screen,
@@ -92,7 +92,7 @@ def draw_code_backdrop(ui, notes: Dict[int, str],
         ui.safe_add(screen_y, CODE_GUTTER, _CODE[idx], code_attr)
 
 
-def draw_too_small(ui, what: str, need: Tuple[int, int], code_skin: bool) -> None:
+def draw_too_small(ui, what: str, need: tuple[int, int], code_skin: bool) -> None:
     """Say the terminal is smaller than the (width, height) `what` needs,
     in place of drawing it cut off. `ui` is as for draw_code_backdrop."""
     h, w = ui.stdscr.getmaxyx()
@@ -117,8 +117,8 @@ class BoardUI:
         self.symbols = symbols
         self.has_color = has_color
         # hit map: (y, x) cell -> (slot_id, card_index) for click/drag mapping
-        self.hit: Dict[Tuple[int, int], Tuple[int, int]] = {}
-        self.slot_origin: Dict[int, Tuple[int, int]] = {}
+        self.hit: dict[tuple[int, int], tuple[int, int]] = {}
+        self.slot_origin: dict[int, tuple[int, int]] = {}
         self.origin_y = 4
         self.origin_x = 2
         self.set_view(view)
@@ -165,7 +165,7 @@ class BoardUI:
     def CP(self, n):
         return curses.color_pair(n) if self.has_color else 0
 
-    def card_attr(self, card: Optional[Card], selected: bool, hinted: bool,
+    def card_attr(self, card: Card | None, selected: bool, hinted: bool,
                   cursor: bool = False) -> int:
         """Attribute for a card given its highlight state.
 
@@ -199,7 +199,7 @@ class BoardUI:
         return self.CP(1) if red else self.CP(2)   # white face, red/black text
 
     # -- card-box rendering ------------------------------------------------ #
-    def _card_rows(self, card: Optional[Card], w: int, full: bool) -> List[str]:
+    def _card_rows(self, card: Card | None, w: int, full: bool) -> list[str]:
         """The character rows of a card box, width `w`.
 
         full=True returns all CARD_H rows (top card / single card); full=False
@@ -243,7 +243,7 @@ class BoardUI:
                 rows = [top, line1, mid, bot]
         return rows if full else rows[:2]      # peek = top border + label
 
-    def _layouts(self) -> Iterator[Tuple[int, int, int, int]]:
+    def _layouts(self) -> Iterator[tuple[int, int, int, int]]:
         """Every layout to try, roomiest first, as (card width, fan step,
         column gap, code-skin indent).
 
@@ -263,9 +263,9 @@ class BoardUI:
             yield cw, closer, COL_GAP, 0
         yield cw, min(step, 2), 0, 0
 
-    def _rows(self) -> List[List]:
+    def _rows(self) -> list[list]:
         """The slots on each display row, top row first."""
-        rows: Dict[int, List] = {}
+        rows: dict[int, list] = {}
         for s in self.game.slots:
             rows.setdefault(s.row, []).append(s)
         return [rows[r] for r in sorted(rows)]
@@ -289,7 +289,7 @@ class BoardUI:
                 break
         self._cw, self._step, self._gap, self._indent = layout
 
-    def needed_size(self) -> Tuple[int, int]:
+    def needed_size(self) -> tuple[int, int]:
         """The smallest terminal, as (columns, rows), the board fits on.
 
         The width is the widest row laid out as tightly as it goes. The
@@ -364,7 +364,7 @@ class BoardUI:
             self._register_hit(sy + rows[i], sx, height, cw, sid, first)
             first = i + 1
 
-    def _shared_row(self, cards: List[Card], w: int) -> str:
+    def _shared_row(self, cards: list[Card], w: int) -> str:
         """The row a run of cards squeezed onto one row shows: how many
         they are, on a card back if they are all face down, or as +N where
         a face-up card has its label."""
@@ -418,15 +418,15 @@ class BoardUI:
         """How many of a right-fanned slot's cards the board shows."""
         return min(len(slot.cards), self.fan_room(slot))
 
-    def _columns_in_row(self, row: int) -> List[int]:
+    def _columns_in_row(self, row: int) -> list[int]:
         return [s.sid for s in self.game.slots if s.row == row]
 
     def _room(self, sy: int) -> int:
         """Rows from screen row sy down to the status line."""
         return self.stdscr.getmaxyx()[0] - 3 - sy
 
-    def _down_rows(self, cards: List[Card], room: int,
-                   tuck: bool = True) -> Tuple[List[int], int]:
+    def _down_rows(self, cards: list[Card], room: int,
+                   tuck: bool = True) -> tuple[list[int], int]:
         """Lay a down-column out in `room` rows: each card's top row,
         counted from the column top, and how many rows the top card shows.
 
@@ -488,7 +488,7 @@ class BoardUI:
         rows, top_h = self._down_rows(slot.cards, room, tuck=False)
         return rows[-1] + top_h <= room
 
-    def compute_positions(self) -> Dict[int, Tuple[int, int]]:
+    def compute_positions(self) -> dict[int, tuple[int, int]]:
         """Assign each slot a top-left (y, x). Returns slot_id -> (y, x).
 
         Also sets this frame's layout (see _choose_layout) and how high the
@@ -512,10 +512,10 @@ class BoardUI:
         self._top, self._row_gap, self._sharing = top, gap, sharing
         return positions
 
-    def _place(self, top: int, gap: int) -> Dict[int, Tuple[int, int]]:
+    def _place(self, top: int, gap: int) -> dict[int, tuple[int, int]]:
         """Each slot's top-left, the board starting at row top with gap
         rows between its rows of slots."""
-        positions: Dict[int, Tuple[int, int]] = {}
+        positions: dict[int, tuple[int, int]] = {}
         base_x = (self._gutter + self._indent if self.code_skin
                   else self.origin_x)
         y = top
@@ -560,8 +560,8 @@ class BoardUI:
         need_w, need_h = self.needed_size()
         return w >= need_w and h >= need_h
 
-    def draw(self, selected_slot: Optional[int], selected_n: int,
-             cursor_slot: Optional[int], hint: Optional[Tuple[int, int, str]],
+    def draw(self, selected_slot: int | None, selected_n: int,
+             cursor_slot: int | None, hint: tuple[int, int, str] | None,
              elapsed: float, message: str, hint_n: int = 1):
         """hint_n is how many cards the hint would move from its source."""
         self.stdscr.erase()
@@ -667,5 +667,5 @@ class BoardUI:
                    "tableau": "", "reserve": "Res", "freecell": "Cell"}
         return kindmap.get(slot.kind, "")
 
-    def hit_test(self, y, x) -> Optional[Tuple[int, int]]:
+    def hit_test(self, y, x) -> tuple[int, int] | None:
         return self.hit.get((y, x))

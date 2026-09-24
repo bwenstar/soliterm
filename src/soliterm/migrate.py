@@ -17,7 +17,6 @@ import os
 import sys
 import tempfile
 import time
-from typing import List, Optional, Tuple
 
 from . import aisleriot as ar
 from . import store
@@ -25,7 +24,7 @@ from . import store
 OLD_APP_DIR_NAME = "aisle-cli"
 
 
-def _old_paths() -> Tuple[str, str]:
+def _old_paths() -> tuple[str, str]:
     """aisle-cli's config.json and stats.json, found the way the store
     finds ours (XDG dirs, else the home folder)."""
     return (os.path.join(store._xdg("XDG_CONFIG_HOME", ".config"),
@@ -38,7 +37,7 @@ def _say(msg: str) -> None:
     print(f"soliterm: {msg}", file=sys.stderr)
 
 
-def _read(path: str) -> Optional[bytes]:
+def _read(path: str) -> bytes | None:
     try:
         with open(path, "rb") as fh:
             return fh.read()
@@ -46,7 +45,7 @@ def _read(path: str) -> Optional[bytes]:
         return None
 
 
-def _object(raw: Optional[bytes]) -> Optional[dict]:
+def _object(raw: bytes | None) -> dict | None:
     """The JSON object in `raw`, or None if there isn't one."""
     if raw is None:
         return None
@@ -80,7 +79,7 @@ def _dump(obj: dict) -> bytes:
     return json.dumps(obj, indent=2).encode("utf-8")
 
 
-def _merged(config: Optional[dict], stats: dict) -> Optional[bool]:
+def _merged(config: dict | None, stats: dict) -> bool | None:
     """Whether the old stats are already in the keyfile, or None if there is
     nothing to say (no game on record)."""
     if config is not None and config.get("merged_into_aisleriot") is True:
@@ -136,7 +135,7 @@ def ensure() -> None:
 
     # stats first: if we stop in between, they and their merge marker are
     # what matters
-    copied: List[str] = []
+    copied: list[str] = []
     try:
         if stats_raw is not None:
             _write(store.stats_path(), stats_raw)

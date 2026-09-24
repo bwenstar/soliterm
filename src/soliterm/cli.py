@@ -15,7 +15,7 @@ import argparse
 import functools
 import os
 import sys
-from typing import Any, Callable, List, Optional, Tuple
+from typing import Any, Callable
 
 from . import APP_NAME, __version__, engine, migrate, store
 from . import aisleriot as ar
@@ -134,7 +134,7 @@ def reset_stats(yes: bool) -> int:
     return 0
 
 
-def _load_tui() -> Tuple[Any, str]:
+def _load_tui() -> tuple[Any, str]:
     """The curses front end, or None and a line on why text mode it is.
 
     Text mode it is when a module isn't there (curses on a Windows Python,
@@ -155,7 +155,7 @@ def _load_tui() -> Tuple[Any, str]:
     return tui, ""
 
 
-def _terminal_problem() -> Optional[str]:
+def _terminal_problem() -> str | None:
     """Why curses can't draw the game on this terminal, or None if it can.
 
     Asked before the game starts: on a terminal type it doesn't know, or
@@ -205,7 +205,7 @@ def _quiet_on_broken_pipe(main: Callable[..., int]) -> Callable[..., int]:
 
 
 @_quiet_on_broken_pipe
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     # before anything reads the config or the stats
     migrate.ensure()

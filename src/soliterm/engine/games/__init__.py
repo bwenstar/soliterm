@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Dict, Optional, Type
-
 from ..core import Solitaire
 from ..gamedef import GameDef
 from .bakersdozen import BakersDozen
@@ -16,7 +14,7 @@ from .klondike import Klondike
 from .spider import Spider
 from .yukon import Yukon
 
-GAMES: Dict[str, Type[GameDef]] = {cls.key: cls for cls in [
+GAMES: dict[str, type[GameDef]] = {cls.key: cls for cls in [
     Klondike, Spider, FreeCell, EightOff, Golf, Yukon,
     BakersDozen, FortyThieves, Canfield,
 ]}
@@ -25,6 +23,6 @@ GAME_ORDER = ["klondike", "spider", "freecell", "eightoff", "golf",
               "yukon", "bakersdozen", "fortythieves", "canfield"]
 
 
-def new_solitaire(key: str, seed: Optional[int] = None,
-                  options: Optional[dict] = None) -> Solitaire:
+def new_solitaire(key: str, seed: int | None = None,
+                  options: dict | None = None) -> Solitaire:
     return Solitaire(GAMES[key](), seed=seed, options=options)

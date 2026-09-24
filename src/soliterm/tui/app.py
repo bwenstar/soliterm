@@ -15,8 +15,9 @@ import curses
 import functools
 import os
 import time
+from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Callable, Iterator, List, Optional, Tuple
+from typing import Callable
 
 from .. import APP_NAME, camo, engine, store
 from ..engine import GAME_ORDER, GAMES, Solitaire
@@ -72,7 +73,7 @@ class GameClock:
     def reset(self) -> None:
         self.started = False
         self.banked = 0.0           # seconds run before the last stop
-        self.since: Optional[float] = None    # clock() when it last set off
+        self.since: float | None = None    # clock() when it last set off
 
     def start(self) -> None:
         if not self.started:
@@ -136,9 +137,9 @@ class App:
     game: Solitaire
     ui: BoardUI
 
-    def __init__(self, stdscr, start_key: Optional[str] = None,
-                 seed: Optional[int] = None, color: Optional[bool] = None,
-                 symbols: Optional[bool] = None):
+    def __init__(self, stdscr, start_key: str | None = None,
+                 seed: int | None = None, color: bool | None = None,
+                 symbols: bool | None = None):
         self.stdscr = stdscr
         self.start_key = start_key
         self.seed = seed
@@ -159,22 +160,22 @@ class App:
         # what the screen being drawn has put up so far, held back until it
         # is known to fit (see begin_page), how far right the code skin put
         # it, and whether the last one fit
-        self.page: Optional[List[Tuple[int, int, str, int]]] = None
+        self.page: list[tuple[int, int, str, int]] | None = None
         self.page_skinned = False
         self.page_dx = 0
         self.page_fits = True
         # a click or resize that came in just behind an Esc, for read_key
         # to hand out next
-        self.pending_key: Optional[int] = None
+        self.pending_key: int | None = None
         # per-game state, reset by start_game()
         self.clock = GameClock()
-        self.selected: Optional[int] = None
+        self.selected: int | None = None
         self.selected_n = 1
         self.selected_exact = False   # True when the player split by clicking a card
-        self.pressed: Optional[int] = None   # the slot the left button went down on
-        self.last_click: Optional[Tuple[int, float]] = None   # (slot, clock())
+        self.pressed: int | None = None   # the slot the left button went down on
+        self.last_click: tuple[int, float] | None = None   # (slot, clock())
         self.cursor = 0
-        self.hint: Optional[Tuple[int, int, str]] = None
+        self.hint: tuple[int, int, str] | None = None
         self.hint_n = 1               # how many cards the hint would move
         self.message = ""
         self.recorded = False
@@ -346,7 +347,7 @@ class App:
             return 130
 
     # ---- menu ---- #
-    def chooser(self) -> Optional[str]:
+    def chooser(self) -> str | None:
         cfg, CP, safe_add = self.cfg, self.CP, self.safe_add
         sel = GAME_ORDER.index(cfg.get("last_game", "klondike")) \
             if cfg.get("last_game") in GAME_ORDER else 0
@@ -401,10 +402,10 @@ class App:
 
     # ---- statistics dialog (AisleRiot fields) ---- #
     @hides_the_board
-    def stats_screen(self, focus_key: Optional[str] = None):
+    def stats_screen(self, focus_key: str | None = None):
         self.wait_for_key(lambda: self.draw_stats(focus_key))
 
-    def draw_stats(self, focus_key: Optional[str]):
+    def draw_stats(self, focus_key: str | None):
         CP, safe_add = self.CP, self.safe_add
         self.begin_page()
         safe_add(1, 4, "Statistics", CP(4) | curses.A_BOLD)
@@ -432,7 +433,7 @@ class App:
 
     # ---- options dialog ---- #
     @hides_the_board
-    def options_screen(self, key: str, current: dict) -> Optional[dict]:
+    def options_screen(self, key: str, current: dict) -> dict | None:
         """Let the player change the options, starting from `current`.
 
         Returns the options chosen with Enter, or None if Esc left them.
@@ -534,7 +535,7 @@ class App:
             theme = camo.DEFAULT_THEME
         gen = camo.stream(theme)
         h, w = stdscr.getmaxyx()
-        buf: List[str] = []
+        buf: list[str] = []
         # Make a key wait briefly so the screen scrolls on its own, like a
         # live session, but returns instantly when the player taps a key.
         stdscr.nodelay(True)
@@ -717,7 +718,7 @@ class App:
         if best is not None:
             self.cursor = best
 
-    def select_here(self, sid: int, card_idx: Optional[int] = None):
+    def select_here(self, sid: int, card_idx: int | None = None):
         """Select a run to move.
 
         With no card_idx (keyboard Enter / clicking the top), grab the
@@ -834,7 +835,7 @@ class App:
         return False        # menu
 
     # ---- play-screen keys ---- #
-    def handle_key(self, k: int) -> Optional[str]:
+    def handle_key(self, k: int) -> str | None:
         """Act on one key read on the play screen, as KEYMAP says.
 
         Returns MENU or QUIT when the key leaves the game, None otherwise.
@@ -1191,13 +1192,13 @@ class App:
                     return choices[row][0]
 
 
-def run(stdscr, start_key: Optional[str] = None, seed: Optional[int] = None,
-        color: Optional[bool] = None, symbols: Optional[bool] = None):
+def run(stdscr, start_key: str | None = None, seed: int | None = None,
+        color: bool | None = None, symbols: bool | None = None):
     return App(stdscr, start_key, seed, color, symbols).run()
 
 
-def main(start_key: Optional[str] = None, seed: Optional[int] = None,
-         color: Optional[bool] = None, symbols: Optional[bool] = None) -> int:
+def main(start_key: str | None = None, seed: int | None = None,
+         color: bool | None = None, symbols: bool | None = None) -> int:
     # After an Esc, ncurses waits ESCDELAY ms (a whole second by default) to
     # see whether a key sequence follows, so the Esc key felt dead. It reads
     # the variable when curses starts; a value the player set is kept.
