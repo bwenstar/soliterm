@@ -14,13 +14,14 @@ from __future__ import annotations
 import curses
 import functools
 import os
+import textwrap
 import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Callable
 
 from .. import APP_NAME, camo, deals, store
-from ..deals import Deal
+from ..deals import Code, Deal
 from ..engine import GAME_ORDER, GAMES, Solitaire
 from .board import (
     CODE_GUTTER,
@@ -38,6 +39,9 @@ MENU = "menu"
 QUIT = "quit"
 
 START_MESSAGE = "? help  h hint  m menu. Click or use arrows + Enter."
+
+DEAL_TEXT_MAX = 40  # the most the pick-deal box takes; a share code is shorter
+DEAL_ERROR_W = 60  # where the pick-deal box wraps a long error
 
 # What still works while "Terminal too small" hides the board: nothing that
 # could make a move the player can't see. The mouse finds no cards to hit.
@@ -499,6 +503,47 @@ class App:
                 return opts
             elif k == 27:
                 return None
+
+    @hides_the_board
+    def pick_deal_screen(self, current: Solitaire) -> Code | None:
+        """Ask for a deal number or a share code to play instead of
+        `current`. Returns what was typed, read by deals.parse, or None if
+        the player went back."""
+        CP, safe_add = self.CP, self.safe_add
+        text, error = "", ""
+        while True:
+            self.begin_page()
+            safe_add(1, 4, "Play a deal", CP(4) | curses.A_BOLD)
+            safe_add(3, 6, f"This deal   : {current.deal_number}")
+            safe_add(4, 6, f"Share code  : {deals.code_of(current)}")
+            safe_add(6, 6, f"Type a deal number, or a share code like {deals.EXAMPLE}")
+            safe_add(7, 6, f"> {text}_", CP(5) | curses.A_BOLD)
+            for i, line in enumerate(textwrap.wrap(error, DEAL_ERROR_W)[:2]):
+                safe_add(8 + i, 6, line, CP(6))
+            safe_add(10, 6, "Enter play - Esc back", CP(4))
+            self.end_page()
+            k = self.page_key()
+            # b is a letter here, so only F2 hides the box, unless it doesn't
+            # fit and can't be typed in anyway
+            if (k == curses.KEY_F2 or not self.page_fits) and self.boss_key(k):
+                continue
+            if k == curses.KEY_MOUSE:
+                skip_mouse_event()
+            elif k == 27 or (k in (ord("q"), ord("Q")) and not self.page_fits):
+                return None
+            elif k in (curses.KEY_ENTER, 10, 13):
+                if not text:
+                    return None
+                try:
+                    return deals.parse(text)
+                except ValueError as exc:
+                    error = str(exc)
+            elif k in (curses.KEY_BACKSPACE, 127, 8):
+                text, error = text[:-1], ""
+            elif k == 21:  # Ctrl-U
+                text, error = "", ""
+            elif 32 <= k <= 126 and len(text) < DEAL_TEXT_MAX:
+                text, error = text + chr(k), ""
 
     @hides_the_board
     def confirm(self, *lines: str) -> bool:
@@ -1065,6 +1110,30 @@ class App:
         # as in AisleRiot (see give_up)
         self.reset_for(self.game.restart)
         self.message = "restarted this deal"
+
+    def do_pick_deal(self):
+        code = self.pick_deal_screen(self.game)
+        if code is None:
+            self.message = "kept this deal"
+            return
+        if code.key is None:
+            # a number on its own: this game, with the options in play
+            deal = Deal(self.key, code.number, dict(self.game.options))
+        else:
+            deal = Deal(code.key, code.number, code.options)
+        # the same share code is the same game, options and number
+        label = deals.share_code(deal.key, code.number, deal.options)
+        if label == deals.code_of(self.game):
+            self.message = "that's the deal in play (N starts it over)"
+            return
+        if self.clock.started and not self.confirm(
+            f"Leave this game for {label}?", "The game in play will count as lost."
+        ):
+            self.message = "kept this deal"
+            return
+        self.give_up()
+        self.start_game(deal.key, deal)
+        self.message = f"playing {label}"
 
     def do_options(self):
         # Every option there is changes the deal (the draw, the suits), so

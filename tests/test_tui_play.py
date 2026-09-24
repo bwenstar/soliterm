@@ -22,6 +22,7 @@ from soliterm.engine import Card
 from helpers import FakeScr, clear_board, deal
 
 ENTER = "\n"
+ESC = 27
 
 
 class Click:
@@ -343,6 +344,93 @@ def test_the_title_names_the_deal(tui):
     assert "Soliterm  -  Klondike  -  Deal 48213" in scr.frames[0]
 
 
+# -- g: play a deal ------------------------------------------------------------------
+
+
+def test_g_plays_a_typed_deal(tui):
+    scr = tui(["g", "4", "2", ENTER], start=Deal("klondike", 5, {"draw": 3}))
+    box = scr.frames[3]
+    assert "Play a deal" in box
+    assert "This deal   : 5" in box and "Share code  : klondike:d3:5" in box
+    assert "> 42_" in box
+    # a number on its own keeps the game and the options in play
+    g = scr.uis[-1].game
+    assert (g.gamedef.key, g.deal_number, g.options["draw"]) == ("klondike", 42, 3)
+    assert [s.cards for s in g.slots] == [s.cards for s in deal("klondike", 42, draw=3).slots]
+    assert "playing klondike:d3:42" in scr.frames[4]
+
+
+def test_g_takes_a_share_code_for_another_game(tui):
+    keys = ["g", *"spider:s2:7", ENTER]
+    scr = tui(keys)
+    g = scr.uis[-1].game
+    assert (g.gamedef.key, g.deal_number, g.options) == ("spider", 7, {"suits": 2})
+    assert "playing spider:s2:7" in scr.frames[len(keys)]
+    cfg = store.load_config()
+    assert cfg["last_game"] == "spider"
+    # for this run only: the options aren't saved
+    assert store.game_options(cfg, "spider") == {}
+
+
+def test_g_keeps_the_text_and_shows_a_bad_code_error(tui):
+    scr = tui(["g", *"chess:5", ENTER, "x", curses.KEY_BACKSPACE, ESC, -1], deal=5)
+    wrong = scr.frames[9]
+    assert "> chess:5_" in wrong and "no game called 'chess'" in wrong
+    # typing clears the error
+    assert "> chess:5x_" in scr.frames[10] and "chess'" not in scr.frames[10]
+    assert "> chess:5_" in scr.frames[11]
+    assert "kept this deal" in scr.frames[-1]
+    assert len(scr.uis) == 1
+
+
+def test_g_types_b_q_and_n_and_ctrl_u_clears_the_text(tui):
+    scr = tui(["g", "b", "q", "n", 21, "4", ENTER], deal=5)
+    assert "> bqn_" in scr.frames[4]
+    assert "> _" in scr.frames[5]
+    assert scr.uis[-1].game.deal_number == 4
+
+
+@pytest.mark.parametrize("leave", [[ESC, -1], [ENTER]])
+def test_g_then_esc_or_an_empty_enter_keeps_this_deal(tui, leave):
+    scr = tui(["g", *leave], deal=5)
+    assert "kept this deal" in scr.frames[-1]
+    assert len(scr.uis) == 1
+
+
+@pytest.mark.parametrize("typed", ["5", "klondike:5", "Klondike deal 5"])
+def test_g_on_the_deal_in_play_says_so(tui, typed):
+    scr = tui(["d", "g", *typed, ENTER], deal=5)
+    assert "that's the deal in play (N starts it over)" in scr.frames[-1]
+    assert len(scr.uis) == 1 and scr.uis[0].game.moves == 1
+
+
+def test_g_asks_before_leaving_a_started_game(tui):
+    scr = tui(["d", "g", "7", ENTER, "n", "g", "7", ENTER, "y"], deal=5)
+    ask = scr.frames[4]
+    assert "Leave this game for klondike:7?" in ask
+    assert "The game in play will count as lost." in ask
+    assert "kept this deal" in scr.frames[5]
+    assert "playing klondike:7" in scr.frames[9]
+    assert [ui.game.deal_number for ui in scr.uis] == [5, 7]
+    assert store.get_stat("klondike")["total"] == 1  # the deal given up
+
+
+@pytest.mark.parametrize("skin", [False, True])
+def test_the_pick_deal_box_fits_80x24(tui, skin):
+    if skin:
+        code_skin_on()
+    typed = "klondike:" + "x" * 29 + ":5"  # as long as the box takes
+    scr = tui(["g", *typed, "y", ENTER, ESC, -1], h=24, w=80)
+    box = scr.frames[len(typed) + 3]
+    assert f"> {typed}_" in box
+    # the error, however long, is all on screen
+    error = "(it takes d1, d3, rs, rn, ru)"
+    rows = box.split("\n")
+    assert "Terminal too small" not in box and "'" + "x" * 29 in box
+    assert any(row.endswith(error) for row in rows)
+    assert all(len(row) < 80 for row in rows)
+
+
 def test_the_terminal_is_not_asked_to_report_pointer_motion(tui):
     scr = tui([])
     assert scr.masks
@@ -353,9 +441,6 @@ def test_the_terminal_is_not_asked_to_report_pointer_motion(tui):
 def test_ncurses_does_not_hold_clicks_back_to_wait_for_a_double_click(tui):
     # the play screen spots double-clicks itself
     assert tui([]).intervals == [0]
-
-
-ESC = 27
 
 
 def test_esc_acts_at_once(tui):
@@ -1046,14 +1131,20 @@ EVERY_SCREEN = [
     ("count as lost", "klondike", None, ["d", "o", curses.KEY_RIGHT, ENTER]),
     ("YOU WIN", "klondike", near_won, ["a"]),
     ("No moves left", "golf", one_move_left, ["f"]),
+    ("Play a deal", "klondike", None, ["g"]),
 ]
+# Esc then leaves the pick-deal box, where q is a letter to type. It changes
+# nothing on the other screens, and the -1 says no key came in behind it.
+OUT = [ESC, -1]
 
 
 @pytest.mark.parametrize("screen, start_key, game, keys", EVERY_SCREEN)
 def test_the_boss_key_works_on_every_screen_and_comes_back_to_it(
     tui, screen, start_key, game, keys
 ):
-    scr = tui(keys + ["b", "z"], start_key=start_key, game=game and game())
+    # b is a letter to type in the pick-deal box, so there only F2 hides it
+    boss = curses.KEY_F2 if screen == "Play a deal" else "b"
+    scr = tui(keys + [boss, "z", *OUT], start_key=start_key, game=game and game())
     shown, hidden, back = scr.frames[len(keys) : len(keys) + 3]
     assert screen in shown
     assert hidden.strip() and screen not in hidden and "Score" not in hidden
@@ -1102,7 +1193,7 @@ def code_skin_on():
 @pytest.mark.parametrize("screen, start_key, game, keys", EVERY_SCREEN)
 def test_the_code_skin_keeps_every_screen_inside_the_code_file(tui, screen, start_key, game, keys):
     code_skin_on()
-    scr = tui(keys, start_key=start_key, game=game and game())
+    scr = tui(keys + OUT, start_key=start_key, game=game and game())
     rows = scr.frames[len(keys)].split("\n")
     assert "solver.py" in rows[0]
     # a line number down every row, and the screen written as a comment
@@ -1123,11 +1214,13 @@ def test_the_code_skin_keeps_the_too_small_notice_inside_the_code_file(tui):
 @pytest.mark.parametrize("screen, start_key, game, keys", EVERY_SCREEN)
 def test_a_screen_too_tall_for_the_terminal_says_so(tui, screen, start_key, game, keys):
     # rather than lose its last lines off the bottom
-    scr = tui(keys + [Resize(40, 120)], start_key=start_key, game=game and game())
+    scr = tui(keys + [Resize(40, 120), *OUT], start_key=start_key, game=game and game())
     rows = scr.frames[len(keys)].rstrip().split("\n")
     need = len(rows)
     scr = tui(
-        keys + [Resize(need - 1, 120), Resize(need, 120)], start_key=start_key, game=game and game()
+        keys + [Resize(need - 1, 120), Resize(need, 120), *OUT],
+        start_key=start_key,
+        game=game and game(),
     )
     small, roomy = scr.frames[len(keys) + 1 : len(keys) + 3]
     assert "Terminal too small" in small and f"needs 40x{need}" in small

@@ -82,6 +82,7 @@ KEYMAP: tuple[Binding, ...] = (
     bind("xX", "view", "x", "toggle view: full cards <-> compact cells"),
     bind("n", "new_deal", "n", "new deal", compact=True),
     bind("N", "restart", "N", "restart this deal", compact=True),
+    bind("gG", "pick_deal", "g", "pick deal", compact=True),
     bind("uU", "undo", "u", "undo", compact=True),
     bind("rR", "redo", "r", "redo", compact=True),
     bind("oO", "options", "o", "options", compact=True),

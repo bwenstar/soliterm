@@ -20,8 +20,8 @@ body:
       label: How to reproduce it
       description: |
         Starting from `soliterm --game NAME --deal N`, or `--deal` with the
-        share code from the end of the game, makes it much easier to see
-        the same deal you did.
+        share code from the end of the game or from `g`, makes it much
+        easier to see the same deal you did.
       placeholder: |
         1. soliterm --game spider --deal 42
         2. Move the 7 of hearts onto the 8 of spades
