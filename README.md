@@ -121,6 +121,26 @@ d                deal           a       autoplay
 f <slot>         to foundation  n / N   new deal / restart   q  quit
 ```
 
+## Saved games
+
+Leave a game you've started with `q`, `m` or Ctrl-C, or close the terminal
+on it, and it's kept for next time in `~/.local/share/soliterm/saves`, with
+its clock, score and undo steps. One game of each kind is kept. Its row on
+the menu then reads `Resume your game: 0:42, 31 moves`, and picking it, or
+starting it with `--game`, carries on where you left off.
+
+`n` for a new deal, `o` when you change the options, and leaving the "No
+moves left" banner give the game up instead, and it counts as a loss. A game
+started on a deal you chose, with `--deal`, `--draw`, `--suits`, `g` or Play
+a deal, always deals the hand you asked for, so a saved game of its kind goes
+on waiting. It's kept when you leave it if nothing of its kind is waiting;
+if something is, it tells you so when it starts and counts as lost when you
+leave. Text mode keeps nothing: leaving a game you've started counts it as
+lost.
+
+A kept game isn't in the statistics, here or in AisleRiot, until it's
+finished or given up. Then it counts once, with all the time you spent on it.
+
 ## Statistics & AisleRiot sharing
 
 Statistics use AisleRiot's own model: **Wins / Total / Percentage / Best &
@@ -155,9 +175,10 @@ the local stats.
 
 Colour, code-skin, and other preferences persist in
 `~/.config/soliterm/config.json`. Respects `NO_COLOR`. Statistics are in
-`~/.local/share/soliterm/stats.json`. If you played the game under its old
-name, the first run copies `config.json` and `stats.json` over from the
-`aisle-cli` folders and leaves the old ones where they are.
+`~/.local/share/soliterm/stats.json`, with the saved games in `saves` beside
+it. If you played the game under its old name, the first run copies
+`config.json` and `stats.json` over from the `aisle-cli` folders and leaves
+the old ones where they are.
 
 ## Tests
 
