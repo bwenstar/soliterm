@@ -11,7 +11,7 @@ from __future__ import annotations
 import re
 from typing import NamedTuple
 
-from . import APP_NAME
+from . import APP_NAME, engine
 from .engine import GAMES, MAX_DEAL, Solitaire
 
 EXAMPLE = "klondike:d3:48213"
@@ -27,6 +27,15 @@ class Code(NamedTuple):
     key: str | None
     number: int
     options: dict | None
+
+
+class Deal(NamedTuple):
+    """A game to start: `key`, deal `number` (None for a random one), with
+    `options` over the saved ones (None for just the saved ones)."""
+
+    key: str
+    number: int | None = None
+    options: dict | None = None
 
 
 def _number(text: str) -> int:
@@ -122,3 +131,16 @@ def parse(text: str) -> Code:
     fields = "".join(rest[:-1])
     options = _options(key, fields) if fields else GAMES[key].default_options()
     return Code(key, _number(rest[-1]), options)
+
+
+def deal_of(code: Code, key: str) -> Deal:
+    """The Deal a code asks for, with `key` as the game for a bare number."""
+    return Deal(code.key or key, code.number, code.options)
+
+
+def deal_game(deal: Deal, saved: dict) -> Solitaire:
+    """Deal what `deal` asks for. Options it leaves out come from `saved`,
+    the player's own."""
+    opts = {**GAMES[deal.key].default_options(), **saved, **(deal.options or {})}
+    # looked up here, not imported, so a test can hand in its own game
+    return engine.new_solitaire(deal.key, seed=deal.number, options=opts)

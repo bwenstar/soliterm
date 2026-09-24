@@ -17,9 +17,9 @@ import os
 import sys
 from typing import Any, Callable
 
-from . import APP_NAME, __version__, debuginfo, engine, migrate, store
+from . import APP_NAME, __version__, deals, debuginfo, migrate, store
 from . import aisleriot as ar
-from .engine import GAME_ORDER, GAMES, MAX_DEAL
+from .engine import GAME_ORDER, GAMES
 from .textmode import run_text
 
 # --------------------------------------------------------------------------- #
@@ -27,15 +27,12 @@ from .textmode import run_text
 # --------------------------------------------------------------------------- #
 
 
-def seed_arg(text: str) -> int:
-    """--seed: a deal number, 0 to MAX_DEAL (the engine refuses the rest)."""
+def deal_arg(text: str) -> deals.Code:
+    """--deal and --seed: a deal number or a share code."""
     try:
-        seed = int(text)
-    except ValueError:
-        raise argparse.ArgumentTypeError(f"invalid seed: {text!r}") from None
-    if not 0 <= seed <= MAX_DEAL:
-        raise argparse.ArgumentTypeError(f"deal numbers run from 0 to {MAX_DEAL}, not {text}")
-    return seed
+        return deals.parse(text)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from None
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -49,13 +46,17 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--game", choices=GAME_ORDER, default=None, help="game to start (default: menu in the TUI)"
     )
-    p.add_argument(
-        "--seed",
-        type=seed_arg,
-        default=None,
-        metavar="N",
-        help="play deal number N (0 to 2147483647), then the ones after it",
+    which = p.add_mutually_exclusive_group()
+    which.add_argument(
+        "--deal",
+        type=deal_arg,
+        metavar="N|CODE",
+        help="play deal N, or the deal a share code names, such as klondike:d3:48213",
     )
+    # what --deal was called in 1.0.0; not in the help, but it still works.
+    # It stays out of the group, since a hidden option in one is where
+    # argparse's usage line has broken before, so _requested_deal checks it.
+    p.add_argument("--seed", type=deal_arg, help=argparse.SUPPRESS)
     p.add_argument(
         "--text", action="store_true", help="force text mode (no curses); reads commands from stdin"
     )
@@ -232,7 +233,8 @@ def _quiet_on_broken_pipe(main: Callable[..., int]) -> Callable[..., int]:
 
 @_quiet_on_broken_pipe
 def main(argv: list[str] | None = None) -> int:
-    args = build_parser().parse_args(argv)
+    parser = build_parser()
+    args = parser.parse_args(argv)
     if args.debug_info:
         # before the migration, so the report writes, moves and copies nothing
         print(debuginfo.text(args.no_sync, sys.stdout.encoding))
@@ -242,14 +244,31 @@ def main(argv: list[str] | None = None) -> int:
     if args.no_sync:
         store.disable_sync()
     try:
-        return _run(args)
+        return _run(args, parser)
     finally:
         # anything that kept the stats from being shared or saved as usual
         for msg in store.notices():
             print(f"soliterm: {msg}", file=sys.stderr)
 
 
-def _run(args: argparse.Namespace) -> int:
+def _requested_deal(args: argparse.Namespace, cfg: dict) -> deals.Deal | None:
+    """What the command line asks to play, or None for nothing in particular
+    (the menu in the TUI, the last game at random in text mode)."""
+    if args.seed is not None and args.deal is not None:
+        raise ValueError("argument --seed: not allowed with argument --deal")
+    code = args.deal if args.deal is not None else args.seed
+    if code is not None and code.key is not None:
+        if args.game and args.game != code.key:
+            raise ValueError(f"--game {args.game} doesn't match the share code's game ({code.key})")
+        return deals.Deal(code.key, code.number, code.options)
+    if code is not None:
+        return deals.Deal(args.game or cfg.get("last_game", "klondike"), code.number)
+    if args.game:
+        return deals.Deal(args.game)
+    return None
+
+
+def _run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
     if args.list:
         print_list()
         return 0
@@ -260,6 +279,11 @@ def _run(args: argparse.Namespace) -> int:
         return 0
 
     cfg = store.load_config()
+    try:
+        # worked out once, so text mode plays the same deal if curses can't start
+        start = _requested_deal(args, cfg)
+    except ValueError as exc:
+        parser.error(str(exc))
     symbols = cfg.get("symbols", True) and not args.ascii
 
     # Colour in text mode: explicit --color/--no-color wins; otherwise on
@@ -274,14 +298,13 @@ def _run(args: argparse.Namespace) -> int:
     if not args.text and sys.stdout.isatty() and sys.stdin.isatty():
         tui, why = _load_tui()
         if tui is not None:
-            return tui.main(args.game, seed=args.seed, color=args.color, symbols=symbols)
+            return tui.main(start, color=args.color, symbols=symbols)
         print(f"soliterm: {why}", file=sys.stderr)
 
     # text mode
-    key = args.game or cfg.get("last_game", "klondike")
-    opts = {**GAMES[key].default_options(), **store.game_options(cfg, key)}
-    g = engine.new_solitaire(key, seed=args.seed, options=opts)
-    return run_text(g, symbols, key, color=text_color, camo_theme=cfg.get("camo_theme"))
+    deal = start or deals.Deal(cfg.get("last_game", "klondike"))
+    g = deals.deal_game(deal, store.game_options(cfg, deal.key))
+    return run_text(g, symbols, deal.key, color=text_color, camo_theme=cfg.get("camo_theme"))
 
 
 if __name__ == "__main__":

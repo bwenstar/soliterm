@@ -19,7 +19,8 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Callable
 
-from .. import APP_NAME, camo, engine, store
+from .. import APP_NAME, camo, deals, store
+from ..deals import Deal
 from ..engine import GAME_ORDER, GAMES, Solitaire
 from .board import (
     CODE_GUTTER,
@@ -146,15 +147,14 @@ class App:
     def __init__(
         self,
         stdscr,
-        start: str | None = None,
+        start: str | Deal | None = None,
         *,
-        seed: int | None = None,
         color: bool | None = None,
         symbols: bool | None = None,
     ):
         self.stdscr = stdscr
-        self.start = start  # the game to go straight into, or None for the menu
-        self.seed = seed
+        # the game to go straight into, a key or a Deal, or None for the menu
+        self.start = Deal(start) if isinstance(start, str) else start
         self.color = color  # --color / --no-color, None for neither
         self.cfg = store.load_config()
         # suit symbols and box-drawing cards, or plain letters (--ascii);
@@ -347,7 +347,7 @@ class App:
     def run(self) -> int:
         self.setup_curses()
         try:
-            if self.start and self.play(self.start):
+            if self.start and self.play(self.start.key, self.start):
                 return 0
             while True:
                 choice = self.chooser()
@@ -610,12 +610,13 @@ class App:
             stdscr.nodelay(False)
 
     # ---- play one game ---- #
-    def play(self, key: str) -> bool:
-        """Play a game of `key` until the player leaves it.
+    def play(self, key: str, deal: Deal | None = None) -> bool:
+        """Play a game of `key` until the player leaves it: `deal` if given,
+        or a random deal with the saved options.
 
         Returns True if they quit the program, False to go back to the menu.
         """
-        self.start_game(key)
+        self.start_game(key, deal)
         try:
             while True:
                 self.game.update_status()
@@ -676,11 +677,11 @@ class App:
             return 27
         return 27 if follow == -1 else -1
 
-    def start_game(self, key: str) -> None:
-        """Deal a game of `key` and set the play screen up for it."""
-        opts = {**GAMES[key].default_options(), **store.game_options(self.cfg, key)}
+    def start_game(self, key: str, deal: Deal | None = None) -> None:
+        """Deal a game of `key` (`deal` if given) and set the play screen up
+        for it."""
         self.key = key
-        self.game = self.new_game(opts)
+        self.game = self.new_game(deal or Deal(key))
         self.cfg["last_game"] = key
         store.save_config(self.cfg)
         self.ui = self.new_board()
@@ -696,9 +697,9 @@ class App:
         self.recorded = False
         self.dead_end_undone = False
 
-    def new_game(self, opts: dict) -> Solitaire:
-        """Deal a game of self.key with the given options."""
-        game = engine.new_solitaire(self.key, seed=self.seed, options=opts)
+    def new_game(self, deal: Deal) -> Solitaire:
+        """Deal what `deal` asks for, over the saved options."""
+        game = deals.deal_game(deal, store.game_options(self.cfg, deal.key))
         # so a hint names the cards the way the board draws them
         game.symbols = self.symbols
         return game
@@ -1254,13 +1255,13 @@ class App:
                     return choices[row][0]
 
 
-def run(stdscr, start: str | None = None, **options):
+def run(stdscr, start: str | Deal | None = None, **options):
     """Run a session on stdscr. The settings go on to App by name, so a new
     one only has to be added there."""
     return App(stdscr, start, **options).run()
 
 
-def main(start: str | None = None, **options) -> int:
+def main(start: str | Deal | None = None, **options) -> int:
     # After an Esc, ncurses waits ESCDELAY ms (a whole second by default) to
     # see whether a key sequence follows, so the Esc key felt dead. It reads
     # the variable when curses starts; a value the player set is kept.

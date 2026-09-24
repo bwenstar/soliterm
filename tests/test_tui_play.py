@@ -15,7 +15,8 @@ import pytest
 
 import soliterm.tui
 from soliterm import aisleriot as ar
-from soliterm import cli, engine, store
+from soliterm import cli, deals, engine, store
+from soliterm.deals import Deal
 from soliterm.engine import Card
 
 from helpers import FakeScr, clear_board, deal
@@ -101,7 +102,9 @@ class ScriptedScr(FakeScr):
 def tui(monkeypatch):
     """Returns run(keys, ...) which plays a script through soliterm.tui.run().
 
-    Pass game= to start play on a board built by hand. The returned screen
+    It starts on a game of start_key (None for the menu), deal number deal=
+    if given, or on start=, a Deal. Pass game= to start play on a board
+    built by hand. The returned screen
     has .frames, .rc, .uis (every BoardUI made, each with .selections),
     .pairs (init_pair calls), .masks (mousemask calls) and .intervals
     (mouseinterval calls).
@@ -130,11 +133,12 @@ def tui(monkeypatch):
         keys,
         start_key="klondike",
         game=None,
-        seed=None,
+        deal=None,
         color=None,
         color_capable=True,
         h=40,
         w=120,
+        start=None,
         **kwargs,
     ):
         scr = ScriptedScr(h, w, keys, uis)
@@ -154,7 +158,9 @@ def tui(monkeypatch):
 
             monkeypatch.setattr(engine, "new_solitaire", new_solitaire)
         try:
-            scr.rc = soliterm.tui.run(scr, start_key, seed=seed, color=color, **kwargs)
+            if start is None and start_key is not None:
+                start = Deal(start_key, deal)
+            scr.rc = soliterm.tui.run(scr, start, color=color, **kwargs)
         except KeyboardInterrupt:
             # let through, it would stop the whole test session
             pytest.fail("Ctrl-C got out of the TUI")
@@ -309,8 +315,27 @@ def test_n_deals_a_new_hand_and_shift_n_replays_it_under_seed(tui):
     seeded.new_game()
     second = seeded.serialize()
     assert second != first
-    scr = tui(["n", "d", "N"], seed=5)
+    scr = tui(["n", "d", "N"], deal=5)
     assert scr.uis[0].game.serialize() == second
+
+
+def test_the_tui_starts_on_the_deal_asked_for(tui):
+    scr = tui([], start=Deal("klondike", 48213, {"draw": 3}))
+    g = scr.uis[0].game
+    assert (g.deal_number, g.options["draw"]) == (48213, 3)
+    want = deal("klondike", 48213, draw=3)
+    assert [s.cards for s in g.slots] == [s.cards for s in want.slots]
+    # for this run only: the saved options are left alone
+    assert store.game_options(store.load_config(), "klondike") == {}
+
+
+def test_a_deal_number_only_fixes_the_first_game(tui):
+    # deal 5 of one game and deal 5 of the next have nothing to do with
+    # each other, so a game picked from the menu is a random one
+    scr = tui(["m", ENTER], deal=5)
+    first, second = (ui.game for ui in scr.uis)
+    assert first.seed == 5
+    assert second.gamedef.key == "klondike" and second.seed is None
 
 
 def test_the_terminal_is_not_asked_to_report_pointer_motion(tui):
@@ -772,7 +797,7 @@ def test_new_options_before_a_move_just_deal_again(tui):
 def test_the_options_screen_deals_on_like_n(tui):
     # a session on a chosen deal goes on to the next one, whichever key
     # asked for the new deal
-    scr = tui(["o", curses.KEY_LEFT, ENTER], start_key="spider", seed=6)
+    scr = tui(["o", curses.KEY_LEFT, ENTER], start_key="spider", deal=6)
     game = scr.uis[-1].game
     assert game.options["suits"] == 2
     assert game.deal_number == 7
@@ -1144,11 +1169,16 @@ def screenshot_tool():
 
 
 @pytest.mark.skipif(not os.path.exists(SCREENSHOTS), reason="no tools/ in this tree")
+def scene_start(scene):
+    """What the TUI starts on for a scene's --deal."""
+    return deals.deal_of(deals.parse(scene.deal), "klondike") if scene.deal else None
+
+
 def test_the_spider_screenshot_deals_two_suits_and_makes_its_move(tui):
     shots = screenshot_tool()
     (scene,) = [s for s in shots.SCENES if s.name == "spider"]
     keys = [TMUX_KEYS.get(k, k) for step in scene.steps for k in step.keys.split()]
-    scr = tui(keys, start_key=scene.game, seed=scene.seed, h=shots.ROWS, w=shots.COLS)
+    scr = tui(keys, start=scene_start(scene), h=shots.ROWS, w=shots.COLS)
     last = scr.frames[len(keys)]
     assert "♥" in last and "♠" in last
     assert "Moves 1 " in last and "Hint: Move" in last
@@ -1171,13 +1201,13 @@ def test_screenshot_scenes_still_reach_their_shots(tui):
     # the keys were worked out by hand for each deal, so they go stale the
     # moment a deal number deals another hand
     shots = screenshot_tool()
-    scenes = [s for s in shots.SCENES if s.game]
+    scenes = [s for s in shots.SCENES if s.deal]
     assert sorted(s.name for s in scenes) == sorted(SCENE_MOVES)
     for scene in scenes:
         keys = [TMUX_KEYS.get(k, k) for step in scene.steps for k in step.keys.split()]
         # b and c would hide the board this test reads
         keys = [k for k in keys if k not in ("b", "c")]
-        scr = tui(keys, start_key=scene.game, seed=scene.seed, h=shots.ROWS, w=shots.COLS)
+        scr = tui(keys, start=scene_start(scene), h=shots.ROWS, w=shots.COLS)
         frames = scr.frames[: len(keys) + 1]
         assert not any("illegal move" in frame for frame in frames), scene.name
         moves, hint = SCENE_MOVES[scene.name]

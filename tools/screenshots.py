@@ -48,7 +48,7 @@ OUT = ROOT / "docs" / "img"
 # --------------------------------------------------------------------------- #
 # Scenes
 #
-# A scene starts the game (at the menu when game is None) and then runs its
+# A scene starts the game (at the menu when deal is None) and then runs its
 # steps in order. A step sends its keys one at a time, waits, and can take a
 # shot of the screen. Keys are tmux key names separated by spaces: letters
 # stand for themselves, and there are Up, Down, Left, Right, Enter, Space,
@@ -80,8 +80,7 @@ class Step(NamedTuple):
 class Scene(NamedTuple):
     name: str
     about: str
-    game: str | None
-    seed: int | None
+    deal: str | None  # a share code, passed as --deal
     steps: Sequence[Step]
     animate: bool = False
 
@@ -97,54 +96,42 @@ SIX_ON_SEVEN = "h Enter Left Left Left Enter"
 FIVE_ON_SIX = "h Enter Right Right Enter"
 
 SCENES: list[Scene] = [
-    Scene("menu", "the game menu", None, None, [shot()]),
+    Scene("menu", "the game menu", None, [shot()]),
     Scene(
         "klondike-in-play",
         "Klondike a few moves in, with a hint showing",
-        "klondike",
-        946,
+        "klondike:946",
         [Step(SIX_ON_SEVEN), Step(FIVE_ON_SIX), Step("d d d"), shot("h")],
     ),
     Scene(
         "freecell",
         "FreeCell after one move, with the next hint showing",
-        "freecell",
-        617,
+        "freecell:617",
         [Step("h Enter Right Right Right Enter"), shot("h")],
     ),
     Scene(
         "spider",
         "two-suit Spider after one move, with the next hint showing",
-        "spider",
-        6,
-        # o opens the options, Left switches Suits from 4 to 2 and Enter
-        # deals on to deal 7, the way n would
-        [
-            Step("o Left Enter"),
-            Step("h Enter Right Right Right Right Enter"),
-            shot("h"),
-        ],
+        "spider:s2:7",
+        [Step("h Enter Right Right Right Right Enter"), shot("h")],
     ),
     Scene(
         "code-skin",
         "Klondike played inside the code skin",
-        "klondike",
-        946,
+        "klondike:946",
         [Step(SIX_ON_SEVEN), shot("c")],
     ),
     Scene(
         "boss-mode",
         "the boss key's fake build output",
-        "klondike",
-        946,
+        "klondike:946",
         # the output scrolls by itself, so give it time to fill the screen
         [shot("b", wait=3.0)],
     ),
     Scene(
         "hero",
         "animated: a hint and a few Klondike moves",
-        "klondike",
-        946,
+        "klondike:946",
         [
             shot(hold=1600),
             shot("h", hold=1800),
@@ -741,16 +728,11 @@ class Stage:
 
 
 def scene_args(scene: Scene) -> list[str]:
-    args = []
-    if scene.game:
-        args += ["--game", scene.game]
-    if scene.seed is not None:
-        args += ["--seed", str(scene.seed)]
-    return args
+    return ["--deal", scene.deal] if scene.deal else []
 
 
 def title_of(scene: Scene) -> str:
-    return "soliterm" + (f" --game {scene.game}" if scene.game else "")
+    return "soliterm" + (f" --deal {scene.deal}" if scene.deal else "")
 
 
 # --------------------------------------------------------------------------- #

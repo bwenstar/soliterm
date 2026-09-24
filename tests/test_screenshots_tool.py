@@ -10,6 +10,7 @@ from pathlib import Path
 
 import pytest
 
+from soliterm import deals
 from soliterm.engine import GAME_ORDER
 
 TOOL = Path(__file__).resolve().parents[1] / "tools" / "screenshots.py"
@@ -112,10 +113,19 @@ def test_scenes_are_valid(tool):
     names = [scene.name for scene in tool.SCENES]
     assert len(names) == len(set(names))
     for scene in tool.SCENES:
-        assert scene.game is None or scene.game in GAME_ORDER, scene.name
+        assert scene.deal is None or deals.parse(scene.deal).key in GAME_ORDER, scene.name
         assert scene.steps, scene.name
     shots = [sum(step.shot for step in s.steps) for s in tool.SCENES if s.animate]
     assert shots and min(shots) > 1
+
+
+def test_a_scene_plays_its_deal(tool):
+    (scene,) = [s for s in tool.SCENES if s.name == "freecell"]
+    assert tool.scene_args(scene) == ["--deal", "freecell:617"]
+    assert tool.title_of(scene) == "soliterm --deal freecell:617"
+    (menu,) = [s for s in tool.SCENES if s.name == "menu"]
+    assert tool.scene_args(menu) == []
+    assert tool.title_of(menu) == "soliterm"
 
 
 def test_draws_a_window(tool):

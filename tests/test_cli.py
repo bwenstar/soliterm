@@ -12,6 +12,7 @@ import soliterm
 from soliterm import aisleriot as ar
 from soliterm import store
 from soliterm.cli import main
+from soliterm.deals import Deal
 from soliterm.engine import GAME_ORDER, GAMES
 from soliterm.textmode import render_text
 
@@ -75,6 +76,124 @@ def test_a_deal_number_out_of_range_is_an_argument_error(capsys, args):
     assert exc.value.code == 2
     err = capsys.readouterr().err
     assert "--seed" in err and "run from 0 to 2147483647" in err
+
+
+# -- --deal and --seed -----------------------------------------------------------------
+
+
+def text_board(g):
+    return without_status(render_text(g, symbols=False))
+
+
+def play_briefly(cli, *args):
+    rc, lines = cli("--text", "--ascii", "--no-color", *args, stdin="q\n")
+    assert rc == 0
+    return "\n".join(lines)
+
+
+@pytest.mark.parametrize(
+    "args, g",
+    [
+        (["--game", "golf", "--deal", "48213"], deal("golf", 48213)),
+        (["--deal", "klondike:d3:48213"], deal("klondike", 48213, draw=3)),
+        (["--deal=spider:s2:7"], deal("spider", 7, suits=2)),
+        (["--deal", "FreeCell #617"], deal("freecell", 617)),
+        (
+            ["--game", "klondike", "--deal", "klondike:ru:5"],
+            deal("klondike", 5, redeals="unlimited"),
+        ),
+    ],
+)
+def test_deal_takes_a_number_or_a_share_code(cli, args, g):
+    assert text_board(g) in play_briefly(cli, *args)
+
+
+def test_seed_still_works_but_is_not_in_the_help(cli, capsys):
+    out = play_briefly(cli, "--game", "yukon", "--seed", "5")
+    assert text_board(deal("yukon", 5)) in out
+    assert text_board(deal("spider", 7, suits=2)) in play_briefly(cli, "--seed", "spider:s2:7")
+    with pytest.raises(SystemExit):
+        main(["--help"])
+    help_text = capsys.readouterr().out
+    assert "--deal" in help_text and "--seed" not in help_text
+
+
+@pytest.mark.parametrize("flag", ["--seed", "--deal"])
+def test_seed_0_still_works(cli, flag):
+    assert text_board(deal("golf", 0)) in play_briefly(cli, "--game", "golf", flag, "0")
+
+
+def test_seed_and_deal_together_are_refused(capsys):
+    with pytest.raises(SystemExit) as exc:
+        main(["--text", "--seed", "5", "--deal", "6"])
+    assert exc.value.code == 2
+    assert "argument --seed: not allowed with argument --deal" in capsys.readouterr().err
+
+
+def test_game_must_match_the_share_code(cli, capsys):
+    with pytest.raises(SystemExit) as exc:
+        main(["--text", "--game", "freecell", "--deal", "klondike:5"])
+    assert exc.value.code == 2
+    err = capsys.readouterr().err
+    assert "--game freecell doesn't match the share code's game (klondike)" in err
+    assert text_board(deal("klondike", 5)) in play_briefly(
+        cli, "--game", "klondike", "--deal", "klondike:5"
+    )
+
+
+def test_a_bare_number_plays_the_last_game(cli):
+    cfg = store.load_config()
+    cfg["last_game"] = "golf"
+    store.save_config(cfg)
+    out = play_briefly(cli, "--deal", "5")
+    assert out.startswith("Soliterm - Golf")
+    assert text_board(deal("golf", 5)) in out
+
+
+def test_a_bare_number_keeps_the_saved_options_and_a_code_does_not(cli):
+    cfg = store.load_config()
+    cfg["last_game"] = "spider"
+    store.set_game_options(cfg, "spider", {"suits": 2})
+    store.save_config(cfg)
+    assert text_board(deal("spider", 5, suits=2)) in play_briefly(cli, "--deal", "5")
+    # a code with no options means the standard ones
+    out = play_briefly(cli, "--deal", "spider:5")
+    assert text_board(deal("spider", 5)) in out
+    assert text_board(deal("spider", 5, suits=2)) not in out
+    # and playing it saves nothing
+    assert store.game_options(store.load_config(), "spider") == {"suits": 2}
+
+
+@pytest.mark.parametrize(
+    "args, error",
+    [
+        (["--deal", "chess:5"], "argument --deal: no game called 'chess'"),
+        (["--deal", "klondike"], "argument --deal: klondike needs a deal number too"),
+        (["--seed", "12x"], "argument --seed: '12x' isn't a deal number"),
+        (["--deal", "-5"], "argument --deal: deal numbers run from 0 to 2147483647, not -5"),
+    ],
+)
+def test_a_bad_share_code_is_an_argument_error(capsys, args, error):
+    with pytest.raises(SystemExit) as exc:
+        main(["--text", *args])
+    assert exc.value.code == 2
+    assert error in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("flag", ["--deal", "--seed"])
+def test_debug_info_still_prints_with_a_deal(cli, flag):
+    rc, lines = cli("--debug-info", flag, "klondike:d3:5")
+    assert rc == 0
+    assert lines[0] == f"soliterm: {soliterm.__version__}"
+
+
+def test_the_help_fits_a_40_column_terminal(capsys, monkeypatch):
+    # argparse's usage wrapping has tripped over option groups before
+    monkeypatch.setenv("COLUMNS", "40")
+    with pytest.raises(SystemExit) as exc:
+        main(["--help"])
+    assert exc.value.code == 0
+    assert "--deal N|CODE" in capsys.readouterr().out
 
 
 # -- --list ----------------------------------------------------------------------------
@@ -424,6 +543,18 @@ def test_a_terminal_gets_the_full_screen_game(terminal, capsys):
     assert terminal("--game", "golf") == 0
     assert terminal.started == ["tui"]
     assert capsys.readouterr().err == ""
+
+
+def test_the_full_screen_game_is_handed_the_deal(terminal, monkeypatch):
+    import soliterm.tui as tui_mod
+
+    starts = []
+    monkeypatch.setattr(tui_mod, "main", lambda start, **kw: starts.append(start) or 0)
+    assert terminal("--deal", "spider:s2:7") == 0
+    assert terminal("--game", "golf", "--seed", "5") == 0
+    assert terminal("--game", "golf") == 0
+    assert terminal() == 0
+    assert starts == [Deal("spider", 7, {"suits": 2}), Deal("golf", 5), Deal("golf"), None]
 
 
 def test_without_curses_text_mode_says_why(terminal, monkeypatch, capsys):

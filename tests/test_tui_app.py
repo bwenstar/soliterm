@@ -9,6 +9,7 @@ import curses
 
 import soliterm.tui.app
 from soliterm import store
+from soliterm.deals import Deal
 from soliterm.engine import Card, Solitaire
 from soliterm.tui.app import MENU, QUIT, App
 
@@ -92,11 +93,17 @@ def test_main_hands_curses_wrapper_its_settings_by_name(monkeypatch):
         return 0
 
     monkeypatch.setattr(curses, "wrapper", wrapper)
-    assert soliterm.tui.app.main("klondike", seed=3, color=False, symbols=True) == 0
+    assert soliterm.tui.app.main(Deal("klondike", 3), color=False, symbols=True) == 0
     [(fn, args, kwargs)] = calls
     assert fn is soliterm.tui.app.run
-    assert args == ("klondike",)
-    assert kwargs == {"seed": 3, "color": False, "symbols": True}
+    assert args == (Deal("klondike", 3),)
+    assert kwargs == {"color": False, "symbols": True}
+
+
+def test_a_game_key_to_start_on_becomes_a_deal():
+    assert App(FakeScr(), "golf").start == Deal("golf")
+    assert App(FakeScr(), Deal("golf", 5)).start == Deal("golf", 5)
+    assert App(FakeScr()).start is None
 
 
 def test_a_short_session_moves_undoes_hints_and_quits():
