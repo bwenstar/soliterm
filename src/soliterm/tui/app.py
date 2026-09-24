@@ -640,7 +640,7 @@ class App:
                     return outcome == QUIT
         except KeyboardInterrupt:
             # Ctrl-C, wherever in the game it comes, leaves the way q does
-            self.maybe_record_loss()
+            self.give_up()
             raise
 
     def read_key(self) -> int:
@@ -820,7 +820,7 @@ class App:
         if not self.game.click(sid):
             self.message = self.game.deal_blocked_reason()
 
-    def maybe_record_loss(self):
+    def give_up(self):
         # A game left unfinished counts as a loss once it is under way, as in
         # AisleRiot: from the first move, even if undo takes every move back.
         # Restarting the deal (N, or Replay on the banner) is the exception.
@@ -852,7 +852,7 @@ class App:
         A win is recorded at once. A game with no moves left is recorded as
         lost only when the player gives it up for a new deal or the menu.
         Undo plays on, and replaying the deal counts nothing, as AisleRiot's
-        Restart doesn't (see maybe_record_loss)."""
+        Restart doesn't (see give_up)."""
         seconds = self.seconds()
         if won and not self.recorded:
             store.record_result(self.key, won, seconds)
@@ -866,7 +866,7 @@ class App:
             self.reset_for(self.game.restart)
             self.message = "replaying the same deal"
             return True
-        self.maybe_record_loss()
+        self.give_up()
         if choice == "new":
             self.reset_for(self.game.new_game)
             self.message = "new deal"
@@ -899,11 +899,11 @@ class App:
         return None
 
     def do_quit(self):
-        self.maybe_record_loss()
+        self.give_up()
         return QUIT
 
     def do_menu(self):
-        self.maybe_record_loss()
+        self.give_up()
         return MENU
 
     def do_help(self):
@@ -1051,13 +1051,13 @@ class App:
 
     def do_new_deal(self):
         # new deal: an abandoned game counts as a loss first
-        self.maybe_record_loss()
+        self.give_up()
         self.reset_for(self.game.new_game)
         self.message = "new deal"
 
     def do_restart(self):
         # restart THIS deal (replay the same shuffle); no loss recorded,
-        # as in AisleRiot (see maybe_record_loss)
+        # as in AisleRiot (see give_up)
         self.reset_for(self.game.restart)
         self.message = "restarted this deal"
 
@@ -1079,7 +1079,7 @@ class App:
             return
         store.set_game_options(self.cfg, self.key, newopts)
         store.save_config(self.cfg)
-        self.maybe_record_loss()
+        self.give_up()
         self.game = self.new_game(newopts)
         self.ui = self.new_board()
         self.reset_for(lambda: None)  # game already dealt by new_solitaire
