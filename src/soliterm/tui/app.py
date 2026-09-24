@@ -465,9 +465,10 @@ class App:
     # ---- statistics dialog (AisleRiot fields) ---- #
     @hides_the_board
     def stats_screen(self, focus_key: str | None = None):
-        self.wait_for_key(lambda: self.draw_stats(focus_key))
+        streaks = history.streaks()  # read once, not again on each resize
+        self.wait_for_key(lambda: self.draw_stats(focus_key, streaks))
 
-    def draw_stats(self, focus_key: str | None):
+    def draw_stats(self, focus_key: str | None, streaks: dict[str, history.Streak]):
         CP, safe_add = self.CP, self.safe_add
         self.begin_page()
         safe_add(1, 4, "Statistics", CP(4) | curses.A_BOLD)
@@ -475,7 +476,10 @@ class App:
         if store.syncing():
             safe_add(3, 4, "(shared with GNOME AisleRiot - sol)", CP(6) if self.has_color else 0)
         y = 4
-        header = f"  {'Game':<16}{'Wins':>6}{'Total':>7}{'Win%':>7}{'Best':>8}{'Worst':>8}"
+        header = (
+            f"  {'Game':<16}{'Wins':>6}{'Total':>7}{'Win%':>7}{'Best':>8}{'Worst':>8}"
+            f"{'Streak':>8}{'Longest':>8}"
+        )
         safe_add(y, 4, header, CP(6) | curses.A_BOLD)
         y += 1
         for key in GAME_ORDER:
@@ -484,11 +488,14 @@ class App:
             pcts = "N/A" if pct is None else f"{pct:.0f}%"
             best = "N/A" if s["best"] == 0 else store.fmt_time(s["best"])
             worst = "N/A" if s["worst"] == 0 else store.fmt_time(s["worst"])
+            # only the games played here are in the history
+            cur, longest = streaks.get(key, ("N/A", "N/A"))
             attr = (CP(5) | curses.A_BOLD) if key == focus_key else 0
             safe_add(
                 y,
                 4,
-                f"  {GAMES[key].name:<16}{s['wins']:>6}{s['total']:>7}{pcts:>7}{best:>8}{worst:>8}",
+                f"  {GAMES[key].name:<16}{s['wins']:>6}{s['total']:>7}{pcts:>7}{best:>8}{worst:>8}"
+                f"{cur:>8}{longest:>8}",
                 attr,
             )
             y += 1

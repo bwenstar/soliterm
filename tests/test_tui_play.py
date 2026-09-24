@@ -1310,6 +1310,19 @@ def test_help_and_stats_stay_up_until_a_key_is_pressed(tui, key, title):
     assert len(scr.frames[5].split("\n")) == 30
 
 
+def test_the_stats_screen_shows_streak_columns(tui):
+    for key, results in [("klondike", [True, True, False, True]), ("golf", [True, True])]:
+        g = deal(key, 1)
+        for won in results:
+            history.record(g, won, 60)
+    lines = [line.rstrip() for line in tui(["s", "z"]).frames[1].split("\n")]
+    assert "      Game              Wins  Total   Win%    Best   Worst  Streak Longest" in lines
+    assert "      Klondike             3      4    75%    1:00    1:00       1       2" in lines
+    assert "      Golf                 2      2   100%    1:00    1:00       2       2" in lines
+    # a game with no history here has no streak to show
+    assert "      Spider               0      0    N/A     N/A     N/A     N/A     N/A" in lines
+
+
 def test_the_help_screen_lists_the_toggles(tui):
     scr = tui(["?", "z"])
     assert "toggle colour" in scr.frames[1]

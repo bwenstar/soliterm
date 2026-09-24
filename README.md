@@ -153,6 +153,12 @@ single run with `--no-sync` (or `SOLITERM_NO_AISLERIOT=1` in the
 environment): the keyfile is then neither read nor written, and the games
 you play wait in the local stats until sharing is on again.
 
+Two columns go beyond AisleRiot's: **Streak**, the wins in a row you're on,
+and **Longest**, the most you've had. They come from the games played here,
+one line each in `~/.local/share/soliterm/history.jsonl`, so a game played
+in AisleRiot itself doesn't count towards them, and a game with nothing
+counted here yet shows `N/A`.
+
 `--stats` prints the table; `--reset-stats` clears it, and that includes
 AisleRiot's own record of these nine games (its other games are left
 untouched) and the history of the games you played here. It asks you to
