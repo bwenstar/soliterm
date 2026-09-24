@@ -60,7 +60,7 @@ KEYMAP: tuple[Binding, ...] = (
         "mouse",
         "Mouse click",
         "click a card to pick it up, then a target to drop;\n"
-        "click one mid-stack to lift it and all below it.",
+        "click one mid-stack to lift it and all below it",
     ),
     # a gesture the mouse handler tells apart itself, so no keys of its own
     Binding("Mouse double-click", "send a card to a foundation; deal on stock", {}),

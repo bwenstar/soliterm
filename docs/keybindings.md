@@ -14,7 +14,7 @@ This page also has the other screens, the mouse and text mode.
 | `Up`, `k`, `Down`, `j`, `Left`, `Right`, `l` | move between the slots (k up, j down, l right) |
 | `Enter`, `Space` | pick up the cursor's run; press again to drop |
 | `+`, `-` | lift one card more / fewer while holding a run |
-| mouse click | click a card to pick it up, then a target to drop; click one mid-stack to lift it and all below it. |
+| mouse click | click a card to pick it up, then a target to drop; click one mid-stack to lift it and all below it |
 | mouse double-click | send a card to a foundation; deal on stock |
 | `Esc` | cancel the current selection / clear hint |
 | `d`, `D` | deal from the stock (where applicable) |

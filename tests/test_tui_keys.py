@@ -80,6 +80,13 @@ def test_every_key_a_label_names_is_bound():
                 assert word in bound, (b.label, word)
 
 
+def test_no_help_text_ends_in_a_full_stop():
+    # they're notes rather than sentences, and read as a list when they
+    # all end the same way, here and in docs/keybindings.md
+    for b in keys.KEYMAP:
+        assert not b.text.endswith("."), b.label
+
+
 def test_only_a_resize_goes_unlisted():
     hidden = [b for b in keys.KEYMAP if not b.label]
     assert [list(b.actions) for b in hidden] == [[curses.KEY_RESIZE]]
