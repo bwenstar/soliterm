@@ -211,13 +211,13 @@ def test_a_keyboard_drop_lands_the_part_of_the_run_that_fits(tui):
 
 
 def test_a_keyboard_drop_moves_the_whole_run_when_it_fits(tui):
-    g, a, b = board("spider", [up(9, "H"), up(4, "S"), up(3, "S")], [up(5, "H")], suits=4)
+    g, _a, b = board("spider", [up(9, "H"), up(4, "S"), up(3, "S")], [up(5, "H")], suits=4)
     tui([ENTER, curses.KEY_RIGHT, ENTER], start_key="spider", game=g)
     assert names(g, b) == ["5H", "4S", "3S"]
 
 
 def test_a_klondike_three_drops_off_the_top_of_a_run(tui):
-    g, a, b = board("klondike", [up(9, "C"), up(4, "S"), up(3, "H")], [up(4, "C")])
+    g, _a, b = board("klondike", [up(9, "C"), up(4, "S"), up(3, "H")], [up(4, "C")])
     tui([ENTER, curses.KEY_RIGHT, ENTER], start_key="klondike", game=g)
     assert names(g, b) == ["4C", "3H"]
 

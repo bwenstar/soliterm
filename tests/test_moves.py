@@ -79,7 +79,7 @@ def test_only_an_ace_starts_a_foundation(klondike):
 
 
 def test_a_foundation_only_takes_the_next_card_of_its_suit(klondike):
-    g, w, f, t = klondike
+    g, w, f, _t = klondike
     g.slots[f[0]].cards = [Card(1, "S", True)]
     g.slots[w].cards = [Card(1, "H", True)]
     assert g.attempt_move(w, f[0]) is False          # another ace
@@ -154,7 +154,7 @@ def test_bakers_dozen_foundation_cards_can_come_back_down():
 
 
 def test_a_card_can_only_be_moved_once(klondike):
-    g, w, f, t = klondike
+    g, w, f, _t = klondike
     g.slots[w].cards = [Card(1, "S", True)]
     assert g.attempt_move(w, f[0]) is True
     assert g.attempt_move(w, f[0]) is False
@@ -162,7 +162,7 @@ def test_a_card_can_only_be_moved_once(klondike):
 
 
 def test_a_rejected_move_changes_nothing(klondike):
-    g, w, f, t = klondike
+    g, _w, _f, t = klondike
     g.slots[t[0]].cards = [Card(9, "C", False), Card(6, "S", True)]
     g.slots[t[1]].cards = [Card(7, "S", True)]
     before = g.serialize()
@@ -189,7 +189,7 @@ def test_malformed_text_commands_are_rejected(cmd):
 def test_text_moves_on_missing_slots_or_counts_do_nothing(cmd):
     g = deal("klondike", 3)
     before = g.serialize()
-    ok, msg = textmode.apply_text_command(g, cmd)
+    ok, _msg = textmode.apply_text_command(g, cmd)
     assert ok is False
     assert untouched(g, before)
 

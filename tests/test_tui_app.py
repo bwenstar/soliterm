@@ -118,7 +118,7 @@ def test_a_short_session_moves_undoes_hints_and_quits():
 
 
 def test_esc_drops_the_selection_and_the_hint():
-    app, a, b = klondike_app([up(5, "H")], [up(4, "S")])
+    app, _a, _b = klondike_app([up(5, "H")], [up(4, "S")])
     press(app, ENTER, "h", 27)
     assert app.selected is None and app.hint is None and app.message == ""
 
@@ -152,7 +152,7 @@ def test_a_hint_marks_every_card_it_would_move():
 def test_a_hint_with_nothing_to_suggest_says_what_the_game_says(monkeypatch):
     # the game knows whether dealing or undoing could still help
     monkeypatch.setattr(Solitaire, "no_hint_reason", lambda self: "nothing helps")
-    app, a, b = klondike_app([up(13, "S")], [up(13, "H")])
+    app, _a, _b = klondike_app([up(13, "S")], [up(13, "H")])
     for sid in app.game.ids_of("stock") + app.game.ids_of("waste"):
         app.game.slots[sid].cards = []
     assert app.game.hint() is None
@@ -171,7 +171,7 @@ def test_the_dialogs_take_a_click_off_the_queue(monkeypatch):
 
 
 def test_an_illegal_drop_says_so_and_changes_nothing():
-    app, a, b = klondike_app([up(5, "H")], [up(4, "H")])
+    app, _a, _b = klondike_app([up(5, "H")], [up(4, "H")])
     before = app.game.serialize()
     press(app, ENTER, curses.KEY_RIGHT, ENTER)
     assert app.message == "illegal move"
@@ -179,7 +179,7 @@ def test_an_illegal_drop_says_so_and_changes_nothing():
 
 
 def test_keys_the_play_screen_does_not_use_do_nothing():
-    app, a, b = klondike_app([up(5, "H")], [up(4, "S")])
+    app, a, _b = klondike_app([up(5, "H")], [up(4, "S")])
     before = app.game.serialize()
     for k in (-1, ord("z"), ord("Z"), curses.KEY_RESIZE):
         assert press(app, k) is None
@@ -200,7 +200,7 @@ def test_clicks_pick_up_and_drop():
 
 
 def test_a_click_off_the_cards_is_ignored():
-    app, a, b = klondike_app([up(5, "H")], [up(4, "S")])
+    app, a, _b = klondike_app([up(5, "H")], [up(4, "S")])
     app.draw()
     assert app.ui.hit_test(0, 0) is None
     app.mouse_at(0, 0, curses.BUTTON1_CLICKED)
@@ -208,7 +208,7 @@ def test_a_click_off_the_cards_is_ignored():
 
 
 def test_double_clicking_an_ace_sends_it_home():
-    app, a, b = klondike_app([up(1, "S")], [up(4, "S")])
+    app, a, _b = klondike_app([up(1, "S")], [up(4, "S")])
     app.draw()
     y, x = cell_of(app, a, 0)
     app.mouse_at(y, x, curses.BUTTON1_DOUBLE_CLICKED)
@@ -226,7 +226,7 @@ def test_play_goes_back_to_the_menu_or_quits():
 
 
 def test_menu_and_quit_hand_back_what_to_do_next():
-    app, a, b = klondike_app([up(5, "H")], [up(4, "S")])
+    app, _a, _b = klondike_app([up(5, "H")], [up(4, "S")])
     assert press(app, "m") == MENU
     assert press(app, "Q") == QUIT
 
@@ -284,7 +284,7 @@ def test_dragging_a_card_onto_a_target_moves_it():
 
 def double_click_board(monkeypatch):
     """An ace to send home, and a clock the test moves on by hand."""
-    app, a, b = klondike_app([up(1, "S")], [up(4, "S")])
+    app, a, _b = klondike_app([up(1, "S")], [up(4, "S")])
     now = [100.0]
     monkeypatch.setattr(soliterm.tui.app, "clock", lambda: now[0])
     app.draw()
@@ -327,7 +327,7 @@ def test_a_click_just_after_a_drag_is_not_a_double_click(monkeypatch):
 
 
 def test_plus_and_minus_change_how_many_cards_are_held():
-    app, a, b = klondike_app([up(9, "C"), up(8, "H"), up(7, "S")], [up(4, "S")])
+    app, a, _b = klondike_app([up(9, "C"), up(8, "H"), up(7, "S")], [up(4, "S")])
     press(app, "-")
     assert app.selected is None and "pick up" in app.message
     press(app, ENTER)

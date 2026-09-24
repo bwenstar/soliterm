@@ -35,7 +35,7 @@ def run_to_move(g, t, size, free):
 
 @pytest.mark.parametrize("free, most", [(0, 1), (1, 2), (2, 4), (3, 8)])
 def test_every_free_column_doubles_the_group_that_can_move(table, free, most):
-    g, f, t = table
+    g, _f, t = table
     run_to_move(g, t, most + 1, free)
     assert g.attempt_move(t[0], t[1], most + 1) is False
     assert (t[0], t[1], most + 1) not in g.legal_moves()
@@ -46,7 +46,7 @@ def test_every_free_column_doubles_the_group_that_can_move(table, free, most):
 
 
 def test_without_a_free_column_cards_move_one_at_a_time(table):
-    g, f, t = table
+    g, _f, t = table
     run_to_move(g, t, 3, 0)
     g.slots[t[2]].cards += [up(9, "S")]
     assert all(n == 1 for _, _, n in g.legal_moves())
@@ -55,7 +55,7 @@ def test_without_a_free_column_cards_move_one_at_a_time(table):
 
 
 def test_the_empty_column_a_group_goes_to_is_not_free(table):
-    g, f, t = table
+    g, _f, t = table
     run_to_move(g, t, 2, 1)
     assert g.attempt_move(t[0], t[2], 2) is False
     run_to_move(g, t, 2, 2)
@@ -64,7 +64,7 @@ def test_the_empty_column_a_group_goes_to_is_not_free(table):
 
 
 def test_the_column_a_group_leaves_is_not_free(table):
-    g, f, t = table
+    g, _f, t = table
     run_to_move(g, t, 2, 0)
     g.slots[t[0]].cards = [up(10, "S"), up(9, "S")]     # the whole column
     assert g.attempt_move(t[0], t[1], 2) is False

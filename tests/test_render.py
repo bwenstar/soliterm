@@ -35,12 +35,12 @@ def clickable(ui, sid):
 
 @pytest.mark.parametrize("key", GAME_ORDER)
 def test_every_game_draws_card_boxes(key):
-    ui, scr = draw(deal(key, 3))
+    _ui, scr = draw(deal(key, 3))
     assert "+--" in scr.text()
 
 
 def test_unicode_mode_draws_box_borders():
-    ui, scr = draw(deal("klondike", 1), symbols=True)
+    _ui, scr = draw(deal("klondike", 1), symbols=True)
     assert "┌" in scr.text() and "│" in scr.text()
 
 
@@ -56,15 +56,15 @@ def fanned_column():
 
 
 def test_covered_cards_show_their_rank(fanned_column):
-    g, col = fanned_column
-    ui, scr = draw(g)
+    g, _col = fanned_column
+    _ui, scr = draw(g)
     for label in ("KS", "QH", "JS", "10H"):
         assert label in scr.text()
 
 
 def test_every_card_in_a_roomy_column_is_clickable(fanned_column):
     g, col = fanned_column
-    ui, scr = draw(g)
+    ui, _scr = draw(g)
     assert clickable(ui, col) == {0, 1, 2, 3}
 
 
@@ -72,7 +72,7 @@ def test_every_card_in_a_short_waste_fan_is_clickable():
     g = deal("fortythieves", 1)
     waste = g.ids_of("waste")[0]
     g.slots[waste].cards = [Card((i % 13) + 1, "SHDC"[i % 4], True) for i in range(5)]
-    ui, scr = draw(g, h=30, w=120)
+    ui, _scr = draw(g, h=30, w=120)
     assert len(clickable(ui, waste)) == 5
 
 
@@ -104,7 +104,7 @@ def test_klondike_drawing_one_shows_only_the_top_of_the_waste():
     waste = g.ids_of("waste")[0]
     g.deal()
     g.deal()
-    ui, scr = draw(g)
+    ui, _scr = draw(g)
     assert clickable(ui, waste) == {1}
 
 
@@ -151,7 +151,7 @@ def test_a_tall_column_keeps_its_top_card_clickable(h, w):
     g = deal("spider", 1)
     col = g.ids_of("tableau")[0]
     g.slots[col].cards = [Card((i % 13) + 1, "S", True) for i in range(34)]
-    ui, scr = draw(g, h=h, w=w)
+    ui, _scr = draw(g, h=h, w=w)
     top = len(g.slots[col].cards) - 1
     rows = [y for (y, x), (sid, idx) in ui.hit.items() if sid == col and idx == top]
     assert rows
@@ -324,7 +324,7 @@ def test_a_long_waste_leaves_the_foundations_on_screen():
     g = deal("fortythieves", 1)
     waste = g.ids_of("waste")[0]
     g.slots[waste].cards = [Card((i % 13) + 1, "SHDC"[i % 4], True) for i in range(40)]
-    ui, scr = draw(g, h=40, w=80)
+    ui, _scr = draw(g, h=40, w=80)
     on_screen = {sid for (y, x), (sid, idx) in ui.hit.items() if x < 80}
     for f in g.ids_of("foundation"):
         assert f in on_screen
@@ -332,7 +332,7 @@ def test_a_long_waste_leaves_the_foundations_on_screen():
 
 def test_thirteen_columns_fit_in_80_columns():
     g = deal("bakersdozen", 1)
-    ui, scr = draw(g, h=40, w=80)
+    ui, _scr = draw(g, h=40, w=80)
     cols = set(g.ids_of("tableau"))
     on = {sid for (y, x), (sid, idx) in ui.hit.items() if sid in cols and x < 80}
     assert on == cols
@@ -378,7 +378,7 @@ def all_on_screen(ui, g, h, w):
 @pytest.mark.parametrize("key", GAME_ORDER)
 def test_every_game_fits_on_an_80x24_screen(key, view, code_skin):
     g = fill_the_fans(deal(key, 1))
-    ui, scr = draw(g, h=24, w=80, view=view, code_skin=code_skin)
+    ui, _scr = draw(g, h=24, w=80, view=view, code_skin=code_skin)
     all_on_screen(ui, g, 24, 80)
 
 
@@ -495,7 +495,7 @@ def test_the_code_skin_keeps_the_board_clickable(key):
 
 def test_the_code_skin_looks_like_an_editor(dealt_klondike):
     # 44 rows leaves room for source above and below the board
-    ui, scr = draw(dealt_klondike, h=44, w=100, code_skin=True)
+    _ui, scr = draw(dealt_klondike, h=44, w=100, code_skin=True)
     screen = scr.text()
     assert "solver.py" in screen           # editor header
     assert "def " in screen                # source around the board

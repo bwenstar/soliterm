@@ -382,7 +382,7 @@ class App:
                 return None
             elif k == curses.KEY_MOUSE:
                 try:
-                    _, mx, my, _, bstate = curses.getmouse()
+                    _, _mx, my, _, bstate = curses.getmouse()
                 except curses.error:
                     continue
                 idx = my - 4

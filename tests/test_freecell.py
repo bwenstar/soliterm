@@ -58,7 +58,7 @@ def test_eightoff_moves_a_group_of_free_cells_plus_one(eightoff):
 
 
 def test_eightoff_group_grows_with_the_free_cells(eightoff):
-    g, c, t = eightoff
+    g, _c, t = eightoff
     for x in t[2:]:
         g.slots[x].cards = [up(9, "S")]
     g.slots[t[0]].cards = [up(5, "D")] + [up(r, "H") for r in range(13, 3, -1)]

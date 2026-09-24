@@ -297,7 +297,7 @@ def run_text(g: Solitaire, symbols: bool, game_key: str, stream=None,
             line = raw.strip()
             if not line:
                 continue
-            ok, msg = apply_text_command(g, line)
+            _ok, msg = apply_text_command(g, line)
             if msg == "__quit__":
                 give_up()
                 print("bye", file=out)

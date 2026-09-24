@@ -106,7 +106,7 @@ def test_stats_show_recorded_games(cli):
     store.record_result("klondike", True, 200)
     store.record_result("klondike", False, 30)
     store.record_result("eightoff", False, 10)
-    rc, lines = cli("--stats")
+    _rc, lines = cli("--stats")
     assert stats_row(lines, "klondike") == ["2", "3", "67%", "1:05", "3:20"]
     assert stats_row(lines, "eightoff") == ["0", "1", "0%", "N/A", "N/A"]
     assert stats_row(lines, "spider") == ["0", "0", "N/A", "N/A", "N/A"]
@@ -114,7 +114,7 @@ def test_stats_show_recorded_games(cli):
 
 def test_stats_read_through_to_aisleriot(cli, keyfile):
     keyfile(f"[{ar.GAME_TO_SECTION['freecell']}]\nStatistic=3;4;75;300;\n")
-    rc, lines = cli("--stats")
+    _rc, lines = cli("--stats")
     assert stats_row(lines, "freecell") == ["3", "4", "75%", "1:15", "5:00"]
 
 
@@ -177,7 +177,7 @@ def test_reset_stats_without_a_terminal_wants_yes(cli, keyfile):
     path = keyfile(f"[{ar.GAME_TO_SECTION['canfield']}]\nStatistic=2;9;100;400;\n")
     store.record_result("golf", True, 50)
     before = path.read_text()
-    rc, lines = cli("--reset-stats", stdin="yes\n")
+    rc, _lines = cli("--reset-stats", stdin="yes\n")
     assert rc == 2
     assert "--yes" in cli.err
     assert path.read_text() == before
@@ -187,7 +187,7 @@ def test_reset_stats_without_a_terminal_wants_yes(cli, keyfile):
 
 def test_reset_stats_on_a_terminal_asks_for_yes(cli, keyfile):
     path = keyfile(f"[{ar.GAME_TO_SECTION['canfield']}]\nStatistic=2;9;100;400;\n")
-    rc, lines = cli("--reset-stats", stdin="yes\n", tty=True)
+    rc, _lines = cli("--reset-stats", stdin="yes\n", tty=True)
     assert rc == 0
     assert "yes" in cli.err and ar.keyfile_path() in cli.err
     assert ar.read_stat(ar.GAME_TO_SECTION["canfield"])["total"] == 0
@@ -228,7 +228,7 @@ def test_reset_stats_clears_nothing_when_the_backup_fails(cli, keyfile, monkeypa
         raise OSError(28, "No space left on device")
 
     monkeypatch.setattr(store, "_copy_file", no_room)
-    rc, lines = cli("--reset-stats", "--yes")
+    rc, _lines = cli("--reset-stats", "--yes")
     assert rc == 1
     assert "nothing was cleared" in cli.err
     assert path.read_text() == before
@@ -303,14 +303,14 @@ def test_a_scripted_text_session(cli):
 
 
 def test_the_text_hint_names_cards_with_the_boards_suit_symbols(cli):
-    rc, lines = cli("--text", "--no-color", "--seed", "1", stdin="hint\nq\n")
+    _rc, lines = cli("--text", "--no-color", "--seed", "1", stdin="hint\nq\n")
     hint = next(line for line in lines if line.startswith("Hint: "))
     assert any(s in hint for s in ("♠", "♥", "♦", "♣"))
 
 
 def test_n_in_text_mode_deals_a_new_hand_under_seed(cli):
     first = without_status(render_text(deal("klondike", 5), symbols=False))
-    rc, lines = cli("--text", "--ascii", "--no-color", "--game", "klondike",
+    _rc, lines = cli("--text", "--ascii", "--no-color", "--game", "klondike",
                     "--seed", "5", stdin="n\nq\n")
     out = "\n".join(lines)
     assert out.count(first) == 1
@@ -331,7 +331,7 @@ def test_a_saved_spider_suits_choice_beats_the_default(cli, suits):
     cfg = store.load_config()
     store.set_game_options(cfg, "spider", {"suits": suits})
     store.save_config(cfg)
-    rc, lines = cli("--text", "--ascii", "--no-color", "--game", "spider",
+    _rc, lines = cli("--text", "--ascii", "--no-color", "--game", "spider",
                     "--seed", "1", stdin="q\n")
     out = "\n".join(lines)
     board = deal("spider", 1, suits=suits)
