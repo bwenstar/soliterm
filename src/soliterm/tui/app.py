@@ -765,9 +765,10 @@ class App:
     def maybe_record_loss(self):
         # A game left unfinished counts as a loss once it is under way, as in
         # AisleRiot: from the first move, even if undo takes every move back.
-        # Restarting the deal (N) is the exception. AisleRiot's Restart deals
-        # the same hand again without touching the statistics, and the next
-        # game on that hand counts from its own first move.
+        # Restarting the deal (N, or Replay on the banner) is the exception.
+        # AisleRiot's Restart deals the same hand again without touching the
+        # statistics, and the next game on that hand counts from its own
+        # first move.
         if not self.recorded and not self.game.is_won() and self.clock.started:
             store.record_result(self.key, False, self.seconds())
             self.recorded = True
@@ -791,7 +792,9 @@ class App:
         menu.
 
         A win is recorded at once. A game with no moves left is recorded as
-        lost only when the player gives it up, since Undo plays on."""
+        lost only when the player gives it up for a new deal or the menu.
+        Undo plays on, and replaying the deal counts nothing, as AisleRiot's
+        Restart doesn't (see maybe_record_loss)."""
         seconds = self.seconds()
         if won and not self.recorded:
             store.record_result(self.key, won, seconds)
@@ -801,11 +804,11 @@ class App:
             self.do_undo()
             self.dead_end_undone = True
             return True
-        self.maybe_record_loss()
         if choice == "same":
             self.reset_for(self.game.restart)
             self.message = "replaying the same deal"
             return True
+        self.maybe_record_loss()
         if choice == "new":
             self.reset_for(self.game.new_game)
             self.message = "new deal"
@@ -1104,8 +1107,8 @@ class App:
         game = self.game
         s = store.get_stat(self.key)
         if not self.recorded:
-            # a loss is recorded on leaving the banner, by any choice but
-            # undo, so count it already, as the statistics will
+            # a loss is recorded on leaving the banner for a new deal or the
+            # menu, so count it already, as the statistics will then
             s = {**s, "total": s["total"] + 1}
         pct = store.percentage(s)
         choices = [("same", "Replay this deal"),

@@ -567,10 +567,18 @@ def test_the_no_moves_banner_counts_the_game_it_ends(tui):
     assert store.get_stat("golf")["total"] == 1
 
 
-@pytest.mark.parametrize("k", ["s", "n", "m", KeyboardInterrupt])
+@pytest.mark.parametrize("k", ["n", "m", KeyboardInterrupt])
 def test_a_game_with_no_moves_left_counts_once_the_player_gives_it_up(tui, k):
     tui(["f", k], start_key="golf", game=one_move_left())
     assert store.get_stat("golf") == {"wins": 0, "total": 1, "best": 0, "worst": 0}
+
+
+def test_replaying_a_deal_with_no_moves_left_does_not_count_it(tui):
+    # AisleRiot's Restart on its game over dialog records nothing, like N
+    scr = tui(["f", "s", "q"], start_key="golf", game=one_move_left())
+    assert "No moves left" in scr.frames[1]
+    assert "replaying the same deal" in scr.frames[2]
+    assert store.get_stat("golf")["total"] == 0
 
 
 def test_a_win_after_taking_back_the_dead_end_counts_as_a_win(tui):
