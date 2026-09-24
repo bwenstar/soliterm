@@ -274,6 +274,28 @@ def test_debug_info_says_when_a_file_cant_be_read(debug_info, isolated_home):
     assert value(debug_info(), "stats").startswith(f"{path} (can't be read (")
 
 
+@pytest.mark.parametrize(
+    ("terminals", "shown"),
+    [
+        ({1: (120, 40), 0: (100, 30)}, "120x40"),
+        ({0: (100, 30), 2: (90, 20)}, "100x30"),
+        ({2: (90, 20)}, "90x20"),
+        ({}, "size unknown"),
+    ],
+)
+def test_debug_info_takes_the_size_from_the_first_terminal(
+    debug_info, monkeypatch, terminals, shown
+):
+    # stdout first, then stdin, so the size still shows with stdout piped
+    def size(fd):
+        if fd not in terminals:
+            raise OSError("not a terminal")
+        return os.terminal_size(terminals[fd])
+
+    monkeypatch.setattr(os, "get_terminal_size", size)
+    assert f"; {shown}; " in value(debug_info(), "terminal")
+
+
 def test_debug_info_prints_what_the_terminal_cant_show_as_escapes(monkeypatch):
     monkeypatch.setattr(cli, "_terminal_problem", lambda: None)
     # a byte the locale couldn't decode, and a letter ASCII can't hold
