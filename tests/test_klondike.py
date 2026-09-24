@@ -188,7 +188,7 @@ def test_scoring_on_and_off_the_foundations():
     g.slots[t[0]].cards = [Card(3, "H", True)]
     g.slots[w].cards = [Card(2, "S", True)]
     assert g.double_click(w) and g.score == 2
-    assert g.attempt_move(f[0], t[0]) and g.score == 1        # 2S back down
+    assert g.attempt_move(f[0], t[0]) and g.score == 1  # 2S back down
     assert [str(c) for c in g.cards(t[0])] == ["3H", "2S"]
 
 

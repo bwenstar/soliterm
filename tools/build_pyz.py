@@ -66,8 +66,7 @@ def build_pyz(target: Path = TARGET) -> Path:
         shutil.copy2(ROOT / "LICENSE", stage / "LICENSE")
         (stage / "__main__.py").write_text(MAIN_PY.format(module=module, func=func))
         target.parent.mkdir(parents=True, exist_ok=True)
-        zipapp.create_archive(stage, target, interpreter=INTERPRETER,
-                              compressed=True)
+        zipapp.create_archive(stage, target, interpreter=INTERPRETER, compressed=True)
     # zipapp only sets the owner's execute bit. Do what chmod +x does and
     # give it to everyone who can read the file.
     mode = target.stat().st_mode
@@ -85,15 +84,14 @@ def build_dist() -> int:
     shutil.rmtree(ROOT / "build", ignore_errors=True)
     for egg_info in (ROOT / "src").glob("*.egg-info"):
         shutil.rmtree(egg_info)
-    return subprocess.call([sys.executable, "-m", "build",
-                            "--outdir", str(DIST), str(ROOT)])
+    return subprocess.call([sys.executable, "-m", "build", "--outdir", str(DIST), str(ROOT)])
 
 
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(prog="build_pyz.py",
-                                description="Build dist/soliterm.pyz.")
-    p.add_argument("--wheel", action="store_true",
-                   help="also build a wheel and an sdist with python -m build")
+    p = argparse.ArgumentParser(prog="build_pyz.py", description="Build dist/soliterm.pyz.")
+    p.add_argument(
+        "--wheel", action="store_true", help="also build a wheel and an sdist with python -m build"
+    )
     args = p.parse_args(argv)
 
     # Old wheels, sdists or an aisle.pyz from an earlier layout would

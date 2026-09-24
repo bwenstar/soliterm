@@ -13,16 +13,25 @@ from soliterm.tui.app import App
 from helpers import FakeScr
 
 # how a label names the keys that are not a plain character
-NAMES = {curses.KEY_UP: "Arrow", curses.KEY_DOWN: "Arrow",
-         curses.KEY_LEFT: "Arrow", curses.KEY_RIGHT: "Arrow",
-         curses.KEY_ENTER: "Enter", 10: "Enter", 13: "Enter", ord(" "): "Space",
-         27: "Esc", ord("\t"): "Tab", curses.KEY_F2: "F2",
-         curses.KEY_MOUSE: "Mouse"}
+NAMES = {
+    curses.KEY_UP: "Arrow",
+    curses.KEY_DOWN: "Arrow",
+    curses.KEY_LEFT: "Arrow",
+    curses.KEY_RIGHT: "Arrow",
+    curses.KEY_ENTER: "Enter",
+    10: "Enter",
+    13: "Enter",
+    ord(" "): "Space",
+    27: "Esc",
+    ord("\t"): "Tab",
+    curses.KEY_F2: "F2",
+    curses.KEY_MOUSE: "Mouse",
+}
 
 
 def help_screen(code_skin=False):
     scr = FakeScr(24, 80)
-    scr.getch = lambda: ord(" ")      # the key that closes it
+    scr.getch = lambda: ord(" ")  # the key that closes it
     app = App(scr)
     app.cfg["code_skin"] = code_skin
     app.help_screen()
@@ -41,8 +50,11 @@ def test_no_key_is_bound_twice_on_a_screen(mode):
 
 
 def test_every_play_action_has_a_handler_and_every_handler_a_key():
-    handlers = {name[3:] for name, _ in inspect.getmembers(App, inspect.isfunction)
-                if name.startswith("do_")}
+    handlers = {
+        name[3:]
+        for name, _ in inspect.getmembers(App, inspect.isfunction)
+        if name.startswith("do_")
+    }
     assert set(keys.PLAY_ACTIONS.values()) == handlers
 
 
@@ -79,8 +91,9 @@ def test_the_help_screen_shows_every_binding(code_skin):
             assert f"{indent}{line}" in text
 
 
-@pytest.mark.parametrize("label", ["Arrow keys, k j l", "Esc", "x", "b / F2",
-                                   "Tab (boss mode)", "Enter / Space"])
+@pytest.mark.parametrize(
+    "label", ["Arrow keys, k j l", "Esc", "x", "b / F2", "Tab (boss mode)", "Enter / Space"]
+)
 def test_the_help_screen_names_the_easily_missed_keys(label):
     assert f"  {label} " in help_screen()
 

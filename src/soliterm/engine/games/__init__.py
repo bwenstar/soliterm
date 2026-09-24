@@ -14,15 +14,33 @@ from .klondike import Klondike
 from .spider import Spider
 from .yukon import Yukon
 
-GAMES: dict[str, type[GameDef]] = {cls.key: cls for cls in [
-    Klondike, Spider, FreeCell, EightOff, Golf, Yukon,
-    BakersDozen, FortyThieves, Canfield,
-]}
+GAMES: dict[str, type[GameDef]] = {
+    cls.key: cls
+    for cls in [
+        Klondike,
+        Spider,
+        FreeCell,
+        EightOff,
+        Golf,
+        Yukon,
+        BakersDozen,
+        FortyThieves,
+        Canfield,
+    ]
+}
 
-GAME_ORDER = ["klondike", "spider", "freecell", "eightoff", "golf",
-              "yukon", "bakersdozen", "fortythieves", "canfield"]
+GAME_ORDER = [
+    "klondike",
+    "spider",
+    "freecell",
+    "eightoff",
+    "golf",
+    "yukon",
+    "bakersdozen",
+    "fortythieves",
+    "canfield",
+]
 
 
-def new_solitaire(key: str, seed: int | None = None,
-                  options: dict | None = None) -> Solitaire:
+def new_solitaire(key: str, seed: int | None = None, options: dict | None = None) -> Solitaire:
     return Solitaire(GAMES[key](), seed=seed, options=options)

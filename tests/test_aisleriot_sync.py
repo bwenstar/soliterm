@@ -16,7 +16,8 @@ from soliterm import store
 # chmod can take read access away from us, but not from root, and not on
 # Windows
 needs_permissions = pytest.mark.skipif(
-    os.name != "posix" or os.geteuid() == 0, reason="needs POSIX file modes, not root")
+    os.name != "posix" or os.geteuid() == 0, reason="needs POSIX file modes, not root"
+)
 
 KEYFILE = """\
 [Aisleriot Config]
@@ -47,13 +48,15 @@ def write_json(path, data):
 
 # -- reading and writing the keyfile ---------------------------------------------
 
+
 def test_write_stat_only_touches_the_statistic_line(keyfile):
     path = keyfile(KEYFILE)
     assert ar.available()
     assert ar.read_stat("spider.scm") == stat(20, 112, 591, 1966)
     ar.write_stat("spider.scm", stat(21, 113, 480, 1966))
-    assert path.read_text() == KEYFILE.replace("Statistic=20;112;591;1966;",
-                                               "Statistic=21;113;480;1966;")
+    assert path.read_text() == KEYFILE.replace(
+        "Statistic=20;112;591;1966;", "Statistic=21;113;480;1966;"
+    )
 
 
 def test_a_spaced_statistic_key_is_replaced_not_duplicated(keyfile):
@@ -84,8 +87,9 @@ def test_writing_the_value_already_there_changes_nothing(keyfile):
 def test_a_missing_section_is_appended(keyfile):
     path = keyfile("[Aisleriot Config]\nRecent=spider;\n")
     ar.write_stat("golf.scm", stat(1, 2, 3, 4))
-    assert path.read_text() == ("[Aisleriot Config]\nRecent=spider;\n\n"
-                                "[golf.scm]\nStatistic=1;2;3;4;\n")
+    assert path.read_text() == (
+        "[Aisleriot Config]\nRecent=spider;\n\n[golf.scm]\nStatistic=1;2;3;4;\n"
+    )
 
 
 def test_a_crlf_keyfile_keeps_its_line_endings(keyfile):
@@ -93,8 +97,10 @@ def test_a_crlf_keyfile_keeps_its_line_endings(keyfile):
     assert ar.read_stat("spider.scm") == stat(20, 112, 591, 1966)
     ar.write_stat("spider.scm", stat(21, 113, 480, 1966))
     ar.write_stat("golf.scm", stat(1, 1, 42, 42))
-    want = (KEYFILE.replace("20;112;591;1966", "21;113;480;1966")
-            + "\n[golf.scm]\nStatistic=1;1;42;42;\n")
+    want = (
+        KEYFILE.replace("20;112;591;1966", "21;113;480;1966")
+        + "\n[golf.scm]\nStatistic=1;1;42;42;\n"
+    )
     assert path.read_bytes() == want.replace("\n", "\r\n").encode()
 
 
@@ -104,9 +110,10 @@ ODD_BREAKS = "\r\x0b\x0c\x1c\x1d\x1e\x85\u2028\u2029"
 
 
 def test_only_newlines_end_a_line(keyfile):
-    keyfile("[Aisleriot Config]\n"
-            "Note=a" + "".join(b + "[golf.scm]" + b + "Statistic=9;9;9;9;" for b in ODD_BREAKS)
-            + "\n")
+    keyfile(
+        "[Aisleriot Config]\n"
+        "Note=a" + "".join(b + "[golf.scm]" + b + "Statistic=9;9;9;9;" for b in ODD_BREAKS) + "\n"
+    )
     assert ar.read_stat("golf.scm") is None
 
 
@@ -116,13 +123,16 @@ def test_odd_line_breaks_in_other_values_are_kept(keyfile):
     ar.write_stat("spider.scm", stat(2, 2, 2, 2))
     ar.write_stat("golf.scm", stat(1, 1, 42, 42))
     assert path.read_bytes().decode("utf-8") == (
-        text.replace("1;1;1;1;", "2;2;2;2;") + "\n[golf.scm]\nStatistic=1;1;42;42;\n")
+        text.replace("1;1;1;1;", "2;2;2;2;") + "\n[golf.scm]\nStatistic=1;1;42;42;\n"
+    )
 
 
 def test_a_keyfile_that_is_not_utf8_is_kept_byte_for_byte(keyfile):
     path = keyfile("")
-    raw = (b"[Aisleriot Config]\nTheme=caf\xe9.svgz\n\n"
-           b"[spider.scm]\nStatistic=20;112;591;1966;\nName=\xff\xfe\n")
+    raw = (
+        b"[Aisleriot Config]\nTheme=caf\xe9.svgz\n\n"
+        b"[spider.scm]\nStatistic=20;112;591;1966;\nName=\xff\xfe\n"
+    )
     path.write_bytes(raw)
     assert store.get_stat("spider") == stat(20, 112, 591, 1966)
     store.record_result("spider", won=False, seconds=5)
@@ -130,6 +140,7 @@ def test_a_keyfile_that_is_not_utf8_is_kept_byte_for_byte(keyfile):
 
 
 # -- reading the keyfile the way AisleRiot (GLib) does -----------------------------
+
 
 def test_the_last_statistic_in_a_section_is_the_one_read_and_written(keyfile):
     path = keyfile("[spider.scm]\nStatistic=1;1;1;1;\nStatistic=20;112;591;1966;\n")
@@ -139,8 +150,10 @@ def test_the_last_statistic_in_a_section_is_the_one_read_and_written(keyfile):
 
 
 def test_a_section_written_twice_counts_as_one(keyfile):
-    path = keyfile("[spider.scm]\nStatistic=1;1;1;1;\n\n[golf.scm]\nStatistic=2;2;2;2;\n\n"
-                   "[spider.scm]\nStatistic=20;112;591;1966;\nOptions=2\n")
+    path = keyfile(
+        "[spider.scm]\nStatistic=1;1;1;1;\n\n[golf.scm]\nStatistic=2;2;2;2;\n\n"
+        "[spider.scm]\nStatistic=20;112;591;1966;\nOptions=2\n"
+    )
     assert ar.read_stat("spider.scm") == stat(20, 112, 591, 1966)
     ar.write_stat("spider.scm", stat(21, 113, 480, 1966))
     assert path.read_text().count("Statistic=1;1;1;1;") == 1
@@ -151,27 +164,31 @@ def test_a_statistic_in_an_earlier_copy_of_the_section_still_counts(keyfile):
     path = keyfile("[spider.scm]\nStatistic=20;112;591;1966;\n\n[spider.scm]\nOptions=2\n")
     assert ar.read_stat("spider.scm") == stat(20, 112, 591, 1966)
     ar.write_stat("spider.scm", stat(21, 113, 480, 1966))
-    assert path.read_text() == ("[spider.scm]\nStatistic=21;113;480;1966;\n\n"
-                                "[spider.scm]\nOptions=2\n")
+    assert path.read_text() == (
+        "[spider.scm]\nStatistic=21;113;480;1966;\n\n[spider.scm]\nOptions=2\n"
+    )
 
 
-@pytest.mark.parametrize("value, want", [
-    ("20;112;591;1966", stat(20, 112, 591, 1966)),     # the last ; is optional
-    ("  +20;0112; 591;1966 ;", stat(20, 112, 591, 1966)),
-    ("20;112;591;1966;5;", stat(0, 0, 0, 0)),           # AisleRiot wants four
-    ("20;112;591;", stat(0, 0, 0, 0)),
-    ("20;;591;1966;", stat(0, 0, 0, 0)),
-    ("20;112;591;1966;   ", stat(0, 0, 0, 0)),          # a fifth, blank value
-    ("2_0;112;591;1966;", stat(0, 0, 0, 0)),
-    ("0x14;112;591;1966;", stat(0, 0, 0, 0)),
-    ("20;112;591;2147483648;", stat(0, 0, 0, 0)),
-    ("20;112;5.9;1966;", stat(0, 0, 0, 0)),
-    ("20; ;591;1966 x;", stat(20, 0, 591, 1966)),       # strtol, then a space: fine
-    ("20;112;\\s591;1966;", stat(20, 112, 591, 1966)),  # \s is an escaped space
-    ("20;112;591\\;1966;", stat(0, 0, 0, 0)),         # \; is a ; inside a value
-    ("20;112;591;1966\\q;", stat(0, 0, 0, 0)),        # no such escape
-    ("20;112;591;1966\\", stat(0, 0, 0, 0)),
-])
+@pytest.mark.parametrize(
+    "value, want",
+    [
+        ("20;112;591;1966", stat(20, 112, 591, 1966)),  # the last ; is optional
+        ("  +20;0112; 591;1966 ;", stat(20, 112, 591, 1966)),
+        ("20;112;591;1966;5;", stat(0, 0, 0, 0)),  # AisleRiot wants four
+        ("20;112;591;", stat(0, 0, 0, 0)),
+        ("20;;591;1966;", stat(0, 0, 0, 0)),
+        ("20;112;591;1966;   ", stat(0, 0, 0, 0)),  # a fifth, blank value
+        ("2_0;112;591;1966;", stat(0, 0, 0, 0)),
+        ("0x14;112;591;1966;", stat(0, 0, 0, 0)),
+        ("20;112;591;2147483648;", stat(0, 0, 0, 0)),
+        ("20;112;5.9;1966;", stat(0, 0, 0, 0)),
+        ("20; ;591;1966 x;", stat(20, 0, 591, 1966)),  # strtol, then a space: fine
+        ("20;112;\\s591;1966;", stat(20, 112, 591, 1966)),  # \s is an escaped space
+        ("20;112;591\\;1966;", stat(0, 0, 0, 0)),  # \; is a ; inside a value
+        ("20;112;591;1966\\q;", stat(0, 0, 0, 0)),  # no such escape
+        ("20;112;591;1966\\", stat(0, 0, 0, 0)),
+    ],
+)
 def test_a_statistic_value_reads_as_glib_reads_it(keyfile, value, want):
     keyfile(f"[spider.scm]\nStatistic={value}\n")
     assert ar.read_stat("spider.scm") == want
@@ -187,8 +204,10 @@ def test_a_last_line_with_no_newline_reads_and_writes_as_in_glib(keyfile):
     path = keyfile("[golf.scm]\r\nOptions=2")
     ar.write_stat("golf.scm", stat(1, 1, 42, 42))
     ar.write_stat("spider.scm", stat(2, 2, 2, 2))
-    assert path.read_bytes() == (b"[golf.scm]\r\nStatistic=1;1;42;42;\r\nOptions=2\r\n"
-                                 b"\r\n[spider.scm]\r\nStatistic=2;2;2;2;\r\n")
+    assert path.read_bytes() == (
+        b"[golf.scm]\r\nStatistic=1;1;42;42;\r\nOptions=2\r\n"
+        b"\r\n[spider.scm]\r\nStatistic=2;2;2;2;\r\n"
+    )
 
 
 def test_a_statistic_aisleriot_reads_as_zeros_counts_from_zero(keyfile):
@@ -236,6 +255,7 @@ def test_an_unreadable_keyfile_is_never_written(keyfile):
 
 # -- syncing with the store ----------------------------------------------------------
 
+
 def test_our_game_sees_aisleriot_wins(keyfile):
     keyfile(KEYFILE)
     assert store.syncing()
@@ -259,7 +279,7 @@ def test_local_history_is_merged_into_the_keyfile_once(keyfile):
     store.record_result("spider", won=False, seconds=10)
     store.record_result("golf", won=True, seconds=120)
     keyfile(KEYFILE)
-    store.record_result("klondike", won=True, seconds=100)   # triggers the merge
+    store.record_result("klondike", won=True, seconds=100)  # triggers the merge
     assert ar.read_stat("spider.scm") == stat(21, 114, 400, 1966)
     assert ar.read_stat("golf.scm") == stat(1, 1, 120, 120)
     # the next result must not add the local totals again
@@ -287,9 +307,9 @@ def test_a_save_by_aisleriot_just_before_ours_is_kept(keyfile, monkeypatch):
 
 def test_a_stale_config_save_does_not_merge_again(keyfile):
     keyfile(AR_KLONDIKE)
-    cfg = store.load_config()          # the TUI loads this once at start
+    cfg = store.load_config()  # the TUI loads this once at start
     store.record_result("klondike", won=False, seconds=5)
-    store.save_config(cfg)             # and saves it back on every game
+    store.save_config(cfg)  # and saves it back on every game
     store.record_result("klondike", won=False, seconds=5)
     assert ar.read_stat("klondike.scm") == stat(10, 42, 120, 900)
 
@@ -313,7 +333,7 @@ def test_a_reset_keeps_the_merge_marker(keyfile):
     keyfile(AR_KLONDIKE)
     store.record_result("klondike", won=False, seconds=5)
     store.reset_stats()
-    store.record_result("klondike", won=False, seconds=5)    # mirrored locally
+    store.record_result("klondike", won=False, seconds=5)  # mirrored locally
     os.remove(store.config_path())
     store.record_result("klondike", won=False, seconds=5)
     assert ar.read_stat("klondike.scm") == stat(0, 2, 0, 0)
@@ -323,16 +343,16 @@ def test_stats_from_an_older_version_beside_a_keyfile_count_as_merged(keyfile):
     # older versions kept the flag in config.json only; their stats.json
     # next to a keyfile is a mirror of it already
     keyfile(AR_KLONDIKE)
-    write_json(store.stats_path(), {"klondike": stat(10, 40, 120, 900),
-                                    "golf": stat(1, 1, 30, 30)})
+    write_json(store.stats_path(), {"klondike": stat(10, 40, 120, 900), "golf": stat(1, 1, 30, 30)})
     store.record_result("klondike", won=False, seconds=5)
     assert ar.read_stat("klondike.scm") == stat(10, 41, 120, 900)
     assert ar.read_stat("golf.scm") is None
 
 
 def test_the_old_config_flag_still_counts(keyfile):
-    write_json(store.stats_path(), {"_meta": {"merged_into_aisleriot": False},
-                                    "golf": stat(1, 1, 30, 30)})
+    write_json(
+        store.stats_path(), {"_meta": {"merged_into_aisleriot": False}, "golf": stat(1, 1, 30, 30)}
+    )
     write_json(store.config_path(), {"merged_into_aisleriot": True})
     keyfile(AR_KLONDIKE)
     store.record_result("klondike", won=False, seconds=5)
@@ -366,7 +386,7 @@ def test_a_game_missing_from_the_keyfile_builds_on_our_record(keyfile):
     path = keyfile(AR_KLONDIKE)
     store.record_result("golf", won=True, seconds=30)
     store.record_result("golf", won=False, seconds=5)
-    path.write_text(AR_KLONDIKE)        # sol saves its own copy, without golf
+    path.write_text(AR_KLONDIKE)  # sol saves its own copy, without golf
     assert store.get_stat("golf") == stat(1, 2, 30, 30)
     assert store.record_result("golf", won=True, seconds=90) == stat(2, 3, 30, 90)
     assert ar.read_stat("golf.scm") == stat(2, 3, 30, 90)
@@ -401,10 +421,10 @@ def test_a_result_the_keyfile_could_not_take_is_kept_and_reported(keyfile, monke
 
 
 def test_history_the_keyfile_could_not_take_goes_in_later(keyfile, monkeypatch):
-    store.record_result("golf", won=True, seconds=120)      # before AisleRiot
+    store.record_result("golf", won=True, seconds=120)  # before AisleRiot
     keyfile(AR_KLONDIKE)
     writes_again = no_writes(monkeypatch)
-    store.record_result("klondike", won=False, seconds=5)   # the merge fails too
+    store.record_result("klondike", won=False, seconds=5)  # the merge fails too
     assert store.get_stat("golf") == stat(1, 1, 120, 120)
     assert store.get_stat("klondike") == stat(10, 41, 120, 900)
     writes_again()
@@ -451,7 +471,7 @@ def test_games_from_both_sides_add_up_once_sharing_is_back(keyfile):
     store.record_result("klondike", won=False, seconds=5)
     share(False)
     store.record_result("klondike", won=True, seconds=100)
-    path.write_text(AR_KLONDIKE.replace("10;40;", "12;43;"))    # two more in sol
+    path.write_text(AR_KLONDIKE.replace("10;40;", "12;43;"))  # two more in sol
     share(True)
     assert store.get_stat("klondike") == stat(13, 44, 100, 900)
 
@@ -489,10 +509,12 @@ def test_a_reset_forgets_games_not_yet_shared(keyfile):
 
 
 def test_reset_zeroes_only_the_games_we_manage(keyfile):
-    keyfile("[Aisleriot Config]\nRecent=spider;\n\n"
-            "[spider.scm]\nStatistic=20;112;591;1966;\n\n"
-            "[poker.scm]\nStatistic=5;50;0;0;\n")
-    assert store.reset_stats() == 1          # only spider had a record
+    keyfile(
+        "[Aisleriot Config]\nRecent=spider;\n\n"
+        "[spider.scm]\nStatistic=20;112;591;1966;\n\n"
+        "[poker.scm]\nStatistic=5;50;0;0;\n"
+    )
+    assert store.reset_stats() == 1  # only spider had a record
     assert ar.read_stat("spider.scm") == stat(0, 0, 0, 0)
     assert ar.read_stat("poker.scm") == stat(5, 50, 0, 0)
 
@@ -509,9 +531,11 @@ def test_without_aisleriot_stats_stay_in_local_json():
 
 # -- sharing turned off for one run -------------------------------------------------
 
+
 def keyfile_untouchable(monkeypatch):
     def refuse(*args, **kwargs):
         raise AssertionError("the AisleRiot keyfile was opened")
+
     monkeypatch.setattr(ar, "_read_text", refuse)
     monkeypatch.setattr(ar, "_write_text", refuse)
 
@@ -549,7 +573,7 @@ def test_games_kept_local_for_a_run_are_shared_later_only_once(keyfile):
     store.disable_sync()
     store.record_result("klondike", won=True, seconds=100)
     assert ar.read_stat("klondike.scm") == stat(10, 41, 120, 900)
-    store._no_sync = False          # the next run
+    store._no_sync = False  # the next run
     store.record_result("klondike", won=False, seconds=5)
     assert ar.read_stat("klondike.scm") == stat(11, 43, 100, 900)
 
@@ -562,8 +586,9 @@ REAL_INSTALLED = ar.installed
 
 def on_path(monkeypatch, *names):
     monkeypatch.setattr(ar, "installed", REAL_INSTALLED)
-    monkeypatch.setattr(shutil, "which",
-                        lambda name: f"/usr/games/{name}" if name in names else None)
+    monkeypatch.setattr(
+        shutil, "which", lambda name: f"/usr/games/{name}" if name in names else None
+    )
 
 
 def test_an_empty_gnome_games_folder_is_not_aisleriot():

@@ -530,9 +530,7 @@ class Painter:
         ]
         if self.bar:
             middle = self.bar / 2
-            out.append(
-                f'<rect width="{width}" height="{self.bar}" fill="{BAR_COLOUR}"/>'
-            )
+            out.append(f'<rect width="{width}" height="{self.bar}" fill="{BAR_COLOUR}"/>')
             for i, colour in enumerate(DOTS):
                 x = PAD + 6 + i * 20
                 out.append(f'<circle cx="{x}" cy="{middle}" r="6" fill="{colour}"/>')
@@ -582,9 +580,7 @@ def _text_runs(row: list[Cell]) -> list[tuple[int, str, RGB, bool, bool]]:
     start, chars, key = 0, [], None
     for x, cell in enumerate(row + [Cell(char="")]):
         blank = cell.char == " " and not cell.underline
-        this = (
-            None if cell.char == "" else (colours(cell)[0], cell.bold, cell.underline)
-        )
+        this = None if cell.char == "" else (colours(cell)[0], cell.bold, cell.underline)
         if key is not None and (blank or this == key):
             chars.append(cell.char)
             continue
@@ -639,9 +635,7 @@ def save_gif(path: Path, images: list, holds: list[int]) -> None:
             frame.paste(clear, mask=outside)
             frame.info["transparency"] = clear
         frames.append(frame)
-    frames[0].save(
-        path, save_all=True, append_images=frames[1:], duration=holds, loop=0
-    )
+    frames[0].save(path, save_all=True, append_images=frames[1:], duration=holds, loop=0)
 
 
 # --------------------------------------------------------------------------- #
@@ -770,9 +764,7 @@ def pick(names: list[str] | None) -> list[Scene]:
     known: dict[str, Scene] = {s.name: s for s in SCENES}
     unknown = [n for n in names if n not in known]
     if unknown:
-        raise ShotError(
-            f"no scene called {', '.join(unknown)} (try: {', '.join(known)})"
-        )
+        raise ShotError(f"no scene called {', '.join(unknown)} (try: {', '.join(known)})")
     return [known[n] for n in dict.fromkeys(names)]
 
 
@@ -789,9 +781,7 @@ def main(argv: list[str] | None = None) -> int:
         help="only these scenes (default: all of them)",
     )
     p.add_argument("--out", type=Path, default=OUT, help="where to write (docs/img)")
-    p.add_argument(
-        "--svg", action="store_true", help="also write each scene's last frame as SVG"
-    )
+    p.add_argument("--svg", action="store_true", help="also write each scene's last frame as SVG")
     p.add_argument("--font", help=f"a monospace .ttf to use instead of {FONT_FILE}")
     p.add_argument("--no-chrome", action="store_true", help="leave off the title bar")
     p.add_argument("--list", action="store_true", help="list the scenes and exit")
@@ -815,9 +805,7 @@ def main(argv: list[str] | None = None) -> int:
                 frames = stage.run(scene)
                 title = title_of(scene)
                 images = [painter.image(parse(f.text), title) for f in frames]
-                written = [
-                    args.out / f"{scene.name}.{'gif' if scene.animate else 'png'}"
-                ]
+                written = [args.out / f"{scene.name}.{'gif' if scene.animate else 'png'}"]
                 if scene.animate:
                     save_gif(written[0], images, [f.hold for f in frames])
                 else:

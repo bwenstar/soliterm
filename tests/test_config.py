@@ -76,34 +76,64 @@ def write_config(data):
 
 
 def test_a_config_value_of_the_wrong_type_falls_back_on_its_own():
-    write_config({"last_game": 7, "symbols": "no", "options": [],
-                  "sync_aisleriot": 0, "merged_into_aisleriot": "yes",
-                  "color": "off", "code_skin": 1, "camo_theme": 5,
-                  "view": "legacy"})
+    write_config(
+        {
+            "last_game": 7,
+            "symbols": "no",
+            "options": [],
+            "sync_aisleriot": 0,
+            "merged_into_aisleriot": "yes",
+            "color": "off",
+            "code_skin": 1,
+            "camo_theme": 5,
+            "view": "legacy",
+        }
+    )
     cfg = store.load_config()
     assert cfg == {**store.DEFAULT_CONFIG, "view": "legacy"}
 
 
 def test_json_booleans_still_load():
-    write_config({"symbols": False, "sync_aisleriot": False,
-                  "merged_into_aisleriot": True, "color": False, "code_skin": True})
+    write_config(
+        {
+            "symbols": False,
+            "sync_aisleriot": False,
+            "merged_into_aisleriot": True,
+            "color": False,
+            "code_skin": True,
+        }
+    )
     cfg = store.load_config()
     assert cfg["symbols"] is False and cfg["sync_aisleriot"] is False
     assert cfg["merged_into_aisleriot"] is True
     assert cfg["color"] is False and cfg["code_skin"] is True
 
 
-@pytest.mark.parametrize("saved", [
-    {"suits": 3}, {"suits": "2"}, {"suits": True}, {"suits": 2.5}, {"colour": 2},
-])
+@pytest.mark.parametrize(
+    "saved",
+    [
+        {"suits": 3},
+        {"suits": "2"},
+        {"suits": True},
+        {"suits": 2.5},
+        {"colour": 2},
+    ],
+)
 def test_a_saved_option_the_game_does_not_offer_is_dropped(saved):
     write_config({"options": {"spider": saved}})
     assert store.game_options(store.load_config(), "spider") == {}
 
 
 def test_good_options_survive_next_to_bad_ones():
-    write_config({"options": {"klondike": {"draw": 3, "speed": "fast"},
-                              "spider": {"suits": 7}, "golf": {"draw": 3}}})
+    write_config(
+        {
+            "options": {
+                "klondike": {"draw": 3, "speed": "fast"},
+                "spider": {"suits": 7},
+                "golf": {"draw": 3},
+            }
+        }
+    )
     cfg = store.load_config()
     assert store.game_options(cfg, "klondike") == {"draw": 3}
     assert store.game_options(cfg, "spider") == {}

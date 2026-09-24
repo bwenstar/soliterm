@@ -31,7 +31,7 @@ def test_the_deal_has_every_card_the_right_number_of_times(key, opts):
     g = deal(key, 1, **opts)
     counts = card_multiset(g)
     assert sum(counts.values()) == EXPECTED_CARDS[key]
-    assert len(set(counts.values())) == 1          # no card doubled up or missing
+    assert len(set(counts.values())) == 1  # no card doubled up or missing
     for suit in {s for _, s in counts}:
         assert {r for r, s in counts if s == suit} == set(range(1, 14))
 
@@ -101,13 +101,13 @@ def test_every_hint_is_a_legal_move(key, opts):
         before = g.serialize()
         hint = g.hint()
         mv = g.hint_move()
-        assert g.serialize() == before           # asking changes nothing
+        assert g.serialize() == before  # asking changes nothing
         if hint is None:
             assert mv is None
             continue
         src, dst, desc = hint
         assert isinstance(desc, str) and desc
-        if src == dst:                           # "deal from the stock"
+        if src == dst:  # "deal from the stock"
             assert mv == (src, dst, 0)
             assert g.best_move() is None
             assert g.kind(src) == "stock"
@@ -120,10 +120,13 @@ def test_every_hint_is_a_legal_move(key, opts):
 
 # -- the deals themselves --------------------------------------------------------------
 
+
 def deal_digest(g):
-    lines = [f"s{s.sid}|{s.kind}|"
-             + ",".join(f"{c.rank}{c.suit}{'U' if c.face_up else 'D'}" for c in s.cards)
-             for s in g.slots]
+    lines = [
+        f"s{s.sid}|{s.kind}|"
+        + ",".join(f"{c.rank}{c.suit}{'U' if c.face_up else 'D'}" for c in s.cards)
+        for s in g.slots
+    ]
     return hashlib.sha256("\n".join(lines).encode()).hexdigest()[:16]
 
 

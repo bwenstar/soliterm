@@ -23,14 +23,15 @@ def stat(wins, total, best, worst):
 @pytest.fixture
 def old(isolated_home):
     """Paths of aisle-cli's files, and put(name, obj_or_text) to write one."""
-    paths = {"config": isolated_home / ".config" / "aisle-cli" / "config.json",
-             "stats": isolated_home / ".local" / "share" / "aisle-cli" / "stats.json"}
+    paths = {
+        "config": isolated_home / ".config" / "aisle-cli" / "config.json",
+        "stats": isolated_home / ".local" / "share" / "aisle-cli" / "stats.json",
+    }
 
     def put(name, value):
         path = paths[name]
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(value if isinstance(value, str) else json.dumps(value),
-                        encoding="utf-8")
+        path.write_text(value if isinstance(value, str) else json.dumps(value), encoding="utf-8")
         return path
 
     put.paths = paths
@@ -54,13 +55,17 @@ def new_records():
 
 def test_the_data_dirs_are_called_soliterm(isolated_home):
     assert store.config_path() == str(isolated_home / ".config" / "soliterm" / "config.json")
-    assert store.stats_path() == str(isolated_home / ".local" / "share" / "soliterm"
-                                     / "stats.json")
+    assert store.stats_path() == str(isolated_home / ".local" / "share" / "soliterm" / "stats.json")
 
 
 def test_aisle_cli_files_are_copied_over(old, capsys):
-    cfg = {"last_game": "golf", "symbols": False, "sync_aisleriot": True,
-           "merged_into_aisleriot": True, "options": {"klondike": {"draw": 3}}}
+    cfg = {
+        "last_game": "golf",
+        "symbols": False,
+        "sync_aisleriot": True,
+        "merged_into_aisleriot": True,
+        "options": {"klondike": {"draw": 3}},
+    }
     stats = {"golf": stat(2, 3, 40, 90)}
     old("config", cfg)
     old("stats", stats)
@@ -72,7 +77,7 @@ def test_aisle_cli_files_are_copied_over(old, capsys):
     moved = copied.pop("migrated_from")
     assert copied == cfg
     assert moved["app"] == "aisle-cli"
-    assert len(moved["at"]) == 10 and moved["at"][4] == "-"    # an ISO date
+    assert len(moved["at"]) == 10 and moved["at"][4] == "-"  # an ISO date
     assert new_records() == stats
     # the old config's merge flag now sits with the stats
     assert new_stats()[store.META_KEY] == {"merged_into_aisleriot": True}
@@ -117,10 +122,9 @@ def test_running_twice_copies_once(old, capsys):
     migrate.ensure()
     capsys.readouterr()
     first = (Path(store.config_path()).read_bytes(), Path(store.stats_path()).read_bytes())
-    old("stats", {"golf": stat(9, 9, 9, 9)})    # the old version played on
+    old("stats", {"golf": stat(9, 9, 9, 9)})  # the old version played on
     migrate.ensure()
-    assert (Path(store.config_path()).read_bytes(),
-            Path(store.stats_path()).read_bytes()) == first
+    assert (Path(store.config_path()).read_bytes(), Path(store.stats_path()).read_bytes()) == first
     assert capsys.readouterr().err == ""
 
 
@@ -149,7 +153,7 @@ def test_old_stats_from_before_aisleriot_are_merged_later_once(old, keyfile):
     old("stats", {"golf": stat(1, 1, 42, 42)})
     migrate.ensure()
     assert new_stats()[store.META_KEY]["merged_into_aisleriot"] is False
-    keyfile("[golf.scm]\nStatistic=5;10;30;100;\n")    # AisleRiot turns up
+    keyfile("[golf.scm]\nStatistic=5;10;30;100;\n")  # AisleRiot turns up
     store.record_result("golf", won=False, seconds=5)
     assert ar.read_stat("golf.scm") == stat(6, 12, 30, 100)
     store.record_result("golf", won=False, seconds=5)

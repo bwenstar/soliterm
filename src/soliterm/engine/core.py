@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 class Slot:
     sid: int
     kind: str
-    expand: str = "none"             # "none" | "down" | "right"
+    expand: str = "none"  # "none" | "down" | "right"
     cards: list[Card] = field(default_factory=list)
     # `row` groups slots onto display lines (set as slots are added).
     row: int = 0
@@ -54,8 +54,7 @@ class Slot:
 class Solitaire:
     """Holds the slots and the shared state; dispatches to a GameDef."""
 
-    def __init__(self, gamedef: GameDef, seed: int | None = None,
-                 options: dict | None = None):
+    def __init__(self, gamedef: GameDef, seed: int | None = None, options: dict | None = None):
         self.gamedef = gamedef
         self.seed = seed
         self.options = gamedef.sanitize_options(options)
@@ -67,11 +66,11 @@ class Solitaire:
         self._current_row = 0
         self.deck: list[Card] = []
         self._score = 0
-        self.base_val = 0            # Canfield foundation base rank
+        self.base_val = 0  # Canfield foundation base rank
         self.status = ""
         self.moves = 0
         self.redeals_done = 0
-        self.current_seed = seed     # the concrete seed of the deal in play
+        self.current_seed = seed  # the concrete seed of the deal in play
         # How messages name cards: with suit symbols (2♥) or letters (2H).
         # The front-end sets it to match the board it draws.
         self.symbols = True
@@ -99,8 +98,7 @@ class Solitaire:
     def carriage_return(self) -> None:
         self._current_row += 1
 
-    def add_slot(self, kind: str, expand: str = "none",
-                 cards: list[Card] | None = None) -> int:
+    def add_slot(self, kind: str, expand: str = "none", cards: list[Card] | None = None) -> int:
         sid = len(self.slots)
         self.slots.append(Slot(sid, kind, expand, list(cards) if cards else [], self._current_row))
         return sid
@@ -135,10 +133,10 @@ class Solitaire:
                 raise ValueError(f"seed must be 0 or more, not {seed}")
             deal_seed = seed
         elif self._deal_seeds is not None:
-            deal_seed = self._deal_seeds.randrange(1, 2 ** 31)
+            deal_seed = self._deal_seeds.randrange(1, 2**31)
         else:
             # no fixed seed: pick a concrete one so this deal can be replayed
-            deal_seed = random.randrange(1, 2 ** 31)
+            deal_seed = random.randrange(1, 2**31)
         self.current_seed = deal_seed
         self.rng = random.Random(deal_seed)
         self.score = 0
@@ -171,8 +169,7 @@ class Solitaire:
         g.symbols = self.symbols
         g._deal_seeds = None
         g.rng = random.Random()
-        g.slots = [Slot(s.sid, s.kind, s.expand, list(s.cards), s.row)
-                   for s in self.slots]
+        g.slots = [Slot(s.sid, s.kind, s.expand, list(s.cards), s.row) for s in self.slots]
         g._current_row = self._current_row
         g.deck = list(self.deck)
         g._score = self._score
@@ -201,7 +198,7 @@ class Solitaire:
             for n in range(1, len(pile) + 1):
                 if not self.gamedef.can_pickup(self, src, n):
                     continue
-                cards = pile[len(pile) - n:]
+                cards = pile[len(pile) - n :]
                 for dst in range(n_slots):
                     if dst == src:
                         continue
@@ -224,12 +221,11 @@ class Solitaire:
 
     def _describe_move(self, src: int, dst: int, n: int) -> str:
         pile = self.cards(src)
-        landing = pile[len(pile) - n].label(self.symbols)   # lands on dst
+        landing = pile[len(pile) - n].label(self.symbols)  # lands on dst
         k = self.kind(dst)
         if k == "foundation":
-            if n > 1:                   # a run goes up from its top card
-                return (f"Move {pile[-1].label(self.symbols)} through {landing}"
-                        " to its foundation")
+            if n > 1:  # a run goes up from its top card
+                return f"Move {pile[-1].label(self.symbols)} through {landing} to its foundation"
             return f"Move {landing} to its foundation"
         if k == "freecell":
             return f"Move {landing} to a free cell"
@@ -287,8 +283,8 @@ class Solitaire:
 
     def _move_cards(self, src: int, dst: int, n: int) -> list[Card]:
         pile = self.slots[src].cards
-        moving = pile[len(pile) - n:]
-        del pile[len(pile) - n:]
+        moving = pile[len(pile) - n :]
+        del pile[len(pile) - n :]
         self.slots[dst].cards.extend(moving)
         return moving
 
@@ -322,7 +318,7 @@ class Solitaire:
             return False
         if not self.gamedef.can_pickup(self, src, n):
             return False
-        moving = self.cards(src)[len(self.cards(src)) - n:]
+        moving = self.cards(src)[len(self.cards(src)) - n :]
         if not self.gamedef.can_drop(self, src, list(moving), dst):
             return False
         self._checkpoint()
@@ -344,8 +340,8 @@ class Solitaire:
             self.moves += 1
             self.gamedef.post_move(self)
             return True
-        self._undo.pop()                  # nothing happened; drop the checkpoint
-        self._redo = saved_redo           # ...and keep the redo history intact
+        self._undo.pop()  # nothing happened; drop the checkpoint
+        self._redo = saved_redo  # ...and keep the redo history intact
         return False
 
     def double_click(self, sid: int) -> bool:
@@ -405,19 +401,20 @@ class Solitaire:
         found = self._most_progress(self.legal_moves(), self.progress())
         return None if found is None else found[0]
 
-    def _most_progress(self, moves: list[tuple[int, int, int]], base: int
-                       ) -> tuple[tuple[int, int, int], int] | None:
+    def _most_progress(
+        self, moves: list[tuple[int, int, int]], base: int
+    ) -> tuple[tuple[int, int, int], int] | None:
         """The move in `moves` that takes progress furthest above `base`, with
         its gain, or None if none of them gets above it."""
         best = None
         best_rank = -1
-        for (src, dst, n) in moves:
+        for src, dst, n in moves:
             sim = self.clone()
             if not sim.attempt_move(src, dst, n):
                 continue
             gain = sim.progress() - base
             if gain <= 0:
-                continue                       # no progress: skip (kills loops)
+                continue  # no progress: skip (kills loops)
             # tie-break: bigger gain first, then prefer moving fewer cards
             # (the minimal move that achieves the gain), then deeper source
             rank = gain * 1000 - n * 10 + len(self.cards(src))
@@ -445,7 +442,7 @@ class Solitaire:
         best = None
         best_rank = -1
         tried_empty = set()
-        for (src, dst, n) in self.legal_moves():
+        for src, dst, n in self.legal_moves():
             if self.empty(dst):
                 alike = (src, n, self.kind(dst))
                 if alike in tried_empty:
@@ -454,8 +451,7 @@ class Solitaire:
             sim = self.clone()
             if not sim.attempt_move(src, dst, n):
                 continue
-            follow = [m for m in sim.legal_moves()
-                      if m[0] in (src, dst) or m[1] in (src, dst)]
+            follow = [m for m in sim.legal_moves() if m[0] in (src, dst) or m[1] in (src, dst)]
             found = sim._most_progress(follow, base)
             if found is None:
                 continue
@@ -475,7 +471,7 @@ class Solitaire:
         setup_move() for why following it never loops.
         """
         if self.gamedef.is_dead_end(self):
-            return None                  # no move can save it; undo can
+            return None  # no move can save it; undo can
         mv = self.best_move()
         if mv is not None:
             return mv
@@ -566,8 +562,9 @@ class Solitaire:
             f"options={self.options}",
         ]
         for s in self.slots:
-            parts.append(f"s{s.sid}|{s.kind}|{s.expand}|{s.row}|"
-                         + ",".join(enc(c) for c in s.cards))
+            parts.append(
+                f"s{s.sid}|{s.kind}|{s.expand}|{s.row}|" + ",".join(enc(c) for c in s.cards)
+            )
         return "\n".join(parts)
 
     def _restore(self, text: str) -> None:

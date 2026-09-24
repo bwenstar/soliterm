@@ -34,19 +34,33 @@ def run(pyz, *args):
     # no PYTHONPATH, so the archive has to bring the whole package along (the
     # isolated HOME from conftest is already in the environment)
     env = {k: v for k, v in os.environ.items() if k != "PYTHONPATH"}
-    return subprocess.run([sys.executable, str(pyz), *args], capture_output=True,
-                          text=True, env=env, cwd=str(pyz.parent), check=False, timeout=60)
+    return subprocess.run(
+        [sys.executable, str(pyz), *args],
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=str(pyz.parent),
+        check=False,
+        timeout=60,
+    )
 
 
 def test_the_archive_holds_the_package_the_license_and_a_main(pyz):
     with zipfile.ZipFile(pyz) as z:
         infos = {i.filename: i for i in z.infolist()}
-    for name in ("__main__.py", "LICENSE", "soliterm/cli.py", "soliterm/py.typed",
-                 "soliterm/engine/core.py", "soliterm/engine/games/klondike.py"):
+    for name in (
+        "__main__.py",
+        "LICENSE",
+        "soliterm/cli.py",
+        "soliterm/py.typed",
+        "soliterm/engine/core.py",
+        "soliterm/engine/games/klondike.py",
+    ):
         assert name in infos
     assert not [n for n in infos if "__pycache__" in n or n.endswith(".pyc")]
-    assert all(i.compress_type == zipfile.ZIP_DEFLATED
-               for n, i in infos.items() if n.endswith(".py"))
+    assert all(
+        i.compress_type == zipfile.ZIP_DEFLATED for n, i in infos.items() if n.endswith(".py")
+    )
 
 
 def test_the_archive_starts_with_a_shebang(pyz):

@@ -42,7 +42,7 @@ class EightOff(GameDef):
         if k == "tableau":
             if n > self._max_group(g):
                 return False
-            run = g.cards(sid)[len(g.cards(sid)) - n:]
+            run = g.cards(sid)[len(g.cards(sid)) - n :]
             return all(a.suit == b.suit and b.rank == a.rank - 1 for a, b in zip(run, run[1:]))
         return False
 
@@ -63,7 +63,7 @@ class EightOff(GameDef):
                 return False
             top = g.top(dst)
             if top is None:
-                return cards[0].rank == KING       # only a King leads an empty column
+                return cards[0].rank == KING  # only a King leads an empty column
             return top.suit == cards[0].suit and top.rank == cards[0].rank + 1
         return False
 
@@ -99,8 +99,11 @@ class EightOff(GameDef):
             again = False
             for sid in self.tableau + self.cells:
                 c = g.top(sid)
-                if (c is not None and self.foundation_for(g, c) is not None
-                        and self.safe_to_autoplay(g, c)):
+                if (
+                    c is not None
+                    and self.foundation_for(g, c) is not None
+                    and self.safe_to_autoplay(g, c)
+                ):
                     fid = self.foundation_for(g, c)
                     g.slots[fid].cards.append(g.slots[sid].cards.pop())
                     g.score += 1

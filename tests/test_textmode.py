@@ -52,6 +52,7 @@ def ends(line):
 
 # -- the board ---------------------------------------------------------------------------
 
+
 @pytest.mark.parametrize("seed", [1, 2, 3])
 @pytest.mark.parametrize("key", GAME_ORDER)
 def test_cards_line_up_under_their_tags(key, seed):
@@ -67,8 +68,14 @@ def test_cards_line_up_under_their_tags(key, seed):
             assert all(len(t) == 5 for t in re.findall(r"\[[^\]]*\]", row)), board
 
 
-KIND_TAG = {"stock": "stk", "waste": "wst", "foundation": "fnd", "freecell": "cel",
-            "reserve": "rsv", "tableau": ""}
+KIND_TAG = {
+    "stock": "stk",
+    "waste": "wst",
+    "foundation": "fnd",
+    "freecell": "cel",
+    "reserve": "rsv",
+    "tableau": "",
+}
 
 
 @pytest.mark.parametrize("key", GAME_ORDER)
@@ -99,6 +106,7 @@ def test_a_hint_names_the_slots_as_the_board_does(key):
 
 # -- hints ------------------------------------------------------------------------------
 
+
 @pytest.mark.parametrize("seed", [1, 2, 3])
 @pytest.mark.parametrize("key", GAME_ORDER)
 def test_typing_a_hint_back_makes_that_move(key, seed):
@@ -118,7 +126,7 @@ def test_typing_a_hint_back_makes_that_move(key, seed):
         elif mv is not None and mv[:2] == (src, dst):
             want.attempt_move(*mv)
         else:
-            want = None                  # a hint that is not the best move
+            want = None  # a hint that is not the best move
         before = len(g.cards(dst))
         ok, out = textmode.apply_text_command(g, cmd)
         assert ok, f"{msg!r} -> {out!r}"
@@ -159,12 +167,16 @@ def test_a_move_without_a_count_lifts_as_much_as_will_land():
 
 # -- commands ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("cmd,says", [
-    ("f 9", "no foundation move from #9"),
-    ("cc 9", "double-clicking #9 does nothing"),
-    ("c 2", "clicking fnd#2 does nothing"),
-    ("a", "nothing to autoplay"),
-])
+
+@pytest.mark.parametrize(
+    "cmd,says",
+    [
+        ("f 9", "no foundation move from #9"),
+        ("cc 9", "double-clicking #9 does nothing"),
+        ("c 2", "clicking fnd#2 does nothing"),
+        ("a", "nothing to autoplay"),
+    ],
+)
 def test_a_command_that_does_nothing_says_so(cmd, says):
     g = deal("klondike", 1)
     before = g.serialize()
@@ -208,11 +220,16 @@ def test_the_help_lists_restart():
     assert "N / restart" in textmode.TEXT_HELP
 
 
-@pytest.mark.parametrize("encoding,suits", [
-    ("cp1252", "SHDC"), ("latin-1", "SHDC"), ("ascii", "SHDC"), ("utf-8", "♠♥♦♣"),
-])
-def test_suits_fall_back_to_letters_when_stdout_cannot_show_them(
-        encoding, suits, monkeypatch):
+@pytest.mark.parametrize(
+    "encoding,suits",
+    [
+        ("cp1252", "SHDC"),
+        ("latin-1", "SHDC"),
+        ("ascii", "SHDC"),
+        ("utf-8", "♠♥♦♣"),
+    ],
+)
+def test_suits_fall_back_to_letters_when_stdout_cannot_show_them(encoding, suits, monkeypatch):
     raw = io.BytesIO()
     out = io.TextIOWrapper(raw, encoding=encoding)
     monkeypatch.setattr("sys.stdout", out)
@@ -231,12 +248,14 @@ def test_the_hint_uses_letters_too_when_stdout_cannot_show_symbols(monkeypatch):
     g = deal("klondike", 1)
     assert textmode.run_text(g, True, "klondike", stream=io.StringIO("hint\nq\n")) == 0
     out.flush()
-    hint = next(line for line in raw.getvalue().decode("ascii").splitlines()
-                if line.startswith("Hint: "))
+    hint = next(
+        line for line in raw.getvalue().decode("ascii").splitlines() if line.startswith("Hint: ")
+    )
     assert "2H onto 3C" in hint
 
 
 # -- results ----------------------------------------------------------------------------
+
 
 def play_text(key, script, seed=1):
     """Runs a text session on a seeded deal; returns the game and its stats."""
@@ -245,16 +264,19 @@ def play_text(key, script, seed=1):
     return g, store.get_stat(key)
 
 
-@pytest.mark.parametrize("script,lost", [
-    ("d\nq\n", 1),          # quit after a move
-    ("d\n", 1),              # the input ran out after a move
-    ("d\nn\nq\n", 1),       # the deal walked away from counts, the new one does not
-    ("d\nn\nd\nq\n", 2),    # both deals were played
-    ("q\n", 0),              # never moved
-    ("n\nq\n", 0),
-    ("d\nN\nq\n", 0),       # starting the same deal over is not a loss
-    ("d\nN\nd\nq\n", 1),
-])
+@pytest.mark.parametrize(
+    "script,lost",
+    [
+        ("d\nq\n", 1),  # quit after a move
+        ("d\n", 1),  # the input ran out after a move
+        ("d\nn\nq\n", 1),  # the deal walked away from counts, the new one does not
+        ("d\nn\nd\nq\n", 2),  # both deals were played
+        ("q\n", 0),  # never moved
+        ("n\nq\n", 0),
+        ("d\nN\nq\n", 0),  # starting the same deal over is not a loss
+        ("d\nN\nd\nq\n", 1),
+    ],
+)
 def test_leaving_a_started_deal_counts_as_a_loss(script, lost, capsys):
     _, s = play_text("klondike", script)
     assert (s["wins"], s["total"]) == (0, lost)
@@ -273,6 +295,7 @@ def one_card_from_won(g):
 
 class Clock:
     """Stands in for the time module in textmode; tests move it by hand."""
+
     def __init__(self):
         self.now = 1000.0
 
@@ -290,7 +313,7 @@ def test_a_win_is_timed_from_its_own_deal(again, total, secs, shown, monkeypatch
     g = deal("klondike", 1)
 
     def script():
-        clock.now += 100               # time spent on the deal given up
+        clock.now += 100  # time spent on the deal given up
         yield "d\n"
         yield again + "\n"
         clock.now += secs

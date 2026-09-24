@@ -17,8 +17,10 @@ class Klondike(GameDef):
 
     @classmethod
     def option_spec(cls):
-        return [("draw", "Cards to draw", [1, 3]),
-                ("redeals", "Redeals", ["standard", "none", "unlimited"])]
+        return [
+            ("draw", "Cards to draw", [1, 3]),
+            ("redeals", "Redeals", ["standard", "none", "unlimited"]),
+        ]
 
     def _redeals_left(self, g):
         """How many more times the waste can go back to the stock, or None
@@ -39,8 +41,10 @@ class Klondike(GameDef):
         g.shuffle()
         self.stock = g.add_slot("stock")
         self.waste = g.add_slot("waste")
-        g.add_slot("foundation"); g.add_slot("foundation")
-        g.add_slot("foundation"); g.add_slot("foundation")
+        g.add_slot("foundation")
+        g.add_slot("foundation")
+        g.add_slot("foundation")
+        g.add_slot("foundation")
         g.carriage_return()
         self.tableau = [g.add_slot("tableau", "down") for _ in range(7)]
         # remaining go to stock face down
@@ -59,7 +63,7 @@ class Klondike(GameDef):
 
     def can_pickup(self, g, sid, n):
         if g.kind(sid) == "tableau":
-            run = g.cards(sid)[len(g.cards(sid)) - n:]
+            run = g.cards(sid)[len(g.cards(sid)) - n :]
             if not all(c.face_up for c in run):
                 return False
             return self._valid_run(run)
@@ -168,8 +172,7 @@ class Klondike(GameDef):
                 c = g.top(sid)
                 if c and c.face_up:
                     fid = self.foundation_for(g, c)
-                    if fid is not None and (not safe_only
-                                            or self.safe_to_autoplay(g, c)):
+                    if fid is not None and (not safe_only or self.safe_to_autoplay(g, c)):
                         g.slots[fid].cards.append(g.slots[sid].cards.pop())
                         self._post_take(g, sid)
                         g.score += 1

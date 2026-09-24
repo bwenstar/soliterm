@@ -20,9 +20,9 @@ def klondike():
 def test_a_pointless_shuffle_is_not_a_hint(klondike):
     g, t = klondike
     g.slots[t[0]].cards = [Card(8, "H", True), Card(7, "S", True)]
-    g.slots[t[1]].cards = [Card(8, "D", True)]     # 7S could go here too, for nothing
+    g.slots[t[1]].cards = [Card(8, "D", True)]  # 7S could go here too, for nothing
     assert g.best_move() is None
-    assert g.hint() is None                        # and there is no stock to deal
+    assert g.hint() is None  # and there is no stock to deal
 
 
 def test_uncovering_a_face_down_card_is_suggested(klondike):
@@ -104,7 +104,7 @@ def test_following_the_hint_never_comes_back_to_a_position(key):
         mv = g.hint_move()
         if mv is None:
             break
-        if mv[0] == mv[1]:                       # a deal
+        if mv[0] == mv[1]:  # a deal
             if deals == 80:
                 break
             assert g.deal()
@@ -117,6 +117,7 @@ def test_following_the_hint_never_comes_back_to_a_position(key):
 
 
 # -- a move that sets up the next one ------------------------------------------
+
 
 def test_a_card_is_parked_when_that_frees_a_foundation_play():
     g = deal("freecell", 1)
@@ -154,6 +155,7 @@ def test_a_king_is_moved_aside_to_free_the_ace_under_it():
 
 # -- when there is nothing to hint ------------------------------------------------
 
+
 def two_kings(key):
     """A board with just two kings in play: they can move, but it gets you nowhere."""
     g = deal(key, 1)
@@ -178,7 +180,7 @@ def test_no_hint_offers_undo_only_when_there_is_something_to_undo():
     g = two_kings("freecell")
     assert "undo" not in g.no_hint_reason()
     t = g.ids_of("tableau")
-    assert g.attempt_move(t[0], t[2], 1)         # slide a king along, for nothing
+    assert g.attempt_move(t[0], t[2], 1)  # slide a king along, for nothing
     assert g.hint() is None
     assert "undo" in g.no_hint_reason()
 

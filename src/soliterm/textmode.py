@@ -26,9 +26,9 @@ from .engine import SUIT_SYMBOL, Card, Slot, Solitaire
 # codes wrap only the card token and never change its visible width; columns
 # are padded on the visible width (see _pad), so alignment is unaffected.
 _ANSI = {
-    "red":   "\033[1;31;47m",   # bold red on white
-    "black": "\033[30;47m",     # black on white
-    "back":  "\033[37;44m",     # white on blue (face-down back)
+    "red": "\033[1;31;47m",  # bold red on white
+    "black": "\033[30;47m",  # black on white
+    "back": "\033[37;44m",  # white on blue (face-down back)
     "reset": "\033[0m",
 }
 _ANSI_RE = re.compile(r"\033\[[0-9;]*m")
@@ -62,8 +62,14 @@ def _pad(text: str, width: int) -> str:
     return " " * (width - _width(text)) + text
 
 
-_KIND_TAG = {"stock": "stk", "waste": "wst", "foundation": "fnd",
-             "reserve": "rsv", "freecell": "cel", "tableau": ""}
+_KIND_TAG = {
+    "stock": "stk",
+    "waste": "wst",
+    "foundation": "fnd",
+    "reserve": "rsv",
+    "freecell": "cel",
+    "tableau": "",
+}
 
 
 def slot_tag(g: Solitaire, sid: int) -> str:
@@ -79,11 +85,10 @@ def _column(s: Slot, symbols: bool, color: bool) -> list[str]:
     if s.expand == "down":
         return [_cell(c, symbols, color) for c in s.cards] or [_cell(None, symbols)]
     if s.expand == "right":
-        return [" ".join(_cell(c, symbols, color) for c in s.cards[-_FAN:])
-                or _cell(None, symbols)]
+        return [" ".join(_cell(c, symbols, color) for c in s.cards[-_FAN:]) or _cell(None, symbols)]
     lines = [_cell(s.top, symbols, color)]
     if s.kind == "stock":
-        lines.append(f"({len(s.cards)})")      # the count sits under the pile
+        lines.append(f"({len(s.cards)})")  # the count sits under the pile
     return lines
 
 
@@ -96,12 +101,12 @@ def render_text(g: Solitaire, symbols: bool = True, color: bool = False) -> str:
         cols = [_column(s, symbols, color) for s in slots]
         # each column is as wide as its widest line, so a slot's cards
         # always sit right under its tag
-        widths = [max([_CELL_W, len(t)] + [_width(x) for x in c])
-                  for t, c in zip(tags, cols)]
+        widths = [max([_CELL_W, len(t)] + [_width(x) for x in c]) for t, c in zip(tags, cols)]
         lines.append(" ".join(_pad(t, w) for t, w in zip(tags, widths)))
         for r in range(max(len(c) for c in cols)):
-            lines.append(" ".join(_pad(c[r] if r < len(c) else "", w)
-                                  for c, w in zip(cols, widths)).rstrip())
+            lines.append(
+                " ".join(_pad(c[r] if r < len(c) else "", w) for c, w in zip(cols, widths)).rstrip()
+            )
         lines.append("")
     won = "  *** YOU WIN! ***" if g.is_won() else ""
     lines.append(f"score={g.score} moves={g.moves} | {g.status}{won}")
@@ -153,15 +158,14 @@ def _hint_message(g: Solitaire) -> str:
     if h is None:
         return f"Hint: {g.no_hint_reason()}."
     src, dst, desc = h
-    if src == dst:                      # a deal-from-stock style hint
+    if src == dst:  # a deal-from-stock style hint
         if g.kind(src) == "stock":
             return f"Hint: {desc}  (type: d)"
         return f"Hint: {desc}."
     # a bare "src dst" lifts the default run; name the count when it differs
     n = _hint_count(g, src, dst)
     cmd = f"{src} {dst}" if n == g.default_pickup(src) else f"{src} {dst} {n}"
-    return (f"Hint: {desc}  ({slot_tag(g, src)} -> {slot_tag(g, dst)}, "
-            f"type: {cmd})")
+    return f"Hint: {desc}  ({slot_tag(g, src)} -> {slot_tag(g, dst)}, type: {cmd})"
 
 
 def _missing_slot(g: Solitaire, *sids: int) -> str:
@@ -223,7 +227,8 @@ def apply_text_command(g: Solitaire, cmd: str) -> tuple[bool, str]:
                 return ok, "" if ok else f"double-clicking {tag} does nothing"
             return ok, "" if ok else f"no foundation move from {tag}"
         if all(p.isdigit() for p in parts) and len(parts) in (2, 3):
-            src = int(parts[0]); dst = int(parts[1])
+            src = int(parts[0])
+            dst = int(parts[1])
             missing = _missing_slot(g, src, dst)
             if missing:
                 return False, missing
@@ -245,7 +250,7 @@ def apply_text_command(g: Solitaire, cmd: str) -> tuple[bool, str]:
 def _can_write(out, text: str) -> bool:
     """Whether out's encoding has every character of text."""
     encoding = getattr(out, "encoding", None)
-    if not encoding:                    # a str buffer such as StringIO
+    if not encoding:  # a str buffer such as StringIO
         return True
     try:
         text.encode(encoding)
@@ -254,15 +259,21 @@ def _can_write(out, text: str) -> bool:
     return True
 
 
-def run_text(g: Solitaire, symbols: bool, game_key: str, stream=None,
-             color: bool = False, camo_theme: str | None = None) -> int:
+def run_text(
+    g: Solitaire,
+    symbols: bool,
+    game_key: str,
+    stream=None,
+    color: bool = False,
+    camo_theme: str | None = None,
+) -> int:
     out = sys.stdout
     inp = stream if stream is not None else sys.stdin
     # a cp1252 or ASCII stdout has no suit symbols; letters beat a crash
     symbols = symbols and _can_write(out, "".join(SUIT_SYMBOL.values()))
-    g.symbols = symbols               # hints name cards as the board does
+    g.symbols = symbols  # hints name cards as the board does
     theme = camo_theme if camo_theme in camo.THEMES else camo.DEFAULT_THEME
-    start = time.monotonic()            # one clock per deal
+    start = time.monotonic()  # one clock per deal
     recorded = False
 
     def seconds() -> int:
@@ -289,8 +300,7 @@ def run_text(g: Solitaire, symbols: bool, game_key: str, stream=None,
             recorded = True
 
     try:
-        print(f"{APP_NAME} - {g.gamedef.name} (text mode). Type h for help.\n",
-              file=out)
+        print(f"{APP_NAME} - {g.gamedef.name} (text mode). Type h for help.\n", file=out)
         print(render_text(g, symbols, color), file=out)
         for raw in inp:
             line = raw.strip()
@@ -328,10 +338,9 @@ def run_text(g: Solitaire, symbols: bool, game_key: str, stream=None,
                 secs = seconds()
                 store.record_result(game_key, True, secs)
                 print("Congratulations - you won!", file=out)
-                print(f"Score {g.score} in {store.fmt_time(secs)} "
-                      f"({g.moves} moves).", file=out)
+                print(f"Score {g.score} in {store.fmt_time(secs)} ({g.moves} moves).", file=out)
                 return 0
-        give_up()                       # the input ran out mid-game
+        give_up()  # the input ran out mid-game
         return 0
     except KeyboardInterrupt:
         # Ctrl-C leaves like q does, minus the traceback

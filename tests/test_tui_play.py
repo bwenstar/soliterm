@@ -56,10 +56,10 @@ class ScriptedScr(FakeScr):
         super().__init__(h, w)
         self.keys = list(keys)
         self.uis = uis
-        self.frames = []          # the screen each time a key was read
+        self.frames = []  # the screen each time a key was read
         self.mouse = None
         self.spare = 0
-        self.delay = -1           # how long getch waits for a key, in ms; -1 for ever
+        self.delay = -1  # how long getch waits for a key, in ms; -1 for ever
 
     def nodelay(self, flag):
         self.delay = 0 if flag else -1
@@ -80,10 +80,9 @@ class ScriptedScr(FakeScr):
             k = k.k
         assert k != -1 or self.delay >= 0, "no key is coming and getch would wait for ever"
         if isinstance(k, type) and issubclass(k, BaseException):
-            raise k                   # e.g. KeyboardInterrupt, for Ctrl-C
+            raise k  # e.g. KeyboardInterrupt, for Ctrl-C
         if isinstance(k, Click):
-            cells = sorted(yx for yx, hit in self.uis[-1].hit.items()
-                           if hit == (k.sid, k.idx))
+            cells = sorted(yx for yx, hit in self.uis[-1].hit.items() if hit == (k.sid, k.idx))
             assert cells, f"card {k.idx} of slot {k.sid} is not on screen"
             y, x = cells[0]
             self.mouse = (0, x, y, 0, k.bstate)
@@ -113,7 +112,7 @@ def tui(monkeypatch):
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
             self.initial_has_color = self.has_color
-            self.selections = []      # the selected slot at every draw
+            self.selections = []  # the selected slot at every draw
             uis.append(self)
 
         def draw(self, selected_slot, *args):
@@ -127,11 +126,19 @@ def tui(monkeypatch):
     # a test that wants a light background sets COLORFGBG itself
     monkeypatch.delenv("COLORFGBG", raising=False)
 
-    def run(keys, start_key="klondike", game=None, seed=None, color=None,
-            color_capable=True, h=40, w=120, **kwargs):
+    def run(
+        keys,
+        start_key="klondike",
+        game=None,
+        seed=None,
+        color=None,
+        color_capable=True,
+        h=40,
+        w=120,
+        **kwargs,
+    ):
         scr = ScriptedScr(h, w, keys, uis)
-        monkeypatch.setattr(curses, "mousemask",
-                            lambda mask: masks.append(mask) or (mask, 0))
+        monkeypatch.setattr(curses, "mousemask", lambda mask: masks.append(mask) or (mask, 0))
         monkeypatch.setattr(curses, "mouseinterval", intervals.append)
         monkeypatch.setattr(curses, "has_colors", lambda: color_capable)
         monkeypatch.setattr(curses, "start_color", lambda: None)
@@ -199,6 +206,7 @@ def up(rank, suit):
 
 # -- picking up and dropping ------------------------------------------------------
 
+
 def test_a_keyboard_drop_lands_the_part_of_the_run_that_fits(tui):
     # 4S-3S is the default pickup, only the 3S fits on 4H
     g, a, b = board("spider", [up(9, "H"), up(4, "S"), up(3, "S")], [up(4, "H")], suits=4)
@@ -223,8 +231,7 @@ def test_a_klondike_three_drops_off_the_top_of_a_run(tui):
 
 
 def test_the_keyboard_can_lift_part_of_a_run_into_an_empty_column(tui):
-    g, a, b = board("spider", [up(9, "H"), up(7, "S"), up(6, "S"), up(5, "S")], [],
-                    suits=4)
+    g, a, b = board("spider", [up(9, "H"), up(7, "S"), up(6, "S"), up(5, "S")], [], suits=4)
     assert g.default_pickup(a) == 3
     tui([ENTER, "-", "-", curses.KEY_RIGHT, ENTER], start_key="spider", game=g)
     assert names(g, b) == ["5S"]
@@ -254,8 +261,13 @@ def test_the_lift_keys_reach_cards_squeezed_onto_one_row(tui):
     # lifts from the JS, and - and + go through the cards under it
     run = [up(r, "S") for r in range(12, 0, -1)]
     g, a, b = board("spider", [Card(1, "S", False)] * 5 + run, [], suits=1)
-    scr = tui([Click(a, 6), "-", "-", "+", curses.KEY_RIGHT, ENTER],
-              start_key="spider", game=g, h=18, w=80)
+    scr = tui(
+        [Click(a, 6), "-", "-", "+", curses.KEY_RIGHT, ENTER],
+        start_key="spider",
+        game=g,
+        h=18,
+        w=80,
+    )
     assert "| +3 |" in scr.frames[0].replace("\u2502", "|")
     assert "picked up 11 card(s) from JS" in scr.frames[1]
     assert "holding 10 cards from 10S" in scr.frames[4]
@@ -353,8 +365,9 @@ def test_alt_and_a_key_does_nothing_on_the_menu_or_the_banner(tui):
 
 def test_the_escape_delay_is_short_unless_the_player_set_one(monkeypatch):
     seen = []
-    monkeypatch.setattr(curses, "wrapper",
-                        lambda fn, *args: seen.append(os.environ.get("ESCDELAY")) or 0)
+    monkeypatch.setattr(
+        curses, "wrapper", lambda fn, *args: seen.append(os.environ.get("ESCDELAY")) or 0
+    )
     # set before it is taken away, so the one main() puts in goes afterwards
     monkeypatch.setenv("ESCDELAY", "")
     monkeypatch.delenv("ESCDELAY")
@@ -404,11 +417,11 @@ def test_ascii_on_the_command_line_reaches_the_tui(monkeypatch):
 
 def test_ascii_draws_the_cards_in_plain_characters(tui):
     scr = tui(["x", "q"], symbols=False)
-    for frame in scr.frames[:2]:                  # both views
+    for frame in scr.frames[:2]:  # both views
         assert not any(ch in frame for ch in "┌│▒░♠♥♦♣")
     assert "+------+" in scr.frames[0]
     assert "#" in scr.frames[1]
-    assert store.load_config()["symbols"] is True     # the flag is not saved
+    assert store.load_config()["symbols"] is True  # the flag is not saved
 
 
 def test_the_game_names_cards_the_way_the_board_does(tui):
@@ -422,7 +435,7 @@ def test_a_terminal_that_cannot_show_unicode_gets_plain_cards(tui, monkeypatch):
     # which left the board blank but for the slot names
     monkeypatch.setattr(FakeScr, "encoding", "ascii")
     scr = tui(["x", "q"])
-    for frame in scr.frames[:2]:                  # both views
+    for frame in scr.frames[:2]:  # both views
         assert "+------+" in frame or "#" in frame
     assert "+------+" in scr.frames[0]
     assert any(ui.symbols is False for ui in scr.uis)
@@ -441,15 +454,15 @@ def test_the_locale_decides_when_the_window_does_not_say(monkeypatch):
     assert not can_draw_unicode(Window())
     monkeypatch.setattr(locale, "getpreferredencoding", lambda *a: "UTF-8")
     assert can_draw_unicode(Window())
-    Window.encoding = "latin-1"               # has no box corners
+    Window.encoding = "latin-1"  # has no box corners
     assert not can_draw_unicode(Window())
 
 
 # -- a terminal too small for the board -----------------------------------------------
 
+
 def test_keys_make_no_hidden_moves_while_the_board_does_not_fit(tui):
-    scr = tui(["d", "d", ENTER, curses.KEY_RIGHT, ENTER, "a", "n", "o", "m", "q"],
-              h=20, w=38)
+    scr = tui(["d", "d", ENTER, curses.KEY_RIGHT, ENTER, "a", "n", "o", "m", "q"], h=20, w=38)
     assert scr.rc == 0
     assert all("Terminal too small" in frame for frame in scr.frames)
     assert len(scr.uis) == 1 and scr.uis[0].game.moves == 0
@@ -462,10 +475,13 @@ def test_the_board_comes_back_as_it_was_once_the_terminal_grows(tui):
     assert "Moves 0" in scr.frames[2] and "Stock: 24" in scr.frames[2]
 
 
-@pytest.mark.parametrize("key, h, w, small", [
-    ("c", 17, 40, [False, True, False]),    # the code skin needs more columns
-    ("x", 15, 80, [True, False, True]),     # and full cards more rows
-])
+@pytest.mark.parametrize(
+    "key, h, w, small",
+    [
+        ("c", 17, 40, [False, True, False]),  # the code skin needs more columns
+        ("x", 15, 80, [True, False, True]),  # and full cards more rows
+    ],
+)
 def test_the_skin_and_view_toggles_still_work_on_a_small_terminal(tui, key, h, w, small):
     # so the toggle that hid the board can bring it back
     scr = tui([key, key, "q"], h=h, w=w)
@@ -480,11 +496,13 @@ def test_the_boss_key_still_works_on_a_small_terminal(tui):
 
 # -- the clock ---------------------------------------------------------------------
 
+
 def test_the_clock_runs_from_the_first_move_and_stops_behind_other_screens(tui, game_clock):
     # half a minute looking before the first move, ten seconds of play,
     # then a minute each in the help, the statistics and boss mode
-    scr = tui([Later(30, "d"), Later(10, "?"), Later(60, "z"), "s", Later(60, "z"),
-               "b", Later(60, "z")])
+    scr = tui(
+        [Later(30, "d"), Later(10, "?"), Later(60, "z"), "s", Later(60, "z"), "b", Later(60, "z")]
+    )
     assert times(scr) == ["0:00", "0:00", "0:10", "0:10", "0:10"]
 
 
@@ -504,6 +522,7 @@ def test_the_clock_the_banner_and_the_statistics_agree_on_the_time(tui, game_clo
 
 
 # -- recording results -------------------------------------------------------------
+
 
 def test_quitting_before_moving_records_nothing(tui):
     tui(["q"])
@@ -565,8 +584,7 @@ def test_playing_again_from_the_menu_does_not_double_aisleriot_stats(tui, keyfil
     # loaded at start, which must not undo the one-time merge
     keyfile("[klondike.scm]\nStatistic=10;40;120;900;\n")
     tui(["d", "m", ENTER, "v", "d", "q"])
-    assert ar.read_stat("klondike.scm") == {"wins": 10, "total": 42,
-                                            "best": 120, "worst": 900}
+    assert ar.read_stat("klondike.scm") == {"wins": 10, "total": 42, "best": 120, "worst": 900}
 
 
 def one_move_left():
@@ -588,7 +606,7 @@ def test_the_no_moves_banner_can_take_the_last_move_back(tui):
     assert "Moves 0" in scr.frames[2] and "No moves left" not in scr.frames[2]
     assert "No moves left" in scr.frames[3]
     assert "choose a game" in scr.frames[4]
-    assert store.get_stat("golf")["total"] == 1       # counted once, on m
+    assert store.get_stat("golf")["total"] == 1  # counted once, on m
 
 
 def test_the_no_moves_banner_counts_the_game_it_ends(tui):
@@ -621,8 +639,11 @@ def test_a_win_after_taking_back_the_dead_end_counts_as_a_win(tui):
     g.slots[g.ids_of("waste")[0]].cards = [up(5, "H")]
     g.slots[t[0]].cards = [up(4, "D")]
     g.slots[t[1]].cards = [up(5, "S"), up(6, "C")]
-    scr = tui(["f", "u", curses.KEY_RIGHT, "f", "f", curses.KEY_LEFT, "f", "m", "q"],
-              start_key="golf", game=g)
+    scr = tui(
+        ["f", "u", curses.KEY_RIGHT, "f", "f", curses.KEY_LEFT, "f", "m", "q"],
+        start_key="golf",
+        game=g,
+    )
     assert "No moves left" in scr.frames[1]
     assert "YOU WIN" in scr.frames[7]
     assert store.get_stat("golf")["wins"] == 1
@@ -635,13 +656,18 @@ BANNER_ROW = {"same": 12, "new": 13, "menu": 14}
 
 def test_the_banner_ignores_the_pointer_the_wheel_and_other_buttons(tui):
     new = BANNER_ROW["new"]
-    scr = tui(["a",
-               Mouse(new, 8, curses.REPORT_MOUSE_POSITION),
-               Mouse(BANNER_ROW["same"], 8, curses.BUTTON4_PRESSED),
-               Mouse(BANNER_ROW["menu"], 8, curses.BUTTON3_PRESSED),
-               Mouse(new, 8, curses.BUTTON1_RELEASED),
-               Mouse(new, 40, curses.BUTTON1_CLICKED),     # right of the label
-               "m"], game=near_won())
+    scr = tui(
+        [
+            "a",
+            Mouse(new, 8, curses.REPORT_MOUSE_POSITION),
+            Mouse(BANNER_ROW["same"], 8, curses.BUTTON4_PRESSED),
+            Mouse(BANNER_ROW["menu"], 8, curses.BUTTON3_PRESSED),
+            Mouse(new, 8, curses.BUTTON1_RELEASED),
+            Mouse(new, 40, curses.BUTTON1_CLICKED),  # right of the label
+            "m",
+        ],
+        game=near_won(),
+    )
     assert all("YOU WIN" in frame for frame in scr.frames[1:7])
     assert "choose a game" in scr.frames[7]
     assert len(scr.uis) == 1
@@ -656,7 +682,7 @@ def test_a_left_click_on_a_banner_choice_takes_it(tui, bstate):
 
 # -- options -------------------------------------------------------------------------
 
-KING_TO_EMPTY = [ENTER] + [curses.KEY_RIGHT] * 4 + [ENTER]    # a first move on near_won()
+KING_TO_EMPTY = [ENTER] + [curses.KEY_RIGHT] * 4 + [ENTER]  # a first move on near_won()
 
 
 def saved_draw():
@@ -676,12 +702,11 @@ def test_leaving_the_options_as_they_were_keeps_the_game(tui):
     scr = tui(["d", "o", ENTER])
     assert len(scr.uis) == 1
     assert "Moves 1" in scr.frames[-1] and "options unchanged" in scr.frames[-1]
-    assert store.get_stat("klondike")["total"] == 1       # from the q
+    assert store.get_stat("klondike")["total"] == 1  # from the q
 
 
 def test_new_options_mid_game_ask_before_dealing_again(tui):
-    scr = tui(["d", "o", curses.KEY_RIGHT, ENTER, "n",
-               "o", curses.KEY_RIGHT, ENTER, "y"])
+    scr = tui(["d", "o", curses.KEY_RIGHT, ENTER, "n", "o", curses.KEY_RIGHT, ENTER, "y"])
     asked = [i for i, frame in enumerate(scr.frames) if "count as lost" in frame]
     assert len(asked) == 2
     # n: the same game, and nothing saved or counted
@@ -697,7 +722,7 @@ def test_enter_twice_on_new_options_keeps_the_game(tui):
     scr = tui(["d", "o", curses.KEY_RIGHT, ENTER, ENTER])
     assert "count as lost" in scr.frames[4] and "Enter  no" in scr.frames[4]
     assert len(scr.uis) == 1 and "Moves 1" in scr.frames[5]
-    assert store.get_stat("klondike")["total"] == 1       # from the q
+    assert store.get_stat("klondike")["total"] == 1  # from the q
 
 
 def test_new_options_before_a_move_just_deal_again(tui):
@@ -723,21 +748,21 @@ def test_o_leaves_a_game_without_options_as_it_was(tui, game_clock, key):
     else:
         src, dst, n = best
         assert moved.attempt_move(src, dst, n)
-        move = [Click(src, len(g.cards(src)) - n),
-                Click(dst, max(0, len(g.cards(dst)) - 1))]
+        move = [Click(src, len(g.cards(src)) - n), Click(dst, max(0, len(g.cards(dst)) - 1))]
     m = len(move)
     scr = tui(move + [Later(10, "o"), Later(5, "s"), "z"], start_key=key, game=g)
     name = g.gamedef.name
     assert f"{name} has no options" in scr.frames[m + 1]
     assert re.search(rf"{name} +0 +0 ", scr.frames[m + 2])
     assert "Moves 1" in scr.frames[m + 3]
-    assert times(scr)[m:m + 3] == ["0:00", "0:10", "0:15"]
+    assert times(scr)[m : m + 3] == ["0:00", "0:10", "0:15"]
     assert len(scr.uis) == 1 and scr.uis[0].game is g
     assert g.serialize() == moved.serialize()
-    assert store.get_stat(key)["total"] == 1       # from the q
+    assert store.get_stat(key)["total"] == 1  # from the q
 
 
 # -- the menu ------------------------------------------------------------------------
+
 
 def test_q_on_the_menu_exits(tui):
     scr = tui(["q"], start_key=None)
@@ -756,9 +781,15 @@ def test_the_menu_the_board_and_the_help_are_titled_soliterm(tui):
 
 
 def test_the_release_of_the_click_on_the_menu_does_nothing_on_the_board(tui):
-    klondike = 4        # the first game on the menu
-    scr = tui([Mouse(klondike, 8, curses.BUTTON1_PRESSED),
-               Mouse(klondike, 8, curses.BUTTON1_RELEASED), "q"], start_key=None)
+    klondike = 4  # the first game on the menu
+    scr = tui(
+        [
+            Mouse(klondike, 8, curses.BUTTON1_PRESSED),
+            Mouse(klondike, 8, curses.BUTTON1_RELEASED),
+            "q",
+        ],
+        start_key=None,
+    )
     assert scr.uis[0].hit_test(klondike, 8) is not None
     assert "Moves 0" in scr.frames[2]
     assert scr.uis[0].selections[-1] is None
@@ -767,8 +798,10 @@ def test_the_release_of_the_click_on_the_menu_does_nothing_on_the_board(tui):
 
 def test_the_release_of_the_click_on_the_banner_does_nothing_on_the_new_deal(tui):
     new = BANNER_ROW["new"]
-    scr = tui(["a", Mouse(new, 12, curses.BUTTON1_PRESSED),
-               Mouse(new, 12, curses.BUTTON1_RELEASED)], game=near_won())
+    scr = tui(
+        ["a", Mouse(new, 12, curses.BUTTON1_PRESSED), Mouse(new, 12, curses.BUTTON1_RELEASED)],
+        game=near_won(),
+    )
     ui = scr.uis[0]
     assert ui.hit_test(new, 12) is not None
     assert "new deal" in scr.frames[3]
@@ -784,15 +817,20 @@ def test_the_menu_starts_the_chosen_game_and_remembers_it(tui):
 
 # -- colour --------------------------------------------------------------------------------
 
-@pytest.mark.parametrize("saved, flag, no_color, shown", [
-    (True, False, False, False),     # --no-color beats the saved choice
-    (True, None, True, False),       # and so does NO_COLOR
-    (False, True, True, True),       # --color beats both
-    (False, None, False, False),     # with neither, the saved choice holds
-    (None, None, False, True),       # and with nothing saved, the terminal's
-])
+
+@pytest.mark.parametrize(
+    "saved, flag, no_color, shown",
+    [
+        (True, False, False, False),  # --no-color beats the saved choice
+        (True, None, True, False),  # and so does NO_COLOR
+        (False, True, True, True),  # --color beats both
+        (False, None, False, False),  # with neither, the saved choice holds
+        (None, None, False, True),  # and with nothing saved, the terminal's
+    ],
+)
 def test_colour_goes_by_the_flag_then_no_color_then_the_saved_choice(
-        tui, monkeypatch, saved, flag, no_color, shown):
+    tui, monkeypatch, saved, flag, no_color, shown
+):
     if saved is not None:
         cfg = store.load_config()
         cfg["color"] = saved
@@ -801,7 +839,7 @@ def test_colour_goes_by_the_flag_then_no_color_then_the_saved_choice(
         monkeypatch.setenv("NO_COLOR", "1")
     scr = tui([], color=flag)
     assert scr.uis[0].initial_has_color is shown
-    assert store.load_config().get("color") == saved     # only v saves it
+    assert store.load_config().get("color") == saved  # only v saves it
 
 
 def test_the_tui_hears_whether_a_colour_flag_was_given(monkeypatch):
@@ -878,15 +916,18 @@ def test_v_after_no_color_turns_colour_on(tui):
     assert store.load_config()["color"] is True
 
 
-@pytest.mark.parametrize("key, title", [("?", "Soliterm - controls"),
-                                        ("s", "Statistics")])
+@pytest.mark.parametrize("key, title", [("?", "Soliterm - controls"), ("s", "Statistics")])
 def test_help_and_stats_stay_up_until_a_key_is_pressed(tui, key, title):
-    scr = tui([key,
-               Mouse(9, 9, curses.REPORT_MOUSE_POSITION),
-               Mouse(9, 9, curses.BUTTON1_RELEASED),
-               Mouse(9, 9, curses.BUTTON4_PRESSED),
-               Resize(30, 100),
-               "z"])
+    scr = tui(
+        [
+            key,
+            Mouse(9, 9, curses.REPORT_MOUSE_POSITION),
+            Mouse(9, 9, curses.BUTTON1_RELEASED),
+            Mouse(9, 9, curses.BUTTON4_PRESSED),
+            Resize(30, 100),
+            "z",
+        ]
+    )
     assert all(title in frame for frame in scr.frames[1:6])
     assert "Score" in scr.frames[6]
     # drawn again after the resize
@@ -900,6 +941,7 @@ def test_the_help_screen_lists_the_toggles(tui):
 
 
 # -- boss mode, code skin and view --------------------------------------------------------
+
 
 @pytest.mark.parametrize("key", ["b", curses.KEY_F2])
 def test_the_boss_key_hides_the_board_until_a_key_is_pressed(tui, key):
@@ -925,21 +967,26 @@ EVERY_SCREEN = [
 
 @pytest.mark.parametrize("screen, start_key, game, keys", EVERY_SCREEN)
 def test_the_boss_key_works_on_every_screen_and_comes_back_to_it(
-        tui, screen, start_key, game, keys):
+    tui, screen, start_key, game, keys
+):
     scr = tui(keys + ["b", "z"], start_key=start_key, game=game and game())
-    shown, hidden, back = scr.frames[len(keys):len(keys) + 3]
+    shown, hidden, back = scr.frames[len(keys) : len(keys) + 3]
     assert screen in shown
     assert hidden.strip() and screen not in hidden and "Score" not in hidden
     assert screen in back
 
 
 def test_only_a_key_ends_boss_mode_not_the_mouse_or_a_resize(tui):
-    scr = tui(["b",
-               Mouse(9, 40, curses.REPORT_MOUSE_POSITION),
-               Mouse(9, 40, curses.BUTTON4_PRESSED),
-               Mouse(9, 40, curses.BUTTON1_PRESSED),     # clicking to focus the window
-               Resize(30, 100),
-               "z"])
+    scr = tui(
+        [
+            "b",
+            Mouse(9, 40, curses.REPORT_MOUSE_POSITION),
+            Mouse(9, 40, curses.BUTTON4_PRESSED),
+            Mouse(9, 40, curses.BUTTON1_PRESSED),  # clicking to focus the window
+            Resize(30, 100),
+            "z",
+        ]
+    )
     assert "Score" in scr.frames[0]
     hidden = scr.frames[1:6]
     assert all(frame.strip() and "Score" not in frame for frame in hidden)
@@ -958,7 +1005,7 @@ def test_c_toggles_the_code_skin_and_saves_it(tui):
     scr = tui(["c"])
     assert "solver.py" in scr.frames[1]
     assert store.load_config()["code_skin"] is True
-    tui(["c"])      # the saved skin comes back on, and c turns it off
+    tui(["c"])  # the saved skin comes back on, and c turns it off
     assert store.load_config()["code_skin"] is False
 
 
@@ -969,8 +1016,7 @@ def code_skin_on():
 
 
 @pytest.mark.parametrize("screen, start_key, game, keys", EVERY_SCREEN)
-def test_the_code_skin_keeps_every_screen_inside_the_code_file(
-        tui, screen, start_key, game, keys):
+def test_the_code_skin_keeps_every_screen_inside_the_code_file(tui, screen, start_key, game, keys):
     code_skin_on()
     scr = tui(keys, start_key=start_key, game=game and game())
     rows = scr.frames[len(keys)].split("\n")
@@ -996,9 +1042,10 @@ def test_a_screen_too_tall_for_the_terminal_says_so(tui, screen, start_key, game
     scr = tui(keys + [Resize(40, 120)], start_key=start_key, game=game and game())
     rows = scr.frames[len(keys)].rstrip().split("\n")
     need = len(rows)
-    scr = tui(keys + [Resize(need - 1, 120), Resize(need, 120)],
-              start_key=start_key, game=game and game())
-    small, roomy = scr.frames[len(keys) + 1:len(keys) + 3]
+    scr = tui(
+        keys + [Resize(need - 1, 120), Resize(need, 120)], start_key=start_key, game=game and game()
+    )
+    small, roomy = scr.frames[len(keys) + 1 : len(keys) + 3]
     assert "Terminal too small" in small and f"needs 40x{need}" in small
     assert screen not in small
     shown = roomy.rstrip().split("\n")
@@ -1032,8 +1079,13 @@ def test_x_toggles_the_view_and_the_next_game_uses_it(tui):
 
 SCREENSHOTS = os.path.join(os.path.dirname(__file__), "..", "tools", "screenshots.py")
 # the tmux key names the screenshot tool sends, as curses hands them over
-TMUX_KEYS = {"Enter": ENTER, "Left": curses.KEY_LEFT, "Right": curses.KEY_RIGHT,
-             "Up": curses.KEY_UP, "Down": curses.KEY_DOWN}
+TMUX_KEYS = {
+    "Enter": ENTER,
+    "Left": curses.KEY_LEFT,
+    "Right": curses.KEY_RIGHT,
+    "Up": curses.KEY_UP,
+    "Down": curses.KEY_DOWN,
+}
 
 
 @pytest.mark.skipif(not os.path.exists(SCREENSHOTS), reason="no tools/ in this tree")

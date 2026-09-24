@@ -154,9 +154,12 @@ class GameDef:
         base = g.base_val or ACE
         if card.rank == base:
             return True
-        return not any(c.rank != base and self.tableau_adjacent(card, c)
-                       for s in g.slots if s.kind != "foundation"
-                       for c in s.cards)
+        return not any(
+            c.rank != base and self.tableau_adjacent(card, c)
+            for s in g.slots
+            if s.kind != "foundation"
+            for c in s.cards
+        )
 
     def tableau_adjacent(self, upper: Card, lower: Card) -> bool:
         """True if `lower` validly builds directly on `upper` in the tableau.

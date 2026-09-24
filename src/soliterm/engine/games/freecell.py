@@ -28,7 +28,7 @@ class FreeCell(GameDef):
     def _max_supermove(self, g, dst):
         free = sum(1 for c in self.cells if g.empty(c))
         empty_cols = sum(1 for t in self.tableau if g.empty(t) and t != dst)
-        return (free + 1) * (2 ** empty_cols)
+        return (free + 1) * (2**empty_cols)
 
     def can_pickup(self, g, sid, n):
         # Cards on the foundations are out of play, as in AisleRiot.
@@ -36,7 +36,7 @@ class FreeCell(GameDef):
         if k == "freecell":
             return n == 1
         if k == "tableau":
-            run = g.cards(sid)[len(g.cards(sid)) - n:]
+            run = g.cards(sid)[len(g.cards(sid)) - n :]
             return all(self.alt_color_down(a, b) for a, b in zip(run, run[1:]))
         return False
 

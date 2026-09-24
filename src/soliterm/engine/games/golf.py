@@ -36,7 +36,7 @@ class Golf(GameDef):
             return False
         w = g.top(self.waste).rank
         if w == KING:
-            return False                 # nothing plays on a King (no wrap)
+            return False  # nothing plays on a King (no wrap)
         c = cards[0].rank
         return c == w + 1 or c == w - 1
 

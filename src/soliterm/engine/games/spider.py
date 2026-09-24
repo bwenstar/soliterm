@@ -13,7 +13,7 @@ class Spider(GameDef):
 
     @classmethod
     def default_options(cls):
-        return {"suits": 4}                   # as AisleRiot has it
+        return {"suits": 4}  # as AisleRiot has it
 
     @classmethod
     def option_spec(cls):
@@ -30,7 +30,7 @@ class Spider(GameDef):
         self.tableau = [g.add_slot("tableau", "down") for _ in range(10)]
         self.stock = g.add_slot("stock")
         for col in range(10):
-            n = 6 if col % 3 == 0 else 5         # columns 1, 4, 7 and 10 get six
+            n = 6 if col % 3 == 0 else 5  # columns 1, 4, 7 and 10 get six
             for row in range(n):
                 g.deal_from_deck(self.tableau[col], 1, face_up=(row == n - 1))
         while g.deck:
@@ -80,13 +80,14 @@ class Spider(GameDef):
         if g.empty(self.stock):
             return "the stock is empty - nothing left to deal"
         if self.is_dead_end(g):
-            return ("there aren't enough cards left to fill every column "
-                    "- undo until there are")
+            return "there aren't enough cards left to fill every column - undo until there are"
         # stock has cards, so the block must be an empty column
         n_empty = sum(1 for t in self.tableau if g.empty(t))
         cols = "column" if n_empty == 1 else "columns"
-        return (f"fill the {n_empty} empty {cols} before dealing "
-                "- Spider won't deal onto an empty column")
+        return (
+            f"fill the {n_empty} empty {cols} before dealing "
+            "- Spider won't deal onto an empty column"
+        )
 
     def fallback_move(self, g):
         """Fill an empty column so the stock can be dealt again.
@@ -105,7 +106,7 @@ class Spider(GameDef):
         base = g.progress()
         best = None
         best_rank = None
-        for (src, dst, n) in g.legal_moves():
+        for src, dst, n in g.legal_moves():
             if dst != empty[0] or n == len(g.cards(src)):
                 continue
             sim = g.clone()
@@ -129,8 +130,7 @@ class Spider(GameDef):
             return self.deal_blocked_reason(g)
         if g.empty(self.stock) or all(not g.empty(t) for t in self.tableau):
             return None
-        return ("nothing scores from here - move part of a run into the "
-                "empty column so you can deal")
+        return "nothing scores from here - move part of a run into the empty column so you can deal"
 
     def after_move(self, g, src, cards, dst):
         if g.kind(src) == "tableau":
@@ -150,8 +150,9 @@ class Spider(GameDef):
                 if len(pile) >= 13:
                     tail = pile[-13:]
                     s = tail[0].suit
-                    if all(c.face_up and c.suit == s and c.rank == 13 - i
-                           for i, c in enumerate(tail)):
+                    if all(
+                        c.face_up and c.suit == s and c.rank == 13 - i for i, c in enumerate(tail)
+                    ):
                         fid = next(f for f in self.foundations if g.empty(f))
                         g.slots[fid].cards = tail
                         del pile[-13:]
@@ -195,7 +196,6 @@ class Spider(GameDef):
             face_up += sum(1 for c in pile if c.face_up)
             for i in range(len(pile) - 1):
                 a, b = pile[i], pile[i + 1]
-                if (a.face_up and b.face_up and a.suit == b.suit
-                        and a.rank == b.rank + 1):
+                if a.face_up and b.face_up and a.suit == b.suit and a.rank == b.rank + 1:
                     adjacencies += 1
         return 1000 * completed + 10 * face_up + adjacencies

@@ -62,8 +62,8 @@ def test_eightoff_group_grows_with_the_free_cells(eightoff):
     for x in t[2:]:
         g.slots[x].cards = [up(9, "S")]
     g.slots[t[0]].cards = [up(5, "D")] + [up(r, "H") for r in range(13, 3, -1)]
-    assert g.default_pickup(t[0]) == 9          # eight free cells, plus one
+    assert g.default_pickup(t[0]) == 9  # eight free cells, plus one
     assert g.attempt_move(t[0], t[1], 10) is False
-    assert g.attempt_move(t[0], t[1], 9) is False     # a Queen can't lead
+    assert g.attempt_move(t[0], t[1], 9) is False  # a Queen can't lead
     g.slots[t[0]].cards = [up(5, "D")] + [up(r, "H") for r in range(13, 4, -1)]
     assert g.attempt_move(t[0], t[1], 9)

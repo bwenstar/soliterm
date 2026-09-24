@@ -15,15 +15,14 @@ from typing import NamedTuple
 class Binding(NamedTuple):
     """One entry on the help screen and the keys behind it."""
 
-    label: str                # the keys as the help screen names them
-    text: str                 # what they do; each "\n" starts another help line
-    actions: dict[int, str]   # key code -> action, run as App.do_<action>()
-    compact: bool = False     # listed several to a line at the foot of the help
-    mode: str = "play"        # the screen the keys work on: "play" or "boss"
+    label: str  # the keys as the help screen names them
+    text: str  # what they do; each "\n" starts another help line
+    actions: dict[int, str]  # key code -> action, run as App.do_<action>()
+    compact: bool = False  # listed several to a line at the foot of the help
+    mode: str = "play"  # the screen the keys work on: "play" or "boss"
 
 
-def bind(keys: Iterable[str | int], action: str, label: str, text: str,
-         **kw) -> Binding:
+def bind(keys: Iterable[str | int], action: str, label: str, text: str, **kw) -> Binding:
     """A Binding where every key in `keys` (characters or key codes) does
     the same action."""
     codes = [ord(k) if isinstance(k, str) else k for k in keys]
@@ -32,19 +31,37 @@ def bind(keys: Iterable[str | int], action: str, label: str, text: str,
 
 KEYMAP: tuple[Binding, ...] = (
     # h is taken by the hint, so the vi-style keys stop at k, j and l
-    Binding("Arrow keys, k j l",
-            "move between the slots (k up, j down, l right)",
-            {curses.KEY_UP: "up", ord("k"): "up",
-             curses.KEY_DOWN: "down", ord("j"): "down",
-             curses.KEY_LEFT: "left",
-             curses.KEY_RIGHT: "right", ord("l"): "right"}),
-    bind((curses.KEY_ENTER, 10, 13, " "), "select", "Enter / Space",
-         "pick up the cursor's run; press again to drop"),
-    Binding("+ / -", "lift one card more / fewer while holding a run",
-            {ord("+"): "lift_more", ord("-"): "lift_fewer"}),
-    bind((curses.KEY_MOUSE,), "mouse", "Mouse click",
-         "click a card to pick it up, then a target to drop;\n"
-         "click one mid-stack to lift it and all below it."),
+    Binding(
+        "Arrow keys, k j l",
+        "move between the slots (k up, j down, l right)",
+        {
+            curses.KEY_UP: "up",
+            ord("k"): "up",
+            curses.KEY_DOWN: "down",
+            ord("j"): "down",
+            curses.KEY_LEFT: "left",
+            curses.KEY_RIGHT: "right",
+            ord("l"): "right",
+        },
+    ),
+    bind(
+        (curses.KEY_ENTER, 10, 13, " "),
+        "select",
+        "Enter / Space",
+        "pick up the cursor's run; press again to drop",
+    ),
+    Binding(
+        "+ / -",
+        "lift one card more / fewer while holding a run",
+        {ord("+"): "lift_more", ord("-"): "lift_fewer"},
+    ),
+    bind(
+        (curses.KEY_MOUSE,),
+        "mouse",
+        "Mouse click",
+        "click a card to pick it up, then a target to drop;\n"
+        "click one mid-stack to lift it and all below it.",
+    ),
     # a gesture the mouse handler tells apart itself, so no keys of its own
     Binding("Mouse double-click", "send a card to a foundation; deal on stock", {}),
     bind((27,), "cancel", "Esc", "cancel the current selection / clear hint"),
@@ -52,10 +69,14 @@ KEYMAP: tuple[Binding, ...] = (
     bind("aA", "autoplay", "a", "autoplay safe cards to the foundations"),
     bind("fF", "foundation", "f", "send the selected/cursor card to a foundation"),
     bind("hH", "hint", "h", "show a hint (highlights a legal move)"),
-    bind(("b", "B", curses.KEY_F2), "boss", "b / F2",
-         "boss mode: hide any screen behind 'work'"),
-    bind("\t", "next_disguise", "Tab (boss mode)",
-         "cycle the disguise; any other key goes back", mode="boss"),
+    bind(("b", "B", curses.KEY_F2), "boss", "b / F2", "boss mode: hide any screen behind 'work'"),
+    bind(
+        "\t",
+        "next_disguise",
+        "Tab (boss mode)",
+        "cycle the disguise; any other key goes back",
+        mode="boss",
+    ),
     bind("cC", "code_skin", "c", "code skin: keep playing inside a code file"),
     bind("vV", "color", "v", "toggle colour on / off (monochrome)"),
     bind("xX", "view", "x", "toggle view: full cards <-> compact cells"),
@@ -85,8 +106,8 @@ def actions(mode: str = "play") -> dict[int, str]:
 PLAY_ACTIONS = actions("play")
 BOSS_ACTIONS = actions("boss")
 
-HELP_KEY_W = 20     # the help's key column, gap before the text included
-HELP_PACK_W = 60    # how wide a line of compact entries may get
+HELP_KEY_W = 20  # the help's key column, gap before the text included
+HELP_PACK_W = 60  # how wide a line of compact entries may get
 
 
 def help_lines() -> list[str]:

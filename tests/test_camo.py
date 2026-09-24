@@ -48,7 +48,7 @@ def test_the_text_mode_boss_command_prints_work_instead_of_the_board(cmd, capsys
     assert out[-1] == "bye"
     # everything after the first board's status line is the disguise
     status = max(i for i, line in enumerate(out) if line.startswith("score="))
-    boss = out[status + 1:-1]
+    boss = out[status + 1 : -1]
     assert len(boss) >= 40
     for tell in TELLS:
         assert not any(tell in line for line in boss)
@@ -59,7 +59,7 @@ def boss_lines(out):
     lines = out.splitlines()
     assert lines[-1] == "bye"
     status = max(i for i, line in enumerate(lines) if line.startswith("score="))
-    return lines[status + 1:-1]
+    return lines[status + 1 : -1]
 
 
 LOG_LINE = re.compile(r"^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d (INFO|DEBUG|WARN)")
@@ -77,8 +77,7 @@ def test_the_text_mode_boss_uses_the_chosen_theme(monkeypatch, capsys):
 
 def test_an_unknown_theme_in_text_mode_gets_the_default(capsys):
     g = deal("golf", 7)
-    textmode.run_text(g, False, "golf", stream=io.StringIO("b\nq\n"),
-                      camo_theme="nonsense-theme")
+    textmode.run_text(g, False, "golf", stream=io.StringIO("b\nq\n"), camo_theme="nonsense-theme")
     boss = boss_lines(capsys.readouterr().out)
     assert boss[0].startswith("$ make -j")
 
@@ -91,13 +90,14 @@ class Terminal(io.StringIO):
 def test_on_a_terminal_the_boss_clears_the_board_and_fills_the_screen(monkeypatch):
     out = Terminal()
     monkeypatch.setattr(sys, "stdout", out)
-    monkeypatch.setattr(textmode.shutil, "get_terminal_size",
-                        lambda fallback=(80, 24): os.terminal_size((100, 57)))
+    monkeypatch.setattr(
+        textmode.shutil, "get_terminal_size", lambda fallback=(80, 24): os.terminal_size((100, 57))
+    )
     g = deal("golf", 7)
     textmode.run_text(g, False, "golf", stream=io.StringIO("b\nq\n"))
     board, clear, boss = out.getvalue().partition("\x1b[H\x1b[2J\x1b[3J")
     assert clear and "score=" in board
-    assert len(boss.splitlines()) == 57 + 1           # a screenful, then "bye"
+    assert len(boss.splitlines()) == 57 + 1  # a screenful, then "bye"
     for tell in TELLS:
         assert tell not in boss
 
@@ -108,10 +108,14 @@ def build_dirs(n=80):
     return re.findall(r"directory '([^']*)'", text)
 
 
-@pytest.mark.parametrize("plat,home", [
-    ("linux", "/home/tester/"), ("darwin", "/Users/tester/"),
-    ("win32", "C:/Users/tester/"),
-])
+@pytest.mark.parametrize(
+    "plat,home",
+    [
+        ("linux", "/home/tester/"),
+        ("darwin", "/Users/tester/"),
+        ("win32", "C:/Users/tester/"),
+    ],
+)
 def test_the_build_output_has_this_platforms_home(plat, home, monkeypatch):
     monkeypatch.setattr(sys, "platform", plat)
     dirs = build_dirs()
@@ -127,7 +131,7 @@ def test_without_user_set_the_paths_name_nobody(monkeypatch):
 
 def test_the_test_run_banner_is_for_this_python(monkeypatch):
     monkeypatch.setattr(sys, "platform", "darwin")
-    banner = [line for line in camo.screenful("test", 5, seed=1)
-              if line.startswith("platform ")]
+    banner = [line for line in camo.screenful("test", 5, seed=1) if line.startswith("platform ")]
     assert banner and banner[0].startswith(
-        f"platform darwin -- Python {platform.python_version()}, ")
+        f"platform darwin -- Python {platform.python_version()}, "
+    )

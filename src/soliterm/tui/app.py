@@ -47,15 +47,19 @@ SMALL_SCREEN_ACTIONS = ("quit", "redraw", "boss", "mouse", "code_skin", "view")
 # The mouse events the game asks for: the left button only. Asking for
 # REPORT_MOUSE_POSITION as well would have the terminal report every move of
 # the pointer, button or not.
-MOUSE_MASK = (curses.BUTTON1_PRESSED | curses.BUTTON1_RELEASED |
-              curses.BUTTON1_CLICKED | curses.BUTTON1_DOUBLE_CLICKED)
+MOUSE_MASK = (
+    curses.BUTTON1_PRESSED
+    | curses.BUTTON1_RELEASED
+    | curses.BUTTON1_CLICKED
+    | curses.BUTTON1_DOUBLE_CLICKED
+)
 # what counts as clicking a menu or banner choice
 LEFT_CLICK = curses.BUTTON1_PRESSED | curses.BUTTON1_CLICKED
 # A second click on the same slot this soon after the first is a
 # double-click. ncurses is left to report every press straight away, since
 # its own double-click wait would hold each single click back as long.
 DOUBLE_CLICK_S = 0.4
-clock = time.monotonic      # what the double-click timer and the game clock read
+clock = time.monotonic  # what the double-click timer and the game clock read
 
 
 class GameClock:
@@ -67,13 +71,13 @@ class GameClock:
     """
 
     def __init__(self) -> None:
-        self.holds = 0              # screens open on top of the board
+        self.holds = 0  # screens open on top of the board
         self.reset()
 
     def reset(self) -> None:
         self.started = False
-        self.banked = 0.0           # seconds run before the last stop
-        self.since: float | None = None    # clock() when it last set off
+        self.banked = 0.0  # seconds run before the last stop
+        self.since: float | None = None  # clock() when it last set off
 
     def start(self) -> None:
         if not self.started:
@@ -122,10 +126,12 @@ def skip_mouse_event() -> None:
 
 def hides_the_board(screen):
     """Stop the game clock while the screen a method shows is up."""
+
     @functools.wraps(screen)
     def show(self, *args, **kwargs):
         with self.clock.paused():
             return screen(self, *args, **kwargs)
+
     return show
 
 
@@ -137,13 +143,18 @@ class App:
     game: Solitaire
     ui: BoardUI
 
-    def __init__(self, stdscr, start_key: str | None = None,
-                 seed: int | None = None, color: bool | None = None,
-                 symbols: bool | None = None):
+    def __init__(
+        self,
+        stdscr,
+        start_key: str | None = None,
+        seed: int | None = None,
+        color: bool | None = None,
+        symbols: bool | None = None,
+    ):
         self.stdscr = stdscr
         self.start_key = start_key
         self.seed = seed
-        self.color = color            # --color / --no-color, None for neither
+        self.color = color  # --color / --no-color, None for neither
         self.cfg = store.load_config()
         # suit symbols and box-drawing cards, or plain letters (--ascii);
         # None means the saved setting. A terminal that can't show them
@@ -171,12 +182,12 @@ class App:
         self.clock = GameClock()
         self.selected: int | None = None
         self.selected_n = 1
-        self.selected_exact = False   # True when the player split by clicking a card
-        self.pressed: int | None = None   # the slot the left button went down on
-        self.last_click: tuple[int, float] | None = None   # (slot, clock())
+        self.selected_exact = False  # True when the player split by clicking a card
+        self.pressed: int | None = None  # the slot the left button went down on
+        self.last_click: tuple[int, float] | None = None  # (slot, clock())
         self.cursor = 0
         self.hint: tuple[int, int, str] | None = None
-        self.hint_n = 1               # how many cards the hint would move
+        self.hint_n = 1  # how many cards the hint would move
         self.message = ""
         self.recorded = False
         # the player took back the move that left no moves: the banner
@@ -228,15 +239,15 @@ class App:
             # suit colour as the text - red for hearts/diamonds, true black for
             # spades/clubs - so black suits read as black, not white, on any
             # terminal background.
-            curses.init_pair(1, curses.COLOR_RED, curses.COLOR_WHITE)     # red card face
-            curses.init_pair(2, curses.COLOR_BLACK, curses.COLOR_WHITE)   # black card face
-            curses.init_pair(3, curses.COLOR_BLACK, curses.COLOR_GREEN)   # selection
-            curses.init_pair(4, chrome, bg)                               # chrome
+            curses.init_pair(1, curses.COLOR_RED, curses.COLOR_WHITE)  # red card face
+            curses.init_pair(2, curses.COLOR_BLACK, curses.COLOR_WHITE)  # black card face
+            curses.init_pair(3, curses.COLOR_BLACK, curses.COLOR_GREEN)  # selection
+            curses.init_pair(4, chrome, bg)  # chrome
             curses.init_pair(5, curses.COLOR_BLACK, curses.COLOR_YELLOW)  # cursor
-            curses.init_pair(6, note, bg)                                 # message
-            curses.init_pair(7, curses.COLOR_WHITE, curses.COLOR_BLUE)    # card back
-            curses.init_pair(8, curses.COLOR_WHITE, curses.COLOR_GREEN)   # red card, selected
-            curses.init_pair(9, curses.COLOR_BLACK, curses.COLOR_CYAN)    # hinted card
+            curses.init_pair(6, note, bg)  # message
+            curses.init_pair(7, curses.COLOR_WHITE, curses.COLOR_BLUE)  # card back
+            curses.init_pair(8, curses.COLOR_WHITE, curses.COLOR_GREEN)  # red card, selected
+            curses.init_pair(9, curses.COLOR_BLACK, curses.COLOR_CYAN)  # hinted card
 
     def CP(self, n):
         return curses.color_pair(n) if self.has_color else 0
@@ -281,8 +292,9 @@ class App:
                 top, bottom = min(rows), max(rows)
                 # a comment mark at the gutter down the rows the screen uses,
                 # and its text after it, so the whole block reads as a comment
-                draw_code_backdrop(self, dict.fromkeys(range(top, bottom + 1), "#"),
-                                   last_row=max(h - 2, bottom))
+                draw_code_backdrop(
+                    self, dict.fromkeys(range(top, bottom + 1), "#"), last_row=max(h - 2, bottom)
+                )
             for y, x, text, attr in page:
                 self.safe_add(y, x + self.page_dx, text, attr)
         self.stdscr.refresh()
@@ -292,8 +304,11 @@ class App:
         reads it. While the screen doesn't fit, only q, the boss key and a
         resize act, as the player can't see what any other key would do."""
         k = self.read_key()
-        if (self.page_fits or k in (-1, ord("q"), ord("Q"), curses.KEY_RESIZE)
-                or PLAY_ACTIONS.get(k) == "boss"):
+        if (
+            self.page_fits
+            or k in (-1, ord("q"), ord("Q"), curses.KEY_RESIZE)
+            or PLAY_ACTIONS.get(k) == "boss"
+        ):
             return k
         if k == curses.KEY_MOUSE:
             skip_mouse_event()
@@ -349,8 +364,11 @@ class App:
     # ---- menu ---- #
     def chooser(self) -> str | None:
         cfg, CP, safe_add = self.cfg, self.CP, self.safe_add
-        sel = GAME_ORDER.index(cfg.get("last_game", "klondike")) \
-            if cfg.get("last_game") in GAME_ORDER else 0
+        sel = (
+            GAME_ORDER.index(cfg.get("last_game", "klondike"))
+            if cfg.get("last_game") in GAME_ORDER
+            else 0
+        )
         extra = ["__stats__", "__quit__"]
         items = GAME_ORDER + extra
         while True:
@@ -369,8 +387,12 @@ class App:
                 marker = "> " if i == sel else "  "
                 attr = (CP(5) | curses.A_BOLD) if i == sel else 0
                 safe_add(base + j, 6, f"{marker}{label}", attr)
-            safe_add(base + len(extra) + 1, 6,
-                     "Up/Down move - Enter select - mouse click - q quit", CP(4))
+            safe_add(
+                base + len(extra) + 1,
+                6,
+                "Up/Down move - Enter select - mouse click - q quit",
+                CP(4),
+            )
             self.end_page()
             k = self.page_key()
             if self.boss_key(k):
@@ -411,8 +433,7 @@ class App:
         safe_add(1, 4, "Statistics", CP(4) | curses.A_BOLD)
         safe_add(2, 4, "Wins / Total / Percentage / Best & Worst winning time", CP(4))
         if store.syncing():
-            safe_add(3, 4, "(shared with GNOME AisleRiot - sol)",
-                     CP(6) if self.has_color else 0)
+            safe_add(3, 4, "(shared with GNOME AisleRiot - sol)", CP(6) if self.has_color else 0)
         y = 4
         header = f"  {'Game':<16}{'Wins':>6}{'Total':>7}{'Win%':>7}{'Best':>8}{'Worst':>8}"
         safe_add(y, 4, header, CP(6) | curses.A_BOLD)
@@ -424,9 +445,12 @@ class App:
             best = "N/A" if s["best"] == 0 else store.fmt_time(s["best"])
             worst = "N/A" if s["worst"] == 0 else store.fmt_time(s["worst"])
             attr = (CP(5) | curses.A_BOLD) if key == focus_key else 0
-            safe_add(y, 4,
-                     f"  {GAMES[key].name:<16}{s['wins']:>6}{s['total']:>7}"
-                     f"{pcts:>7}{best:>8}{worst:>8}", attr)
+            safe_add(
+                y,
+                4,
+                f"  {GAMES[key].name:<16}{s['wins']:>6}{s['total']:>7}{pcts:>7}{best:>8}{worst:>8}",
+                attr,
+            )
             y += 1
         safe_add(y + 1, 4, "Press any key to continue.", CP(4))
         self.end_page()
@@ -452,8 +476,7 @@ class App:
                 marker = "> " if i == sel else "  "
                 attr = (CP(5) | curses.A_BOLD) if i == sel else 0
                 safe_add(3 + i, 6, f"{marker}{label:<18} {vals}", attr)
-            safe_add(3 + len(spec) + 1, 6,
-                     "Left/Right change - Enter/q accept - Esc cancel", CP(4))
+            safe_add(3 + len(spec) + 1, 6, "Left/Right change - Enter/q accept - Esc cancel", CP(4))
             self.end_page()
             k = self.page_key()
             if self.boss_key(k):
@@ -495,8 +518,7 @@ class App:
                 skip_mouse_event()
             elif k in (ord("y"), ord("Y")):
                 return True
-            elif k in (ord("n"), ord("N"), ord("q"), ord("Q"), 27,
-                       curses.KEY_ENTER, 10, 13):
+            elif k in (ord("n"), ord("N"), ord("q"), ord("Q"), 27, curses.KEY_ENTER, 10, 13):
                 return False
 
     # ---- help overlay ---- #
@@ -549,7 +571,7 @@ class App:
                 if len(buf) > h:
                     buf = buf[-h:]
                 stdscr.erase()
-                for i, ln in enumerate(buf[-(h - 1):]):
+                for i, ln in enumerate(buf[-(h - 1) :]):
                     # plain default colour - looks like an ordinary terminal
                     try:
                         stdscr.addnstr(i, 0, ln, w - 1)
@@ -569,7 +591,7 @@ class App:
                             pass
                         continue
                     if k == curses.KEY_RESIZE:
-                        break         # draw the disguise again at the new size
+                        break  # draw the disguise again at the new size
                     if k != -1:
                         if BOSS_ACTIONS.get(k) == "next_disguise":
                             # cycle theme without leaving camo
@@ -580,7 +602,7 @@ class App:
                             gen = camo.stream(theme)
                             buf = []
                             break
-                        return        # any other key exits camo mode
+                        return  # any other key exits camo mode
                     time.sleep(0.04)
                     slept += 0.04
         finally:
@@ -602,8 +624,12 @@ class App:
                         continue
                     return False
                 # stuck: no productive move and the player has actually started
-                if (self.clock.started and not self.recorded
-                        and not self.dead_end_undone and self.game.is_stuck()):
+                if (
+                    self.clock.started
+                    and not self.recorded
+                    and not self.dead_end_undone
+                    and self.game.is_stuck()
+                ):
                     if self.finish(False):
                         continue
                     return False
@@ -634,7 +660,7 @@ class App:
         try:
             k = self.stdscr.getch()
         finally:
-            self.stdscr.timeout(-1)       # the other screens wait for a key
+            self.stdscr.timeout(-1)  # the other screens wait for a key
         if k != 27:
             return k
         self.stdscr.nodelay(True)
@@ -677,8 +703,13 @@ class App:
         return game
 
     def new_board(self) -> BoardUI:
-        ui = BoardUI(self.stdscr, self.game, self.symbols,
-                     self.has_color, view=self.cfg.get("view", "expanded"))
+        ui = BoardUI(
+            self.stdscr,
+            self.game,
+            self.symbols,
+            self.has_color,
+            view=self.cfg.get("view", "expanded"),
+        )
         ui.code_skin = bool(self.cfg.get("code_skin", False))
         return ui
 
@@ -691,8 +722,15 @@ class App:
         return int(self.clock.elapsed() + 0.5)
 
     def draw(self) -> None:
-        self.ui.draw(self.selected, self.selected_n, self.cursor, self.hint,
-                     self.seconds(), self.message, self.hint_n)
+        self.ui.draw(
+            self.selected,
+            self.selected_n,
+            self.cursor,
+            self.hint,
+            self.seconds(),
+            self.message,
+            self.hint_n,
+        )
 
     def move_cursor(self, dr: int, dc: int):
         ui = self.ui
@@ -704,7 +742,7 @@ class App:
                 continue
             oy, ox = ui.slot_origin.get(s.sid, (0, 0))
             dy, dx = oy - cy, ox - cx
-            if dr < 0 and dy >= 0:   # want up
+            if dr < 0 and dy >= 0:  # want up
                 continue
             if dr > 0 and dy <= 0:
                 continue
@@ -729,13 +767,12 @@ class App:
         game = self.game
         pile = game.cards(sid)
         if card_idx is not None and 0 <= card_idx < len(pile):
-            want = len(pile) - card_idx          # from clicked card down
+            want = len(pile) - card_idx  # from clicked card down
             if game.can_pickup(sid, want):
                 self.selected = sid
                 self.selected_n = want
                 self.selected_exact = True
-                self.message = (f"picked up {want} card(s) from {pile[card_idx]}"
-                                if want > 1 else "")
+                self.message = f"picked up {want} card(s) from {pile[card_idx]}" if want > 1 else ""
                 return
             # that exact split isn't movable as a unit; fall through to auto
             self.message = "those cards can't be lifted together"
@@ -832,7 +869,7 @@ class App:
             self.reset_for(self.game.new_game)
             self.message = "new deal"
             return True
-        return False        # menu
+        return False  # menu
 
     # ---- play-screen keys ---- #
     def handle_key(self, k: int) -> str | None:
@@ -848,7 +885,7 @@ class App:
         moves = self.game.moves
         outcome = getattr(self, "do_" + action)()
         if self.game.moves > 0:
-            self.clock.start()        # the game is under way
+            self.clock.start()  # the game is under way
         if self.game.moves > moves:
             self.dead_end_undone = False
         return outcome
@@ -881,7 +918,7 @@ class App:
         ui.code_skin = not ui.code_skin
         self.cfg["code_skin"] = ui.code_skin
         store.save_config(self.cfg)
-        self.message = ("code skin on" if ui.code_skin else "code skin off")
+        self.message = "code skin on" if ui.code_skin else "code skin off"
 
     def do_color(self):
         # toggle colour on/off live (persisted as the new default)
@@ -892,8 +929,7 @@ class App:
             self.ui.has_color = self.has_color
             self.cfg["color"] = self.has_color
             store.save_config(self.cfg)
-            self.message = ("colour on" if self.has_color else "colour off "
-                            "(monochrome)")
+            self.message = "colour on" if self.has_color else "colour off (monochrome)"
 
     def do_view(self):
         # toggle the board view: expanded card boxes <-> legacy cells
@@ -901,9 +937,9 @@ class App:
         self.ui.set_view(new_view)
         self.cfg["view"] = new_view
         store.save_config(self.cfg)
-        self.message = (f"{new_view} view"
-                        + (" (compact)" if new_view == "legacy"
-                           else " (full cards)"))
+        self.message = f"{new_view} view" + (
+            " (compact)" if new_view == "legacy" else " (full cards)"
+        )
 
     def do_cancel(self):
         self.selected = None
@@ -977,14 +1013,14 @@ class App:
         while 0 < n <= len(pile):
             if self.game.can_pickup(self.selected, n):
                 self.selected_n = n
-                self.selected_exact = True    # the player chose the size
+                self.selected_exact = True  # the player chose the size
                 # named, as it may be in a row of cards sharing it
-                self.message = (f"holding {n} cards from {pile[-n]}" if n > 1
-                                else f"holding {pile[-1]}")
+                self.message = (
+                    f"holding {n} cards from {pile[-n]}" if n > 1 else f"holding {pile[-1]}"
+                )
                 return
             n += step
-        self.message = ("can't lift any more cards" if step > 0
-                        else "can't lift any fewer cards")
+        self.message = "can't lift any more cards" if step > 0 else "can't lift any fewer cards"
 
     def do_deal(self):
         self.hint = None
@@ -1035,8 +1071,8 @@ class App:
             self.message = "options unchanged"
             return
         if self.clock.started and not self.confirm(
-                "Deal again with the new options?",
-                "The game in play will count as lost."):
+            "Deal again with the new options?", "The game in play will count as lost."
+        ):
             self.message = "options unchanged"
             return
         store.set_game_options(self.cfg, self.key, newopts)
@@ -1044,7 +1080,7 @@ class App:
         self.maybe_record_loss()
         self.game = self.new_game(newopts)
         self.ui = self.new_board()
-        self.reset_for(lambda: None)   # game already dealt by new_solitaire
+        self.reset_for(lambda: None)  # game already dealt by new_solitaire
         self.message = "options applied"
 
     def do_stats(self):
@@ -1073,8 +1109,12 @@ class App:
             # same slot adds nothing; letting go over another slot drops the
             # cards the press picked up there, which makes a drag.
             pressed, self.pressed = self.pressed, None
-            if (pressed is None or target is None or target[0] == pressed
-                    or self.selected != pressed):
+            if (
+                pressed is None
+                or target is None
+                or target[0] == pressed
+                or self.selected != pressed
+            ):
                 return
             self.cursor = target[0]
             self.hint = None
@@ -1131,9 +1171,7 @@ class App:
             # menu, so count it already, as the statistics will then
             s = {**s, "total": s["total"] + 1}
         pct = store.percentage(s)
-        choices = [("same", "Replay this deal"),
-                   ("new", "New deal"),
-                   ("menu", "Back to menu")]
+        choices = [("same", "Replay this deal"), ("new", "New deal"), ("menu", "Back to menu")]
         keys = "s/n/m"
         can_undo = not won and game.can_undo()
         if can_undo:
@@ -1145,8 +1183,7 @@ class App:
             if won:
                 safe_add(2, 6, "*** YOU WIN! ***", CP(6) | curses.A_BOLD)
             else:
-                safe_add(2, 6, "No moves left - game over.",
-                         CP(6) | curses.A_BOLD)
+                safe_add(2, 6, "No moves left - game over.", CP(6) | curses.A_BOLD)
             safe_add(4, 6, f"Game        : {game.gamedef.name}")
             safe_add(5, 6, f"Time        : {store.fmt_time(seconds)}")
             safe_add(6, 6, f"Score       : {game.score}")
@@ -1159,8 +1196,9 @@ class App:
                 marker = "> " if i == sel else "  "
                 attr = (CP(5) | curses.A_BOLD) if i == sel else 0
                 safe_add(12 + i, 6, f"{marker}{label}", attr)
-            safe_add(12 + len(choices) + 1, 6,
-                     f"Up/Down + Enter, or {keys}. Click to choose.", CP(4))
+            safe_add(
+                12 + len(choices) + 1, 6, f"Up/Down + Enter, or {keys}. Click to choose.", CP(4)
+            )
             self.end_page()
             k = self.page_key()
             if self.boss_key(k):
@@ -1187,18 +1225,30 @@ class App:
                 # only a left click on a choice's text takes it, never the
                 # pointer passing over it, the wheel or a stray release
                 row, col = my - 12, mx - self.page_dx
-                if (bstate & LEFT_CLICK and 0 <= row < len(choices)
-                        and 6 <= col < 6 + len("> " + choices[row][1])):
+                if (
+                    bstate & LEFT_CLICK
+                    and 0 <= row < len(choices)
+                    and 6 <= col < 6 + len("> " + choices[row][1])
+                ):
                     return choices[row][0]
 
 
-def run(stdscr, start_key: str | None = None, seed: int | None = None,
-        color: bool | None = None, symbols: bool | None = None):
+def run(
+    stdscr,
+    start_key: str | None = None,
+    seed: int | None = None,
+    color: bool | None = None,
+    symbols: bool | None = None,
+):
     return App(stdscr, start_key, seed, color, symbols).run()
 
 
-def main(start_key: str | None = None, seed: int | None = None,
-         color: bool | None = None, symbols: bool | None = None) -> int:
+def main(
+    start_key: str | None = None,
+    seed: int | None = None,
+    color: bool | None = None,
+    symbols: bool | None = None,
+) -> int:
     # After an Esc, ncurses waits ESCDELAY ms (a whole second by default) to
     # see whether a key sequence follows, so the Esc key felt dead. It reads
     # the variable when curses starts; a value the player set is kept.
@@ -1207,5 +1257,6 @@ def main(start_key: str | None = None, seed: int | None = None,
         return curses.wrapper(run, start_key, seed, color, symbols)
     except curses.error as exc:
         import sys
+
         print(f"curses error: {exc}", file=sys.stderr)
         return 1

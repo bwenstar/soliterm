@@ -28,7 +28,7 @@ def _home() -> str:
     It is built from $USER alone, never looked up: with USER unset (as it
     usually is on Windows) the paths say ~ rather than name anyone.
     """
-    name = os.environ.get("USER", "").split("@", 1)[0]   # drop any domain
+    name = os.environ.get("USER", "").split("@", 1)[0]  # drop any domain
     if not name:
         return "~"
     if sys.platform == "darwin":
@@ -38,13 +38,44 @@ def _home() -> str:
     return f"/home/{name}"
 
 
-_PROJECTS = ["api-gateway", "payments-svc", "render-core", "data-pipeline",
-             "auth-service", "search-indexer", "billing-worker", "edge-proxy"]
+_PROJECTS = [
+    "api-gateway",
+    "payments-svc",
+    "render-core",
+    "data-pipeline",
+    "auth-service",
+    "search-indexer",
+    "billing-worker",
+    "edge-proxy",
+]
 
-_MODULES = ["http_server", "router", "session", "db_pool", "cache", "metrics",
-            "auth", "crypto", "json_parse", "worker", "scheduler", "queue",
-            "config", "logger", "tls", "buffer", "alloc", "hashmap", "vector",
-            "utf8", "ratelimit", "retry", "trace", "pool", "codec"]
+_MODULES = [
+    "http_server",
+    "router",
+    "session",
+    "db_pool",
+    "cache",
+    "metrics",
+    "auth",
+    "crypto",
+    "json_parse",
+    "worker",
+    "scheduler",
+    "queue",
+    "config",
+    "logger",
+    "tls",
+    "buffer",
+    "alloc",
+    "hashmap",
+    "vector",
+    "utf8",
+    "ratelimit",
+    "retry",
+    "trace",
+    "pool",
+    "codec",
+]
 
 
 def _build_scene(rng: random.Random) -> Iterator[str]:
@@ -61,34 +92,50 @@ def _build_scene(rng: random.Random) -> Iterator[str]:
         if rng.random() < 0.10:
             line = rng.randint(40, 320)
             col = rng.randint(3, 24)
-            warn, flag = rng.choice([
-                (f"unused variable '{rng.choice(['tmp', 'ret', 'ctx', 'len', 'idx'])}'",
-                 "-Wunused-variable"),
-                ("comparison of integer expressions of different signedness",
-                 "-Wsign-compare"),
-                (f"'{rng.choice(['n', 'p', 'buf'])}' may be used uninitialized",
-                 "-Wmaybe-uninitialized"),
-            ])
+            warn, flag = rng.choice(
+                [
+                    (
+                        f"unused variable '{rng.choice(['tmp', 'ret', 'ctx', 'len', 'idx'])}'",
+                        "-Wunused-variable",
+                    ),
+                    ("comparison of integer expressions of different signedness", "-Wsign-compare"),
+                    (
+                        f"'{rng.choice(['n', 'p', 'buf'])}' may be used uninitialized",
+                        "-Wmaybe-uninitialized",
+                    ),
+                ]
+            )
             yield f"src/{m}.c:{line}:{col}: warning: {warn} [{flag}]"
-    yield (f"gcc -O2 -o build/{proj} build/*.o "
-           "-lpthread -lm -lssl -lcrypto -ldl")
+    yield (f"gcc -O2 -o build/{proj} build/*.o -lpthread -lm -lssl -lcrypto -ldl")
     yield f"make[1]: Leaving directory '{_home()}/work/{proj}/src'"
     yield "$ "
 
 
 def _test_scene(rng: random.Random) -> Iterator[str]:
     yield "$ pytest -q"
-    yield ("============================= test session starts "
-           "=============================")
-    yield (f"platform {sys.platform} -- Python {platform.python_version()}, "
-           "pytest-8.1.1, pluggy-1.4.0")
+    yield ("============================= test session starts =============================")
+    yield (
+        f"platform {sys.platform} -- Python {platform.python_version()}, pytest-8.1.1, pluggy-1.4.0"
+    )
     total = rng.randint(90, 340)
     yield f"collected {total} items"
     yield ""
-    files = ["test_engine", "test_router", "test_auth", "test_cache",
-             "test_db", "test_serialize", "test_api", "test_model",
-             "test_utils", "test_worker", "test_queue", "test_config",
-             "test_session", "test_metrics"]
+    files = [
+        "test_engine",
+        "test_router",
+        "test_auth",
+        "test_cache",
+        "test_db",
+        "test_serialize",
+        "test_api",
+        "test_model",
+        "test_utils",
+        "test_worker",
+        "test_queue",
+        "test_config",
+        "test_session",
+        "test_metrics",
+    ]
     done = 0
     while done < total:
         f = rng.choice(files)
@@ -135,8 +182,9 @@ def _docker_scene(rng: random.Random) -> Iterator[str]:
 
 
 def _git_scene(rng: random.Random) -> Iterator[str]:
-    branch = rng.choice(["main", "develop", "feature/cache-layer",
-                         "fix/retry-backoff", "release/2.1"])
+    branch = rng.choice(
+        ["main", "develop", "feature/cache-layer", "fix/retry-backoff", "release/2.1"]
+    )
     yield "$ git status"
     yield f"On branch {branch}"
     yield "Your branch is up to date with 'origin/" + branch + "'."
@@ -149,9 +197,18 @@ def _git_scene(rng: random.Random) -> Iterator[str]:
 
 def _log_scene(rng: random.Random) -> Iterator[str]:
     threads = [f"http-nio-8080-exec-{i}" for i in range(1, 17)]
-    svcs = ["OrderService", "UserRepository", "PaymentClient", "CacheManager",
-            "KafkaConsumer", "AuthFilter", "SessionStore", "RateLimiter",
-            "MetricsReporter", "RetryPolicy"]
+    svcs = [
+        "OrderService",
+        "UserRepository",
+        "PaymentClient",
+        "CacheManager",
+        "KafkaConsumer",
+        "AuthFilter",
+        "SessionStore",
+        "RateLimiter",
+        "MetricsReporter",
+        "RetryPolicy",
+    ]
     templates = [
         "processed request {id} in {ms}ms",
         "cache hit ratio {pct}% over last {n} requests",
@@ -168,11 +225,13 @@ def _log_scene(rng: random.Random) -> Iterator[str]:
         ts = time.strftime("%Y-%m-%d %H:%M:%S")
         level = rng.choices(["INFO", "DEBUG", "WARN"], weights=[8, 3, 1])[0]
         msg = rng.choice(templates).format(
-            id=rng.randint(1000, 99999), ms=rng.randint(1, 480),
-            pct=rng.randint(70, 99), n=rng.randint(2, 64),
-            p=rng.randint(0, 12))
-        yield (f"{ts} {level:<5} [{rng.choice(threads)}] "
-               f"c.a.svc.{rng.choice(svcs)} - {msg}")
+            id=rng.randint(1000, 99999),
+            ms=rng.randint(1, 480),
+            pct=rng.randint(70, 99),
+            n=rng.randint(2, 64),
+            p=rng.randint(0, 12),
+        )
+        yield (f"{ts} {level:<5} [{rng.choice(threads)}] c.a.svc.{rng.choice(svcs)} - {msg}")
 
 
 _SCENES = {

@@ -31,11 +31,13 @@ def cli(monkeypatch, capsys):
 
     What went to stderr is left in run.err.
     """
+
     def run(*args, stdin="", tty=False):
         monkeypatch.setattr(sys, "stdin", (TtyInput if tty else io.StringIO)(stdin))
         rc = main(list(args))
         out, run.err = capsys.readouterr()
         return rc, out.splitlines()
+
     run.err = ""
     return run
 
@@ -45,10 +47,11 @@ def stats_row(lines, key):
     name = GAMES[key].name
     row = [line for line in lines if line.startswith(name + " ")]
     assert len(row) == 1, f"no single stats line for {name}"
-    return row[0][len(name):].split()
+    return row[0][len(name) :].split()
 
 
 # -- --version and --help ---------------------------------------------------------------
+
 
 def test_version_prints_the_command_and_package_version(capsys):
     with pytest.raises(SystemExit) as exc:
@@ -76,6 +79,7 @@ def test_a_negative_seed_is_an_argument_error(capsys, args):
 
 # -- --list ----------------------------------------------------------------------------
 
+
 def test_list_names_every_game_in_menu_order(cli):
     rc, lines = cli("--list")
     assert rc == 0
@@ -92,6 +96,7 @@ def test_list_writes_nothing(cli):
 
 
 # -- --stats ---------------------------------------------------------------------------
+
 
 def test_stats_on_a_fresh_home_are_all_empty(cli):
     rc, lines = cli("--stats")
@@ -118,8 +123,9 @@ def test_stats_read_through_to_aisleriot(cli, keyfile):
     assert stats_row(lines, "freecell") == ["3", "4", "75%", "1:15", "5:00"]
 
 
-@pytest.mark.skipif(os.name != "posix" or os.geteuid() == 0,
-                    reason="needs POSIX file modes, not root")
+@pytest.mark.skipif(
+    os.name != "posix" or os.geteuid() == 0, reason="needs POSIX file modes, not root"
+)
 def test_stats_with_an_unreadable_keyfile_say_so(keyfile, capsys):
     path = keyfile(f"[{ar.GAME_TO_SECTION['golf']}]\nStatistic=3;4;75;300;\n")
     os.chmod(path, 0)
@@ -132,6 +138,7 @@ def test_stats_with_an_unreadable_keyfile_say_so(keyfile, capsys):
 
 
 # -- --reset-stats ---------------------------------------------------------------------
+
 
 def test_reset_stats_clears_local_statistics(cli):
     store.record_result("golf", True, 50)
@@ -146,8 +153,10 @@ def test_reset_stats_clears_local_statistics(cli):
 
 
 def test_reset_stats_clears_the_shared_aisleriot_record(cli, keyfile):
-    path = keyfile("[Aisleriot Config]\nTheme=tigullio.svgz\n\n"
-                   f"[{ar.GAME_TO_SECTION['canfield']}]\nStatistic=2;9;100;400;\n")
+    path = keyfile(
+        "[Aisleriot Config]\nTheme=tigullio.svgz\n\n"
+        f"[{ar.GAME_TO_SECTION['canfield']}]\nStatistic=2;9;100;400;\n"
+    )
     rc, lines = cli("--reset-stats", "--yes")
     assert rc == 0
     assert any("cleared" in line.lower() for line in lines)
@@ -205,8 +214,10 @@ def test_reset_stats_on_a_terminal_clears_nothing_without_yes(cli, keyfile, answ
 
 
 def test_reset_stats_backs_up_both_files_first(cli, keyfile):
-    text = ("[Aisleriot Config]\nTheme=tigullio.svgz\n\n"
-            f"[{ar.GAME_TO_SECTION['canfield']}]\nStatistic=2;9;100;400;\n")
+    text = (
+        "[Aisleriot Config]\nTheme=tigullio.svgz\n\n"
+        f"[{ar.GAME_TO_SECTION['canfield']}]\nStatistic=2;9;100;400;\n"
+    )
     path = keyfile(text)
     store.record_result("golf", True, 50)
     shared, local = path.read_text(), Path(store.stats_path()).read_text()
@@ -246,6 +257,7 @@ def test_reset_stats_twice_keeps_the_first_backup(cli, keyfile):
 
 # -- --no-sync -------------------------------------------------------------------------
 
+
 def test_no_sync_shows_and_clears_only_the_local_stats(cli, keyfile):
     path = keyfile(f"[{ar.GAME_TO_SECTION['freecell']}]\nStatistic=3;4;75;300;\n")
     before = path.read_text()
@@ -260,6 +272,7 @@ def test_no_sync_shows_and_clears_only_the_local_stats(cli, keyfile):
 
 
 # -- text mode -------------------------------------------------------------------------
+
 
 def without_status(board):
     """A rendered board minus its last line (score, moves and status)."""
@@ -278,18 +291,25 @@ def test_a_scripted_text_session(cli):
     assert g.undo()
     boards.append(render_text(g, symbols=False))
 
-    rc, lines = cli("--text", "--ascii", "--no-color", "--seed", "1",
-                    stdin=f"hint\n{src} {dst} {n}\nu\nq\n")
+    rc, lines = cli(
+        "--text", "--ascii", "--no-color", "--seed", "1", stdin=f"hint\n{src} {dst} {n}\nu\nq\n"
+    )
     assert rc == 0
     out = "\n".join(lines)
     assert lines[0] == "Soliterm - Klondike (text mode). Type h for help."
     assert lines[-1] == "bye"
-    assert "\033[" not in out                         # --no-color
-    assert not any(s in out for s in ("♠", "♥", "♦", "♣"))   # --ascii
+    assert "\033[" not in out  # --no-color
+    assert not any(s in out for s in ("♠", "♥", "♦", "♣"))  # --ascii
 
     # the start board, the hint and the board again, the move, the undo
-    expect = [without_status(boards[0]), "Hint: ", without_status(boards[0]),
-              without_status(boards[1]), without_status(boards[2]), "bye"]
+    expect = [
+        without_status(boards[0]),
+        "Hint: ",
+        without_status(boards[0]),
+        without_status(boards[1]),
+        without_status(boards[2]),
+        "bye",
+    ]
     pos = 0
     for chunk in expect:
         found = out.find(chunk, pos)
@@ -297,8 +317,7 @@ def test_a_scripted_text_session(cli):
         pos = found + len(chunk)
 
     status = [line.split(" | ")[0] for line in lines if line.startswith("score=")]
-    assert status == ["score=0 moves=0", "score=0 moves=0",
-                      "score=0 moves=1", "score=0 moves=0"]
+    assert status == ["score=0 moves=0", "score=0 moves=0", "score=0 moves=1", "score=0 moves=0"]
     assert sum(line.startswith("Hint: ") for line in lines) == 1
 
 
@@ -310,8 +329,9 @@ def test_the_text_hint_names_cards_with_the_boards_suit_symbols(cli):
 
 def test_n_in_text_mode_deals_a_new_hand_under_seed(cli):
     first = without_status(render_text(deal("klondike", 5), symbols=False))
-    _rc, lines = cli("--text", "--ascii", "--no-color", "--game", "klondike",
-                    "--seed", "5", stdin="n\nq\n")
+    _rc, lines = cli(
+        "--text", "--ascii", "--no-color", "--game", "klondike", "--seed", "5", stdin="n\nq\n"
+    )
     out = "\n".join(lines)
     assert out.count(first) == 1
     assert "new deal" in lines
@@ -331,8 +351,9 @@ def test_a_saved_spider_suits_choice_beats_the_default(cli, suits):
     cfg = store.load_config()
     store.set_game_options(cfg, "spider", {"suits": suits})
     store.save_config(cfg)
-    _rc, lines = cli("--text", "--ascii", "--no-color", "--game", "spider",
-                    "--seed", "1", stdin="q\n")
+    _rc, lines = cli(
+        "--text", "--ascii", "--no-color", "--game", "spider", "--seed", "1", stdin="q\n"
+    )
     out = "\n".join(lines)
     board = deal("spider", 1, suits=suits)
     assert without_status(render_text(board, symbols=False)) in out
@@ -358,6 +379,7 @@ def terminal(monkeypatch):
 
     import soliterm.cli as cli_mod
     import soliterm.tui as tui_mod
+
     started = []
     looked_up = []
 
@@ -386,6 +408,7 @@ def terminal(monkeypatch):
 def failing_tui_import(monkeypatch, exc):
     """Make `from . import tui` in the command line raise `exc`."""
     import builtins
+
     real_import = builtins.__import__
 
     def fake(name, globals=None, locals=None, fromlist=(), level=0):
@@ -405,6 +428,7 @@ def test_a_terminal_gets_the_full_screen_game(terminal, capsys):
 def test_without_curses_text_mode_says_why(terminal, monkeypatch, capsys):
     # the front end is loaded afresh, and its own `import curses` fails
     import soliterm
+
     monkeypatch.delattr(soliterm, "tui")
     for name in [m for m in sys.modules if m.split(".")[:2] == ["soliterm", "tui"]]:
         monkeypatch.delitem(sys.modules, name)
@@ -469,8 +493,7 @@ def test_an_unknown_terminal_type_means_text_mode(terminal, monkeypatch, capsys)
     assert "TERM=xterm-kitty" in err and "text mode" in err
 
 
-def test_a_terminal_that_cannot_move_the_cursor_means_text_mode(terminal, monkeypatch,
-                                                                capsys):
+def test_a_terminal_that_cannot_move_the_cursor_means_text_mode(terminal, monkeypatch, capsys):
     monkeypatch.setenv("TERM", "glass")
     assert terminal("--game", "golf") == 0
     assert terminal.started == ["text"]
@@ -493,44 +516,67 @@ def test_the_windows_console_needs_no_terminal_type(terminal, monkeypatch, capsy
 def test_curses_itself_turns_down_an_unknown_terminal_type():
     # the real terminfo lookup, in a process of its own
     code = "from soliterm import cli; print(cli._terminal_problem())"
-    r = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
-                       env=dict(child_env(), TERM="no-such-terminal"), check=False,
-                       timeout=60)
+    r = subprocess.run(
+        [sys.executable, "-c", code],
+        capture_output=True,
+        text=True,
+        env=dict(child_env(), TERM="no-such-terminal"),
+        check=False,
+        timeout=60,
+    )
     assert r.returncode == 0, r.stderr
     assert "TERM=no-such-terminal" in r.stdout
 
 
 # -- entry points ----------------------------------------------------------------------
 
+
 def child_env():
     """The environment for a child process: this one (with the isolated
     HOME from conftest), pointed at the checkout's src/."""
     src = str(Path(__file__).resolve().parents[1] / "src")
-    return dict(os.environ, PYTHONPATH=os.pathsep.join(
-        p for p in (src, os.environ.get("PYTHONPATH")) if p))
+    return dict(
+        os.environ, PYTHONPATH=os.pathsep.join(p for p in (src, os.environ.get("PYTHONPATH")) if p)
+    )
 
 
 def test_python_m_soliterm_runs_the_command_line():
-    r = subprocess.run([sys.executable, "-m", "soliterm", "--list"],
-                       capture_output=True, text=True, env=child_env(), check=False,
-                       timeout=60)
+    r = subprocess.run(
+        [sys.executable, "-m", "soliterm", "--list"],
+        capture_output=True,
+        text=True,
+        env=child_env(),
+        check=False,
+        timeout=60,
+    )
     assert r.returncode == 0, r.stderr
     assert [line.split()[0] for line in r.stdout.splitlines()[1:]] == GAME_ORDER
 
 
-@pytest.mark.parametrize("args,stdin", [
-    (["--text", "--ascii", "--seed", "1"], "p\n" * 200),
-    (["--list"], ""),
-    (["--stats"], ""),
-], ids=["text", "list", "stats"])
+@pytest.mark.parametrize(
+    "args,stdin",
+    [
+        (["--text", "--ascii", "--seed", "1"], "p\n" * 200),
+        (["--list"], ""),
+        (["--stats"], ""),
+    ],
+    ids=["text", "list", "stats"],
+)
 def test_output_to_a_reader_that_went_away_ends_quietly(args, stdin):
     # like piping into head: the far end of stdout is already closed
     r, w = os.pipe()
     os.close(r)
     try:
-        p = subprocess.run([sys.executable, "-m", "soliterm", *args], input=stdin,
-                           stdout=w, stderr=subprocess.PIPE, text=True,
-                           env=child_env(), check=False, timeout=60)
+        p = subprocess.run(
+            [sys.executable, "-m", "soliterm", *args],
+            input=stdin,
+            stdout=w,
+            stderr=subprocess.PIPE,
+            text=True,
+            env=child_env(),
+            check=False,
+            timeout=60,
+        )
     finally:
         os.close(w)
     assert p.stderr == ""

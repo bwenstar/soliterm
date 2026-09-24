@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-SUITS = "SHDC"                       # Spades, Hearts, Diamonds, Clubs
+SUITS = "SHDC"  # Spades, Hearts, Diamonds, Clubs
 SUIT_SYMBOL = {"S": "♠", "H": "♥", "D": "♦", "C": "♣"}
 RANK_NAME = {1: "A", 11: "J", 12: "Q", 13: "K"}
 RED_SUITS = {"H", "D"}
@@ -13,8 +13,8 @@ ACE, JACK, QUEEN, KING = 1, 11, 12, 13
 
 @dataclass(frozen=True)
 class Card:
-    rank: int                # 1 (Ace) .. 13 (King)
-    suit: str                # one of SUITS
+    rank: int  # 1 (Ace) .. 13 (King)
+    suit: str  # one of SUITS
     face_up: bool = False
 
     @property

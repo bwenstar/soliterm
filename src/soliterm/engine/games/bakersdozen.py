@@ -34,20 +34,20 @@ class BakersDozen(GameDef):
         return n == 1 and g.kind(sid) in ("tableau", "foundation")
 
     def tableau_adjacent(self, upper, lower):
-        return lower.rank == upper.rank - 1     # build down by rank, any suit
+        return lower.rank == upper.rank - 1  # build down by rank, any suit
 
     def can_drop(self, g, src, cards, dst):
         k = g.kind(dst)
         c = cards[0]
         if k == "foundation":
             if g.kind(src) == "foundation":
-                return False               # sliding an Ace along gets you nothing
+                return False  # sliding an Ace along gets you nothing
             top = g.top(dst)
             return (c.rank == ACE) if top is None else self.same_suit_up(top, c)
         if k == "tableau":
             top = g.top(dst)
             if top is None:
-                return False               # empty columns cannot be refilled
+                return False  # empty columns cannot be refilled
             return top.rank == c.rank + 1  # build down by rank, any suit
         return False
 
@@ -83,8 +83,7 @@ class BakersDozen(GameDef):
             again = False
             for sid in self.tableau:
                 c = g.top(sid)
-                if (c and self.foundation_for(g, c) is not None
-                        and self.safe_to_autoplay(g, c)):
+                if c and self.foundation_for(g, c) is not None and self.safe_to_autoplay(g, c):
                     fid = self.foundation_for(g, c)
                     g.slots[fid].cards.append(g.slots[sid].cards.pop())
                     g.score += 1

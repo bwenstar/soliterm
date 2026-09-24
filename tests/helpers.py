@@ -6,9 +6,17 @@ from collections import Counter
 from soliterm import engine
 
 # Cards in a full deal of each game.
-EXPECTED_CARDS = {"klondike": 52, "spider": 104, "freecell": 52, "eightoff": 52,
-                  "golf": 52, "yukon": 52, "bakersdozen": 52, "fortythieves": 104,
-                  "canfield": 52}
+EXPECTED_CARDS = {
+    "klondike": 52,
+    "spider": 104,
+    "freecell": 52,
+    "eightoff": 52,
+    "golf": 52,
+    "yukon": 52,
+    "bakersdozen": 52,
+    "fortythieves": 104,
+    "canfield": 52,
+}
 
 
 def deal(key, seed=1, **options):
@@ -52,8 +60,7 @@ def random_op(g, rng):
     elif r < 0.61:
         g.click(rng.randrange(ns))
     else:
-        g.attempt_move(rng.randrange(ns), rng.randrange(ns),
-                       rng.choice([None, 1, 2, 3, 5, 13]))
+        g.attempt_move(rng.randrange(ns), rng.randrange(ns), rng.choice([None, 1, 2, 3, 5, 13]))
 
 
 def board_state(g):
@@ -91,7 +98,7 @@ class FakeScr:
     Keeps a character grid so a test can read the screen back as text.
     """
 
-    encoding = "utf-8"        # what curses took from the locale
+    encoding = "utf-8"  # what curses took from the locale
 
     def __init__(self, h=40, w=140):
         self.h, self.w = h, w
@@ -129,5 +136,3 @@ class FakeScr:
 
     def text(self):
         return "\n".join("".join(row).rstrip() for row in self.grid)
-
-

@@ -23,7 +23,7 @@ class KeyScr(FakeScr):
     def __init__(self, keys=(), h=40, w=120):
         super().__init__(h, w)
         self.keys = list(keys)
-        self.frames = []          # the screen each time a key was read
+        self.frames = []  # the screen each time a key was read
 
     def nodelay(self, flag):
         pass
@@ -111,7 +111,7 @@ def test_a_short_session_moves_undoes_hints_and_quits():
 
     assert press(app, "?") is None
     assert "Soliterm - controls" in app.stdscr.frames[-1]
-    assert app.stdscr.keys == []          # the help took the "z"
+    assert app.stdscr.keys == []  # the help took the "z"
 
     assert press(app, "q") == QUIT
     assert store.get_stat("klondike")["total"] == 1
@@ -143,8 +143,11 @@ def test_a_hint_marks_every_card_it_would_move():
     press(app, "h")
     app.draw()
     assert app.hint[:2] == (a, b)
-    marked = {idx for yx, (sid, idx) in app.ui.hit.items()
-              if sid == a and app.stdscr.attrs[yx] & curses.A_UNDERLINE}
+    marked = {
+        idx
+        for yx, (sid, idx) in app.ui.hit.items()
+        if sid == a and app.stdscr.attrs[yx] & curses.A_UNDERLINE
+    }
     assert marked == {1, 2}
     assert app.stdscr.attrs[cell_of(app, a, 3)] & curses.A_BOLD
 
@@ -237,8 +240,7 @@ def test_moving_the_mouse_or_the_wheel_leaves_the_cursor_and_hint_alone():
     cursor, hint = app.cursor, app.hint
     assert hint is not None and cursor == b
     y, x = cell_of(app, a, 0)
-    for bstate in (curses.REPORT_MOUSE_POSITION, curses.BUTTON4_PRESSED,
-                   curses.BUTTON3_PRESSED):
+    for bstate in (curses.REPORT_MOUSE_POSITION, curses.BUTTON4_PRESSED, curses.BUTTON3_PRESSED):
         app.mouse_at(y, x, bstate)
     assert (app.cursor, app.hint, app.selected) == (cursor, hint, None)
 

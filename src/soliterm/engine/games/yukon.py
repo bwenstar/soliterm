@@ -34,8 +34,8 @@ class Yukon(GameDef):
     def can_pickup(self, g, sid, n):
         if g.kind(sid) != "tableau":
             return False
-        run = g.cards(sid)[len(g.cards(sid)) - n:]
-        return all(c.face_up for c in run)        # any face-up group, any order
+        run = g.cards(sid)[len(g.cards(sid)) - n :]
+        return all(c.face_up for c in run)  # any face-up group, any order
 
     def can_drop(self, g, src, cards, dst):
         k = g.kind(dst)
@@ -86,8 +86,7 @@ class Yukon(GameDef):
             again = False
             for sid in self.tableau:
                 c = g.top(sid)
-                if (c and self.foundation_for(g, c) is not None
-                        and self.safe_to_autoplay(g, c)):
+                if c and self.foundation_for(g, c) is not None and self.safe_to_autoplay(g, c):
                     fid = self.foundation_for(g, c)
                     g.slots[fid].cards.append(g.slots[sid].cards.pop())
                     g.flip_top(sid)

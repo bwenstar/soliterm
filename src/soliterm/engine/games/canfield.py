@@ -30,7 +30,7 @@ class Canfield(GameDef):
         # one card to the first foundation sets the base rank
         g.deal_from_deck(self.foundations[0], 1, face_up=True)
         g.base_val = g.top(self.foundations[0]).rank
-        g.score = 1                        # that card counts like any other
+        g.score = 1  # that card counts like any other
         # rest to stock
         while g.deck:
             g.deal_from_deck(self.stock, 1, face_up=False)
@@ -56,7 +56,7 @@ class Canfield(GameDef):
             top = g.top(sid)
             return n == 1 and top is not None and top.rank != g.base_val
         if k == "tableau":
-            run = g.cards(sid)[len(g.cards(sid)) - n:]
+            run = g.cards(sid)[len(g.cards(sid)) - n :]
             return all(self._t_down_altcolor(a, b) for a, b in zip(run, run[1:]))
         return False
 
@@ -73,7 +73,7 @@ class Canfield(GameDef):
         if k == "tableau":
             top = g.top(dst)
             if top is None:
-                return True               # any card may start an empty column
+                return True  # any card may start an empty column
             return self._t_down_altcolor(top, c)
         return False
 
@@ -147,8 +147,7 @@ class Canfield(GameDef):
             again = False
             for sid in self.tableau + [self.waste, self.reserve]:
                 c = g.top(sid)
-                if (c and self._foundation_for(g, c) is not None
-                        and self.safe_to_autoplay(g, c)):
+                if c and self._foundation_for(g, c) is not None and self.safe_to_autoplay(g, c):
                     fid = self._foundation_for(g, c)
                     g.slots[fid].cards.append(g.slots[sid].cards.pop())
                     g.score += 1

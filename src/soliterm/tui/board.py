@@ -19,23 +19,23 @@ from ..engine import SUIT_SYMBOL, Card, Solitaire
 # Geometry of a rendered card. Cards are drawn as multi-line boxes that overlap
 # vertically (and horizontally for waste fans), AisleRiot-style: the top card of
 # a pile shows full-size, covered cards peek out with their rank+suit corner.
-CARD_H = 4          # full card box height in rows
-PEEK_Y = 2          # rows a covered card shows in a down-fan when there's room
-PEEK_X = 4          # cols a covered card shows in a right-fan (border + label)
-MIN_CARD_W = 5      # narrowest card (interior fits "10S" with no margin)
-MAX_CARD_W = 8      # widest card (lots of horizontal room)
-COL_GAP = 1         # blank columns between piles in a row
-ROW_GAP = 1         # blank rows between slot-rows
-MAX_RIGHT_FAN = 6   # most cards shown in a right-expanding fan (waste/reserve)
-                    # unless the game fans fewer (see fan_room)
-MIN_COLS = 40       # the smallest terminal any board is drawn on; a wide
-MIN_ROWS = 14       # game needs more (see BoardUI.needed_size)
+CARD_H = 4  # full card box height in rows
+PEEK_Y = 2  # rows a covered card shows in a down-fan when there's room
+PEEK_X = 4  # cols a covered card shows in a right-fan (border + label)
+MIN_CARD_W = 5  # narrowest card (interior fits "10S" with no margin)
+MAX_CARD_W = 8  # widest card (lots of horizontal room)
+COL_GAP = 1  # blank columns between piles in a row
+ROW_GAP = 1  # blank rows between slot-rows
+MAX_RIGHT_FAN = 6  # most cards shown in a right-expanding fan (waste/reserve)
+# unless the game fans fewer (see fan_room)
+MIN_COLS = 40  # the smallest terminal any board is drawn on; a wide
+MIN_ROWS = 14  # game needs more (see BoardUI.needed_size)
 # on the message line while it has nothing else to say
 SHARING_NOTE = "some cards share a row; a taller terminal shows them all"
 
 # Box-drawing glyphs: unicode for a real card look, ASCII fallback for --ascii.
 _GLYPHS = {
-    True:  {"tl": "┌", "tr": "┐", "bl": "└", "br": "┘", "h": "─", "v": "│", "back": "▒"},
+    True: {"tl": "┌", "tr": "┐", "bl": "└", "br": "┘", "h": "─", "v": "│", "back": "▒"},
     False: {"tl": "+", "tr": "+", "bl": "+", "br": "+", "h": "-", "v": "|", "back": "#"},
 }
 # the legacy view's card back is the one unicode glyph not in _GLYPHS
@@ -62,8 +62,7 @@ CODE_GUTTER = 5
 _CODE = camo.code_lines(200, seed=1)
 
 
-def draw_code_backdrop(ui, notes: dict[int, str],
-                       last_row: int | None = None) -> None:
+def draw_code_backdrop(ui, notes: dict[int, str], last_row: int | None = None) -> None:
     """Paint the code-editor backdrop a skinned screen is drawn on top of.
 
     A line-number gutter down the left, source lines filling the screen,
@@ -75,12 +74,16 @@ def draw_code_backdrop(ui, notes: dict[int, str],
     """
     h, w = ui.stdscr.getmaxyx()
     dim = ui.CP(4)
-    code_attr = 0              # source text in the terminal's own colours
+    code_attr = 0  # source text in the terminal's own colours
     # editor-style header / tab bar
-    ui.safe_add(0, 0, " solver.py  -  ~/work/render-core/engine "
-                .ljust(w - 1), ui.CP(5) if ui.has_color else curses.A_REVERSE)
+    ui.safe_add(
+        0,
+        0,
+        " solver.py  -  ~/work/render-core/engine ".ljust(w - 1),
+        ui.CP(5) if ui.has_color else curses.A_REVERSE,
+    )
     for screen_y in range(1, (h - 2 if last_row is None else last_row) + 1):
-        lineno = screen_y          # 1-based line numbers down the file
+        lineno = screen_y  # 1-based line numbers down the file
         gutter = f"{lineno:>3}  "
         ui.safe_add(screen_y, 0, gutter, dim)
         if screen_y in notes:
@@ -96,9 +99,11 @@ def draw_too_small(ui, what: str, need: tuple[int, int], code_skin: bool) -> Non
     """Say the terminal is smaller than the (width, height) `what` needs,
     in place of drawing it cut off. `ui` is as for draw_code_backdrop."""
     h, w = ui.stdscr.getmaxyx()
-    notice = ["Terminal too small.",
-              f"{what} needs {need[0]}x{need[1]}, have {w}x{h}.",
-              "Resize, or press q."]
+    notice = [
+        "Terminal too small.",
+        f"{what} needs {need[0]}x{need[1]}, have {w}x{h}.",
+        "Resize, or press q.",
+    ]
     if code_skin:
         # as a comment in the file, so the notice gives nothing away
         draw_code_backdrop(ui, {1 + i: f"# {line}" for i, line in enumerate(notice)})
@@ -110,8 +115,9 @@ def draw_too_small(ui, what: str, need: tuple[int, int], code_skin: bool) -> Non
 class BoardUI:
     """Renders a Solitaire board and maps screen coords back to (slot, index)."""
 
-    def __init__(self, stdscr, game: Solitaire, symbols: bool, has_color: bool,
-                 view: str = "expanded"):
+    def __init__(
+        self, stdscr, game: Solitaire, symbols: bool, has_color: bool, view: str = "expanded"
+    ):
         self.stdscr = stdscr
         self.game = game
         self.symbols = symbols
@@ -149,10 +155,10 @@ class BoardUI:
         """
         self.view = view if view in ("expanded", "legacy") else "expanded"
         if self.view == "legacy":
-            self.card_h = 1           # one row per card
-            self.peek_y = 1           # covered cards step down one row
-            self.peek_x = 1           # waste fan steps one column
-            self.min_cw = 5           # "[ A♠]" / "[10♠]" compact cell
+            self.card_h = 1  # one row per card
+            self.peek_y = 1  # covered cards step down one row
+            self.peek_x = 1  # waste fan steps one column
+            self.min_cw = 5  # "[ A♠]" / "[10♠]" compact cell
             self.max_cw = 5
         else:
             self.card_h = CARD_H
@@ -165,8 +171,9 @@ class BoardUI:
     def CP(self, n):
         return curses.color_pair(n) if self.has_color else 0
 
-    def card_attr(self, card: Card | None, selected: bool, hinted: bool,
-                  cursor: bool = False) -> int:
+    def card_attr(
+        self, card: Card | None, selected: bool, hinted: bool, cursor: bool = False
+    ) -> int:
         """Attribute for a card given its highlight state.
 
         Priority: selected > cursor > hint > plain. Every state has a DISTINCT
@@ -189,14 +196,14 @@ class BoardUI:
             # black-on-green - so a selected card always reads as green.
             return (self.CP(8) if red else self.CP(3)) | curses.A_BOLD
         if cursor:
-            return self.CP(5) | curses.A_BOLD     # black-on-yellow cursor
+            return self.CP(5) | curses.A_BOLD  # black-on-yellow cursor
         if hinted:
-            return self.CP(9) | curses.A_BOLD     # black-on-cyan hint
+            return self.CP(9) | curses.A_BOLD  # black-on-cyan hint
         if card is None:
-            return self.CP(4)                 # empty slot: chrome
+            return self.CP(4)  # empty slot: chrome
         if not card.face_up:
-            return self.CP(7)                 # face-down: blue card back
-        return self.CP(1) if red else self.CP(2)   # white face, red/black text
+            return self.CP(7)  # face-down: blue card back
+        return self.CP(1) if red else self.CP(2)  # white face, red/black text
 
     # -- card-box rendering ------------------------------------------------ #
     def _card_rows(self, card: Card | None, w: int, full: bool) -> list[str]:
@@ -221,10 +228,10 @@ class BoardUI:
         inner = w - 2
         top = gl["tl"] + gl["h"] * inner + gl["tr"]
         bot = gl["bl"] + gl["h"] * inner + gl["br"]
-        if card is None:                       # empty slot: a dashed frame
+        if card is None:  # empty slot: a dashed frame
             blank = gl["v"] + " " * inner + gl["v"]
             rows = [top] + [blank] * (self.card_h - 2) + [bot]
-        elif not card.face_up:                 # face-down: patterned back
+        elif not card.face_up:  # face-down: patterned back
             back = gl["v"] + (gl["back"] * inner) + gl["v"]
             rows = [top] + [back] * (self.card_h - 2) + [bot]
         else:
@@ -236,12 +243,12 @@ class BoardUI:
             line1 = gl["v"] + label.ljust(inner) + gl["v"]
             mid = gl["v"] + " " * inner + gl["v"]
             # echo the suit bottom-right on a full card for a card-y look
-            suit = (SUIT_SYMBOL[card.suit] if self.symbols else card.suit)
+            suit = SUIT_SYMBOL[card.suit] if self.symbols else card.suit
             line3 = gl["v"] + suit.rjust(inner) + gl["v"]
-            rows = [top, line1, mid, line3, bot][:max(self.card_h, 2)]
+            rows = [top, line1, mid, line3, bot][: max(self.card_h, 2)]
             if self.card_h == 4:
                 rows = [top, line1, mid, bot]
-        return rows if full else rows[:2]      # peek = top border + label
+        return rows if full else rows[:2]  # peek = top border + label
 
     def _layouts(self) -> Iterator[tuple[int, int, int, int]]:
         """Every layout to try, roomiest first, as (card width, fan step,
@@ -259,7 +266,7 @@ class BoardUI:
         step = min(self.peek_x, cw - 1)
         for less in range(indent - 1, -1, -1):
             yield cw, step, COL_GAP, less
-        for closer in range(step - 1, 1, -1):     # down to two columns a card
+        for closer in range(step - 1, 1, -1):  # down to two columns a card
             yield cw, closer, COL_GAP, 0
         yield cw, min(step, 2), 0, 0
 
@@ -272,8 +279,7 @@ class BoardUI:
 
     def _row_width(self, slots, cw: int, step: int, gap: int) -> int:
         """Columns a row of slots takes, room for full fans included."""
-        return (sum(cw + (self.fan_room(s) - 1) * step for s in slots)
-                + gap * (len(slots) - 1))
+        return sum(cw + (self.fan_room(s) - 1) * step for s in slots) + gap * (len(slots) - 1)
 
     def _choose_layout(self, screen_w: int) -> None:
         """Set the card width, fan step, gap and indent for this frame: the
@@ -282,8 +288,7 @@ class BoardUI:
         rows = self._rows()
         for layout in self._layouts():
             cw, step, gap, indent = layout
-            right = base_x + indent + max(self._row_width(r, cw, step, gap)
-                                          for r in rows)
+            right = base_x + indent + max(self._row_width(r, cw, step, gap) for r in rows)
             # curses never writes the last column (see safe_add)
             if right < screen_w:
                 break
@@ -300,12 +305,10 @@ class BoardUI:
         cw, step, gap, indent = list(self._layouts())[-1]
         base_x = self._gutter if self.code_skin else self.origin_x
         rows = self._rows()
-        w = base_x + indent + max(self._row_width(r, cw, step, gap)
-                                  for r in rows) + 1
+        w = base_x + indent + max(self._row_width(r, cw, step, gap) for r in rows) + 1
         h = (self._code_top if self.code_skin else self.origin_y) - ROW_GAP + 3
         for row in rows:
-            h += ROW_GAP + max([self.card_h] + [self._slot_height(s.sid, 0)
-                                                for s in row])
+            h += ROW_GAP + max([self.card_h] + [self._slot_height(s.sid, 0) for s in row])
         return max(MIN_COLS, w), max(MIN_ROWS, h)
 
     def safe_add(self, y, x, text, attr=0):
@@ -327,8 +330,9 @@ class BoardUI:
             for dx in range(w):
                 self.hit[(y + dy, x + dx)] = (sid, idx)
 
-    def _draw_down_pile(self, slot, sid, sy, sx, cw, sel_here, cur_here,
-                        selected_n, hint_src, hint_dst, hint_n):
+    def _draw_down_pile(
+        self, slot, sid, sy, sx, cw, sel_here, cur_here, selected_n, hint_src, hint_dst, hint_n
+    ):
         """A tableau column: covered cards peek above the top card (see
         _down_rows). Cards squeezed onto one row show as one row that says
         how many they are; a click on it picks the deepest of them, and
@@ -337,19 +341,17 @@ class BoardUI:
         n = len(cards)
         sel_start = n - selected_n if sel_here else n
         rows, top_h = self._down_rows(cards, self._room(sy))
-        first = 0          # the deepest card sharing this card's row
+        first = 0  # the deepest card sharing this card's row
         for i, card in enumerate(cards):
             is_top = i == n - 1
             height = top_h if is_top else rows[i + 1] - rows[i]
             if not height:
-                continue   # under the next card, which shows for both
+                continue  # under the next card, which shows for both
             is_sel = sel_here and i >= sel_start
-            is_hint = (sid == hint_dst and is_top) or \
-                      (sid == hint_src and i >= n - hint_n)
-            attr = self.card_attr(card, is_sel, is_hint and not is_sel,
-                                  cursor=cur_here and is_top)
+            is_hint = (sid == hint_dst and is_top) or (sid == hint_src and i >= n - hint_n)
+            attr = self.card_attr(card, is_sel, is_hint and not is_sel, cursor=cur_here and is_top)
             if i > first:
-                lines = [self._shared_row(cards[first:i + 1], cw)]
+                lines = [self._shared_row(cards[first : i + 1], cw)]
             elif is_top:
                 lines = self._card_rows(card, cw, True)
                 if top_h < len(lines):
@@ -373,7 +375,7 @@ class BoardUI:
             # on the pattern, not in spaces, so it can't read as a rank
             back = self._card_rows(cards[-1], w, False)[-1]
             at = (len(back) - len(count)) // 2
-            return back[:at] + count + back[at + len(count):]
+            return back[:at] + count + back[at + len(count) :]
         inner = w - 2
         mark = "+" + count
         if self.view == "legacy":
@@ -383,8 +385,7 @@ class BoardUI:
         v = _GLYPHS[bool(self.symbols)]["v"]
         return v + mark.ljust(inner)[:inner] + v
 
-    def _draw_right_fan(self, slot, sid, sy, sx, cw, sel_here, cur_here,
-                        hint_src, hint_dst):
+    def _draw_right_fan(self, slot, sid, sy, sx, cw, sel_here, cur_here, hint_src, hint_dst):
         """A waste/reserve fan: cards overlap leftward, top card full-width."""
         peek_x = self._step
         cards = slot.cards
@@ -425,8 +426,7 @@ class BoardUI:
         """Rows from screen row sy down to the status line."""
         return self.stdscr.getmaxyx()[0] - 3 - sy
 
-    def _down_rows(self, cards: list[Card], room: int,
-                   tuck: bool = True) -> tuple[list[int], int]:
+    def _down_rows(self, cards: list[Card], room: int, tuck: bool = True) -> tuple[list[int], int]:
         """Lay a down-column out in `room` rows: each card's top row,
         counted from the column top, and how many rows the top card shows.
 
@@ -450,14 +450,23 @@ class BoardUI:
             return [0], ch
         # the face-down cards under another face-down card, which go onto
         # its row once each run of them shares one
-        piled = [not c.face_up and i + 1 < len(covered)
-                 and not covered[i + 1].face_up for i, c in enumerate(covered)]
+        piled = [
+            not c.face_up and i + 1 < len(covered) and not covered[i + 1].face_up
+            for i, c in enumerate(covered)
+        ]
         # rows for a face-down card, for a face-up one and for the top card,
         # roomiest first; a face-down 0 piles each run of them onto one row
-        for down, up, top_h in ((py, py, ch), (1, py, ch), (0, py, ch),
-                                (0, 1, ch), (0, 1, min(2, ch)), (0, 1, 1)):
-            steps = [up if c.face_up else (down or (0 if pile else 1))
-                     for c, pile in zip(covered, piled)]
+        for down, up, top_h in (
+            (py, py, ch),
+            (1, py, ch),
+            (0, py, ch),
+            (0, 1, ch),
+            (0, 1, min(2, ch)),
+            (0, 1, 1),
+        ):
+            steps = [
+                up if c.face_up else (down or (0 if pile else 1)) for c, pile in zip(covered, piled)
+            ]
             if sum(steps) + top_h <= room:
                 break
         if tuck:
@@ -505,8 +514,7 @@ class BoardUI:
             tops.append((0, 0))
         for top, gap in tops:
             positions = self._place(top, gap)
-            sharing = not all(self._fits_unshared(sid, y)
-                              for sid, (y, _) in positions.items())
+            sharing = not all(self._fits_unshared(sid, y) for sid, (y, _) in positions.items())
             if not sharing:
                 break
         self._top, self._row_gap, self._sharing = top, gap, sharing
@@ -516,8 +524,7 @@ class BoardUI:
         """Each slot's top-left, the board starting at row top with gap
         rows between its rows of slots."""
         positions: dict[int, tuple[int, int]] = {}
-        base_x = (self._gutter + self._indent if self.code_skin
-                  else self.origin_x)
+        base_x = self._gutter + self._indent if self.code_skin else self.origin_x
         y = top
         for row in sorted({s.row for s in self.game.slots}):
             x = base_x
@@ -560,17 +567,23 @@ class BoardUI:
         need_w, need_h = self.needed_size()
         return w >= need_w and h >= need_h
 
-    def draw(self, selected_slot: int | None, selected_n: int,
-             cursor_slot: int | None, hint: tuple[int, int, str] | None,
-             elapsed: float, message: str, hint_n: int = 1):
+    def draw(
+        self,
+        selected_slot: int | None,
+        selected_n: int,
+        cursor_slot: int | None,
+        hint: tuple[int, int, str] | None,
+        elapsed: float,
+        message: str,
+        hint_n: int = 1,
+    ):
         """hint_n is how many cards the hint would move from its source."""
         self.stdscr.erase()
         self.hit.clear()
         if not self.fits():
             # Terminal too small to lay the board out cleanly: say so plainly
             # instead of drawing a clipped, unplayable mess.
-            draw_too_small(self, self.game.gamedef.name, self.needed_size(),
-                           self.code_skin)
+            draw_too_small(self, self.game.gamedef.name, self.needed_size(), self.code_skin)
             self.stdscr.refresh()
             return
         chrome = self.CP(4)
@@ -602,23 +615,31 @@ class BoardUI:
             cur_here = cursor_slot == sid
 
             if slot.empty:
-                attr = self.card_attr(None, sel_here, sid == hint_dst,
-                                      cursor=cur_here)
+                attr = self.card_attr(None, sel_here, sid == hint_dst, cursor=cur_here)
                 self._blit_card(sy, sx, None, cw, True, attr)
                 self._register_hit(sy, sx, self.card_h, cw, sid, 0)
                 continue
 
             if slot.expand == "down":
-                self._draw_down_pile(slot, sid, sy, sx, cw, sel_here, cur_here,
-                                     selected_n, hint_src, hint_dst, hint_n)
+                self._draw_down_pile(
+                    slot,
+                    sid,
+                    sy,
+                    sx,
+                    cw,
+                    sel_here,
+                    cur_here,
+                    selected_n,
+                    hint_src,
+                    hint_dst,
+                    hint_n,
+                )
             elif slot.expand == "right" or self.fan_room(slot) > 1:
-                self._draw_right_fan(slot, sid, sy, sx, cw, sel_here, cur_here,
-                                     hint_src, hint_dst)
+                self._draw_right_fan(slot, sid, sy, sx, cw, sel_here, cur_here, hint_src, hint_dst)
             else:  # "none": stock / single-card slots show just the top card
                 n = len(slot.cards)
                 card = slot.top
-                attr = self.card_attr(card, sel_here, sid in (hint_dst, hint_src),
-                                      cursor=cur_here)
+                attr = self.card_attr(card, sel_here, sid in (hint_dst, hint_src), cursor=cur_here)
                 self._blit_card(sy, sx, card, cw, True, attr)
                 self._register_hit(sy, sx, self.card_h, cw, sid, n - 1)
                 if slot.kind == "stock":
@@ -636,17 +657,22 @@ class BoardUI:
             # so the code background underneath these rows is fully cleared.
             dim = self.CP(4)
             pad = w - self._gutter - 1
-            stat = (f"    # score={g.score} moves={g.moves} "
-                    f"t={store.fmt_time(elapsed)}  {g.status}{won}")
+            stat = (
+                f"    # score={g.score} moves={g.moves} "
+                f"t={store.fmt_time(elapsed)}  {g.status}{won}"
+            )
             self.safe_add(sy, self._gutter, stat.ljust(pad)[:pad], dim)
             note = message or "code-skin mode (c to toggle)"
             self.safe_add(sy + 1, self._gutter, f"    # {note}".ljust(pad)[:pad], dim)
         else:
-            self.safe_add(sy, 2,
-                          f"Score {g.score}   Time {store.fmt_time(elapsed)}   "
-                          f"Moves {g.moves}   {g.status}{won}", chrome)
-            self.safe_add(sy + 1, 2, message[: w - 4],
-                          self.CP(6) if self.has_color else 0)
+            self.safe_add(
+                sy,
+                2,
+                f"Score {g.score}   Time {store.fmt_time(elapsed)}   "
+                f"Moves {g.moves}   {g.status}{won}",
+                chrome,
+            )
+            self.safe_add(sy + 1, 2, message[: w - 4], self.CP(6) if self.has_color else 0)
         self.stdscr.refresh()
 
     def _draw_stock_count(self, sy, sx, cw, n, attr) -> None:
@@ -663,8 +689,14 @@ class BoardUI:
         self.safe_add(y, x, num[:inner], attr | curses.A_BOLD)
 
     def _slot_label(self, slot) -> str:
-        kindmap = {"stock": "Stock", "waste": "Waste", "foundation": "Fnd",
-                   "tableau": "", "reserve": "Res", "freecell": "Cell"}
+        kindmap = {
+            "stock": "Stock",
+            "waste": "Waste",
+            "foundation": "Fnd",
+            "tableau": "",
+            "reserve": "Res",
+            "freecell": "Cell",
+        }
         return kindmap.get(slot.kind, "")
 
     def hit_test(self, y, x) -> tuple[int, int] | None:

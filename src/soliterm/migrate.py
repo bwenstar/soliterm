@@ -27,10 +27,10 @@ OLD_APP_DIR_NAME = "aisle-cli"
 def _old_paths() -> tuple[str, str]:
     """aisle-cli's config.json and stats.json, found the way the store
     finds ours (XDG dirs, else the home folder)."""
-    return (os.path.join(store._xdg("XDG_CONFIG_HOME", ".config"),
-                         OLD_APP_DIR_NAME, "config.json"),
-            os.path.join(store._xdg("XDG_DATA_HOME", ".local/share"),
-                         OLD_APP_DIR_NAME, "stats.json"))
+    return (
+        os.path.join(store._xdg("XDG_CONFIG_HOME", ".config"), OLD_APP_DIR_NAME, "config.json"),
+        os.path.join(store._xdg("XDG_DATA_HOME", ".local/share"), OLD_APP_DIR_NAME, "stats.json"),
+    )
 
 
 def _say(msg: str) -> None:
@@ -59,8 +59,7 @@ def _object(raw: bytes | None) -> dict | None:
 def _write(path: str, raw: bytes) -> None:
     folder = os.path.dirname(path)
     os.makedirs(folder, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=folder, prefix=f".{os.path.basename(path)}.",
-                               suffix=".tmp")
+    fd, tmp = tempfile.mkstemp(dir=folder, prefix=f".{os.path.basename(path)}.", suffix=".tmp")
     try:
         with os.fdopen(fd, "wb") as fh:
             fh.write(raw)
@@ -109,9 +108,11 @@ def ensure() -> None:
     try:
         config_raw, stats_raw = _read(old_config), _read(old_stats)
     except OSError as exc:
-        _say(f"couldn't read {exc.filename or 'the aisle-cli files'} "
-             f"({exc.strerror or exc}), so the aisle-cli settings and "
-             "statistics were not copied over; they will be tried again next time")
+        _say(
+            f"couldn't read {exc.filename or 'the aisle-cli files'} "
+            f"({exc.strerror or exc}), so the aisle-cli settings and "
+            "statistics were not copied over; they will be tried again next time"
+        )
         return
     if config_raw is None and stats_raw is None:
         return
@@ -144,8 +145,13 @@ def ensure() -> None:
         if had_config:
             copied.append(f"{old_config} to {store.config_path()}")
     except OSError as exc:
-        _say(f"couldn't copy the aisle-cli settings and statistics over "
-             f"({exc.strerror or exc}); the old files are left as they were")
+        _say(
+            f"couldn't copy the aisle-cli settings and statistics over "
+            f"({exc.strerror or exc}); the old files are left as they were"
+        )
         return
-    _say("aisle-cli is now soliterm: copied " + " and ".join(copied)
-         + "; the old files are left as they were")
+    _say(
+        "aisle-cli is now soliterm: copied "
+        + " and ".join(copied)
+        + "; the old files are left as they were"
+    )

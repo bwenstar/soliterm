@@ -32,7 +32,7 @@ class FortyThieves(GameDef):
         if k == "waste":
             return n == 1
         if k == "tableau":
-            run = g.cards(sid)[len(g.cards(sid)) - n:]
+            run = g.cards(sid)[len(g.cards(sid)) - n :]
             return all(a.suit == b.suit and b.rank == a.rank - 1 for a, b in zip(run, run[1:]))
         return False
 
@@ -44,7 +44,7 @@ class FortyThieves(GameDef):
         # only go as a short cut for shuffling it through empty columns. Each
         # one doubles the size, but not the column it leaves or lands in.
         free = sum(1 for t in self.tableau if t not in (src, dst) and g.empty(t))
-        return 2 ** free
+        return 2**free
 
     def can_drop(self, g, src, cards, dst):
         k = g.kind(dst)
@@ -107,13 +107,14 @@ class FortyThieves(GameDef):
             # the run landed the way it lay in the column; turn it round so
             # it builds up from the card that was on top
             pile = g.cards(dst)
-            pile[len(pile) - len(cards):] = reversed(cards)
+            pile[len(pile) - len(cards) :] = reversed(cards)
 
     def post_move(self, g):
         # As AisleRiot scores it, worked out afresh from the foundations: 5
         # for each card and 60 more for each finished suit, 1000 for a win.
-        g.score = sum(5 * len(g.cards(f)) + (60 if len(g.cards(f)) == 13 else 0)
-                      for f in self.foundations)
+        g.score = sum(
+            5 * len(g.cards(f)) + (60 if len(g.cards(f)) == 13 else 0) for f in self.foundations
+        )
         g.update_status()
 
     def is_won(self, g):
@@ -134,8 +135,11 @@ class FortyThieves(GameDef):
             again = False
             for sid in self.tableau + [self.waste]:
                 c = g.top(sid)
-                if (c and self.foundation_for(g, c) is not None
-                        and (not safe_only or self.safe_to_autoplay(g, c))):
+                if (
+                    c
+                    and self.foundation_for(g, c) is not None
+                    and (not safe_only or self.safe_to_autoplay(g, c))
+                ):
                     fid = self.foundation_for(g, c)
                     g.slots[fid].cards.append(g.slots[sid].cards.pop())
                     n += 1

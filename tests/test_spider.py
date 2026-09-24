@@ -41,7 +41,7 @@ def test_the_deck_is_two_decks_worth_of_the_chosen_suits(suits):
 def test_the_deal(seed, suits):
     g = deal("spider", seed, suits=suits)
     lengths = [len(g.cards(t)) for t in columns(g)]
-    assert lengths == [6, 5, 5, 6, 5, 5, 6, 5, 5, 6]      # AisleRiot's layout
+    assert lengths == [6, 5, 5, 6, 5, 5, 6, 5, 5, 6]  # AisleRiot's layout
     stock = g.ids_of("stock")[0]
     assert len(g.cards(stock)) == 50
     assert not any(c.face_up for c in g.cards(stock))
@@ -102,8 +102,8 @@ def test_any_suit_builds_on_the_next_rank_up(table):
     g.slots[t[0]].cards = [up(6, "S")]
     g.slots[t[1]].cards = [up(8, "H")]
     g.slots[t[2]].cards = [Card(7, "H", False)]
-    assert g.attempt_move(t[0], t[1]) is False       # skips a rank
-    assert g.attempt_move(t[0], t[2]) is False       # onto a face-down card
+    assert g.attempt_move(t[0], t[1]) is False  # skips a rank
+    assert g.attempt_move(t[0], t[2]) is False  # onto a face-down card
     g.slots[t[3]].cards = [up(7, "H")]
     assert g.attempt_move(t[0], t[3]) is True
     assert names(g, t[3]) == ["7H", "6S"]
@@ -127,7 +127,7 @@ def test_only_a_same_suit_run_lifts_as_a_group(table):
     assert g.attempt_move(t[0], t[1]) is True
     assert names(g, t[1]) == ["9D", "8S", "7S"]
     assert names(g, t[0]) == ["9H"]
-    assert g.score == 1                              # 8S-7S is still in suit
+    assert g.score == 1  # 8S-7S is still in suit
 
 
 def test_the_one_line_summary_gets_the_building_rule_right():
@@ -161,7 +161,7 @@ def test_a_full_suit_goes_to_a_foundation(table):
     done = [f for f in g.ids_of("foundation") if g.cards(f)]
     assert len(done) == 1
     assert names(g, done[0]) == [str(up(r, "S")) for r in range(13, 0, -1)]
-    assert g.cards(t[0]) == [up(12, "H")]            # uncovered and turned up
+    assert g.cards(t[0]) == [up(12, "H")]  # uncovered and turned up
     assert not g.cards(t[1])
     assert g.score == 12
     assert not g.is_won()
@@ -182,13 +182,22 @@ def test_a_deal_can_be_undone_and_redone():
 
 # -- the hint when an empty column blocks the deal --------------------------------
 
+
 def blocked_deal(g, t, first):
     """Ten cards in the stock, first in column 0, a card nothing builds on in
     each of the next eight, and the last column empty."""
     g.slots[g.ids_of("stock")[0]].cards = [Card(r, "C", False) for r in range(1, 11)]
     g.slots[t[0]].cards = first
-    loose = [up(13, "S"), up(13, "H"), up(11, "S"), up(11, "H"),
-             up(7, "S"), up(7, "H"), up(2, "S"), up(2, "H")]
+    loose = [
+        up(13, "S"),
+        up(13, "H"),
+        up(11, "S"),
+        up(11, "H"),
+        up(7, "S"),
+        up(7, "H"),
+        up(2, "S"),
+        up(2, "H"),
+    ]
     for sid, card in zip(t[1:9], loose):
         g.slots[sid].cards = [card]
     assert not g.can_deal() and g.best_move() is None

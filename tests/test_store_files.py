@@ -31,6 +31,7 @@ def failing_json(monkeypatch):
     # the disk fills up half way through writing the JSON out
     def boom(*args, **kwargs):
         raise OSError(28, "No space left on device")
+
     monkeypatch.setattr(json, "dump", boom)
     monkeypatch.setattr(json, "dumps", boom)
 
@@ -84,8 +85,9 @@ def test_two_damaged_files_in_the_same_second_are_both_kept(monkeypatch):
     assert kept == ["{one", "{two"]
 
 
-@pytest.mark.skipif(os.name != "posix" or os.geteuid() == 0,
-                    reason="needs POSIX file modes, not root")
+@pytest.mark.skipif(
+    os.name != "posix" or os.geteuid() == 0, reason="needs POSIX file modes, not root"
+)
 def test_an_unreadable_stats_file_is_never_replaced():
     write(store.stats_path(), json.dumps({"golf": stat(5, 9, 30, 90)}))
     os.chmod(store.stats_path(), 0)
@@ -103,8 +105,7 @@ def _record_many(n):
         store.record_result("golf", won=True, seconds=42)
 
 
-@pytest.mark.skipif("fork" not in multiprocessing.get_all_start_methods(),
-                    reason="needs fork")
+@pytest.mark.skipif("fork" not in multiprocessing.get_all_start_methods(), reason="needs fork")
 def test_two_games_recording_at_once_lose_nothing():
     ctx = multiprocessing.get_context("fork")
     procs = [ctx.Process(target=_record_many, args=(25,)) for _ in range(4)]

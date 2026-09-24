@@ -29,7 +29,7 @@ def run_to_move(g, t, size, free):
         g.slots[x].cards = [up(12, "D")]
     g.slots[t[0]].cards += [up(10 - i, "S") for i in range(size)]
     g.slots[t[1]].cards += [up(11, "S")]
-    for x in t[2:2 + free]:
+    for x in t[2 : 2 + free]:
         g.slots[x].cards = []
 
 
@@ -50,7 +50,7 @@ def test_without_a_free_column_cards_move_one_at_a_time(table):
     run_to_move(g, t, 3, 0)
     g.slots[t[2]].cards += [up(9, "S")]
     assert all(n == 1 for _, _, n in g.legal_moves())
-    assert g.attempt_move(t[0], t[2], 1)          # the 8S alone can go on the 9S
+    assert g.attempt_move(t[0], t[2], 1)  # the 8S alone can go on the 9S
     assert labels(g, t[2]) == ["QD", "9S", "8S"]
 
 
@@ -66,11 +66,12 @@ def test_the_empty_column_a_group_goes_to_is_not_free(table):
 def test_the_column_a_group_leaves_is_not_free(table):
     g, _f, t = table
     run_to_move(g, t, 2, 0)
-    g.slots[t[0]].cards = [up(10, "S"), up(9, "S")]     # the whole column
+    g.slots[t[0]].cards = [up(10, "S"), up(9, "S")]  # the whole column
     assert g.attempt_move(t[0], t[1], 2) is False
 
 
 # -- the score ----------------------------------------------------------------------
+
 
 def test_a_card_up_scores_five_and_a_finished_suit_sixty_more(table):
     g, f, t = table
@@ -106,6 +107,7 @@ def test_a_won_game_scores_a_thousand(table):
 
 # -- groups to the foundations --------------------------------------------------------
 
+
 def test_a_run_goes_up_to_a_foundation_in_one_move(table):
     g, f, t = table
     g.slots[t[0]].cards = [up(9, "C"), up(3, "S"), up(2, "S"), up(1, "S")]
@@ -130,12 +132,12 @@ def test_a_run_carries_on_a_foundation_without_a_free_column(table):
 def test_a_run_whose_top_card_does_not_fit_stays_down(table):
     g, f, t = table
     g.slots[t[0]].cards = [up(4, "S"), up(3, "S"), up(2, "S")]
-    assert g.attempt_move(t[0], f[0], 3) is False       # no ace to start it
+    assert g.attempt_move(t[0], f[0], 3) is False  # no ace to start it
     g.slots[f[0]].cards = [up(1, "S"), up(2, "S")]
     g.slots[t[0]].cards = [up(5, "S"), up(4, "S")]
-    assert g.attempt_move(t[0], f[0], 2) is False       # the 3S is missing
+    assert g.attempt_move(t[0], f[0], 2) is False  # the 3S is missing
     g.slots[f[0]].cards = [up(1, "H"), up(2, "H"), up(3, "H")]
-    assert g.attempt_move(t[0], f[0], 2) is False       # wrong suit
+    assert g.attempt_move(t[0], f[0], 2) is False  # wrong suit
 
 
 def test_the_hint_names_the_whole_run_it_sends_up(table):

@@ -26,6 +26,7 @@ from .textmode import run_text
 # CLI
 # --------------------------------------------------------------------------- #
 
+
 def seed_arg(text: str) -> int:
     """--seed: a whole number from 0 up (the engine refuses negative seeds)."""
     try:
@@ -45,30 +46,47 @@ def build_parser() -> argparse.ArgumentParser:
         allow_abbrev=False,
     )
     p.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
-    p.add_argument("--game", choices=GAME_ORDER, default=None,
-                   help="game to start (default: menu in the TUI)")
-    p.add_argument("--seed", type=seed_arg, default=None, metavar="N",
-                   help="reproducible shuffle (N is 0 or more)")
-    p.add_argument("--text", action="store_true",
-                   help="force text mode (no curses); reads commands from stdin")
-    p.add_argument("--ascii", action="store_true",
-                   help="letter suits (S/H/D/C) instead of unicode symbols")
-    p.add_argument("--color", dest="color", action="store_true", default=None,
-                   help="force coloured suits in text mode (red/black on white)")
-    p.add_argument("--no-color", dest="color", action="store_false",
-                   help="disable coloured output")
+    p.add_argument(
+        "--game", choices=GAME_ORDER, default=None, help="game to start (default: menu in the TUI)"
+    )
+    p.add_argument(
+        "--seed",
+        type=seed_arg,
+        default=None,
+        metavar="N",
+        help="reproducible shuffle (N is 0 or more)",
+    )
+    p.add_argument(
+        "--text", action="store_true", help="force text mode (no curses); reads commands from stdin"
+    )
+    p.add_argument(
+        "--ascii", action="store_true", help="letter suits (S/H/D/C) instead of unicode symbols"
+    )
+    p.add_argument(
+        "--color",
+        dest="color",
+        action="store_true",
+        default=None,
+        help="force coloured suits in text mode (red/black on white)",
+    )
+    p.add_argument("--no-color", dest="color", action="store_false", help="disable coloured output")
     once = p.add_mutually_exclusive_group()
     once.add_argument("--list", action="store_true", help="list the games and exit")
     once.add_argument("--stats", action="store_true", help="print statistics and exit")
-    once.add_argument("--reset-stats", action="store_true",
-                      help="erase the statistics of every game, AisleRiot's own "
-                           "record of them included, and exit; asks first and "
-                           "keeps a backup")
-    p.add_argument("--yes", action="store_true",
-                   help="with --reset-stats: don't ask first")
-    p.add_argument("--no-sync", action="store_true",
-                   help="leave GNOME AisleRiot's statistics alone this time and "
-                        "keep them here only (also SOLITERM_NO_AISLERIOT=1)")
+    once.add_argument(
+        "--reset-stats",
+        action="store_true",
+        help="erase the statistics of every game, AisleRiot's own "
+        "record of them included, and exit; asks first and "
+        "keeps a backup",
+    )
+    p.add_argument("--yes", action="store_true", help="with --reset-stats: don't ask first")
+    p.add_argument(
+        "--no-sync",
+        action="store_true",
+        help="leave GNOME AisleRiot's statistics alone this time and "
+        "keep them here only (also SOLITERM_NO_AISLERIOT=1)",
+    )
     return p
 
 
@@ -87,8 +105,7 @@ def print_stats() -> None:
         pcts = "N/A" if pct is None else f"{pct:.0f}%"
         best = "N/A" if s["best"] == 0 else store.fmt_time(s["best"])
         worst = "N/A" if s["worst"] == 0 else store.fmt_time(s["worst"])
-        print(f"{GAMES[key].name:<16}{s['wins']:>6}{s['total']:>7}"
-              f"{pcts:>7}{best:>8}{worst:>8}")
+        print(f"{GAMES[key].name:<16}{s['wins']:>6}{s['total']:>7}{pcts:>7}{best:>8}{worst:>8}")
 
 
 def reset_stats(yes: bool) -> int:
@@ -99,36 +116,37 @@ def reset_stats(yes: bool) -> int:
     sharing = store.syncing()
     if not yes:
         if not sys.stdin.isatty():
-            print("soliterm: --reset-stats asks before it erases anything; "
-                  "add --yes to clear the statistics without asking",
-                  file=sys.stderr)
+            print(
+                "soliterm: --reset-stats asks before it erases anything; "
+                "add --yes to clear the statistics without asking",
+                file=sys.stderr,
+            )
             return 2
-        where = (f", here and in GNOME AisleRiot ({ar.keyfile_path()})"
-                 if sharing else "")
-        print(f"This erases the statistics of all {len(GAME_ORDER)} games{where}.",
-              file=sys.stderr)
+        where = f", here and in GNOME AisleRiot ({ar.keyfile_path()})" if sharing else ""
+        print(f"This erases the statistics of all {len(GAME_ORDER)} games{where}.", file=sys.stderr)
         print("Type yes to clear them: ", end="", file=sys.stderr, flush=True)
         try:
             answer = sys.stdin.readline()
         except KeyboardInterrupt:
             answer = ""
         if not answer.endswith("\n"):
-            print(file=sys.stderr)      # Ctrl-D or Ctrl-C left the line open
+            print(file=sys.stderr)  # Ctrl-D or Ctrl-C left the line open
         if answer.strip().lower() != "yes":
             print("Nothing was cleared.")
             return 1
     try:
         backups = store.backup_stats()
     except OSError as exc:
-        print(f"soliterm: couldn't back up the statistics ({exc}), "
-              "so nothing was cleared", file=sys.stderr)
+        print(
+            f"soliterm: couldn't back up the statistics ({exc}), so nothing was cleared",
+            file=sys.stderr,
+        )
         return 1
     for path in backups:
         print(f"Backup saved to {path}")
     n = store.reset_stats()
     if sharing:
-        print(f"Statistics cleared for {n} game(s) "
-              "(shared with GNOME AisleRiot).")
+        print(f"Statistics cleared for {n} game(s) (shared with GNOME AisleRiot).")
     else:
         print("Statistics cleared.")
     return 0
@@ -163,11 +181,14 @@ def _terminal_problem() -> str | None:
     text mode would have done.
     """
     if os.name == "nt":
-        return None     # the Windows console needs no TERM
+        return None  # the Windows console needs no TERM
     import curses
+
     term = os.environ.get("TERM", "")
-    rest = ("so playing in text mode; set TERM to your terminal's type "
-            "(xterm-256color suits most) for the full-screen game")
+    rest = (
+        "so playing in text mode; set TERM to your terminal's type "
+        "(xterm-256color suits most) for the full-screen game"
+    )
     if not term:
         return f"TERM isn't set, {rest}"
     if term == "dumb":
@@ -189,18 +210,20 @@ def _quiet_on_broken_pipe(main: Callable[..., int]) -> Callable[..., int]:
     write raises BrokenPipeError, and so does Python's own flush at exit.
     Pointing stdout at devnull leaves that last flush nowhere to fail.
     """
+
     @functools.wraps(main)
     def run(*args, **kwargs) -> int:
         try:
             rc = main(*args, **kwargs)
-            sys.stdout.flush()          # so a late EPIPE comes up here
+            sys.stdout.flush()  # so a late EPIPE comes up here
             return rc
         except BrokenPipeError:
             try:
                 os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
             except (OSError, ValueError):
                 pass
-            return 141                  # what a shell shows for SIGPIPE
+            return 141  # what a shell shows for SIGPIPE
+
     return run
 
 
@@ -221,11 +244,13 @@ def main(argv: list[str] | None = None) -> int:
 
 def _run(args: argparse.Namespace) -> int:
     if args.list:
-        print_list(); return 0
+        print_list()
+        return 0
     if args.reset_stats:
         return reset_stats(args.yes)
     if args.stats:
-        print_stats(); return 0
+        print_stats()
+        return 0
 
     cfg = store.load_config()
     symbols = cfg.get("symbols", True) and not args.ascii
@@ -242,16 +267,14 @@ def _run(args: argparse.Namespace) -> int:
     if not args.text and sys.stdout.isatty() and sys.stdin.isatty():
         tui, why = _load_tui()
         if tui is not None:
-            return tui.main(start_key=args.game, seed=args.seed, color=args.color,
-                            symbols=symbols)
+            return tui.main(start_key=args.game, seed=args.seed, color=args.color, symbols=symbols)
         print(f"soliterm: {why}", file=sys.stderr)
 
     # text mode
     key = args.game or cfg.get("last_game", "klondike")
     opts = {**GAMES[key].default_options(), **store.game_options(cfg, key)}
     g = engine.new_solitaire(key, seed=args.seed, options=opts)
-    return run_text(g, symbols, key, color=text_color,
-                    camo_theme=cfg.get("camo_theme"))
+    return run_text(g, symbols, key, color=text_color, camo_theme=cfg.get("camo_theme"))
 
 
 if __name__ == "__main__":

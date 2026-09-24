@@ -79,6 +79,7 @@ def available() -> bool:
 # Low-level keyfile access
 # --------------------------------------------------------------------------- #
 
+
 def _read_text() -> str:
     """The keyfile's text, or "" when there is no keyfile yet.
 
@@ -91,8 +92,7 @@ def _read_text() -> str:
         # come back exactly as they are in the file. surrogateescape: bytes
         # that aren't UTF-8 (a value in another encoding) read without an
         # error and are written back unchanged by _write_text.
-        with open(keyfile_path(), encoding="utf-8", errors="surrogateescape",
-                  newline="") as fh:
+        with open(keyfile_path(), encoding="utf-8", errors="surrogateescape", newline="") as fh:
             return fh.read()
     except FileNotFoundError:
         return ""
@@ -126,6 +126,7 @@ def _write_text(text: str, expect: str | None = None) -> bool:
     exactly that text.
     """
     import tempfile
+
     try:
         d = gnome_games_dir()
         try:
@@ -136,8 +137,7 @@ def _write_text(text: str, expect: str | None = None) -> bool:
         try:
             if mode is not None:
                 os.chmod(tmp, mode)
-            with os.fdopen(fd, "w", encoding="utf-8", errors="surrogateescape",
-                           newline="") as fh:
+            with os.fdopen(fd, "w", encoding="utf-8", errors="surrogateescape", newline="") as fh:
                 fh.write(text)
                 fh.flush()
                 os.fsync(fh.fileno())
@@ -169,8 +169,7 @@ def _split(text: str) -> list[str]:
     of the line.
     """
     lines = text.split("\n")
-    return [s[:-1] if s.endswith("\r") and i < len(lines) - 1 else s
-            for i, s in enumerate(lines)]
+    return [s[:-1] if s.endswith("\r") and i < len(lines) - 1 else s for i, s in enumerate(lines)]
 
 
 def _is_header(line: str) -> str | None:
@@ -196,7 +195,7 @@ def _list_items(value: str) -> list[str] | None:
             unescaped = _ESCAPES.get(next(chars, ""), "")
             if not unescaped:
                 return None
-            item += unescaped   # an escaped ";" stays in the item
+            item += unescaped  # an escaped ";" stays in the item
         elif c == ";":
             items.append(item)
             item = ""
@@ -223,7 +222,7 @@ def _glib_int(item: str) -> int | None:
     if end < len(item) and item[end] not in _SPACE:
         return None
     n = int(item[:end]) if m else 0
-    return n if -2**31 <= n < 2**31 else None
+    return n if -(2**31) <= n < 2**31 else None
 
 
 def _parse_statistic(value: str) -> dict[str, int]:
@@ -262,8 +261,10 @@ def _stat_in(text: str, section: str) -> dict[str, int] | None:
 
 
 def _format_statistic(stat: dict[str, int]) -> str:
-    return (f"Statistic={int(stat.get('wins', 0))};{int(stat.get('total', 0))};"
-            f"{int(stat.get('best', 0))};{int(stat.get('worst', 0))};")
+    return (
+        f"Statistic={int(stat.get('wins', 0))};{int(stat.get('total', 0))};"
+        f"{int(stat.get('best', 0))};{int(stat.get('worst', 0))};"
+    )
 
 
 def _is_statistic_line(line: str) -> bool:
@@ -295,9 +296,9 @@ def write_stat(section: str, stat: dict[str, int]) -> bool:
 _UPDATE_TRIES = 5
 
 
-def update_stat(section: str,
-                change: Callable[[dict[str, int] | None], dict[str, int] | None]
-                ) -> dict[str, int] | None:
+def update_stat(
+    section: str, change: Callable[[dict[str, int] | None], dict[str, int] | None]
+) -> dict[str, int] | None:
     """Set a section's Statistic from its value at the moment of writing.
 
     `change` gets the current stat (None if there is none) and returns the
@@ -337,8 +338,8 @@ def _with_stat(text: str, section: str, stat: dict[str, int]) -> str:
     # value, and the rejoined file would have a newline in their place.
     # Lines in a CRLF file keep their "\r", and lines we add get one too.
     lines = text.split("\n")
-    seen = _split(text)     # the same lines, as GLib reads them
-    final = "\n" if text.endswith("\n") else ""   # keep "no trailing newline" as-is
+    seen = _split(text)  # the same lines, as GLib reads them
+    final = "\n" if text.endswith("\n") else ""  # keep "no trailing newline" as-is
     if final or lines == [""]:
         lines.pop()
     cr = "\r" if "\r\n" in text else ""
@@ -356,7 +357,7 @@ def _with_stat(text: str, section: str, stat: dict[str, int]) -> str:
                 header_idx = i
             continue
         if in_section and _is_statistic_line(seen[i]):
-            stat_idx = i        # the last one is the one GLib reads
+            stat_idx = i  # the last one is the one GLib reads
 
     if stat_idx is not None:
         # keep the "\r" of a "\r\n"; one with no "\n" after it was part of

@@ -33,6 +33,7 @@ def clickable(ui, sid):
 
 # -- card art ----------------------------------------------------------------------
 
+
 @pytest.mark.parametrize("key", GAME_ORDER)
 def test_every_game_draws_card_boxes(key):
     _ui, scr = draw(deal(key, 3))
@@ -50,8 +51,12 @@ def fanned_column():
     g = deal("klondike", 1)
     clear_board(g)
     col = g.ids_of("tableau")[0]
-    g.slots[col].cards = [Card(13, "S", True), Card(12, "H", True),
-                          Card(11, "S", True), Card(10, "H", True)]
+    g.slots[col].cards = [
+        Card(13, "S", True),
+        Card(12, "H", True),
+        Card(11, "S", True),
+        Card(10, "H", True),
+    ]
     return g, col
 
 
@@ -126,7 +131,7 @@ def box_text(ui, scr, sid):
     """The screen text inside the box of slot sid's top card."""
     y, x = ui.slot_origin[sid]
     lines = scr.text().splitlines()
-    return [lines[y + dy][x:x + ui._cw] for dy in range(ui.card_h)]
+    return [lines[y + dy][x : x + ui._cw] for dy in range(ui.card_h)]
 
 
 @pytest.mark.parametrize("view", ["expanded", "legacy"])
@@ -146,6 +151,7 @@ def test_the_stock_count_shows_on_the_stock(key, view):
 
 # -- squeezing onto the screen ------------------------------------------------------
 
+
 @pytest.mark.parametrize("h, w", [(24, 100), (24, 110)])
 def test_a_tall_column_keeps_its_top_card_clickable(h, w):
     g = deal("spider", 1)
@@ -155,16 +161,16 @@ def test_a_tall_column_keeps_its_top_card_clickable(h, w):
     top = len(g.slots[col].cards) - 1
     rows = [y for (y, x), (sid, idx) in ui.hit.items() if sid == col and idx == top]
     assert rows
-    assert max(rows) < h - 3               # clear of the status bar
+    assert max(rows) < h - 3  # clear of the status bar
 
 
 def column_text(ui, scr, sid):
     """The screen text down the column slot sid is drawn in."""
     x = ui.slot_origin[sid][1]
-    return [line[x:x + ui._cw] for line in scr.text().splitlines()]
+    return [line[x : x + ui._cw] for line in scr.text().splitlines()]
 
 
-RUN = [Card(r, "SH"[r % 2], True) for r in range(13, 3, -1)]    # KS QH ... 4H
+RUN = [Card(r, "SH"[r % 2], True) for r in range(13, 3, -1)]  # KS QH ... 4H
 
 
 # at 80x24 a Klondike column has 8 rows for its covered cards
@@ -193,8 +199,11 @@ def test_a_face_down_card_squeezed_to_one_row_shows_its_back(down, up):
     ui, scr = draw(g, h=24, w=80)
     top, x = ui.slot_origin[col]
     lines = scr.text().splitlines()
-    backs = [lines[y][x:x + ui._cw] for y in range(top, 21)
-             if ui.hit_test(y, x + 1) in {(col, i) for i in range(down)}]
+    backs = [
+        lines[y][x : x + ui._cw]
+        for y in range(top, 21)
+        if ui.hit_test(y, x + 1) in {(col, i) for i in range(down)}
+    ]
     assert backs and all("#" in row for row in backs)
 
 
@@ -212,7 +221,7 @@ def rows_of_their_own(ui, scr, sid):
     own = set()
     for y in range(top, ui.stdscr.getmaxyx()[0] - 3):
         hit = ui.hit_test(y, x + 1)
-        text = lines[y][x:x + ui._cw].strip("|│ ")
+        text = lines[y][x : x + ui._cw].strip("|│ ")
         if hit and hit[0] == sid and text == cards[hit[1]].label(ui.symbols):
             own.add(hit[1])
     return own
@@ -220,14 +229,16 @@ def rows_of_their_own(ui, scr, sid):
 
 @pytest.mark.parametrize("symbols", [False, True])
 @pytest.mark.parametrize("code_skin", [False, True])
-@pytest.mark.parametrize("key, down, up", [
-    ("klondike", 6, KING_TO_ACE),              # as long as a Klondike column gets
-    ("klondike", 0, KING_TO_ACE),
-    ("spider", 5, KING_TO_ACE + DEALT[:2]),
-    ("spider", 0, KING_TO_ACE + DEALT[:3]),
-])
-def test_every_face_up_card_of_a_long_column_has_a_row_at_80x24(key, down, up,
-                                                                code_skin, symbols):
+@pytest.mark.parametrize(
+    "key, down, up",
+    [
+        ("klondike", 6, KING_TO_ACE),  # as long as a Klondike column gets
+        ("klondike", 0, KING_TO_ACE),
+        ("spider", 5, KING_TO_ACE + DEALT[:2]),
+        ("spider", 0, KING_TO_ACE + DEALT[:3]),
+    ],
+)
+def test_every_face_up_card_of_a_long_column_has_a_row_at_80x24(key, down, up, code_skin, symbols):
     g = deal(key, 1)
     clear_board(g)
     col = g.ids_of("tableau")[0]
@@ -261,7 +272,7 @@ def test_a_column_too_long_for_the_screen_says_how_many_cards_share_a_row(code_s
     all_on_screen(ui, g, 24, 80)
     top, x = ui.slot_origin[col]
     lines = scr.text().splitlines()
-    first_row = {}               # card index -> the first row a click picks it on
+    first_row = {}  # card index -> the first row a click picks it on
     for y in range(top, 21):
         hit = ui.hit_test(y, x + 1)
         if hit and hit[0] == col:
@@ -270,7 +281,7 @@ def test_a_column_too_long_for_the_screen_says_how_many_cards_share_a_row(code_s
     assert starts[0] == 0
     shared = []
     for a, b in zip(starts, starts[1:] + [len(cards)]):
-        text = lines[first_row[a]][x:x + ui._cw]
+        text = lines[first_row[a]][x : x + ui._cw]
         if b - a > 1 and cards[a].face_up:
             assert text.strip("| ") == f"+{b - a}"
             shared.append(a)
@@ -297,8 +308,9 @@ def message_line(dealt, message, code_skin):
 
 @pytest.mark.parametrize("code_skin", [False, True])
 def test_the_message_line_says_when_cards_share_a_row(code_skin):
-    assert ("some cards share a row; a taller terminal shows them all"
-            in message_line(4, "", code_skin))
+    assert "some cards share a row; a taller terminal shows them all" in message_line(
+        4, "", code_skin
+    )
     assert "share" not in message_line(2, "", code_skin)
     # a message from the game comes first
     line = message_line(4, "nothing to pick up there", code_skin)
@@ -315,7 +327,7 @@ def test_every_face_up_rank_of_an_opening_deal_shows_at_80x24(key, code_skin):
         ui, scr = draw(g, h=24, w=80, code_skin=code_skin)
         for sid in g.ids_of("tableau"):
             cards = g.cards(sid)
-            text = "\n".join(column_text(ui, scr, sid)[ui.slot_origin[sid][0]:21])
+            text = "\n".join(column_text(ui, scr, sid)[ui.slot_origin[sid][0] : 21])
             assert all(str(c) in text for c in cards if c.face_up)
             assert clickable(ui, sid) >= {i for i, c in enumerate(cards) if c.face_up}
 
@@ -354,7 +366,7 @@ def test_a_ten_fits_inside_the_narrowest_card(view, symbols):
     row = next(line for line in scr.text().splitlines() if ten in line)
     # the box closes after the ten, and the gap to the next column stays
     assert row[xa + ui._cw - 1] in "|│]"
-    assert row[xa + ui._cw:xb].strip() == ""
+    assert row[xa + ui._cw : xb].strip() == ""
 
 
 def fill_the_fans(g):
@@ -420,6 +432,7 @@ def test_a_tiny_terminal_gets_a_message_instead_of_a_board():
 
 # -- expanded and legacy views -----------------------------------------------------------
 
+
 @pytest.fixture
 def dealt_klondike():
     g = deal("klondike", 5)
@@ -462,6 +475,7 @@ def test_every_game_draws_in_both_views(key, view):
 
 # -- monochrome ------------------------------------------------------------------------
 
+
 @pytest.mark.parametrize("key", GAME_ORDER)
 def test_monochrome_uses_no_colour_pairs(key):
     g = deal(key, 2)
@@ -474,6 +488,7 @@ def test_monochrome_uses_no_colour_pairs(key):
 
 
 # -- code skin -------------------------------------------------------------------------------
+
 
 def test_code_lines_are_repeatable_and_read_as_source():
     a = camo.code_lines(120, seed=1)
@@ -497,11 +512,11 @@ def test_the_code_skin_looks_like_an_editor(dealt_klondike):
     # 44 rows leaves room for source above and below the board
     _ui, scr = draw(dealt_klondike, h=44, w=100, code_skin=True)
     screen = scr.text()
-    assert "solver.py" in screen           # editor header
-    assert "def " in screen                # source around the board
-    assert "  1  " in screen               # line-number gutter
+    assert "solver.py" in screen  # editor header
+    assert "def " in screen  # source around the board
+    assert "  1  " in screen  # line-number gutter
     assert "board snapshot" in screen
-    assert "+--" in screen                 # and the cards themselves
+    assert "+--" in screen  # and the cards themselves
 
 
 class AttrScr(FakeScr):
@@ -525,11 +540,14 @@ def test_the_code_skin_source_is_in_the_terminal_colours(monkeypatch):
     ui = tui.BoardUI(scr, deal("klondike", 1), symbols=False, has_color=True)
     ui.code_skin = True
     ui.draw(None, 1, 0, None, 1.0, "")
-    source = [(y, line) for y, line in enumerate(scr.text().splitlines())
-              if line[ui._gutter:].startswith(("import", "def ", "from "))]
+    source = [
+        (y, line)
+        for y, line in enumerate(scr.text().splitlines())
+        if line[ui._gutter :].startswith(("import", "def ", "from "))
+    ]
     assert source
     for y, line in source:
-        assert set(scr.attrs[y][ui._gutter:len(line)]) == {0}
+        assert set(scr.attrs[y][ui._gutter : len(line)]) == {0}
 
 
 def test_the_code_skin_moves_the_board_into_the_file():
@@ -538,5 +556,5 @@ def test_the_code_skin_moves_the_board_into_the_file():
     ui.code_skin = True
     on = ui.compute_positions()
     sid = next(iter(on))
-    assert on[sid][1] > off[sid][1]        # indented further right
-    assert on[sid][0] >= off[sid][0]       # and no higher
+    assert on[sid][1] > off[sid][1]  # indented further right
+    assert on[sid][0] >= off[sid][0]  # and no higher

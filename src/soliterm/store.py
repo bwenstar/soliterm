@@ -19,7 +19,7 @@ from . import aisleriot as ar
 
 try:
     import fcntl
-except ImportError:     # Windows: no advisory locks, the lock is a no-op
+except ImportError:  # Windows: no advisory locks, the lock is a no-op
     fcntl = None  # type: ignore[assignment]
 
 # The folder name under the XDG config and data dirs. Under its old name the
@@ -68,6 +68,7 @@ def stats_path() -> str:
 # Reading and writing our JSON files
 # --------------------------------------------------------------------------- #
 
+
 def _read_json(path: str) -> dict | None:
     """The object in a JSON file: {} if there is no file, None if it is there
     but can't be read (and so must not be written over either).
@@ -82,8 +83,10 @@ def _read_json(path: str) -> dict | None:
     except FileNotFoundError:
         return {}
     except OSError as exc:
-        _notice(f"can't read {path} ({exc.strerror or exc}), "
-                "so it is left alone and nothing is saved to it")
+        _notice(
+            f"can't read {path} ({exc.strerror or exc}), "
+            "so it is left alone and nothing is saved to it"
+        )
         return None
     try:
         data = json.loads(raw.decode("utf-8"))
@@ -104,10 +107,12 @@ def _set_aside(path: str) -> bool:
     try:
         os.rename(path, target)
     except FileNotFoundError:
-        return True     # another copy of the game moved it first
+        return True  # another copy of the game moved it first
     except OSError as exc:
-        _notice(f"{path} is damaged and can't be moved aside "
-                f"({exc.strerror or exc}), so nothing is saved to it")
+        _notice(
+            f"{path} is damaged and can't be moved aside "
+            f"({exc.strerror or exc}), so nothing is saved to it"
+        )
         return False
     _notice(f"{path} was damaged; it is kept as {target} and a new one started")
     return True
@@ -124,8 +129,7 @@ def _write_json(path: str, obj: dict) -> bool:
     try:
         os.makedirs(folder, exist_ok=True)
         text = json.dumps(obj, indent=2)
-        fd, tmp = tempfile.mkstemp(dir=folder, prefix=f".{os.path.basename(path)}.",
-                                   suffix=".tmp")
+        fd, tmp = tempfile.mkstemp(dir=folder, prefix=f".{os.path.basename(path)}.", suffix=".tmp")
     except (OSError, TypeError, ValueError):
         return False
     try:
@@ -179,13 +183,13 @@ def _locked() -> Iterator[None]:
     finally:
         _lock_depth -= 1
         if fh is not None:
-            fh.close()      # which also lets go of the lock
+            fh.close()  # which also lets go of the lock
 
 
 DEFAULT_CONFIG = {
     "last_game": "klondike",
     "symbols": True,
-    "options": {},          # per-game option overrides, keyed by game key
+    "options": {},  # per-game option overrides, keyed by game key
     # Share statistics with the installed GNOME AisleRiot. When on (and its
     # config dir exists) we read from and write to its keyfile, so games played
     # in either program are mirrored in both. Defaults on.
@@ -207,6 +211,7 @@ def load_config() -> dict:
         # a game this version doesn't have (renamed, or from a newer
         # version) would have nothing to deal
         from .engine import GAMES  # local import to avoid a cycle at module load
+
         if isinstance(data.get("last_game"), str) and data["last_game"] in GAMES:
             cfg["last_game"] = data["last_game"]
         for key in ("symbols", "sync_aisleriot", "merged_into_aisleriot"):
@@ -249,14 +254,18 @@ def game_options(cfg: dict, game_key: str) -> dict:
     offer or with a value it doesn't allow, so its defaults are used instead.
     """
     from .engine import GAMES  # local import to avoid a cycle at module load
+
     opts = cfg.get("options", {})
     val = opts.get(game_key) if isinstance(opts, dict) else None
     if not isinstance(val, dict) or game_key not in GAMES:
         return {}
     allowed = {okey: values for okey, _label, values in GAMES[game_key].option_spec()}
     # compare types too: JSON true would pass for 1, and 2.0 for 2
-    return {k: v for k, v in val.items()
-            if any(type(v) is type(a) and v == a for a in allowed.get(k, ()))}
+    return {
+        k: v
+        for k, v in val.items()
+        if any(type(v) is type(a) and v == a for a in allowed.get(k, ()))
+    }
 
 
 def set_game_options(cfg: dict, game_key: str, options: dict) -> None:
@@ -320,8 +329,10 @@ def syncing() -> bool:
 
 
 def _unreadable_keyfile() -> None:
-    _notice(f"can't read {ar.keyfile_path()}, so statistics are not shared "
-            "with AisleRiot this time; they are kept here")
+    _notice(
+        f"can't read {ar.keyfile_path()}, so statistics are not shared "
+        "with AisleRiot this time; they are kept here"
+    )
 
 
 def _unwritable_keyfile() -> None:
@@ -329,8 +340,10 @@ def _unwritable_keyfile() -> None:
         # AisleRiot hasn't been run yet. Nothing is wrong: the results wait
         # here until it has made its config.
         return
-    _notice(f"couldn't write {ar.keyfile_path()}; results it is missing are "
-            "kept here and added to it next time")
+    _notice(
+        f"couldn't write {ar.keyfile_path()}; results it is missing are "
+        "kept here and added to it next time"
+    )
 
 
 def _can_sync() -> bool:
@@ -500,11 +513,12 @@ def _share(stats: dict, waiting: dict[str, dict], game_key: str) -> None:
             # saving its own copy over ours) starts from our record, which
             # counts these games already, rather than from nothing.
             return ours if cur is None else _combined(_norm(cur), games)
+
         written = ar.update_stat(ar.GAME_TO_SECTION[key], add)
         if written is None:
             left[key] = games
         else:
-            stats[key] = written    # our copy follows the keyfile
+            stats[key] = written  # our copy follows the keyfile
     if left:
         _unwritable_keyfile()
         meta["unsynced"] = left
@@ -569,9 +583,9 @@ def _combined(a: dict, b: dict) -> dict:
 def any_stats() -> bool:
     """True if a game we manage has a game on record, here or in the keyfile."""
     from .engine import GAME_ORDER  # local import to avoid a cycle at module load
+
     local = load_stats()
-    return any(get_stat(k)["total"] > 0 or _norm(local.get(k))["total"] > 0
-               for k in GAME_ORDER)
+    return any(get_stat(k)["total"] > 0 or _norm(local.get(k))["total"] > 0 for k in GAME_ORDER)
 
 
 def backup_stats() -> list[str]:
@@ -597,8 +611,9 @@ def _copy_file(src: str, dst: str) -> bool:
     except FileNotFoundError:
         return False
     with fin:
-        fd, tmp = tempfile.mkstemp(dir=os.path.dirname(dst),
-                                   prefix=f".{os.path.basename(dst)}.", suffix=".tmp")
+        fd, tmp = tempfile.mkstemp(
+            dir=os.path.dirname(dst), prefix=f".{os.path.basename(dst)}.", suffix=".tmp"
+        )
         try:
             with os.fdopen(fd, "wb") as fout:
                 shutil.copyfileobj(fin, fout)
@@ -628,6 +643,7 @@ def reset_stats() -> int:
 
 def _reset_stats() -> int:
     from .engine import GAME_ORDER  # local import to avoid a cycle at module load
+
     cleared = 0
     stats = load_stats()
     if _can_sync():
@@ -643,15 +659,17 @@ def _reset_stats() -> int:
                 return dict(EMPTY_STAT) if cur is not None else None
 
             if ar.update_stat(sect, clear) is None and played and played[-1]:
-                _notice(f"couldn't write {ar.keyfile_path()}, so AisleRiot "
-                        "still has some of the statistics cleared here")
+                _notice(
+                    f"couldn't write {ar.keyfile_path()}, so AisleRiot "
+                    "still has some of the statistics cleared here"
+                )
             # ours may have games the keyfile hasn't been given yet
             if (played and played[-1]) or _norm(stats.get(game_key))["total"] > 0:
                 cleared += 1
     else:
         cleared = sum(1 for k in GAME_ORDER if _norm(stats.get(k))["total"] > 0)
     meta = dict(_meta(load_stats()))
-    meta.pop("unsynced", None)      # games not yet shared are cleared too
+    meta.pop("unsynced", None)  # games not yet shared are cleared too
     save_stats({META_KEY: meta})
     return cleared
 

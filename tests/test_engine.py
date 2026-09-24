@@ -17,6 +17,7 @@ def board(g):
 
 # -- dealing ------------------------------------------------------------------
 
+
 @pytest.mark.parametrize("seed", range(5))
 @pytest.mark.parametrize("key", GAME_ORDER)
 def test_fresh_deal_has_every_card_and_is_not_won(key, seed):
@@ -38,6 +39,7 @@ def test_golf_waits_for_the_stock_to_start_the_waste():
 
 
 # -- options --------------------------------------------------------------------
+
 
 # Values a hand-edited or out-of-date config.json could hold.
 @pytest.mark.parametrize("bad", [3, "2", None, 2.0, True, [4]])
@@ -65,6 +67,7 @@ def test_good_options_are_kept_and_unknown_ones_dropped():
 
 # -- random play ----------------------------------------------------------------
 
+
 @pytest.mark.parametrize("seed", range(15))
 @pytest.mark.parametrize("key", GAME_ORDER)
 def test_random_play_never_loses_or_duplicates_a_card(key, seed):
@@ -77,6 +80,7 @@ def test_random_play_never_loses_or_duplicates_a_card(key, seed):
 
 
 # -- undo / redo ----------------------------------------------------------------
+
 
 @pytest.mark.parametrize("key", GAME_ORDER)
 def test_undo_all_returns_to_the_deal(key):
@@ -136,16 +140,21 @@ def test_autoplay_that_moves_nothing_adds_no_undo_step():
 
 # -- Canfield reserve -------------------------------------------------------------
 
+
 def _refill_after_emptying_a_column(g, res):
     g.slots[g.ids_of("tableau")[0]].cards = []
     g.gamedef._refill(g)
 
 
-@pytest.mark.parametrize("action", [
-    lambda g, res: g.double_click(res),
-    lambda g, res: g.autoplay(),
-    _refill_after_emptying_a_column,
-], ids=["double_click", "autoplay", "refill"])
+@pytest.mark.parametrize(
+    "action",
+    [
+        lambda g, res: g.double_click(res),
+        lambda g, res: g.autoplay(),
+        _refill_after_emptying_a_column,
+    ],
+    ids=["double_click", "autoplay", "refill"],
+)
 def test_canfield_reserve_top_stays_face_up(action):
     g = deal("canfield", 7)
     res = g.ids_of("reserve")[0]
@@ -170,6 +179,7 @@ def test_canfield_scores_the_base_card_it_deals(seed):
 
 # -- winning ------------------------------------------------------------------------
 
+
 def test_klondike_autoplay_finishes_a_won_game():
     g = deal("klondike", 1)
     fids, tids = g.ids_of("foundation"), g.ids_of("tableau")
@@ -192,6 +202,7 @@ def test_spider_with_eight_complete_suits_is_won_for_96():
 
 
 # -- autoplay -----------------------------------------------------------------------
+
 
 def up(rank, suit):
     return Card(rank, suit, True)
@@ -250,7 +261,7 @@ def test_forty_thieves_autoplay_waits_for_the_other_deck():
     f, t = g.ids_of("foundation"), g.ids_of("tableau")
     g.slots[f[0]].cards = [up(1, "D"), up(2, "D")]
     g.slots[t[0]].cards = [up(3, "D")]
-    g.slots[t[1]].cards = [up(9, "S"), up(2, "D")]    # the other deck's 2D
+    g.slots[t[1]].cards = [up(9, "S"), up(2, "D")]  # the other deck's 2D
     assert g.autoplay() == 0
     g.slots[t[1]].cards = [up(9, "S")]
     g.slots[f[1]].cards = [up(1, "D"), up(2, "D")]
@@ -263,9 +274,9 @@ def test_canfield_autoplay_counts_from_the_base_card():
     g.base_val = 5
     f, t = g.ids_of("foundation"), g.ids_of("tableau")
     g.slots[f[0]].cards = [up(5, "D"), up(6, "D")]
-    g.slots[t[0]].cards = [up(7, "D")]            # a black six still wants it
+    g.slots[t[0]].cards = [up(7, "D")]  # a black six still wants it
     g.slots[t[1]].cards = [up(10, "H"), up(6, "C")]
-    g.slots[t[2]].cards = [up(5, "S")]            # a base card always goes
+    g.slots[t[2]].cards = [up(5, "S")]  # a base card always goes
     assert g.autoplay() == 1
     assert labels(g, t[0]) == ["7D"] and not g.cards(t[2])
 
@@ -283,9 +294,12 @@ def test_autoplay_finishes_a_board_with_every_column_in_order(key):
 
 # -- double click -------------------------------------------------------------------
 
-@pytest.mark.parametrize("key, blocker, score", [("klondike", up(2, "C"), 4),
-                                                 ("fortythieves", up(2, "D"), 20)],
-                         ids=["klondike", "fortythieves"])
+
+@pytest.mark.parametrize(
+    "key, blocker, score",
+    [("klondike", up(2, "C"), 4), ("fortythieves", up(2, "D"), 20)],
+    ids=["klondike", "fortythieves"],
+)
 def test_double_clicking_a_foundation_sends_up_all_it_can(key, blocker, score):
     # unlike autoplay it doesn't wait for the two that could want the 3D
     g = deal(key, 1)
@@ -335,6 +349,7 @@ def test_forty_thieves_double_click_falls_back_to_the_tableau():
 
 # -- score clamp --------------------------------------------------------------------
 
+
 def test_score_never_goes_below_zero():
     g = deal("klondike", 1)
     fids, tids = g.ids_of("foundation"), g.ids_of("tableau")
@@ -342,7 +357,7 @@ def test_score_never_goes_below_zero():
     g.slots[fids[0]].cards = [Card(1, "C", True)]
     g.slots[tids[0]].cards = [Card(2, "H", True)]
     g.score = 0
-    assert g.attempt_move(fids[0], tids[0])      # taking AC back would be -1
+    assert g.attempt_move(fids[0], tids[0])  # taking AC back would be -1
     assert g.score == 0
     g.score = 3
     g.score -= 10
@@ -351,8 +366,9 @@ def test_score_never_goes_below_zero():
 
 # -- restart and new deals ------------------------------------------------------
 
+
 def test_restart_replays_the_same_hand():
-    g = engine.new_solitaire("klondike")          # no fixed seed
+    g = engine.new_solitaire("klondike")  # no fixed seed
     snap, seed = board(g), g.current_seed
     g.deal()
     g.deal()
@@ -411,6 +427,7 @@ def test_a_negative_seed_is_refused():
 
 
 # -- stuck detection ------------------------------------------------------------------
+
 
 @pytest.mark.parametrize("key", GAME_ORDER)
 def test_a_fresh_deal_is_not_stuck(key):
