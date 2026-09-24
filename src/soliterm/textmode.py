@@ -317,17 +317,24 @@ def run_text(
         # touched does not count at all
         return not recorded and not g.is_won() and (g.moves > 0 or resumed)
 
-    def give_up() -> None:
+    def count(won: bool, secs: int) -> None:
         nonlocal recorded
+        with store.signals_held():
+            history.record(g, won, secs)
+            recorded = True
+
+    def give_up() -> None:
         if under_way():
-            with store.signals_held():
-                history.record(g, False, seconds())
-                recorded = True
+            count(False, seconds())
 
     def put_away() -> None:
         # on leaving: kept for next time if it may be, and otherwise lost,
-        # with saves.keep's notice saying why
+        # with saves.keep's notice saying why; a win not counted yet, as
+        # when Ctrl-C comes just as it's made, counts as won
         nonlocal recorded
+        if g.is_won() and not recorded:
+            count(True, seconds())
+            return
         if keep and under_way():
             with store.signals_held():
                 recorded = saves.keep(g, seconds())
@@ -378,9 +385,7 @@ def run_text(
             print(render_text(g, symbols, color), file=out)
             if g.is_won() and not recorded:
                 secs = seconds()
-                with store.signals_held():
-                    history.record(g, True, secs)
-                    recorded = True
+                count(True, secs)
                 print("Congratulations - you won!", file=out)
                 print(
                     f"Score {g.score} in {store.fmt_time(secs)} ({store.moves_text(g.moves)}).",

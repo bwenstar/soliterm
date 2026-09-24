@@ -841,6 +841,14 @@ def test_ctrl_c_during_the_finish_leaves_as_q_does(animated):
     assert saves.waiting()["klondike"]["moves"] == 2
 
 
+def test_ctrl_c_as_the_last_card_lands_counts_the_win(animated):
+    assert animated(["a", -1, -1, -1, KeyboardInterrupt], game=near_won()).rc == 130
+    s = store.get_stat("klondike")
+    assert (s["wins"], s["total"]) == (1, 1)
+    assert [e["result"] for e in history.games()] == ["won"]
+    assert saves.waiting() == {}
+
+
 # -- the win's cascade ------------------------------------------------------------------
 
 LANDINGS = ["a", -1, -1, -1, -1]  # near_won() finished, a card a frame

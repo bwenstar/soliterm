@@ -1002,7 +1002,11 @@ class App:
     def put_away(self):
         """Keep the game in play for next time, on q, m, Ctrl-C, SIGHUP or
         SIGTERM. One that can't be kept counts as lost, and saves.keep has
-        left a notice saying why."""
+        left a notice saying why. One won but not counted yet, as when
+        Ctrl-C comes as the finish lands the last card, counts as won."""
+        if self.game.is_won() and not self.recorded:
+            self.count(True, self.seconds())
+            return
         if not self.under_way():
             return
         with store.signals_held():

@@ -420,6 +420,22 @@ def test_a_text_win_prints_the_streak(before, streak, capsys):
     assert lines[score[0] + 1 :] == ["Share code: klondike:1", *streak]
 
 
+def test_ctrl_c_as_a_win_is_shown_still_counts_it(monkeypatch):
+    real = textmode.render_text
+
+    def render(g, *args):
+        if g.is_won():
+            raise KeyboardInterrupt  # before the win is counted
+        return real(g, *args)
+
+    monkeypatch.setattr(textmode, "render_text", render)
+    g = deal("klondike", 1)
+    script = io.StringIO(f"f {one_card_from_won(g)}\n")
+    assert textmode.run_text(g, False, "klondike", stream=script) == 130
+    s = store.get_stat("klondike")
+    assert (s["wins"], s["total"]) == (1, 1)
+
+
 def test_text_games_go_in_the_history(capsys):
     play_text("klondike", "d\nq\n")
     g = deal("klondike", 1)
