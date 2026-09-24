@@ -61,6 +61,14 @@
   editor would, in the theme's colours.
 - A terminal with too few colour pairs for all of these draws the ones it
   has no room for in colours it does have.
+- Three new games: Spiderette, Triple Peaks and Scorpion. Each shares its
+  statistics with AisleRiot's own record of it, so any games of them
+  you've played in AisleRiot show up straight away. Each has its page in
+  `docs/games`.
+- Triple Peaks has AisleRiot's multiplier scoring as an option.
+- `--reset-stats` clears the new games too, in AisleRiot's keyfile as well
+  when sharing.
+- Spider's status line says `1 deal`, not `1 deals`.
 
 ## 1.0.0 - 2026-06-29
 
