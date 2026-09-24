@@ -1986,6 +1986,17 @@ def test_the_boss_key_works_on_every_screen_and_comes_back_to_it(
     assert screen in back
 
 
+@pytest.mark.parametrize("screen, start_key, game, keys", EVERY_SCREEN)
+def test_every_screen_fits_80x24(tui, screen, start_key, game, keys):
+    scr = tui(keys + OUT, start_key=start_key, game=game and game(), h=24, w=80)
+    shown = scr.frames[len(keys)]
+    assert screen in shown and "Terminal too small" not in shown
+    if screen in ("choose a game", "Statistics"):
+        # every game has its row, and whatever comes under them fits too
+        assert all(cls.name in shown for cls in engine.GAMES.values())
+        assert ("Quit" if start_key is None else "Press any key") in shown
+
+
 def test_only_a_key_ends_boss_mode_not_the_mouse_or_a_resize(tui):
     scr = tui(
         [

@@ -10,6 +10,7 @@ from soliterm import engine, store
 EXPECTED_CARDS = {
     "klondike": 52,
     "spider": 104,
+    "spiderette": 52,
     "freecell": 52,
     "eightoff": 52,
     "golf": 52,

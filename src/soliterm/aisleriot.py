@@ -31,6 +31,7 @@ from typing import Callable
 GAME_TO_SECTION: dict[str, str] = {
     "klondike": "klondike.scm",
     "spider": "spider.scm",
+    "spiderette": "spiderette.scm",
     "freecell": "freecell.scm",
     "eightoff": "eight_off.scm",
     "golf": "golf.scm",

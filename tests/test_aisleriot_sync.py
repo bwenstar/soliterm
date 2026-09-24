@@ -4,14 +4,16 @@ The keyfile fixture writes into the test's own home, so the real one is
 never touched.
 """
 
+import io
 import json
 import os
 import shutil
+import sys
 
 import pytest
 
 from soliterm import aisleriot as ar
-from soliterm import store
+from soliterm import cli, store
 
 # chmod can take read access away from us, but not from root, and not on
 # Windows
@@ -548,6 +550,37 @@ def test_reset_zeroes_only_the_games_we_manage(keyfile):
     assert store.reset_stats() == 1  # only spider had a record
     assert ar.read_stat("spider.scm") == stat(0, 0, 0, 0)
     assert ar.read_stat("poker.scm") == stat(5, 50, 0, 0)
+
+
+# -- the games added since 1.0.0 ------------------------------------------------------
+
+# where AisleRiot keeps each one's record: its Scheme file's name, with
+# hyphens turned into underscores
+NEW_SECTIONS = {
+    "spiderette": "spiderette.scm",
+}
+
+
+@pytest.mark.parametrize("key, section", NEW_SECTIONS.items())
+def test_the_new_games_use_aisleriots_sections(key, section):
+    assert ar.GAME_TO_SECTION[key] == section
+    assert ar.SECTION_TO_GAME[section] == key
+
+
+def test_spiderette_shows_aisleriots_record(keyfile):
+    keyfile("[spiderette.scm]\nStatistic=2;5;300;400;\n")
+    assert store.get_stat("spiderette") == stat(2, 5, 300, 400)
+
+
+def test_reset_stats_zeroes_the_new_sections(keyfile, monkeypatch, capsys):
+    path = keyfile("".join(f"[{s}]\nStatistic=2;5;300;400;\n\n" for s in NEW_SECTIONS.values()))
+    monkeypatch.setattr(sys, "stdin", io.StringIO(""))
+    assert cli.main(["--reset-stats", "--yes"]) == 0
+    assert f"cleared for {len(NEW_SECTIONS)} game" in capsys.readouterr().out
+    for key, section in NEW_SECTIONS.items():
+        assert ar.read_stat(section) == stat(0, 0, 0, 0)
+        assert store.get_stat(key) == stat(0, 0, 0, 0)
+    assert path.read_text().count("Statistic=0;0;0;0;") == len(NEW_SECTIONS)
 
 
 def test_without_aisleriot_stats_stay_in_local_json():

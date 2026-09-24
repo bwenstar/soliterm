@@ -30,6 +30,7 @@ from .games.freecell import FreeCell
 from .games.golf import Golf
 from .games.klondike import Klondike
 from .games.spider import Spider
+from .games.spiderette import Spiderette
 from .games.yukon import Yukon
 
 __all__ = [
@@ -57,6 +58,7 @@ __all__ = [
     "Slot",
     "Solitaire",
     "Spider",
+    "Spiderette",
     "Yukon",
     "make_deck",
     "new_solitaire",

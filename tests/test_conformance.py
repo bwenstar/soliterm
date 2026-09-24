@@ -146,7 +146,7 @@ def every_suit_in_its_own_column(key):
 def test_finish_scores_like_the_moves_one_by_one(key):
     g = every_suit_in_its_own_column(key)
     moves = g.finish_moves()
-    if key in ("spider", "golf"):
+    if key in ("spider", "spiderette", "golf"):
         # Spider's foundations only take a whole suit, and Golf has none
         assert moves is None
         assert g.finish() == 0
@@ -178,6 +178,7 @@ def deal_digest(g):
 DEALS = {
     "klondike": ("4fecec8c3c38d7b5", "ed9ca5ada40b2eb1"),
     "spider": ("16e9476c672a9f48", "eeb4df77cef7433f"),
+    "spiderette": ("95c7c010e5528c86", "f32f650b978ad978"),
     "freecell": ("586e2b0bda55805d", "cf45ea6eb566a0e3"),
     "eightoff": ("295688b1398793ab", "da12f0b5390ee5a9"),
     "golf": ("c89f7ca84c5ff69e", "6e6353a85789ea94"),

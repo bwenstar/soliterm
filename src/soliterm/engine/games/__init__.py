@@ -13,6 +13,7 @@ from .freecell import FreeCell
 from .golf import Golf
 from .klondike import Klondike
 from .spider import Spider
+from .spiderette import Spiderette
 from .yukon import Yukon
 
 GAMES: dict[str, type[GameDef]] = {
@@ -20,6 +21,7 @@ GAMES: dict[str, type[GameDef]] = {
     for cls in [
         Klondike,
         Spider,
+        Spiderette,
         FreeCell,
         EightOff,
         Golf,
@@ -33,6 +35,7 @@ GAMES: dict[str, type[GameDef]] = {
 GAME_ORDER = [
     "klondike",
     "spider",
+    "spiderette",
     "freecell",
     "eightoff",
     "golf",
