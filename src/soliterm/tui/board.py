@@ -354,9 +354,9 @@ class BoardUI:
                     # squeezed to its label and bottom edge, or its label
                     lines = [lines[1], lines[-1]][:top_h]
             else:
-                # the peek, or on one row a face-up card's label
-                lines = self._card_rows(card, cw, False)
-                lines = lines[-height:] if card.face_up else lines[:height]
+                # the peek, or on one row the label or the back, not the
+                # top edge, which would read as the top of the next card
+                lines = self._card_rows(card, cw, False)[-height:]
             for dy, line in enumerate(lines):
                 self.safe_add(sy + rows[i] + dy, sx, line, attr)
             self._register_hit(sy + rows[i], sx, height, cw, sid, first)

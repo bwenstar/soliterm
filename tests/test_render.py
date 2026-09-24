@@ -180,7 +180,24 @@ def test_a_squeezed_column_still_shows_every_face_up_rank(down, up):
     assert clickable(ui, col) >= set(range(down, down + up))
 
 
-KING_TO_ACE = [Card(r, "SH"[r % 2], True) for r in range(13, 0, -1)]
+# 2 face-down cards squeezed to a row each; 1 on a row of its own, as in
+# the Yukon opening; 6 counted on one row
+@pytest.mark.parametrize("down, up", [(2, 4), (1, 9), (6, 9)])
+def test_a_face_down_card_squeezed_to_one_row_shows_its_back(down, up):
+    # its top edge alone read as the top of the card on it
+    g = deal("klondike", 1)
+    clear_board(g)
+    col = g.ids_of("tableau")[0]
+    g.slots[col].cards = [Card(1, "C", False)] * down + RUN[:up]
+    ui, scr = draw(g, h=24, w=80)
+    top, x = ui.slot_origin[col]
+    lines = scr.text().splitlines()
+    backs = [lines[y][x:x + ui._cw] for y in range(top, 21)
+             if ui.hit_test(y, x + 1) in {(col, i) for i in range(down)}]
+    assert backs and all("#" in row for row in backs)
+
+
+KING_TO_ACE =[Card(r, "SH"[r % 2], True) for r in range(13, 0, -1)]
 DEALT = [Card(9, "H", True), Card(4, "S", True), Card(7, "H", True), Card(2, "S", True)]
 
 
