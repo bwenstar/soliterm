@@ -220,9 +220,13 @@ The hint needs nothing either. The engine tries each legal move on a copy
 of the board and suggests the one that raises `progress(g)` the most.
 The default counts cards on the foundations, face-down cards turned up,
 cards taken out of the waste, free cells and reserve, and cards built
-into runs. A game with no foundations, such as Golf, gives its own
-`progress`, and `fallback_move`, `is_dead_end` and `no_hint_reason` are
-there for a game whose hint needs more help.
+into runs. When no move raises it, the hint deals, or suggests a move
+that sets up one that does, and failing that any move that goes
+somewhere: not one the cards could go straight back from, one that only
+moves a gap, or one back to a position the game has been in. A game with
+no foundations, such as Golf, gives its own `progress`, and
+`fallback_move`, `is_dead_end` and `no_hint_reason` are there for a game
+whose hint needs more help.
 
 ### Winning, dealing and the status line
 

@@ -1361,8 +1361,8 @@ class App:
 
     def hinted_run(self, src: int, dst: int) -> int:
         """How many cards the hint from src to dst would move: as many as
-        best_move() says when the hint is that move, else the most dst takes."""
-        mv = self.game.best_move()
+        hint_move() says when the hint is that move, else the most dst takes."""
+        mv = self.game.hint_move()
         if mv is not None and mv[:2] == (src, dst):
             return mv[2]
         takes = [n for (s, d, n) in self.game.legal_moves() if (s, d) == (src, dst)]

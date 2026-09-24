@@ -68,6 +68,11 @@ def _card(token: str) -> Card:
     return Card(int(m[1]), m[2], m[3] == "U")
 
 
+def _cards_of(slots: list[Slot]) -> tuple[tuple[Card, ...], ...]:
+    """The cards of a position, slot by slot, without its score and counters."""
+    return tuple(tuple(s.cards) for s in slots)
+
+
 class Solitaire:
     """Holds the slots and the shared state; dispatches to a GameDef."""
 
@@ -503,9 +508,10 @@ class Solitaire:
 
         A move that advances the game comes first, then a deal if dealing
         would change the board, then a move that sets up one that advances,
-        and last whatever the game itself offers (GameDef.fallback_move). A
-        deal comes back as (stock, stock, 0). See best_move() and
-        setup_move() for why following it never loops.
+        then whatever the game itself offers (GameDef.fallback_move), and
+        last any move that goes somewhere (plain_move). A deal comes back as
+        (stock, stock, 0). See best_move(), setup_move() and plain_move()
+        for why following it never loops.
         """
         if self.gamedef.is_dead_end(self):
             return None  # no move can save it; undo can
@@ -519,7 +525,46 @@ class Solitaire:
         mv = self.setup_move()
         if mv is not None:
             return mv
-        return self.gamedef.fallback_move(self)
+        mv = self.gamedef.fallback_move(self)
+        if mv is not None:
+            return mv
+        return self.plain_move()
+
+    def plain_move(self) -> tuple[int, int, int] | None:
+        """A move for the hint when nothing rates, as long as it goes
+        somewhere: not one the cards could simply go back from, as a card
+        slid from one build to another could, not one that only moves a
+        gap, as a lone card or a whole column moved to an empty slot does,
+        and not one back to a position the game has been in. The move
+        losing least ground comes first, then one onto a card, then fewer
+        cards and the deeper pile.
+
+        With no way straight back and never an old position, following the
+        hint still never loops.
+        """
+        base = self.progress()
+        been = None
+        best = None
+        best_rank = None
+        for src, dst, n in self.legal_moves():
+            if self.empty(dst) and n == len(self.cards(src)):
+                continue  # the gap just changes places
+            sim = self.clone()
+            if not sim.attempt_move(src, dst, n):
+                continue
+            moved = sim.cards(dst)[-n:]
+            if sim.can_pickup(dst, n) and self.gamedef.can_drop(sim, dst, moved, src):
+                continue  # it could go straight back
+            if been is None:
+                # every position on the way here, the cards alone
+                been = {_cards_of(self._parse(step.decode())[2]) for step in self._undo}
+            if _cards_of(sim.slots) in been:
+                continue
+            rank = (sim.progress() - base, not self.empty(dst), -n, len(self.cards(src)))
+            if best_rank is None or rank > best_rank:
+                best_rank = rank
+                best = (src, dst, n)
+        return best
 
     def hint(self) -> tuple[int, int, str] | None:
         """What hint_move() suggests, as (src, dst, description) for the UI."""

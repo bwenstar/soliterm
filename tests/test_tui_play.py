@@ -369,6 +369,28 @@ def test_the_hint_names_cards_the_way_the_board_draws_them(tui):
     assert f"Hint: {desc}" in scr.frames[1]
 
 
+def test_the_hint_key_names_a_move_when_nothing_gains(tui):
+    scr = tui(["h"], start_key="freecell", game=deal("freecell", 1))
+    assert "Hint: Move 6♠ to a free cell" in scr.frames[1]
+
+
+def test_the_hint_lights_up_as_many_cards_as_it_moves(tui, monkeypatch):
+    # K♣ and Q♥ go aside to free 5♠; K♦ could take all four, for nothing
+    g, _, _ = board("yukon", [up(13, "D"), up(5, "S"), up(13, "C"), up(12, "H")], [])
+    g.slots[g.ids_of("foundation")[0]].cards = [up(r, "S") for r in range(1, 5)]
+    lit = []
+    real = soliterm.tui.BoardUI.draw
+
+    def draw(self, *args):
+        lit.append(args[-1])  # how many cards the hint lights up
+        return real(self, *args)
+
+    monkeypatch.setattr(soliterm.tui.BoardUI, "draw", draw)
+    scr = tui(["h"], start_key="yukon", game=g)
+    assert "Hint: Move K♣ to the empty column" in scr.frames[1]
+    assert lit[1] == 2
+
+
 def test_the_hint_key_with_nothing_to_hint_explains_why(tui):
     g, _, _ = board("freecell", [up(13, "S")], [up(13, "H")])
     assert g.hint() is None

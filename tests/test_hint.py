@@ -1,5 +1,5 @@
-"""The hint only suggests moves that make progress, so following it can
-never loop."""
+"""The hint suggests a move that makes progress when there is one, and
+following it never loops."""
 
 import pytest
 
@@ -151,6 +151,32 @@ def test_a_king_is_moved_aside_to_free_the_ace_under_it():
     assert g.attempt_move(src, dst, 2)
     mv = g.best_move()
     assert mv is not None and mv[0] == t[0] and g.kind(mv[1]) == "foundation"
+
+
+# -- a move when nothing gains ------------------------------------------------
+
+
+def test_with_nothing_that_gains_the_hint_still_names_a_move():
+    # FreeCell deal 1 opens with nothing to build on or send up
+    g = deal("freecell", 1)
+    assert g.best_move() is None and g.setup_move() is None
+    assert g.hint()[2] == "Move 6♠ to a free cell"
+    assert apply_text_command(g, "hint") == (
+        True,
+        "Hint: Move 6♠ to a free cell  (#8 -> cel#0, type: 8 0)",
+    )
+
+
+def test_the_hint_names_no_move_that_just_goes_back_and_forth():
+    # 7♠ could slide to 8♦ and back, and 8♦ alone only moves its gap along
+    g = deal("freecell", 1)
+    clear_board(g)
+    t = g.ids_of("tableau")
+    g.slots[t[0]].cards = [Card(8, "H", True), Card(7, "S", True)]
+    g.slots[t[1]].cards = [Card(8, "D", True)]
+    g.slots[t[2]].cards = [Card(13, "C", True), Card(2, "D", True)]
+    src, _, desc = g.hint()
+    assert src == t[2] and desc == "Move 2♦ to the empty column"
 
 
 # -- when there is nothing to hint ------------------------------------------------
