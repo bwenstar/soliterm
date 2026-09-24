@@ -1,8 +1,11 @@
 # Checks the actions in .github/workflows for new versions once a week
 # and puts whatever it finds into a single pull request. There is no pip
-# entry: the only runtime dependency is windows-curses on Windows, and
-# the dev group in pyproject.toml is unpinned, so there is nothing for it
-# to bump.
+# entry. The only runtime dependency is windows-curses on Windows, and
+# the linters are pinned on purpose, to the same versions in four places:
+# the dev group in pyproject.toml, the install line in ci.yml, the one in
+# CONTRIBUTING.md and, for ruff, .pre-commit-config.yaml. A pip entry
+# would bump the first and leave the others behind, so they get moved up
+# by hand, all together.
 version: 2
 updates:
   - package-ecosystem: github-actions
