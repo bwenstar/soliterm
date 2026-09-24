@@ -1062,7 +1062,7 @@ class App:
         if not bstate & MOUSE_MASK:
             # the pointer moving, the wheel or another button: none of them
             # should shift the cursor or wipe the hint
-            return None
+            return
         target = self.ui.hit_test(y, x)
         if bstate & curses.BUTTON1_RELEASED:
             # A release only counts as the end of a press made on this board.
@@ -1074,17 +1074,17 @@ class App:
             pressed, self.pressed = self.pressed, None
             if (pressed is None or target is None or target[0] == pressed
                     or self.selected != pressed):
-                return None
+                return
             self.cursor = target[0]
             self.hint = None
             self.drop_on(target[0])
             # the press began a drag, not a double-click
             self.last_click = None
-            return None
+            return
         if bstate & curses.BUTTON1_PRESSED:
             self.pressed = target[0] if target else None
         if target is None:
-            return None
+            return
         tsid, tidx = target
         self.cursor = tsid
         self.hint = None
@@ -1115,7 +1115,6 @@ class App:
                 self.selected_exact = False
             else:
                 self.drop_on(tsid)
-        return None
 
     # ---- end of game ---- #
     @hides_the_board
