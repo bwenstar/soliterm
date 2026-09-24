@@ -73,6 +73,14 @@ If you use [pre-commit](https://pre-commit.com), `pip install pre-commit`
 and then `pre-commit install` will run the whitespace fixers, the YAML and
 TOML checks and ruff on every commit.
 
+The commit that first formatted the whole tree is listed in
+`.git-blame-ignore-revs`. GitHub skips it in its blame view; to have
+`git blame` skip it as well, run this once in your clone:
+
+```sh
+git config blame.ignoreRevsFile .git-blame-ignore-revs
+```
+
 ## Building
 
 ```sh
