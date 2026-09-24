@@ -15,7 +15,7 @@ cd soliterm
 python -m venv .venv
 . .venv/bin/activate              # on Windows: .venv\Scripts\activate
 python -m pip install -e .
-python -m pip install pytest coverage ruff mypy vermin build twine
+python -m pip install pytest coverage ruff==0.16.6 mypy==2.3.1 vermin==1.8.0 build twine
 ```
 
 Those tools are the `dev` group in `pyproject.toml`, so with pip 25.1 or
@@ -61,6 +61,13 @@ vermin -t=3.9- --no-tips --violations --eval-annotations src
 ```
 
 vermin makes sure nothing newer than Python 3.9 has crept into `src/`.
+In CI the formatter runs as `ruff format --check .`, which only reports
+what it would change.
+
+ruff, mypy and vermin are pinned, to the same versions in the install line
+above, in the `dev` group and in CI, so a new release can't turn the checks
+red on its own. When you move one of them up, change it in all three, and
+for ruff in `.pre-commit-config.yaml` too.
 
 If you use [pre-commit](https://pre-commit.com), `pip install pre-commit`
 and then `pre-commit install` will run the whitespace fixers, the YAML and

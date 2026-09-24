@@ -47,7 +47,16 @@ Changelog = "https://github.com/bwenstar/soliterm/blob/main/CHANGELOG.md"
 soliterm = "soliterm.cli:main"
 
 [dependency-groups]
-dev = ["pytest", "coverage", "ruff", "mypy", "vermin", "build", "twine"]
+dev = [
+    "pytest",
+    "coverage",
+    # the same versions as the lint job in CI (and ruff as in pre-commit)
+    "ruff==0.16.6",
+    "mypy==2.3.1",
+    "vermin==1.8.0",
+    "build",
+    "twine",
+]
 
 [tool.setuptools.dynamic]
 version = { attr = "soliterm.__version__" }
