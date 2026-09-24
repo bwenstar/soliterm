@@ -15,6 +15,7 @@ EXPECTED_CARDS = {
     "eightoff": 52,
     "golf": 52,
     "yukon": 52,
+    "scorpion": 52,
     "bakersdozen": 52,
     "fortythieves": 104,
     "canfield": 52,

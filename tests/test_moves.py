@@ -54,6 +54,8 @@ def test_a_slot_cannot_move_onto_itself(key):
 @pytest.mark.parametrize("key", GAME_ORDER)
 def test_moving_from_an_empty_slot_is_refused(key):
     g = deal(key, 3)
+    if all(s.cards for s in g.slots):  # Scorpion's deal fills every slot
+        g.slots[-1].cards.clear()
     src = next(s.sid for s in g.slots if not s.cards)
     before = g.serialize()
     for dst in range(len(g.slots)):
@@ -228,7 +230,8 @@ def check_against_brute_force(g):
         assert g.is_won() or g.is_stuck()
     else:
         assert g.has_any_move(), f"says no moves but {found[0]} works"
-        assert not g.is_stuck()
+        # unless the game knows the moves left can't win it
+        assert not g.is_stuck() or g.gamedef.is_dead_end(g)
 
 
 def test_a_dead_klondike_board_is_stuck():

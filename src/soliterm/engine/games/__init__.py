@@ -12,6 +12,7 @@ from .fortythieves import FortyThieves
 from .freecell import FreeCell
 from .golf import Golf
 from .klondike import Klondike
+from .scorpion import Scorpion
 from .spider import Spider
 from .spiderette import Spiderette
 from .yukon import Yukon
@@ -26,6 +27,7 @@ GAMES: dict[str, type[GameDef]] = {
         EightOff,
         Golf,
         Yukon,
+        Scorpion,
         BakersDozen,
         FortyThieves,
         Canfield,
@@ -40,6 +42,7 @@ GAME_ORDER = [
     "eightoff",
     "golf",
     "yukon",
+    "scorpion",
     "bakersdozen",
     "fortythieves",
     "canfield",

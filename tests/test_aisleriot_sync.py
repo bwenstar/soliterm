@@ -558,6 +558,7 @@ def test_reset_zeroes_only_the_games_we_manage(keyfile):
 # hyphens turned into underscores
 NEW_SECTIONS = {
     "spiderette": "spiderette.scm",
+    "scorpion": "scorpion.scm",
 }
 
 
