@@ -202,10 +202,13 @@ Leaving always goes the same way, whatever the reason:
 
 - `_leave_on_signals` in [`cli.py`](../src/soliterm/cli.py) turns SIGHUP
   and SIGTERM into the `KeyboardInterrupt` Ctrl-C raises, so the terminal
-  closing or a `kill` leaves by the same road as `q`. The first signal
-  turns the others off, so a second can't cut that short, and a signal
-  that was already ignored, as under `nohup`, stays ignored. After a
-  hangup, output goes to `/dev/null`, since the terminal has gone.
+  closing or a `kill` leaves by the same road as `q`. After the first,
+  another does nothing, so the second SIGHUP a closing terminal often
+  sends can't cut that short, unless it comes while the game waits for
+  the stats lock: then it breaks off the wait, as a second Ctrl-C does.
+  A signal that was already ignored, as under `nohup`, stays ignored.
+  After a hangup, output goes to `/dev/null`, since the terminal has
+  gone.
 - The play loop catches it and calls `put_away`, which keeps the game, or
   counts it as won or lost when it can't be kept. A deal never started
   has nothing to keep, so it leaves at once, without the stats lock.
@@ -215,8 +218,8 @@ Leaving always goes the same way, whatever the reason:
   game saved or counted a second time on the way out. Taking a save up
   and putting the game in play happen inside it too, so no signal lands
   while the game is out of the folder but not yet in play. It takes the
-  stats lock first, while signals still land, so Ctrl-C can break off a
-  wait for another copy of the game.
+  stats lock first, while signals still land, so Ctrl-C or a signal can
+  break off a wait for another copy of the game.
 
 Text mode does the same in `run_text`, except that it only keeps games
 for someone typing at a terminal. A script's game is counted, as it

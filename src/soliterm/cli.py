@@ -318,9 +318,12 @@ def _leave_on_signals() -> Iterator[list[int]]:
     """Leave on SIGHUP (the terminal closing) or SIGTERM the way Ctrl-C does.
 
     Both raise KeyboardInterrupt, so the game in play is saved or counted as
-    it is for Ctrl-C. The first signal turns both off, so a second can't
-    cut that short. One ignored already, as nohup leaves SIGHUP, stays
-    ignored. What it yields lists the signal that came, if one did.
+    it is for Ctrl-C. After the first, another does nothing, so the second
+    SIGHUP a closing terminal often sends can't cut that short, unless it
+    comes while the way out waits for the stats lock: then it breaks off
+    the wait, as a second Ctrl-C does. One ignored already, as nohup
+    leaves SIGHUP, stays ignored. What it yields lists the signals that
+    came.
     """
     hup = getattr(signal, "SIGHUP", None)  # not on Windows
     signums = [
@@ -329,11 +332,11 @@ def _leave_on_signals() -> Iterator[list[int]]:
     came: list[int] = []
 
     def leave(signum: int, frame: object) -> None:
-        came.append(signum)
-        for s in signums:
-            signal.signal(s, signal.SIG_IGN)
         if signum == hup:
             _quiet_output()
+        if came and not store.waiting_for_lock():
+            return
+        came.append(signum)
         raise KeyboardInterrupt
 
     old = {}

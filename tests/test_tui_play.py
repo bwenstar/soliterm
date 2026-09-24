@@ -14,6 +14,8 @@ import os
 import re
 import signal
 import sys
+import threading
+import time
 from datetime import date
 
 import pytest
@@ -1157,6 +1159,45 @@ def test_ctrl_c_twice_as_q_waits_for_the_lock_says_what_was_lost(tui, monkeypatc
     else:
         assert saves.waiting()["klondike"]["moves"] == 1
         assert store.notices() == []
+
+
+@pytest.mark.skipif(
+    store.fcntl is None or not hasattr(signal, "SIGHUP"), reason="needs flock and POSIX signals"
+)
+@pytest.mark.parametrize("first, second", [("SIGTERM", "SIGTERM"), ("SIGHUP", "SIGTERM")])
+def test_a_second_signal_as_it_waits_for_the_lock_says_what_was_lost(
+    tui, monkeypatch, first, second
+):
+    monkeypatch.setattr(cli, "_quiet_output", lambda: None)
+    os.makedirs(store.data_dir(), exist_ok=True)
+    main_thread = threading.get_ident()
+    killers = []
+    with open(os.path.join(store.data_dir(), "stats.lock"), "a") as other:
+
+        def kill_it():
+            time.sleep(0.2)  # into the wait
+            signal.pthread_kill(main_thread, getattr(signal, second))
+            time.sleep(0.5)
+            store.fcntl.flock(other.fileno(), store.fcntl.LOCK_UN)
+
+        def say_waiting(self):
+            killers.append(threading.Thread(target=kill_it))
+            killers[-1].start()
+
+        monkeypatch.setattr(soliterm.tui.app.App, "say_waiting", say_waiting)
+        # another copy of the game takes the lock, and is stopped with it
+        lock = functools.partial(store.fcntl.flock, other.fileno(), store.fcntl.LOCK_EX)
+        with cli._leave_on_signals():
+            scr = tui(["d", Meanwhile(lock, Signal(first))])
+        for killer in killers:
+            killer.join()
+    assert scr.rc == 130
+    assert len(killers) == 1
+    assert saves.waiting() == {}
+    assert store.get_stat("klondike")["total"] == 0
+    assert store.notices() == [
+        "leaving was cut short, so your Klondike game was neither saved nor counted"
+    ]
 
 
 @pytest.mark.skipif(not hasattr(signal, "SIGHUP"), reason="needs POSIX signals")

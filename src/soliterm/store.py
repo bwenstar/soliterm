@@ -171,6 +171,12 @@ _lock_depth = 0
 # how it says it (see lock_wait_note)
 LOCK_WAIT = "waiting for another copy of the game to finish with the statistics"
 _on_wait: Callable[[], None] | None = None
+_waiting = False
+
+
+def waiting_for_lock() -> bool:
+    """Whether this copy is stuck waiting for another to let go of the lock."""
+    return _waiting
 
 
 @contextlib.contextmanager
@@ -203,7 +209,7 @@ def signals_held() -> Iterator[None]:
     signals still land, so a wait for it behind another copy of the game
     that doesn't let go can be broken off. Leaving then waits for it
     again, to save or count the game. After a SIGHUP or SIGTERM the
-    command line ignores both, so from then on only Ctrl-C breaks a wait.
+    command line lets another of either through only while it waits.
     """
     with _locked():
         if not hasattr(signal, "pthread_sigmask"):
@@ -231,7 +237,7 @@ def _locked() -> Iterator[None]:
     advisory (flock on stats.lock beside stats.json) and does nothing where
     there is no fcntl, or when the lock file can't be made.
     """
-    global _lock_depth  # noqa: PLW0603 (state for this process)
+    global _lock_depth, _waiting  # noqa: PLW0603 (state for this process)
     fd = None
     if _lock_depth == 0 and fcntl is not None:
         try:
@@ -248,7 +254,11 @@ def _locked() -> Iterator[None]:
                     # closed, say, still waits for the lock
                     with contextlib.suppress(OSError, ValueError):
                         _on_wait()
-                fcntl.flock(fd, fcntl.LOCK_EX)
+                _waiting = True
+                try:
+                    fcntl.flock(fd, fcntl.LOCK_EX)
+                finally:
+                    _waiting = False
         except BaseException as exc:
             if fd is not None:
                 os.close(fd)

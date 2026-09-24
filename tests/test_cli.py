@@ -6,6 +6,8 @@ import os
 import signal
 import subprocess
 import sys
+import threading
+import time
 import types
 from datetime import date
 from pathlib import Path
@@ -1198,11 +1200,9 @@ def quieted(monkeypatch):
 
 @posix_signals
 def test_sighup_raises_keyboard_interrupt_and_quiets_output(quieted):
-    with cli_mod._leave_on_signals():
-        with pytest.raises(KeyboardInterrupt):
-            os.kill(os.getpid(), signal.SIGHUP)
-        assert signal.getsignal(signal.SIGHUP) == signal.SIG_IGN
-        assert signal.getsignal(signal.SIGTERM) == signal.SIG_IGN
+    with cli_mod._leave_on_signals() as came, pytest.raises(KeyboardInterrupt):
+        os.kill(os.getpid(), signal.SIGHUP)
+    assert came == [signal.SIGHUP]
     assert quieted == [True]
 
 
@@ -1260,7 +1260,43 @@ def test_a_second_signal_waits_for_the_save(quieted):
             os.kill(os.getpid(), signal.SIGHUP)
             saved.append(True)
     assert saved == [True]
-    assert quieted == []
+    # the terminal has gone all the same
+    assert quieted == [True]
+
+
+@posix_signals
+@pytest.mark.skipif(store.fcntl is None, reason="needs flock")
+@pytest.mark.parametrize(
+    "first, second", [("SIGTERM", "SIGTERM"), ("SIGHUP", "SIGHUP"), ("SIGTERM", "SIGHUP")]
+)
+def test_a_second_signal_breaks_off_a_wait_for_the_lock(quieted, first, second):
+    os.makedirs(store.data_dir())
+    main_thread = threading.get_ident()
+    with open(os.path.join(store.data_dir(), "stats.lock"), "a") as other:
+        # another copy of the game has the lock, and is stopped with it
+        store.fcntl.flock(other.fileno(), store.fcntl.LOCK_EX)
+
+        def kill_it():
+            time.sleep(0.2)  # into the wait
+            signal.pthread_kill(main_thread, getattr(signal, second))
+            time.sleep(0.5)
+            store.fcntl.flock(other.fileno(), store.fcntl.LOCK_UN)
+
+        with cli_mod._leave_on_signals() as came:
+            try:
+                os.kill(os.getpid(), getattr(signal, first))
+            except KeyboardInterrupt:
+                # the save the first signal set off, which waits for the lock
+                killer = threading.Thread(target=kill_it)
+                killer.start()
+                try:
+                    with pytest.raises(KeyboardInterrupt), store.signals_held():
+                        store.record_result("golf", won=True, seconds=42)
+                finally:
+                    killer.join()
+    # it came as the wait went on, not once the lock was let go
+    assert store.get_stat("golf")["total"] == 0
+    assert came == [getattr(signal, first), getattr(signal, second)]
 
 
 @posix_signals
