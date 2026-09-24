@@ -12,6 +12,7 @@ Modules:
   textmode   the pipe-friendly text mode (plain board, command loop)
   tui        the curses front-end
   store      config and statistics under the XDG directories
+  saves      unfinished games kept for next time
   aisleriot  reads and writes GNOME AisleRiot's statistics keyfile
   camo       boss-mode and code-skin text
 """
