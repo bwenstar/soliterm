@@ -259,7 +259,10 @@ def apply_text_command(g: Solitaire, cmd: str) -> tuple[bool, str]:
                 return ok, "" if ok else f"double-clicking {tag} does nothing"
             if ok:
                 return ok, ""
-            reason = g.no_foundation_reason(sid, tag, f"on {tag}")
+            top = g.top(sid)
+            # the card as the board names it, unless that would give it away
+            card = top.label(g.symbols) if top and top.face_up else f"the face-down card on {tag}"
+            reason = g.no_foundation_reason(sid, card, f"on {tag}")
             return ok, reason or f"no foundation move from {tag}"
         if all(p.isdigit() for p in parts) and len(parts) in (2, 3):
             src = int(parts[0])

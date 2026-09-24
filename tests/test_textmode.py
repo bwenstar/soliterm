@@ -215,17 +215,30 @@ def test_a_command_that_does_nothing_says_so(cmd, says):
     assert g.serialize() == before
 
 
+@pytest.mark.parametrize("symbols, five", [(True, "5\u2665"), (False, "5H")])
 @pytest.mark.parametrize(
     "key, says",
-    [("golf", "#2 doesn't go on the waste"), ("scorpion", "Scorpion has no foundations")],
+    [("golf", "{} doesn't go on the waste"), ("scorpion", "Scorpion has no foundations")],
 )
-def test_f_in_a_game_with_no_foundations_says_so(key, says):
+def test_f_in_a_game_with_no_foundations_says_so(key, says, symbols, five):
     g = deal(key, 1)
+    g.symbols = symbols  # as run_text sets it
     clear_board(g)
     g.slots[2].cards = [Card(5, "H", True)]
     for waste in g.ids_of("waste"):
         g.slots[waste].cards = [Card(9, "S", True)]
-    assert textmode.apply_text_command(g, "f 2") == (False, says)
+    # the card as the board and the hints name it
+    assert textmode.apply_text_command(g, "f 2") == (False, says.format(five))
+
+
+def test_f_on_a_face_down_card_does_not_name_it():
+    g = deal("triplepeaks", 1)
+    covered = g.ids_of("tableau")[0]  # the top of the first peak
+    assert not g.top(covered).face_up
+    assert textmode.apply_text_command(g, f"f {covered}") == (
+        False,
+        f"the face-down card on #{covered} doesn't go on the waste",
+    )
 
 
 @pytest.mark.parametrize("key", ["golf", "triplepeaks"])

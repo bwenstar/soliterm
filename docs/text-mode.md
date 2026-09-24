@@ -159,7 +159,7 @@ no slot 99 (slots are 0-12)
 - `f 12` sends the top card of slot 12 up to its foundation, or says
   `no foundation move from #12`. Golf and Triple Peaks have no
   foundations, so there it plays the card to the waste as `cc` does, or
-  says why not, as in `#2 doesn't go on the waste`. Scorpion has none
+  says why not, as in `5♥ doesn't go on the waste`. Scorpion has none
   either, and says so.
 - `a` sends up every card that's safe to send up, and says how many:
   `autoplayed 2`. Once every card left can go up, safe or not, it
