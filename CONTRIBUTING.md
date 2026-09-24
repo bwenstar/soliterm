@@ -42,7 +42,7 @@ HOME=$tmp XDG_CONFIG_HOME=$tmp/.config XDG_DATA_HOME=$tmp/.local/share soliterm
 python -m pytest
 ```
 
-The whole suite takes a few seconds. pytest imports the package straight
+The whole suite takes under a minute. pytest imports the package straight
 from `src/`, so the tests work even without the editable install. To run
 part of it, name a file or use `-k`:
 
