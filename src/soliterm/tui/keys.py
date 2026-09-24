@@ -79,9 +79,15 @@ KEYMAP: tuple[Binding, ...] = (
     ),
     bind("cC", "code_skin", "c", "code skin: keep playing inside a code file"),
     Binding(
-        "v / t",
-        "toggle colour / next theme",
-        {ord("v"): "color", ord("V"): "color", ord("t"): "theme", ord("T"): "theme"},
+        "v / t / 4",
+        "toggle colour / next theme / four-colour deck",
+        {
+            ord("v"): "color",
+            ord("V"): "color",
+            ord("t"): "theme",
+            ord("T"): "theme",
+            ord("4"): "four_color",
+        },
     ),
     bind("xX", "view", "x", "toggle view: full cards <-> compact cells"),
     Binding(

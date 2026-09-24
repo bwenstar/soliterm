@@ -216,6 +216,8 @@ class App:
         # the theme for this run, then the one t last picked; a name this
         # version doesn't know plays classic, and stays in the config
         self.theme = themes.by_name(theme or self.cfg.get("theme"))
+        # green clubs and orange diamonds, on the 4 key
+        self.four_color = bool(self.cfg.get("four_color", False))
         # the terminal says its background is light, so the theme may want
         # darker text; and whether -1, that background, can be used at all
         self.light = light_background()
@@ -292,7 +294,11 @@ class App:
         has no room for is left out, and color_attr draws another."""
         room = getattr(curses, "COLOR_PAIRS", 256)
         for n, fg, bg in themes.pair_colours(
-            self.theme, getattr(curses, "COLORS", 8), self.light, self.default_colours
+            self.theme,
+            getattr(curses, "COLORS", 8),
+            self.light,
+            self.default_colours,
+            self.four_color,
         ):
             if n < room:
                 curses.init_pair(n, fg, bg)
@@ -1158,6 +1164,18 @@ class App:
         self.cfg["theme"] = self.theme.name
         store.save_config(self.cfg)
         self.message = f"{self.theme.name} theme{self.colour_note()}"
+
+    def do_four_color(self):
+        # green clubs and orange diamonds on and off, kept as the new default
+        if not self.color_capable:
+            self.message = "this terminal has no colour support"
+            return
+        self.four_color = not self.four_color
+        self.init_pairs()
+        self.cfg["four_color"] = self.four_color
+        store.save_config(self.cfg)
+        state = "on" if self.four_color else "off"
+        self.message = f"four-colour deck {state}{self.colour_note()}"
 
     def colour_note(self) -> str:
         """What keeps a change of colours from showing, to end a message with."""

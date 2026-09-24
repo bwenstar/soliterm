@@ -257,11 +257,12 @@ def load_config() -> dict:
         # optional UI-preference keys, only present once set by the player:
         #   color      - colour on/off (the 'v' toggle)
         #   theme      - the colour theme ('t'); not camo_theme, the disguise
+        #   four_color - green clubs and orange diamonds (the '4' toggle)
         #   code_skin  - play wrapped in source (the 'c' toggle)
         #   camo_theme - boss-mode disguise theme
         #   view       - board view: "expanded" cards or "legacy" cells
         #   animation  - cards move on their own: the finish and the win's cascade
-        for key in ("color", "code_skin", "animation"):
+        for key in ("color", "code_skin", "animation", "four_color"):
             if isinstance(data.get(key), bool):
                 cfg[key] = data[key]
         if isinstance(data.get("camo_theme"), str):

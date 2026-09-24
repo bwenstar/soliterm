@@ -13,7 +13,7 @@ from soliterm.cli import main
 
 def test_ui_preferences_are_unset_until_saved():
     cfg = store.load_config()
-    for key in ("color", "code_skin", "camo_theme", "view", "theme"):
+    for key in ("color", "code_skin", "camo_theme", "view", "theme", "four_color"):
         assert key not in cfg
 
 
@@ -75,6 +75,17 @@ def write_config(data):
         json.dump(data, fh)
 
 
+def test_theme_and_four_color_load_and_bad_types_are_dropped():
+    write_config({"theme": "solarized", "four_color": True})
+    cfg = store.load_config()
+    assert cfg["theme"] == "solarized"
+    assert cfg["four_color"] is True
+    write_config({"theme": ["dark"], "four_color": 1})
+    cfg = store.load_config()
+    assert "theme" not in cfg
+    assert "four_color" not in cfg
+
+
 def test_a_config_value_of_the_wrong_type_falls_back_on_its_own():
     write_config(
         {
@@ -88,6 +99,7 @@ def test_a_config_value_of_the_wrong_type_falls_back_on_its_own():
             "camo_theme": 5,
             "view": "legacy",
             "theme": 5,
+            "four_color": "yes",
         }
     )
     cfg = store.load_config()

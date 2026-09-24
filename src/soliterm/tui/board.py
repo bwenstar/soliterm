@@ -19,7 +19,9 @@ from ..engine import SUIT_SYMBOL, Card, Solitaire
 from ..themes import (
     BACK,
     CHROME,
+    CLUB_FACE,
     CURSOR,
+    DIAMOND_FACE,
     FACE_BLACK,
     FACE_RED,
     FALLBACK,
@@ -75,6 +77,10 @@ def color_attr(n: int) -> int:
     if n >= getattr(curses, "COLOR_PAIRS", 256):
         n = FALLBACK.get(n, 0)
     return curses.color_pair(n)
+
+
+# the pair a face-up card is drawn in, by suit
+SUIT_FACE = {"H": FACE_RED, "D": DIAMOND_FACE, "S": FACE_BLACK, "C": CLUB_FACE}
 
 
 # The code skin's file: the width of its " 12  " line-number gutter, and the
@@ -224,7 +230,7 @@ class BoardUI:
             return self.CP(CHROME)  # empty slot: chrome
         if not card.face_up:
             return self.CP(BACK)  # face-down: blue card back
-        return self.CP(FACE_RED) if red else self.CP(FACE_BLACK)  # white face, red/black text
+        return self.CP(SUIT_FACE[card.suit])  # white face, suit-coloured text
 
     # -- card-box rendering ------------------------------------------------ #
     def _card_rows(self, card: Card | None, w: int, full: bool) -> list[str]:

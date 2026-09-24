@@ -188,3 +188,44 @@ def test_next_theme_goes_round():
         theme = themes.next_theme(theme)
         names.append(theme.name)
     assert names == ["dark", "light", "contrast", "classic"]
+
+
+# -- the four-colour deck ---------------------------------------------------------------
+
+
+def colours_of(theme, colours=8, light=False, **kwargs):
+    """pair -> (text, background), as pair_colours sets them up."""
+    rows = themes.pair_colours(theme, colours, light, **kwargs)
+    return {n: (fg, bg) for n, fg, bg in rows}
+
+
+def test_the_four_colour_deck_has_orange_diamonds_and_green_clubs():
+    decks = {}
+    for theme in themes.THEMES:
+        pairs = colours_of(theme, 256, four_color=True)
+        face = pairs[themes.FACE_RED][1]
+        assert pairs[themes.DIAMOND_FACE][1] == pairs[themes.CLUB_FACE][1] == face
+        decks[theme.name] = (pairs[themes.DIAMOND_FACE][0], pairs[themes.CLUB_FACE][0])
+    # contrast's are darker, as its red is
+    assert decks == {
+        "classic": (166, 28),
+        "dark": (166, 28),
+        "light": (166, 28),
+        "contrast": (130, 22),
+    }
+
+
+@pytest.mark.parametrize("theme", themes.THEMES, ids=themes.NAMES)
+def test_on_8_colours_the_diamonds_are_blue(theme):
+    pairs = colours_of(theme, 8, four_color=True)
+    assert pairs[themes.DIAMOND_FACE] == (curses.COLOR_BLUE, curses.COLOR_WHITE)
+    assert pairs[themes.CLUB_FACE] == (curses.COLOR_GREEN, curses.COLOR_WHITE)
+
+
+@pytest.mark.parametrize("theme", themes.THEMES, ids=themes.NAMES)
+def test_diamonds_and_clubs_match_red_and_black_with_the_deck_off(theme):
+    for colours in (8, 256):
+        for light in (False, True):
+            pairs = colours_of(theme, colours, light)
+            assert pairs[themes.DIAMOND_FACE] == pairs[themes.FACE_RED]
+            assert pairs[themes.CLUB_FACE] == pairs[themes.FACE_BLACK]

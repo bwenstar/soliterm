@@ -22,10 +22,12 @@ MESSAGE = 6  # the message line and headings
 BACK = 7  # a face-down card
 RED_SELECTED = 8  # a red card in the run picked up
 HINT = 9  # a hinted card
+DIAMOND_FACE = 14  # a diamond; red unless the four-colour deck is on
+CLUB_FACE = 15  # a club; black unless the four-colour deck is on
 
 # the pair drawn instead of one a terminal has no room for; any other is
 # drawn in the terminal's own colours, pair 0
-FALLBACK: dict[int, int] = {}
+FALLBACK = {DIAMOND_FACE: FACE_RED, CLUB_FACE: FACE_BLACK}
 
 # runtime aliases, so no X | Y before Python 3.10
 Colour = Union[int, tuple[int, int]]  # one colour, or (on 256 colours, on fewer)
@@ -53,6 +55,10 @@ CLASSIC = Theme(
         BACK: (WHITE, BLUE),
         RED_SELECTED: (WHITE, GREEN),
         HINT: (BLACK, CYAN),
+        # the four-colour deck: orange diamonds and green clubs, and blue
+        # diamonds on 8 colours, which have no orange
+        DIAMOND_FACE: ((166, BLUE), WHITE),
+        CLUB_FACE: ((28, GREEN), WHITE),
     },
     # cyan and yellow wash out on white
     {
@@ -76,6 +82,8 @@ DARK = Theme(
         BACK: ((231, WHITE), (24, BLUE)),
         RED_SELECTED: ((231, WHITE), (28, GREEN)),
         HINT: ((16, BLACK), (37, CYAN)),
+        DIAMOND_FACE: ((166, BLUE), (254, WHITE)),
+        CLUB_FACE: ((28, GREEN), (254, WHITE)),
     },
     {},
 )
@@ -92,6 +100,8 @@ LIGHT = Theme(
         BACK: ((231, WHITE), (25, BLUE)),
         RED_SELECTED: ((231, WHITE), (28, GREEN)),
         HINT: ((16, BLACK), (80, CYAN)),
+        DIAMOND_FACE: ((166, BLUE), (255, WHITE)),
+        CLUB_FACE: ((28, GREEN), (255, WHITE)),
     },
     {},
 )
@@ -109,6 +119,8 @@ CONTRAST = Theme(
         BACK: ((231, WHITE), (18, BLUE)),
         RED_SELECTED: ((231, BLACK), (22, GREEN)),
         HINT: ((16, BLACK), (51, CYAN)),
+        DIAMOND_FACE: ((130, BLUE), (231, WHITE)),
+        CLUB_FACE: ((22, GREEN), (231, WHITE)),
     },
     {},
 )
@@ -137,18 +149,26 @@ def pick(colour: Colour, colours: int) -> int:
 
 
 def pair_colours(
-    theme: Theme, colours: int = 8, light: bool = False, default_colours: bool = True
+    theme: Theme,
+    colours: int = 8,
+    light: bool = False,
+    default_colours: bool = True,
+    four_color: bool = False,
 ) -> list[tuple[int, int, int]]:
     """(pair, text, background) for every pair, as curses.init_pair takes them.
 
     A light background changes only the pairs in theme.on_light, and only
     when the terminal's own background shows through. Without default
     colours (use_default_colors failed), white text on black stands in
-    for -1.
+    for -1. Without the four-colour deck, diamonds and clubs are red and
+    black like hearts and spades.
     """
     table = dict(theme.pairs)
     if light and default_colours:
         table.update(theme.on_light)
+    if not four_color:
+        table[DIAMOND_FACE] = table[FACE_RED]
+        table[CLUB_FACE] = table[FACE_BLACK]
     out = []
     for n in sorted(table):
         fg, bg = (pick(c, colours) for c in table[n])

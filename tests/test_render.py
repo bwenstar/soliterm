@@ -10,7 +10,7 @@ import re
 
 import pytest
 
-from soliterm import camo, tui
+from soliterm import camo, themes, tui
 from soliterm.engine import GAME_ORDER, Card
 from soliterm.textmode import render_text
 
@@ -485,6 +485,16 @@ def test_monochrome_uses_no_colour_pairs(key):
     ui.draw(None, 1, cursor, g.hint(), 5.0, "colour off")
     ui.code_skin = True
     ui.draw(None, 1, cursor, None, 5.0, "mono code skin")
+
+
+def test_every_suit_has_its_own_face_pair(monkeypatch):
+    monkeypatch.setattr(curses, "color_pair", lambda n: n << 8)
+    ui = tui.BoardUI(FakeScr(), deal("klondike", 1), symbols=False, has_color=True)
+    faces = [ui.card_attr(Card(1, suit, True), False, False) >> 8 for suit in "HDSC"]
+    assert faces == [themes.FACE_RED, themes.DIAMOND_FACE, themes.FACE_BLACK, themes.CLUB_FACE]
+    # picked up, a diamond is still a red card
+    picked = ui.card_attr(Card(1, "D", True), True, False) & ~curses.A_BOLD
+    assert picked >> 8 == themes.RED_SELECTED
 
 
 # -- code skin -------------------------------------------------------------------------------

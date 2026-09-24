@@ -80,6 +80,7 @@ The zipapp builds with the standard library alone. `--wheel` runs
 | `u` / `r` | undo / redo a move; `U` / `R` every move (redo is kept) |
 | `o` | game options · `s` statistics · `v` toggle colour |
 | `t` | next colour theme: classic, dark, light, contrast |
+| `4` | four-colour deck: green clubs, orange diamonds |
 | `c` | code skin (keep playing inside a fake source file) |
 | `b` / F2 | boss mode (hide the game behind fake "work" output) |
 | `m` / `q` | back to menu / quit · `?` help |
@@ -102,6 +103,10 @@ background, which the game knows from `COLORFGBG` when your terminal sets
 it. If it isn't set, or says the wrong thing, choose `dark` or `light`,
 which always look the same, or set `COLORFGBG=0;15` for a light background
 (`15;0` for a dark one).
+
+`4` swaps the red and black deck for a four-colour one, as bridge players
+use: green clubs and orange diamonds (blue diamonds on terminals with only
+8 colours). It works with every theme, and the game remembers it too.
 
 ## Deals and share codes
 

@@ -124,6 +124,10 @@ def test_t_and_shift_t_switch_the_theme():
     assert keys.PLAY_ACTIONS[ord("t")] == keys.PLAY_ACTIONS[ord("T")] == "theme"
 
 
+def test_4_is_the_four_colour_key():
+    assert keys.PLAY_ACTIONS[ord("4")] == "four_color"
+
+
 def test_tab_is_the_boss_mode_key():
     assert keys.BOSS_ACTIONS == {ord("\t"): "next_disguise"}  # noqa: SIM300 (it is the one under test)
     assert ord("\t") not in keys.PLAY_ACTIONS

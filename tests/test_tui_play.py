@@ -1754,8 +1754,18 @@ def test_pairs_past_the_terminals_limit_fall_back(tui):
     assert scr.pairs and all(n < 10 for n, _, _ in scr.pairs)
     ui = scr.uis[-1]
     assert ui.CP(themes.HINT) == curses.color_pair(themes.HINT)
-    # the terminal's own colours, for a pair that was never set up
-    assert all(ui.CP(n) == 0 for n in range(10, 16))
+    # the four-colour deck goes back to red and black
+    assert ui.CP(themes.DIAMOND_FACE) == ui.CP(themes.FACE_RED)
+    assert ui.CP(themes.CLUB_FACE) == ui.CP(themes.FACE_BLACK)
+    # and the terminal's own colours, for a pair with nothing to stand in
+    assert all(ui.CP(n) == 0 for n in range(10, 14))
+
+
+def test_the_four_colour_deck_on_a_terminal_with_too_few_pairs(tui):
+    scr = tui(["4", "q"], color_pairs=10)
+    assert scr.rc == 0
+    assert "four-colour deck on" in scr.frames[1]
+    assert scr.pairs and all(n < 10 for n, _, _ in scr.pairs)
 
 
 def test_a_hinted_card_has_a_background_of_its_own(tui):
@@ -1768,7 +1778,7 @@ def test_a_hinted_card_has_a_background_of_its_own(tui):
     assert bg not in (-1, fg)
 
 
-@pytest.mark.parametrize("key", ["v", "t"])
+@pytest.mark.parametrize("key", ["v", "t", "4"])
 def test_the_colour_keys_on_a_mono_terminal_just_say_so(tui, key):
     scr = tui([key], color_capable=False)
     assert "this terminal has no colour support" in scr.frames[1]
@@ -1776,6 +1786,34 @@ def test_the_colour_keys_on_a_mono_terminal_just_say_so(tui, key):
     cfg = store.load_config()
     assert "color" not in cfg
     assert "theme" not in cfg
+    assert "four_color" not in cfg
+
+
+def test_4_turns_the_four_colour_deck_on_and_saves_it(tui):
+    white = curses.COLOR_WHITE
+    scr = tui(["4"], colours=256)
+    assert "four-colour deck on" in scr.frames[1]
+    assert "colour is off" not in scr.frames[1]
+    size = len(themes.CLASSIC.pairs)
+    first, again = scr.pairs[:size], scr.pairs[size:]
+    assert (themes.DIAMOND_FACE, curses.COLOR_RED, white) in first
+    # set up again, so the cards on screen change at once
+    assert (themes.DIAMOND_FACE, 166, white) in again
+    assert (themes.CLUB_FACE, 28, white) in again
+    assert store.load_config()["four_color"] is True
+    scr.pairs.clear()
+    # and the next run starts with it, until 4 turns it off
+    scr = tui(["4"], colours=256)
+    assert (themes.DIAMOND_FACE, 166, white) in scr.pairs[:size]
+    assert "four-colour deck off" in scr.frames[1]
+    assert (themes.DIAMOND_FACE, curses.COLOR_RED, white) in scr.pairs[size:]
+    assert store.load_config()["four_color"] is False
+
+
+def test_4_with_colour_off_says_so(tui):
+    scr = tui(["4"], color=False)
+    assert "four-colour deck on (colour is off, v turns it on)" in scr.frames[1]
+    assert store.load_config()["four_color"] is True
 
 
 def test_t_cycles_the_themes_and_saves_the_choice(tui):
@@ -1823,7 +1861,7 @@ def test_an_unknown_theme_name_is_kept_and_plays_classic(tui):
 
 def test_v_turns_colour_off_and_on_and_saves_it(tui):
     scr = tui(["v", "v"])
-    assert len(scr.pairs) == 9
+    assert sorted(pair[0] for pair in scr.pairs) == sorted(themes.CLASSIC.pairs)
     ui = scr.uis[0]
     assert ui.initial_has_color
     assert "colour off" in scr.frames[1]
@@ -1835,7 +1873,7 @@ def test_v_turns_colour_off_and_on_and_saves_it(tui):
 def test_v_after_no_color_turns_colour_on(tui):
     # pairs are set up on capability, so colour can come on later
     scr = tui(["v"], color=False)
-    assert len(scr.pairs) == 9
+    assert sorted(pair[0] for pair in scr.pairs) == sorted(themes.CLASSIC.pairs)
     ui = scr.uis[0]
     assert not ui.initial_has_color
     assert ui.has_color is True
@@ -1877,6 +1915,7 @@ def test_the_help_screen_lists_the_toggles(tui):
     scr = tui(["?", "z"])
     assert "toggle colour" in scr.frames[1]
     assert "next theme" in scr.frames[1]
+    assert "four-colour deck" in scr.frames[1]
     assert "boss mode" in scr.frames[1]
 
 
