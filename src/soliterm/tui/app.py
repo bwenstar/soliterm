@@ -281,6 +281,7 @@ class App:
         needs more rows than the terminal has, say so instead of cutting
         off its last lines."""
         page, self.page = self.page, None
+        assert page is not None, "end_page without begin_page"
         h, w = self.stdscr.getmaxyx()
         rows = [y for y, _, _, _ in page]
         need = (MIN_COLS, max(rows, default=0) + 1)
