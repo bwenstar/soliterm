@@ -429,11 +429,16 @@ class App:
 
     def chooser(self) -> str | Deal | None:
         """The menu. Returns the key of the game picked, the Deal asked for
-        under Play a deal, one of the other rows, or None for q."""
+        under Daily deal or Play a deal, one of the other rows, or None for q."""
         CP, safe_add = self.CP, self.safe_add
         sel = GAME_ORDER.index(self.last_game())
-        extra = ["__deal__", "__stats__", "__quit__"]
-        labels = {"__deal__": "Play a deal", "__stats__": "View statistics", "__quit__": "Quit"}
+        extra = ["__daily__", "__deal__", "__stats__", "__quit__"]
+        labels = {
+            "__daily__": "Daily deal",
+            "__deal__": "Play a deal",
+            "__stats__": "View statistics",
+            "__quit__": "Quit",
+        }
         items = GAME_ORDER + extra
         # every game picked here is a plain start, so each save is offered
         self.waiting = saves.waiting()
@@ -447,7 +452,9 @@ class App:
                 attr = (CP(CURSOR) | curses.A_BOLD) if i == sel else 0
                 about = cls.blurb
                 if key in self.waiting:
-                    about = f"Resume your game: {self.resume_text(self.waiting[key])}"
+                    save = self.waiting[key]
+                    which = "daily game" if save.get("daily") else "game"
+                    about = f"Resume your {which}: {self.resume_text(save)}"
                 safe_add(4 + i, 6, f"{marker}{cls.name:<16} {about}", attr)
             base = 4 + len(GAME_ORDER) + 1
             for j, key in enumerate(extra):
@@ -493,12 +500,57 @@ class App:
                         picked = items[sel]
             elif k in (curses.KEY_ENTER, 10, 13):
                 picked = items[sel]
-            if picked == "__deal__":
+            if picked == "__daily__":
+                deal = self.daily_screen()
+                if deal is not None:
+                    return deal
+            elif picked == "__deal__":
                 code = self.pick_deal_screen(None)
                 if code is not None:
                     return deals.deal_of(code, self.last_game())
             elif picked is not None:
                 return picked
+
+    @hides_the_board
+    def daily_screen(self) -> Deal | None:
+        """The list of today's daily deals, one a game. Returns the Deal
+        picked, or None if the player went back."""
+        CP, safe_add = self.CP, self.safe_add
+        # read once, so a list left open over midnight deals the day it shows
+        day = deals.today()
+        number = deals.daily_number(day)
+        sel = GAME_ORDER.index(self.last_game())
+        while True:
+            self.begin_page()
+            safe_add(1, 4, f"Daily deals for {day.isoformat()}", CP(CHROME) | curses.A_BOLD)
+            for i, key in enumerate(GAME_ORDER):
+                marker = "> " if i == sel else "  "
+                attr = (CP(CURSOR) | curses.A_BOLD) if i == sel else 0
+                safe_add(3 + i, 6, f"{marker}{GAMES[key].name:<16} {key}:{number}", attr)
+            safe_add(3 + len(GAME_ORDER) + 1, 6, "Up/Down move - Enter play - Esc back", CP(CHROME))
+            self.end_page()
+            k = self.page_key()
+            if self.boss_key(k):
+                continue
+            picked = None
+            if k in (curses.KEY_UP, ord("k")):
+                sel = (sel - 1) % len(GAME_ORDER)
+            elif k in (curses.KEY_DOWN, ord("j")):
+                sel = (sel + 1) % len(GAME_ORDER)
+            elif k in (27, ord("q"), ord("Q")):
+                return None
+            elif k == curses.KEY_MOUSE:
+                try:
+                    _, _mx, my, _, bstate = curses.getmouse()
+                except curses.error:
+                    continue
+                idx = my - 3
+                if bstate & LEFT_CLICK and 0 <= idx < len(GAME_ORDER):
+                    picked = sel = idx
+            elif k in (curses.KEY_ENTER, 10, 13):
+                picked = sel
+            if picked is not None:
+                return deals.daily(GAME_ORDER[picked], day)
 
     # ---- statistics dialog (AisleRiot fields) ---- #
     @hides_the_board

@@ -25,6 +25,7 @@ from soliterm.deals import Deal
 from soliterm.engine import Card
 from soliterm.tui import cascade
 from soliterm.tui.app import DEAL_TEXT_MAX
+from soliterm.tui.board import CODE_GUTTER
 
 from helpers import FakeScr, clear_board, deal, signal_once_written, stalled_klondike
 
@@ -1373,6 +1374,43 @@ def test_opening_todays_daily_resumes_its_save(tui):
     assert saves.waiting() == {"klondike": {"seconds": 42, "moves": 1, "daily": "2026-09-24"}}
 
 
+@pytest.fixture
+def on_the_day(monkeypatch):
+    """Make today 2026-09-24, as far as the daily deal goes."""
+    monkeypatch.setattr(deals, "today", lambda: DAY)
+
+
+def test_a_saved_daily_says_daily_on_the_menu(tui):
+    keep_a_daily()
+    scr = tui([ENTER, "q"], start_key=None)
+    assert "> Klondike         Resume your daily game: 0:42, 1 move" in scr.frames[0]
+    # a plain pick from the menu resumes it, still a daily
+    assert "Resumed your game (0:42, 1 move)" in scr.frames[1]
+    assert "Klondike  -  Daily 2026-09-24" in scr.frames[1]
+
+
+def test_the_daily_list_resumes_todays_saved_daily(tui, on_the_day):
+    keep_a_daily()
+    scr = tui([Mouse(DAILY_DEAL, 8), ENTER, "q"], start_key=None)
+    assert "Resumed your game (0:42, 1 move)" in scr.frames[2]
+    assert "Klondike  -  Daily 2026-09-24" in scr.frames[2]
+
+
+@pytest.mark.parametrize(
+    "keep",
+    [keep_one, lambda: keep_a_daily(date(2026, 9, 23))],
+    ids=["a deal", "yesterday's daily"],
+)
+def test_opening_the_daily_over_another_save_says_it_wont_be_kept(tui, on_the_day, keep):
+    keep()
+    before = saves.waiting()
+    scr = tui([Mouse(DAILY_DEAL, 8), ENTER, "q"], start_key=None)
+    assert "a saved Klondike game is waiting, so this one won't be kept" in scr.frames[2]
+    g = scr.uis[-1].game
+    assert (g.deal_number, g.daily, g.moves) == (20260924, "2026-09-24", 0)
+    assert saves.waiting() == before
+
+
 def test_an_unreadable_save_deals_a_new_hand_and_says_so(tui):
     keep_one()
     path = saves.save_path("klondike")
@@ -1616,7 +1654,8 @@ def test_the_menu_starts_the_chosen_game_and_remembers_it(tui):
     assert store.load_config()["last_game"] == "spider"
 
 
-PLAY_A_DEAL = 4 + len(engine.GAME_ORDER) + 1  # the menu's row under the games
+DAILY_DEAL = 4 + len(engine.GAME_ORDER) + 1  # the menu's row under the games
+PLAY_A_DEAL = DAILY_DEAL + 1
 
 
 def test_play_a_deal_from_the_menu_plays_the_last_game_for_a_bare_number(tui):
@@ -1647,6 +1686,115 @@ def test_esc_on_play_a_deal_goes_back_to_the_menu(tui):
     assert "A number on its own plays" in scr.frames[1]
     assert "choose a game" in scr.frames[-1]
     assert not scr.uis
+
+
+@pytest.mark.parametrize("skin", [False, True])
+def test_the_daily_list_shows_every_game_and_fits_80x24(tui, on_the_day, skin):
+    if skin:
+        code_skin_on()
+    scr = tui([Mouse(DAILY_DEAL, 8), ESC, -1], start_key=None, h=24, w=80)
+    menu, daily = scr.frames[:2]
+    assert menu.split("\n")[DAILY_DEAL].endswith("  Daily deal")
+    assert "Terminal too small" not in daily
+    rows = daily.split("\n")
+    x = 6 + (CODE_GUTTER if skin else 0)
+    assert rows[1][x - 2 :] == "Daily deals for 2026-09-24"
+    # one row a game, starting on the last one played
+    assert [row[x:] for row in rows[3 : 3 + len(engine.GAME_ORDER)]] == [
+        f"{'> ' if key == 'klondike' else '  '}{engine.GAMES[key].name:<16} {key}:20260924"
+        for key in engine.GAME_ORDER
+    ]
+    assert rows[3 + len(engine.GAME_ORDER) + 1][x:] == "Up/Down move - Enter play - Esc back"
+    assert "choose a game" in scr.frames[-1]
+    assert not scr.uis
+
+
+def test_the_daily_list_deals_the_chosen_games_daily(tui, on_the_day):
+    # saved options, which a daily doesn't play by
+    cfg = store.load_config()
+    store.set_game_options(cfg, "spider", {"suits": 2})
+    store.save_config(cfg)
+    # from Klondike up past Quit, View statistics and Play a deal
+    keys = [curses.KEY_UP] * 4 + [ENTER, "k", "j", curses.KEY_DOWN, ENTER]
+    scr = tui(keys, start_key=None)
+    assert "> Daily deal" in scr.frames[4]
+    assert "> Klondike" in scr.frames[5]
+    assert "> Canfield" in scr.frames[6]  # k from the top goes round to the bottom
+    assert "> Spider" in scr.frames[8]
+    g = scr.uis[-1].game
+    assert (g.gamedef.key, g.deal_number, g.options) == ("spider", 20260924, {"suits": 4})
+    assert g.daily == "2026-09-24"
+    assert "Spider  -  Daily 2026-09-24" in scr.frames[9]
+    assert soliterm.tui.app.START_MESSAGE in scr.frames[9]
+    assert store.load_config()["last_game"] == "spider"
+
+
+def test_a_click_on_the_daily_list_plays_that_game(tui, on_the_day):
+    freecell = 3 + engine.GAME_ORDER.index("freecell")
+    keys = [
+        Mouse(DAILY_DEAL, 8),
+        Mouse(freecell, 8, curses.BUTTON4_PRESSED),  # the wheel does nothing
+        Mouse(freecell, 8, curses.BUTTON1_RELEASED),  # nor does letting go
+        Mouse(1, 8),  # nor a click off the rows
+        Mouse(freecell, 8),
+    ]
+    scr = tui(keys, start_key=None)
+    assert all("> Klondike" in frame for frame in scr.frames[1:5])
+    g = scr.uis[-1].game
+    assert (g.gamedef.key, g.deal_number, g.daily) == ("freecell", 20260924, "2026-09-24")
+
+
+@pytest.mark.parametrize("back", [[ESC, -1], ["q"], ["Q"]], ids=["Esc", "q", "Q"])
+def test_esc_or_q_on_the_daily_list_goes_back_to_the_menu(tui, back):
+    scr = tui([Mouse(DAILY_DEAL, 8), *back], start_key=None)
+    assert "Daily deals for" in scr.frames[1]
+    assert "choose a game" in scr.frames[-1]
+    assert not scr.uis
+
+
+def test_a_daily_keeps_its_day_past_midnight(tui, game_clock, monkeypatch):
+    # the list opens a minute before midnight, and Enter comes after it
+    midnight = game_clock.now + 60
+    monkeypatch.setattr(
+        deals, "today", lambda: DAY if game_clock.now < midnight else date(2026, 9, 25)
+    )
+    keys = [Mouse(DAILY_DEAL, 8), Later(120, ENTER), "d", "N", "d", "m"]
+    scr = tui(keys + [Mouse(DAILY_DEAL, 8), ESC, -1], start_key=None)
+    assert "Daily deals for 2026-09-24" in scr.frames[1]
+    assert "Klondike  -  Daily 2026-09-24" in scr.frames[2]
+    assert "Klondike  -  Daily 2026-09-24" in scr.frames[4]  # after N
+    assert scr.uis[-1].game.daily == "2026-09-24"
+    assert "Resume your daily game" in scr.frames[6]
+    assert saves.waiting()["klondike"]["daily"] == "2026-09-24"
+    # a list opened now has the new day's deals
+    assert "Daily deals for 2026-09-25" in scr.frames[7]
+    assert "klondike:20260925" in scr.frames[7]
+
+
+@pytest.mark.parametrize("skin", [False, True])
+def test_the_menu_with_the_daily_deal_fits_80x24(tui, skin):
+    if skin:
+        code_skin_on()
+    # the widest row there can be: a daily kept at 59:59 and a thousand moves
+    g = deals.deal_game(deals.daily("klondike", DAY), {})
+    g.moves = 1000
+    assert saves.keep(g, 3599)
+    scr = tui([Mouse(DAILY_DEAL, 8), ESC, -1], start_key=None, h=24, w=80)
+    menu = scr.frames[0]
+    assert "Terminal too small" not in menu
+    rows = menu.split("\n")
+    x = 6 + (CODE_GUTTER if skin else 0)
+    assert rows[4][x:] == "> Klondike         Resume your daily game: 59:59, 1000 moves"
+    assert all(cls.name in menu for cls in engine.GAMES.values())
+    assert [row[x:] for row in rows[DAILY_DEAL : DAILY_DEAL + 4]] == [
+        "  Daily deal",
+        "  Play a deal",
+        "  View statistics",
+        "  Quit",
+    ]
+    assert rows[DAILY_DEAL + 5][x:] == "Up/Down move - Enter select - mouse click - q quit"
+    assert "Daily deals for" in scr.frames[1]
+    assert "Terminal too small" not in scr.frames[1]
 
 
 # -- colour --------------------------------------------------------------------------------
@@ -2021,6 +2169,7 @@ EVERY_SCREEN = [
     ("No moves left", "golf", one_move_left, ["f"]),
     ("Play a deal", "klondike", None, ["g"]),
     ("A number on its own plays", None, None, [Mouse(PLAY_A_DEAL, 8)]),
+    ("Daily deals for", None, None, [Mouse(DAILY_DEAL, 8)]),
 ]
 # the screens where b is a letter to type, so only F2 hides them
 TYPED_IN = ("Play a deal", "A number on its own plays")
