@@ -249,6 +249,8 @@ class App:
         self.selected_exact = False  # True when the player split by clicking a card
         self.pressed: int | None = None  # the slot the left button went down on
         self.last_click: tuple[int, float] | None = None  # (slot, clock())
+        # (y, x, clock()) of the last click that played a card
+        self.played: tuple[int, int, float] | None = None
         self.cursor = 0
         self.hint: tuple[int, int, str] | None = None
         self.hint_n = 1  # how many cards the hint would move
@@ -951,6 +953,7 @@ class App:
         self.selected_exact = False
         self.pressed = None
         self.last_click = None
+        self.played = None
         self.cursor = self.first_cursor()
         self.hint = None
         self.message = START_MESSAGE
@@ -1128,6 +1131,15 @@ class App:
         ok = self.game.click(sid)
         self.message = "" if ok else self.game.deal_blocked_reason()
 
+    def play_here(self, sid: int) -> bool:
+        """Play the top card of sid, as a click does in AisleRiot, where the
+        game has such a play: Golf and Triple Peaks put a card that goes on
+        the waste there. True if it did."""
+        if not self.game.click(sid):
+            return False
+        self.message = ""
+        return True
+
     def under_way(self) -> bool:
         # A game is under way from its first move, as in AisleRiot, even if
         # undo takes every move back, until it is counted or put away.
@@ -1183,6 +1195,7 @@ class App:
         self.selected_exact = False
         self.pressed = None
         self.last_click = None
+        self.played = None
         self.hint = None
         self.cursor = self.first_cursor()
 
@@ -1375,7 +1388,7 @@ class App:
         if self.selected is None:
             if self.game.kind(self.cursor) == "stock":
                 self.click_stock(self.cursor)
-            else:
+            elif not self.play_here(self.cursor):
                 self.select_here(self.cursor)
         elif self.cursor == self.selected:
             self.selected = None
@@ -1597,6 +1610,12 @@ class App:
             return
         if bstate & curses.BUTTON1_PRESSED:
             self.pressed = target[0] if target else None
+        now = clock()
+        played, self.played = self.played, None
+        if played and played[:2] == (y, x) and now - played[2] <= DOUBLE_CLICK_S:
+            # the second click of a double-click on a card the first one
+            # played, which has nothing left to do
+            return
         if target is None:
             return
         tsid, tidx = target
@@ -1604,7 +1623,6 @@ class App:
         self.hint = None
         dbl = bstate & curses.BUTTON1_DOUBLE_CLICKED
         clicked = bstate & LEFT_CLICK
-        now = clock()
         if clicked and self.last_click is not None:
             last_sid, last_time = self.last_click
             dbl = dbl or (last_sid == tsid and now - last_time <= DOUBLE_CLICK_S)
@@ -1621,6 +1639,8 @@ class App:
             if self.selected is None:
                 if self.game.kind(tsid) == "stock":
                     self.click_stock(tsid)
+                elif self.play_here(tsid):
+                    self.played = (y, x, now)
                 else:
                     # split the stack at the exact card the user clicked
                     self.select_here(tsid, tidx)

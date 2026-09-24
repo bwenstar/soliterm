@@ -161,11 +161,14 @@ Soliterm only listens to the left button, so the wheel and the pointer
 moving over the window do nothing.
 
 - Click a card to pick it up, along with every card below it, then click
-  where it should go. Click the same pile again to put it back.
+  where it should go. Click the same pile again to put it back. In Golf
+  and Triple Peaks, a click on a card that goes on the waste plays it
+  there instead.
 - Click the stock to deal.
 - Or press on a card, drag and let go over another pile.
 - Double-click a card to send it up to its foundation, or double-click the
-  stock to deal. In Golf and Triple Peaks it plays the card to the waste.
+  stock to deal. In Golf and Triple Peaks it plays the card to the waste,
+  just the one, as a click does.
   Two clicks on the same pile within 0.4 seconds count as a double-click.
   Some games do more with a double-click, and each game's page in
   [docs/games](games/README.md) says what.
@@ -218,6 +221,12 @@ def board_section() -> str:
         + paragraph(
             "`k`, `j` and `l` move up, down and right, as they do in vi. vi's"
             " `h` for left is the hint here, so left has only its arrow key."
+        )
+        + "\n"
+        + paragraph(
+            "In Golf and Triple Peaks, which have no foundations,"
+            f" {spoken(keys_for('select', 'foundation'))} play the card at the"
+            " cursor onto the waste if it goes there."
         )
     )
 

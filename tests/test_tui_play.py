@@ -43,6 +43,13 @@ class Click:
         self.sid, self.idx, self.bstate = sid, idx, bstate
 
 
+class Again:
+    """Another mouse event where the last one was, as a double-click makes."""
+
+    def __init__(self, bstate):
+        self.bstate = bstate
+
+
 class Mouse:
     """A raw mouse event at screen cell (y, x), for the screens without cards."""
 
@@ -124,6 +131,9 @@ class ScriptedScr(FakeScr):
             return curses.KEY_MOUSE
         if isinstance(k, Mouse):
             self.mouse = (0, k.x, k.y, 0, k.bstate)
+            return curses.KEY_MOUSE
+        if isinstance(k, Again):
+            self.mouse = (*self.mouse[:4], k.bstate)
             return curses.KEY_MOUSE
         if isinstance(k, Resize):
             self.h, self.w = k.h, k.w
@@ -1393,6 +1403,59 @@ def test_with_nothing_to_play_the_cursor_goes_to_a_face_up_card(tui):
     g.slots[peaks[27]].cards = [up(2, "C")]
     scr = tui(["f", "\n", "m", "q"], start_key="triplepeaks", game=g, h=24, w=80)
     assert peaks[19] in scr.uis[-1].selections
+
+
+def one_to_play(key):
+    """Golf or Triple Peaks with a 6H to play on the 5C where the cursor
+    starts, at the bottom left, and a king left so the game goes on."""
+    g = deal(key, 1)
+    clear_board(g)
+    tableau, waste = g.ids_of("tableau"), g.ids_of("waste")[0]
+    card = tableau[18 if key == "triplepeaks" else 0]
+    g.slots[waste].cards = [up(5, "C")]
+    g.slots[card].cards = [up(6, "H")]
+    g.slots[tableau[-1]].cards = [up(13, "S")]
+    return g, card, waste
+
+
+@pytest.mark.parametrize("how", ["enter", "click"])
+@pytest.mark.parametrize("key", ["golf", "triplepeaks"])
+def test_enter_or_a_click_plays_a_card_that_goes_on_the_waste(tui, key, how):
+    # as a click does in AisleRiot
+    g, card, waste = one_to_play(key)
+    tui([ENTER if how == "enter" else Click(card, 0)], start_key=key, game=g)
+    assert names(g, waste) == ["5C", "6H"]
+    assert g.moves == 1 and g.score > 0
+
+
+def test_a_double_click_plays_one_card_as_a_click_does(tui):
+    # the first click plays the 6H; the second, where it was, lands on the
+    # 7S under it, which goes on the 6H but was never clicked on its own
+    g, card, waste = one_to_play("golf")
+    g.slots[card].cards.insert(0, up(7, "S"))
+    press, release = curses.BUTTON1_PRESSED, curses.BUTTON1_RELEASED
+    tui([Click(card, 1, press), Again(release), Again(press)], start_key="golf", game=g)
+    assert names(g, waste) == ["5C", "6H"]
+    assert names(g, card) == ["7S"]
+
+
+def test_quick_clicks_on_two_cards_play_both(tui):
+    g, card, waste = one_to_play("golf")
+    other = g.ids_of("tableau")[1]
+    g.slots[other].cards = [up(7, "S")]
+    press = curses.BUTTON1_PRESSED
+    tui([Click(card, 0, press), Click(other, 0, press)], start_key="golf", game=g)
+    assert names(g, waste) == ["5C", "6H", "7S"]
+
+
+@pytest.mark.parametrize("how", ["enter", "click"])
+@pytest.mark.parametrize("key", ["golf", "triplepeaks"])
+def test_enter_or_a_click_picks_up_a_card_that_does_not_go(tui, key, how):
+    g, card, waste = one_to_play(key)
+    g.slots[waste].cards = [up(9, "C")]
+    scr = tui([ENTER if how == "enter" else Click(card, 0)], start_key=key, game=g)
+    assert names(g, waste) == ["9C"]
+    assert scr.uis[-1].selections[-1] == card
 
 
 @pytest.mark.parametrize("double", [False, True])

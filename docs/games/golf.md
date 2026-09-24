@@ -21,7 +21,7 @@ Clear all 35 cards off the tableau onto the waste. The game is won as soon as th
 - Ranks don't wrap round. Only a 2 goes on an Ace, and nothing at all goes on a King, though a King can still go onto a Queen.
 - Nothing else moves: cards never go from one column to another, and you can't play a card back off the waste.
 - You can turn the next stock card onto the waste at any time, and you will need to whenever you have no play. The stock is turned one card at a time and there is no redeal.
-- Double-click a playable column card, or press f, to send it to the waste.
+- Click a playable column card, or press Enter or f on it, to send it to the waste.
 
 ## Scoring
 

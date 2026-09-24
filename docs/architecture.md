@@ -89,8 +89,10 @@ moves left, and read a key.
    calls the method named after the action: Enter is `select`, so it runs
    `do_select`. While the board doesn't fit the terminal, only a few
    actions get through, the ones in `SMALL_SCREEN_ACTIONS`.
-3. `do_select` deals when the cursor is on the stock, and otherwise picks
-   up the longest run the game allows there. With cards already in hand,
+3. `do_select` deals when the cursor is on the stock, and otherwise plays
+   the card there if the game's `on_click` does, as Golf and Triple Peaks
+   put a card on the waste, or else picks up the longest run the game
+   allows there. With cards already in hand,
    it calls `drop_on`, which asks the engine for
    `attempt_move`. When the whole run can't land, it tries the shorter
    runs off the top, so a drop puts down as many cards as will go.

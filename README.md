@@ -125,7 +125,8 @@ These are the keys you need for a first game:
 
 With the mouse, click a card to pick it up along with the cards on it,
 then click where it goes, or drag it there. A double-click sends a card to
-its foundation.
+its foundation. In Golf and Triple Peaks, a click or `Enter` on a card
+that goes on the waste plays it there.
 
 There's a lot more, from the options and the statistics to the themes and
 the boss key, and

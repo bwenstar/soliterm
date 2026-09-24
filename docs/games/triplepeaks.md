@@ -33,7 +33,8 @@ as the last one goes, even with cards still in the stock.
 - You can turn the next stock card onto the waste at any time: press d
   or click the stock, or type d in text mode. The stock is turned one
   card at a time and there is no redeal.
-- Double-click a free card, or press f, to play it.
+- Click a free card that goes on the waste, or press Enter or f on it,
+  to play it.
 - Nothing moves between the peaks, and nothing comes back off the waste.
 
 ## Scoring

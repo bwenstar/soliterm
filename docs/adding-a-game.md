@@ -191,8 +191,11 @@ card comes down off a foundation can just subtract one.
 `on_click(g, sid)` and `on_double_click(g, sid)` are for what a click
 does beyond picking cards up. A single click on the stock usually deals,
 and a double-click usually sends a card up. `f` in the full-screen game
-and in text mode is a double-click too. Fortress has no stock, so it only
-needs the double-click.
+and in text mode is a double-click too. A single click on a card can do
+something as well, as it plays the card to the waste in Golf, and then
+Enter on the card does the same; only when `on_click` returns False do
+they pick the card up. Fortress has no stock, so it only needs the
+double-click.
 
 Return True when something changed. The engine saves the position for
 undo before it calls them and drops that again on False, so one that
