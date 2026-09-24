@@ -148,6 +148,11 @@ def test_the_readme_shows_every_picture_the_scenes_draw(tool):
     assert shown == {tool.file_name(s) for s in tool.SCENES}
 
 
+def test_the_readme_gives_the_size_of_the_terminal_in_the_pictures(tool):
+    text = README.read_text(encoding="utf-8")
+    assert f"{tool.COLS} columns by {tool.ROWS} rows" in text
+
+
 def test_a_scene_passes_its_options_after_the_deal(tool):
     contrast = scene(tool, "contrast")
     assert tool.scene_args(contrast) == ["--deal", "yukon:5", "--theme", "contrast"]

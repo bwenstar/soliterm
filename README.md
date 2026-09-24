@@ -12,7 +12,7 @@ of statistics shared between the two.
 [![Python versions](https://img.shields.io/pypi/pyversions/soliterm)](https://pypi.org/project/soliterm/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](https://github.com/bwenstar/soliterm/blob/main/LICENSE)
 
-![A game of Klondike, deal 946, in a terminal. A few cards are moved with the keyboard, then the game skips ahead to where every card can go up. One key sends them all to the foundations, the cards bounce down the screen, and the win screen shows the time, the score and the share code klondike:946.](https://raw.githubusercontent.com/bwenstar/soliterm/main/docs/img/hero.gif)
+![A game of Klondike, deal 946, in a terminal. A few cards are moved with the keyboard, then the recording skips ahead to where every card can go up. One key sends them all to the foundations, the cards bounce down the screen, and the win screen shows the time, the score and the share code klondike:946.](https://raw.githubusercontent.com/bwenstar/soliterm/main/docs/img/hero.gif)
 
 ## Try it now
 
@@ -77,13 +77,16 @@ install along with Soliterm. To play the `.pyz` there, run
 
 ## Screenshots
 
+These and the recording at the top are all of a terminal
+100 columns by 32 rows.
+
 | FreeCell, with a hint | Spider in two suits |
 | --- | --- |
 | ![FreeCell deal 617 after one move: eight columns of face-up cards under four empty free cells and four foundations, with the hint "Move Q♥ onto K♠" on the bottom line.](https://raw.githubusercontent.com/bwenstar/soliterm/main/docs/img/freecell.png) | ![Two-suit Spider deal 7 after one move, an A♥ onto a 2♥: ten columns of face-down cards with a card face up on each, two on the fifth, the stock holding 50 cards, and the hint "Move J♥ onto Q♥".](https://raw.githubusercontent.com/bwenstar/soliterm/main/docs/img/spider.png) |
 | **The code skin** | **Triple Peaks, eight cards into a run** |
 | ![Klondike drawn inside what looks like a Python file called solver.py, with line numbers down the left and the score and the time written as a comment.](https://raw.githubusercontent.com/bwenstar/soliterm/main/docs/img/code-skin.png) | ![Triple Peaks deal 108: three overlapping peaks of cards, a waste fanned out from a run of eight, and the hint "Move 6♥ onto 7♦".](https://raw.githubusercontent.com/bwenstar/soliterm/main/docs/img/triple-peaks.png) |
 | **Yukon in the contrast theme** | **A win** |
-| ![Yukon deal 5 in the contrast theme: white cards with strong red and black suits, the cursor in yellow and the hinted card in cyan, and the hint "Move 3♥ onto 4♣".](https://raw.githubusercontent.com/bwenstar/soliterm/main/docs/img/contrast.png) | ![The win screen after Golf deal 216, with the time, the score, 48 moves, the share code golf:216, and the choices Replay this deal, New deal and Back to menu.](https://raw.githubusercontent.com/bwenstar/soliterm/main/docs/img/win.png) |
+| ![Yukon deal 5 in the contrast theme: white cards with strong red and black suits, the cursor in yellow on the 3♥, the 4♣ it would go onto in cyan, and the hint "Move 3♥ onto 4♣".](https://raw.githubusercontent.com/bwenstar/soliterm/main/docs/img/contrast.png) | ![The win screen after Golf deal 216, with the time, the score, 48 moves, the share code golf:216, and the choices Replay this deal, New deal and Back to menu.](https://raw.githubusercontent.com/bwenstar/soliterm/main/docs/img/win.png) |
 
 ## The games
 
@@ -137,10 +140,11 @@ has every key on every screen.
 
 Every deal has a number, shown at the top of the board, and the same
 number deals the same cards on any computer and any Python.
-`soliterm --deal 48213` plays deal 48213 of the game you played last (add
-`--game` for another), and `n` then deals 48214, so you can work through
-them in order. Numbers run from 0 to 2147483647, and a deal picked at
-random is one of the first million, to keep its number short.
+`soliterm --deal 48213` plays deal 48213 of the game you played last, or
+of Klondike the first time (add `--game` for another), and `n` then deals
+48214, so you can work through them in order. Numbers run from 0 to
+2147483647, and a deal picked at random is one of the first million, to
+keep its number short.
 
 A share code names a deal exactly: the game, any options you've changed,
 and the number. `klondike:d3:48213` is Klondike drawing three, deal 48213.
@@ -165,11 +169,12 @@ single run without saving them.
 
 ### The daily deal
 
-`soliterm --daily` deals today's hand of the game you played last (add
-`--game` for another), and Daily deal on the menu lists every game's. It's
-the same cards for everyone that day, with the standard options. Today is
-your computer's date, and nothing goes online. When it ends you get a line
-to paste to friends, which gives no cards away:
+`soliterm --daily` deals today's hand of the game you played last, or of
+Klondike the first time (add `--game` for another), and Daily deal on the
+menu lists every game's. It's the same cards for everyone that day, with
+the standard options. Today is your computer's date, and nothing goes
+online. When it ends you get a line to paste to friends, which gives no
+cards away:
 
 ```text
 Soliterm daily 2026-09-24, Klondike: won in 3:12, 87 moves
@@ -256,7 +261,7 @@ next game that's shared.
 
 On a terminal without 256 colours, `dark` and `light` look like `classic`.
 `classic` and `contrast` suit themselves to a light background when the
-terminal says it has one (see [Terminal notes](#terminal-notes)).
+terminal says it has one, as the terminal notes below explain.
 
 `4` swaps the red and black deck for a four-colour one, as bridge players
 use: green clubs and orange diamonds, or blue diamonds on a terminal
@@ -287,11 +292,11 @@ stk#0 wst#1
 score=0 moves=0 | Stock: 17 left
 ```
 
-A slot is named by the number in its tag, so `12 2` moves cards from
-slot 12 to slot 2, `d` deals, `hint` suggests a move and `h` lists the
-rest. It's also what you get when the input or the output isn't a
-terminal, so `printf 'hint\nq\n' | soliterm --deal golf:216` works, and
-when curses can't run, with a line on stderr saying why.
+A slot is named by the number in its tag, so `2 1` moves the top card of
+slot 2 onto the waste in slot 1. `d` deals, `hint` suggests a move and
+`h` lists the rest. It's also what you get when the input or the output
+isn't a terminal, so `printf 'hint\nq\n' | soliterm --deal golf:216`
+works, and when curses can't run, with a line on stderr saying why.
 [docs/text-mode.md](https://github.com/bwenstar/soliterm/blob/main/docs/text-mode.md)
 has the whole of it.
 
@@ -350,12 +355,9 @@ XDG_CONFIG_HOME=$tmp XDG_DATA_HOME=$tmp soliterm --no-sync
 
 ## Upgrading from aisle-cli
 
-Soliterm used to be called aisle-cli. The first time `soliterm` runs,
-before it has any folders of its own, it copies aisle-cli's `config.json`
-and `stats.json` across from the `aisle-cli` folders next to its own, and
-says so on stderr. It copies them and never moves them, so the old files
-stay where they were. If aisle-cli was sharing its statistics with
-AisleRiot, its games aren't added to AisleRiot's record a second time.
+Soliterm used to be called aisle-cli, and on its first run it copies
+aisle-cli's settings and statistics across, leaving the old files where
+they were. The man page's FILES section has the details.
 
 ## Terminal notes
 

@@ -358,13 +358,17 @@ is the user's profile folder.
 .PP
 .B soliterm
 used to be called aisle-cli.
-The first time it runs, it copies aisle-cli's
+The first time it runs, before it has folders of its own, it copies
 .I config.json
 and
 .I stats.json
 across from the
 .I aisle\-cli
-folders, and leaves them where they were.
+folders beside where its own go, and says so on standard error.
+It copies them and never moves them, so the old files stay where they
+were.
+If aisle-cli was sharing its statistics with AisleRiot, its games aren't
+added to AisleRiot's record a second time.
 .SH ENVIRONMENT
 .TP
 .B SOLITERM_NO_AISLERIOT

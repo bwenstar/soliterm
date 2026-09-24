@@ -165,6 +165,11 @@ def test_a_bare_number_plays_the_last_game(cli):
     assert text_board(deal("golf", 5)) in out
 
 
+def test_a_bare_number_on_the_first_run_plays_klondike(cli):
+    # as the README says: there's no game played last yet
+    assert play_briefly(cli, "--deal", "5").startswith("Soliterm - Klondike - Deal 5 ")
+
+
 def test_a_bare_number_keeps_the_saved_options_and_a_code_does_not(cli):
     cfg = store.load_config()
     cfg["last_game"] = "spider"

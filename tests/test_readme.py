@@ -1,5 +1,5 @@
 """README.md is written by hand, so this checks its table of options still
-has every option the code has."""
+has every option the code has, and that what it shows holds together."""
 
 import argparse
 import re
@@ -30,3 +30,16 @@ def test_every_option_in_the_help_is_in_the_options_table():
         flag for row in rows for flag in re.findall(r"`(-{1,2}[a-z][a-z-]*)", row.split(" | ")[0])
     }
     assert shown <= described, sorted(shown - described)
+
+
+def test_the_readme_links_to_no_heading_of_its_own():
+    # PyPI shows the README too, and a heading there has no anchor to go to
+    assert "](#" not in README.read_text(encoding="utf-8")
+
+
+def test_the_text_mode_example_moves_between_slots_on_its_board():
+    text = section("Text mode")
+    board = text[text.index("```text") : text.index("```", text.index("```text") + 3)]
+    slots = {int(n) for n in re.findall(r"#(\d+)", board)}
+    move = re.search(r"so `(\d+) (\d+)` moves", text)
+    assert move and {int(n) for n in move.groups()} <= slots
