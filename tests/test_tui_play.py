@@ -704,10 +704,34 @@ def test_new_options_before_a_move_just_deal_again(tui):
     assert store.get_stat("klondike")["total"] == 0
 
 
-def test_a_game_without_options_says_so_and_plays_on(tui):
-    scr = tui(["d", "o"], start_key="golf")
-    assert "Golf has no options" in scr.frames[-1]
-    assert len(scr.uis) == 1 and "Moves 1" in scr.frames[-1]
+NO_OPTIONS = [key for key in engine.GAME_ORDER if not engine.GAMES[key].option_spec()]
+
+
+@pytest.mark.parametrize("key", NO_OPTIONS)
+def test_o_leaves_a_game_without_options_as_it_was(tui, game_clock, key):
+    # a move, o ten seconds on, and the statistics five seconds after that
+    g = deal(key, 1)
+    moved = g.clone()
+    best = g.best_move()
+    if best is None:
+        # Golf deals with the waste empty, so its first move is a deal
+        assert moved.deal()
+        move = ["d"]
+    else:
+        src, dst, n = best
+        assert moved.attempt_move(src, dst, n)
+        move = [Click(src, len(g.cards(src)) - n),
+                Click(dst, max(0, len(g.cards(dst)) - 1))]
+    m = len(move)
+    scr = tui(move + [Later(10, "o"), Later(5, "s"), "z"], start_key=key, game=g)
+    name = g.gamedef.name
+    assert f"{name} has no options" in scr.frames[m + 1]
+    assert re.search(rf"{name} +0 +0 ", scr.frames[m + 2])
+    assert "Moves 1" in scr.frames[m + 3]
+    assert times(scr)[m:m + 3] == ["0:00", "0:10", "0:15"]
+    assert len(scr.uis) == 1 and scr.uis[0].game is g
+    assert g.serialize() == moved.serialize()
+    assert store.get_stat(key)["total"] == 1       # from the q
 
 
 # -- the menu ------------------------------------------------------------------------
