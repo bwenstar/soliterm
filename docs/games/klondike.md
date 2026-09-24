@@ -48,7 +48,8 @@ in play could want to be built on it. A red 5 waits until both black 4s
 are on the foundations, for example. Aces and 2s always go.
 
 Once every card is face up and nothing is left in the stock, a sends
-them all up, unsafe or not, as one move.
+them all up, unsafe or not, as one move, and the message line says when
+that is.
 
 ## Scoring
 

@@ -75,6 +75,21 @@ def cell_of(app, sid, idx):
     return cells[0]
 
 
+def test_the_offer_never_shows_after_a_win():
+    app, _a, _b = klondike_app([up(13, "S")], [up(13, "H")])
+    fids = app.game.ids_of("foundation")
+    for f, suit in zip(fids, "SHDC"):
+        app.game.slots[f].cards = [up(r, suit) for r in range(1, 14 if suit in "DC" else 13)]
+    app.game.slots[0].cards = app.game.slots[1].cards = []  # the stock and the waste
+    press(app, "u")  # every card can go up, but only a move brings the offer
+    assert app.message == "nothing to undo"
+    press(app, ENTER, curses.KEY_RIGHT, curses.KEY_RIGHT, ENTER)
+    assert app.message == soliterm.tui.app.FINISH_OFFER
+    press(app, "a")
+    assert app.game.is_won()
+    assert app.message == "autoplayed 2"
+
+
 def test_an_app_needs_no_terminal_to_start_a_game():
     app = App(FakeScr())
     app.start_game("spider")

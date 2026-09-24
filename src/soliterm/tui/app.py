@@ -39,6 +39,8 @@ MENU = "menu"
 QUIT = "quit"
 
 START_MESSAGE = "? help  h hint  m menu. Click or use arrows + Enter."
+# shown after any move that leaves every card free to go up
+FINISH_OFFER = "Every card can go up now. Press a to finish."
 
 # The most the pick-deal box takes. The board's title line, 46 characters
 # at most, has to paste in whole, even copied with the spaces around it.
@@ -1032,6 +1034,8 @@ class App:
             self.clock.start()  # the game is under way
         if self.game.moves > moves:
             self.dead_end_undone = False
+        if self.game.moves != moves and self.game.finish_moves():
+            self.message = FINISH_OFFER
         return outcome
 
     def do_redraw(self):

@@ -717,6 +717,25 @@ def test_tui_a_finishes_and_wins(tui):
     assert store.get_stat("klondike")["wins"] == 1
 
 
+def queen_under_a_king():
+    """near_won(), but with the queen of clubs face down under the king of
+    spades, so it can't be finished until the king moves."""
+    g = near_won()
+    t0, clubs = g.ids_of("tableau")[0], g.ids_of("foundation")[3]
+    g.slots[t0].cards.insert(0, g.slots[clubs].cards.pop().up(False))
+    return g
+
+
+def test_the_offer_shows_after_the_move_that_allows_it(tui):
+    # moving the king turns the queen over; undo turns it back down
+    scr = tui(KING_TO_EMPTY + ["u"], game=queen_under_a_king())
+    offer = soliterm.tui.app.FINISH_OFFER
+    moved = len(KING_TO_EMPTY)
+    assert not any(offer in frame for frame in scr.frames[:moved])
+    assert offer in scr.frames[moved]
+    assert offer not in scr.frames[moved + 1]
+
+
 @pytest.mark.parametrize("keys", [["d"], ["d", "b"], ["d", "?"]])
 def test_ctrl_c_mid_game_quits_quietly_and_saves_it(tui, keys):
     scr = tui(keys + [KeyboardInterrupt])

@@ -23,7 +23,7 @@ Build all 52 cards onto the four foundations, one suit to each, from Ace up to K
 
 Autoplay only runs when you ask for it, and it's careful. Aces and twos always go up when they can, but a higher card stays put while any card one rank below it (of any suit) is still in the columns, because that card might want to build on it.
 
-Once every card left can go up, a sends them all up as one move.
+Once every card left can go up, a sends them all up as one move, and the message line says when that is.
 
 ## Scoring
 

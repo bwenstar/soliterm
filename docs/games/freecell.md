@@ -50,7 +50,8 @@ Autoplay, when you ask for it, only sends a card up once nothing still
 in play could want to be built on it: a red 5 waits until both black 4s
 are on the foundations. Aces and 2s always go.
 
-Once every card left can go up, a sends them all up as one move.
+Once every card left can go up, a sends them all up as one move, and
+the message line says when that is.
 
 ## Scoring
 
