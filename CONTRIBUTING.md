@@ -65,7 +65,14 @@ mypy src
 vermin -t=3.9- --no-tips --violations --eval-annotations src
 ```
 
-vermin makes sure nothing newer than Python 3.9 has crept into `src/`.
+vermin makes sure nothing newer than Python 3.9 has crept into `src/`,
+with a gap: neither it nor mypy (which checks against 3.10) sees an
+`X | Y` type that is evaluated when the code runs, such as a type alias
+at module level or the argument to `cast()`. Only running the tests on
+3.9, as CI does, catches those, so write them with `Optional` or `Union`.
+In annotations `X | Y` is fine, as long as the file has
+`from __future__ import annotations`.
+
 In CI the formatter runs as `ruff format --check .`, which only reports
 what it would change.
 
