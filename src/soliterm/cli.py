@@ -17,7 +17,7 @@ import os
 import sys
 from typing import Any, Callable
 
-from . import APP_NAME, __version__, engine, migrate, store
+from . import APP_NAME, __version__, debuginfo, engine, migrate, store
 from . import aisleriot as ar
 from .engine import GAME_ORDER, GAMES
 from .textmode import run_text
@@ -79,6 +79,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="erase the statistics of every game, AisleRiot's own "
         "record of them included, and exit; asks first and "
         "keeps a backup",
+    )
+    once.add_argument(
+        "--debug-info", action="store_true", help="print what a bug report needs and exit"
     )
     p.add_argument("--yes", action="store_true", help="with --reset-stats: don't ask first")
     p.add_argument(
@@ -230,6 +233,10 @@ def _quiet_on_broken_pipe(main: Callable[..., int]) -> Callable[..., int]:
 @_quiet_on_broken_pipe
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.debug_info:
+        # before the migration, so the report writes, moves and copies nothing
+        print("\n".join(debuginfo.report(no_sync=args.no_sync)))
+        return 0
     # before anything reads the config or the stats
     migrate.ensure()
     if args.no_sync:

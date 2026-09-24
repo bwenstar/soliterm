@@ -124,6 +124,7 @@ the local stats.
 --list          list games and exit          --stats     print statistics
 --reset-stats   clear statistics             --yes       don't ask first
 --no-sync       leave AisleRiot's stats alone this run
+--debug-info    what to paste into a bug report
 ```
 
 Colour, code-skin, and other preferences persist in
