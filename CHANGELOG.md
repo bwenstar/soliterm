@@ -56,7 +56,8 @@
   remembers it, and `--theme NAME` picks one for a single run.
 - A four-colour deck with green clubs and orange diamonds (blue diamonds
   on terminals without 256 colours). `4` turns it on and off, and it's
-  remembered too.
+  remembered too. A terminal without the colour pairs for it says so, and
+  the choice is kept for one that has them.
 - The code skin colours its source's keywords, strings and numbers as an
   editor would, in the theme's colours.
 - A terminal with too few colour pairs for all of these draws the ones it
@@ -75,6 +76,25 @@
 - A daily left unfinished is kept like any other game, and its menu row
   says it's a daily. That day's daily carries on with it, and `--stats`
   marks the games that were dailies.
+- A kept game takes its newest 500 undo steps with it, and `U` on a
+  longer one says it stopped at the oldest move saved, as does text
+  mode's `undo all`.
+- `*** YOU WIN! ***` shows in full on an 80-column status line in every
+  game, code skin too, where a long status used to cut it off.
+- Picking up a run names its card as the board draws it and says
+  `2 cards`, not `2 card(s)`.
+- In Golf, Triple Peaks and Scorpion, an `f` or a double-click that does
+  nothing says why, as those games have no foundations. Text mode's `f`
+  does too.
+- `--reset-stats` only says the statistics are shared with GNOME
+  AisleRiot when AisleRiot has a record of one of these games to clear,
+  and then says `1 game`, not `1 game(s)`.
+- A card dealt from the stock clears the line saying why the move before
+  it did nothing.
+- A game kept waiting while another copy of Soliterm finishes with the
+  statistics says so, instead of stopping without a word. If Ctrl-C cuts
+  leaving short while it waits, a note at exit says the game was neither
+  saved nor counted.
 
 ## 1.0.0 - 2026-06-29
 
