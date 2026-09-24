@@ -1687,9 +1687,10 @@ class App:
                 safe_add(top + i, 6, f"{marker}{label}", attr)
             footer = top + len(choices) + 1
             safe_add(footer, 6, f"Up/Down + Enter, or {keys}. Click to choose.", CP(CHROME))
-            if share:
+            h, w = self.stdscr.getmaxyx()
+            # only on a row the terminal has, as the banner fits without it
+            if share and footer + 2 < h:
                 # plain, to copy, and nearer the edge if the margin would clip it
-                w = self.stdscr.getmaxyx()[1]
                 x = 6 if self.page_dx + 6 + len(share) <= w - 1 else 2
                 safe_add(footer + 2, x, share)
             self.end_page()

@@ -1308,6 +1308,18 @@ def test_the_banner_prints_the_share_line_for_a_daily(tui):
     assert "Soliterm daily" not in tui(["a", "m"], game=near_won()).frames[1]
 
 
+@pytest.mark.parametrize("won", [True, False])
+def test_the_share_line_is_left_off_a_banner_it_would_not_fit_on(tui, won):
+    # the banner fitted 20 rows, or 21 with Undo move, before it had the line
+    daily = deals.daily("klondike" if won else "golf", DAY)
+    keys, rows = (["a", "m"], 20) if won else (["f", "m"], 21)
+    for h, shared in [(rows, False), (rows + 1, True)]:
+        game = near_won(daily.number) if won else one_move_left()
+        banner = tui(keys, start=daily, game=game, h=h, w=80).frames[1]
+        assert "Terminal too small" not in banner
+        assert ("Soliterm daily" in banner) is shared
+
+
 @pytest.mark.parametrize("skin", [False, True])
 def test_the_longest_share_line_fits_80_columns(tui, monkeypatch, skin):
     if skin:
