@@ -193,6 +193,12 @@ keys to press, so changing what a shot shows usually means editing a line
 or two there. `--out DIR` writes somewhere other than `docs/img/`,
 which is handy for checking a change before you overwrite the real ones.
 
+Two scenes play a whole game: the hero GIF plays Klondike to the finish,
+and `win` plays Golf to the end banner. `tests/test_tui_play.py` presses
+every scene's keys on a board the size of the scenes' terminal and checks
+each still gets to its last shot, so a change to the hints or the layout
+that throws them off fails the suite before it spoils a screenshot.
+
 ## Questions
 
 Ask in [GitHub Discussions](https://github.com/bwenstar/soliterm/discussions).

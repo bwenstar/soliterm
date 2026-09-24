@@ -2695,8 +2695,11 @@ SCENE_MOVES = {
     "spider": (1, True),
     "code-skin": (1, False),
     "boss-mode": (0, False),
-    "hero": (3, False),
+    "triple-peaks": (8, True),
+    "contrast": (2, True),
 }
+# the scenes that play their game out and end on the win banner
+SCENES_WON = ("hero", "win")
 
 
 @pytest.mark.skipif(not os.path.exists(SCREENSHOTS), reason="no tools/ in this tree")
@@ -2705,7 +2708,7 @@ def test_screenshot_scenes_still_reach_their_shots(tui):
     # moment a deal number deals another hand
     shots = screenshot_tool()
     scenes = [s for s in shots.SCENES if s.deal]
-    assert sorted(s.name for s in scenes) == sorted(SCENE_MOVES)
+    assert sorted(s.name for s in scenes) == sorted([*SCENE_MOVES, *SCENES_WON])
     for scene in scenes:
         keys = [TMUX_KEYS.get(k, k) for step in scene.steps for k in step.keys.split()]
         # b and c would hide the board this test reads
@@ -2713,6 +2716,12 @@ def test_screenshot_scenes_still_reach_their_shots(tui):
         scr = tui(keys, start=scene_start(scene), h=shots.ROWS, w=shots.COLS)
         frames = scr.frames[: len(keys) + 1]
         assert not any("illegal move" in frame for frame in frames), scene.name
+        if scene.name in SCENES_WON:
+            if "a" in keys:  # the finish was on offer when a took it
+                assert soliterm.tui.app.FINISH_OFFER in frames[keys.index("a")], scene.name
+            assert "*** YOU WIN! ***" in frames[-1], scene.name
+            assert f"share code {scene.deal}" in frames[-1], scene.name
+            continue
         moves, hint = SCENE_MOVES[scene.name]
         assert f"Moves {moves} " in frames[-1], scene.name
         assert ("Hint: Move" in frames[-1]) is hint, scene.name

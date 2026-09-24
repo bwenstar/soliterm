@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 
 from soliterm import deals
+from soliterm.cli import build_parser
 from soliterm.engine import GAME_ORDER
 
 TOOL = Path(__file__).resolve().parents[1] / "tools" / "screenshots.py"
@@ -109,23 +110,45 @@ def test_background_runs_join_up(tool):
     ]
 
 
+def scene(tool, name):
+    (found,) = [s for s in tool.SCENES if s.name == name]
+    return found
+
+
 def test_scenes_are_valid(tool):
     names = [scene.name for scene in tool.SCENES]
     assert len(names) == len(set(names))
     for scene in tool.SCENES:
         assert scene.deal is None or deals.parse(scene.deal).key in GAME_ORDER, scene.name
         assert scene.steps, scene.name
+        build_parser().parse_args(tool.scene_args(scene))  # exits on an unknown option
     shots = [sum(step.shot for step in s.steps) for s in tool.SCENES if s.animate]
     assert shots and min(shots) > 1
 
 
 def test_a_scene_plays_its_deal(tool):
-    (scene,) = [s for s in tool.SCENES if s.name == "freecell"]
-    assert tool.scene_args(scene) == ["--deal", "freecell:617"]
-    assert tool.title_of(scene) == "soliterm --deal freecell:617"
-    (menu,) = [s for s in tool.SCENES if s.name == "menu"]
+    freecell = scene(tool, "freecell")
+    assert tool.scene_args(freecell) == ["--deal", "freecell:617"]
+    assert tool.title_of(freecell) == "soliterm --deal freecell:617"
+    menu = scene(tool, "menu")
     assert tool.scene_args(menu) == []
     assert tool.title_of(menu) == "soliterm"
+
+
+def test_a_scene_passes_its_options_after_the_deal(tool):
+    contrast = scene(tool, "contrast")
+    assert tool.scene_args(contrast) == ["--deal", "yukon:5", "--theme", "contrast"]
+    assert tool.title_of(contrast) == "soliterm --deal yukon:5 --theme contrast"
+
+
+def test_golf_walks_the_cursor_to_each_column(tool):
+    assert tool.golf("1 3 d 2 2") == "f Right Right f d Left f f"
+
+
+def test_frames_last_as_long_as_asked(tool):
+    steps = tool.frames(1.5, every=100)
+    assert len(steps) == 15
+    assert all(step.shot and step.hold == 100 and step.wait < 0.1 for step in steps)
 
 
 def test_draws_a_window(tool):

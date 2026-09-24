@@ -58,11 +58,14 @@ OUT = ROOT / "docs" / "img"
 #
 # The keys follow the TUI's bindings in src/soliterm/tui/keys.py: the arrows
 # move the cursor, Enter or Space picks a card up and puts it down, h shows
-# a hint (and moves the cursor to the card it suggests), d deals, u undoes,
-# o opens the game's options, c toggles the code skin, b is the boss key
-# and q quits.
-# The moves were worked out by hand for these deals. If a deal ever changes,
-# play it with --deal and write down the new keys.
+# a hint (and moves the cursor to the card it suggests), f sends the card at
+# the cursor up (in Golf and Triple Peaks, to the waste), d deals, a
+# finishes once every card can go up, u undoes, o opens the game's options,
+# c toggles the code skin, b is the boss key and q quits.
+# The moves were worked out for these deals. If a deal ever changes, play it
+# with --deal and write down the new keys. tests/test_tui_play.py presses
+# every scene's keys on a board the size of the scenes' terminal and checks
+# each still gets to its last shot, so it fails when they stop working.
 # --------------------------------------------------------------------------- #
 
 COLS, ROWS = 100, 32  # terminal size for every scene
@@ -83,10 +86,33 @@ class Scene(NamedTuple):
     deal: str | None  # a share code, passed as --deal
     steps: Sequence[Step]
     animate: bool = False
+    args: Sequence[str] = ()  # any other options, such as --theme dark
 
 
 def shot(keys: str = "", hold: int = 1200, wait: float = PAUSE) -> Step:
     return Step(keys, wait, True, hold)
+
+
+def golf(plays: str) -> str:
+    """The keys for a game of Golf written as the columns to play from, 1 to
+    7 from the left, and d for a deal. The cursor starts on column 1, and f
+    plays the card under it to the waste."""
+    keys, at = [], 1
+    for play in plays.split():
+        if play == "d":
+            keys.append("d")
+            continue
+        column = int(play)
+        keys += ["Right"] * (column - at) + ["Left"] * (at - column) + ["f"]
+        at = column
+    return " ".join(keys)
+
+
+def frames(seconds: float, every: int = 100) -> list[Step]:
+    """Shots every `every` milliseconds for `seconds`, for something that
+    moves on its own. Taking a shot costs about 10 milliseconds, so each
+    one waits that much less."""
+    return [shot(hold=every, wait=(every - 10) / 1000) for _ in range(int(seconds * 1000 / every))]
 
 
 # Klondike, deal 946: the first three hints are 6D onto 7C (column 7 to 4),
@@ -94,6 +120,32 @@ def shot(keys: str = "", hold: int = 1200, wait: float = PAUSE) -> Step:
 # card it suggests.
 SIX_ON_SEVEN = "h Enter Left Left Left Enter"
 FIVE_ON_SIX = "h Enter Right Right Enter"
+
+# Then on to where every card can go up, 98 moves later, by following the
+# hints: d when the hint is to deal, h f when it sends a card up, and
+# otherwise h Enter, the arrows to the column it names, and Enter.
+TO_THE_FINISH = """
+    h f h Enter Right Enter h Enter Left Left Left Left Left Left Enter
+    h Enter Right Right Enter d d h Enter Right Right Right Right Down Enter d d d d d d
+    d d h Enter Left Down Enter d h f h f h f h Enter Left Down Enter d h f h f h f h f
+    h f h Enter Left Left Left Enter h Enter Left Left Left Left Left Enter
+    h Enter Left Left Left Left Left Left Enter h Enter Left Enter d d h f h f d h f d
+    h f d d d h Enter Down Enter d d h f h f d h Enter Right Down Enter
+    h Enter Right Down Enter h Enter Left Enter h Enter Right Right Down Enter
+    h Enter Left Left Enter h Enter Left Enter h Enter Left Left Left Enter
+    h Enter Right Right Right Enter d h Enter Right Right Right Right Down Enter d h f d
+    d h Enter Right Right Down Enter d d h f d h Enter Right Down Enter d
+    h Enter Right Right Right Right Right Enter h Enter Right Right Right Enter
+    h Enter Right Right Right Enter d h Enter Right Down Enter h Enter Right Down Enter
+    d d d h Enter Left Left Left Left Enter h f h f h f h f h f h f h f h f h f h f h f
+    h f h f h f h f h f h f h f h f
+"""
+
+# Golf, deal 216, played out to a win.
+GOLF_WIN = golf(
+    "d d 1 1 7 1 4 1 3 6 2 2 3 d 6 7 6 d d 4 4 2 d 7 d d 5 2 5 4"
+    " 7 6 3 d 5 4 d 2 6 7 d 3 3 5 d 1 d 5"
+)
 
 SCENES: list[Scene] = [
     Scene("menu", "the game menu", None, [shot()]),
@@ -130,7 +182,7 @@ SCENES: list[Scene] = [
     ),
     Scene(
         "hero",
-        "animated: a hint and a few Klondike moves",
+        "animated: a few Klondike moves, then the finish and the win",
         "klondike:946",
         [
             shot(hold=1600),
@@ -151,9 +203,37 @@ SCENES: list[Scene] = [
             shot("Left", hold=300),
             shot("Left", hold=300),
             shot("Left", hold=600),
-            shot("Enter", hold=3000),
+            shot("Enter", hold=1400),
+            # a cut to the end of the game, the cards going up and the
+            # win: the finish takes about a second and a half and the
+            # cascade after it six at most, then the banner comes up
+            Step(TO_THE_FINISH),
+            shot(hold=2600),
+            shot("a", hold=100, wait=0.09),
+            *frames(8.5),
+            shot(hold=5000),
         ],
         animate=True,
+    ),
+    Scene(
+        "triple-peaks",
+        "Triple Peaks eight cards into a run, with the next hint showing",
+        "triplepeaks:108",
+        [Step(" ".join(["h f"] * 8)), shot("h")],
+    ),
+    Scene(
+        "contrast",
+        "Yukon in the contrast theme, with a hint showing",
+        "yukon:5",
+        [Step("h f h Enter Right Enter"), shot("h")],
+        args=["--theme", "contrast"],
+    ),
+    Scene(
+        "win",
+        "the banner after winning a game of Golf, with its share code",
+        "golf:216",
+        # the cascade runs for up to six seconds before the banner
+        [Step(GOLF_WIN), shot(wait=7.5)],
     ),
 ]
 
@@ -728,11 +808,11 @@ class Stage:
 
 
 def scene_args(scene: Scene) -> list[str]:
-    return ["--deal", scene.deal] if scene.deal else []
+    return (["--deal", scene.deal] if scene.deal else []) + list(scene.args)
 
 
 def title_of(scene: Scene) -> str:
-    return "soliterm" + (f" --deal {scene.deal}" if scene.deal else "")
+    return " ".join(["soliterm", *scene_args(scene)])
 
 
 # --------------------------------------------------------------------------- #
