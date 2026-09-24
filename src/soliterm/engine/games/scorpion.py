@@ -10,6 +10,7 @@ class Scorpion(GameDef):
     key = "scorpion"
     name = "Scorpion"
     blurb = "Build down in suit, move any group; four K-to-A piles."
+    short_blurb = "Build down in suit and move any group."
 
     def deal(self, g):
         g.reset_slots()

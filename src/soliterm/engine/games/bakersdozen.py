@@ -10,6 +10,7 @@ class BakersDozen(GameDef):
     key = "bakersdozen"
     name = "Bakers Dozen"
     blurb = "No stock. Thirteen columns; build foundations up, tableau down by rank."
+    short_blurb = "Thirteen columns, no stock, down by rank."
 
     def deal(self, g):
         g.reset_slots()

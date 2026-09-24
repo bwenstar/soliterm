@@ -10,6 +10,7 @@ class Canfield(GameDef):
     key = "canfield"
     name = "Canfield"
     blurb = "Reserve of 13, deal three at a time. Foundations and tableau wrap K->A."
+    short_blurb = "Reserve of 13, deal three; K wraps to A."
 
     def deal(self, g):
         g.reset_slots()

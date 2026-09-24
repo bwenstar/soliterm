@@ -10,6 +10,7 @@ class Golf(GameDef):
     key = "golf"
     name = "Golf"
     blurb = "Clear the tableau onto the waste by rank, up or down, no wrapping."
+    short_blurb = "Clear seven columns, one rank up or down."
 
     def deal(self, g):
         g.reset_slots()

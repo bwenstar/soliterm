@@ -10,6 +10,7 @@ class EightOff(GameDef):
     key = "eightoff"
     name = "Eight Off"
     blurb = "Like FreeCell but with eight cells and the tableau builds by suit."
+    short_blurb = "FreeCell with eight cells, built by suit."
 
     def deal(self, g):
         g.reset_slots()

@@ -1529,7 +1529,7 @@ def test_the_menu_offers_a_saved_game(tui):
     keep_one()
     menu = tui(["q"], start_key=None).frames[0]
     assert "> Klondike         Resume your game: 0:42, 31 moves" in menu
-    assert f"  Spider           {engine.GAMES['spider'].blurb}" in menu
+    assert f"  Spider           {engine.GAMES['spider'].short_blurb}" in menu
 
 
 def test_enter_on_it_resumes_with_the_clock_at_0_42(tui, game_clock):
@@ -2122,6 +2122,18 @@ def test_the_menu_with_the_daily_deal_fits_80x24(tui, skin):
     assert rows[DAILY_DEAL + 5][x:] == "Up/Down move - Enter select - mouse click - q quit"
     assert "Daily deals for" in scr.frames[1]
     assert "Terminal too small" not in scr.frames[1]
+
+
+@pytest.mark.parametrize("skin", [False, True])
+def test_every_game_s_menu_row_fits_80_columns(tui, skin):
+    if skin:
+        code_skin_on()
+    rows = tui(["q"], start_key=None, h=24, w=80).frames[0].split("\n")
+    x = 6 + (CODE_GUTTER if skin else 0)
+    for i, cls in enumerate(engine.GAMES[key] for key in engine.GAME_ORDER):
+        assert cls.short_blurb
+        # the whole line, as the menu leaves the last column empty
+        assert rows[4 + i][x + 2 :] == f"{cls.name:<16} {cls.short_blurb}"
 
 
 # -- colour --------------------------------------------------------------------------------

@@ -10,6 +10,7 @@ class FortyThieves(GameDef):
     key = "fortythieves"
     name = "Forty Thieves"
     blurb = "Two decks, ten columns. Build foundations up by suit; tableau down by suit."
+    short_blurb = "Two decks, ten columns, built down by suit."
 
     def deal(self, g):
         g.reset_slots()

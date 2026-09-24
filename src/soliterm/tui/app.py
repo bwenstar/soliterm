@@ -468,7 +468,7 @@ class App:
                 cls = GAMES[key]
                 marker = "> " if i == sel else "  "
                 attr = (CP(CURSOR) | curses.A_BOLD) if i == sel else 0
-                about = cls.blurb
+                about = cls.short_blurb
                 if key in self.waiting:
                     save = self.waiting[key]
                     which = "daily game" if save.get("daily") else "game"

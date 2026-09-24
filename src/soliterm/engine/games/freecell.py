@@ -11,6 +11,7 @@ class FreeCell(GameDef):
     key = "freecell"
     name = "FreeCell"
     blurb = "All cards visible. Use the four free cells to build down alt-colour."
+    short_blurb = "All cards visible, with four free cells."
 
     def deal(self, g):
         g.reset_slots()

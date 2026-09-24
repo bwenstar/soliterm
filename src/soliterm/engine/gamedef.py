@@ -11,7 +11,10 @@ class GameDef:
 
     key = "base"
     name = "Base"
+    # a line about the game under the board's title, and a shorter one for
+    # the menu, where 49 columns are left at 80 with the code skin on
     blurb = ""
+    short_blurb = ""
 
     # ---- options ---- #
     @classmethod

@@ -10,6 +10,7 @@ class Yukon(GameDef):
     key = "yukon"
     name = "Yukon"
     blurb = "Like Klondike, but move any group of cards regardless of order."
+    short_blurb = "Like Klondike, but move any group of cards."
 
     def deal(self, g):
         g.reset_slots()

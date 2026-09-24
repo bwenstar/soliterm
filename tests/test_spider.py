@@ -156,8 +156,9 @@ def test_only_a_same_suit_run_lifts_as_a_group(table):
 def test_the_one_line_summary_gets_the_building_rule_right():
     # it shows in --list, the menu and over the board, and any suit builds
     # down (see the tests above); only moving a group needs one suit
-    assert "in suit" not in Spider.blurb
-    assert "any suit" in Spider.blurb
+    for summary in (Spider.blurb, Spider.short_blurb):
+        assert "in suit" not in summary
+        assert "any suit" in summary
 
 
 def test_a_face_down_card_is_never_part_of_a_run(table):

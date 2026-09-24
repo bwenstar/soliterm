@@ -26,6 +26,7 @@ class TriplePeaks(GameDef):
     key = "triplepeaks"
     name = "Triple Peaks"
     blurb = "Clear three peaks, one rank up or down; K wraps to A."
+    short_blurb = "Clear three peaks, one rank up or down."
 
     @classmethod
     def default_options(cls):

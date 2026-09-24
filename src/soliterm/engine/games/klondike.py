@@ -10,6 +10,7 @@ class Klondike(GameDef):
     key = "klondike"
     name = "Klondike"
     blurb = "The classic. Build the foundations up by suit, Ace to King."
+    short_blurb = "The classic. Build up by suit, Ace to King."
 
     @classmethod
     def default_options(cls):

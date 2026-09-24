@@ -10,6 +10,7 @@ class Spider(GameDef):
     key = "spider"
     name = "Spider"
     blurb = "Build down in any suit; move same-suit runs; clear K-to-A."
+    short_blurb = "Build down in any suit; clear K-to-A runs."
     columns: tuple[int, ...] = (6, 5, 5, 6, 5, 5, 6, 5, 5, 6)  # the cards dealt to each column
     decks = 2
 

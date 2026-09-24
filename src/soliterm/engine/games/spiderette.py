@@ -9,6 +9,7 @@ class Spiderette(Spider):
     key = "spiderette"
     name = "Spiderette"
     blurb = "One-deck Spider on seven columns, dealt like Klondike."
+    short_blurb = "One-deck Spider, dealt like Klondike."
     columns = (1, 2, 3, 4, 5, 6, 7)
     decks = 1
 
