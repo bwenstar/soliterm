@@ -154,7 +154,7 @@ def tui(monkeypatch):
 
             monkeypatch.setattr(engine, "new_solitaire", new_solitaire)
         try:
-            scr.rc = soliterm.tui.run(scr, start_key, seed, color, **kwargs)
+            scr.rc = soliterm.tui.run(scr, start_key, seed=seed, color=color, **kwargs)
         except KeyboardInterrupt:
             # let through, it would stop the whole test session
             pytest.fail("Ctrl-C got out of the TUI")
@@ -404,7 +404,7 @@ def test_a_colour_terminal_without_default_colours_still_plays(tui, monkeypatch)
 
 def test_ascii_on_the_command_line_reaches_the_tui(monkeypatch):
     seen = {}
-    monkeypatch.setattr(soliterm.tui, "main", lambda **kw: seen.update(kw) or 0)
+    monkeypatch.setattr(soliterm.tui, "main", lambda *a, **kw: seen.update(kw) or 0)
     monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
     monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
     # whatever TERM the tests run under, curses can draw here
@@ -844,7 +844,7 @@ def test_colour_goes_by_the_flag_then_no_color_then_the_saved_choice(
 
 def test_the_tui_hears_whether_a_colour_flag_was_given(monkeypatch):
     seen = {}
-    monkeypatch.setattr(soliterm.tui, "main", lambda **kw: seen.update(kw) or 0)
+    monkeypatch.setattr(soliterm.tui, "main", lambda *a, **kw: seen.update(kw) or 0)
     monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
     monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
     monkeypatch.setattr(cli, "_terminal_problem", lambda: None)

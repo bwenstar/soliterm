@@ -83,6 +83,22 @@ def test_an_app_needs_no_terminal_to_start_a_game():
     assert store.load_config()["last_game"] == "spider"
 
 
+def test_main_hands_curses_wrapper_its_settings_by_name(monkeypatch):
+    monkeypatch.setenv("ESCDELAY", "25")  # main sets it if it isn't there
+    calls = []
+
+    def wrapper(fn, *args, **kwargs):
+        calls.append((fn, args, kwargs))
+        return 0
+
+    monkeypatch.setattr(curses, "wrapper", wrapper)
+    assert soliterm.tui.app.main("klondike", seed=3, color=False, symbols=True) == 0
+    [(fn, args, kwargs)] = calls
+    assert fn is soliterm.tui.app.run
+    assert args == ("klondike",)
+    assert kwargs == {"seed": 3, "color": False, "symbols": True}
+
+
 def test_a_short_session_moves_undoes_hints_and_quits():
     app, a, b = klondike_app([up(5, "H")], [up(4, "S")], keys=["z"])
     assert app.cursor == a

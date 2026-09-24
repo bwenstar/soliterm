@@ -146,13 +146,14 @@ class App:
     def __init__(
         self,
         stdscr,
-        start_key: str | None = None,
+        start: str | None = None,
+        *,
         seed: int | None = None,
         color: bool | None = None,
         symbols: bool | None = None,
     ):
         self.stdscr = stdscr
-        self.start_key = start_key
+        self.start = start  # the game to go straight into, or None for the menu
         self.seed = seed
         self.color = color  # --color / --no-color, None for neither
         self.cfg = store.load_config()
@@ -346,7 +347,7 @@ class App:
     def run(self) -> int:
         self.setup_curses()
         try:
-            if self.start_key and self.play(self.start_key):
+            if self.start and self.play(self.start):
                 return 0
             while True:
                 choice = self.chooser()
@@ -1234,28 +1235,19 @@ class App:
                     return choices[row][0]
 
 
-def run(
-    stdscr,
-    start_key: str | None = None,
-    seed: int | None = None,
-    color: bool | None = None,
-    symbols: bool | None = None,
-):
-    return App(stdscr, start_key, seed, color, symbols).run()
+def run(stdscr, start: str | None = None, **options):
+    """Run a session on stdscr. The settings go on to App by name, so a new
+    one only has to be added there."""
+    return App(stdscr, start, **options).run()
 
 
-def main(
-    start_key: str | None = None,
-    seed: int | None = None,
-    color: bool | None = None,
-    symbols: bool | None = None,
-) -> int:
+def main(start: str | None = None, **options) -> int:
     # After an Esc, ncurses waits ESCDELAY ms (a whole second by default) to
     # see whether a key sequence follows, so the Esc key felt dead. It reads
     # the variable when curses starts; a value the player set is kept.
     os.environ.setdefault("ESCDELAY", "25")
     try:
-        return curses.wrapper(run, start_key, seed, color, symbols)
+        return curses.wrapper(run, start, **options)
     except curses.error as exc:
         import sys
 
