@@ -10,6 +10,8 @@ class Spider(GameDef):
     key = "spider"
     name = "Spider"
     blurb = "Build down in any suit; move same-suit runs; clear K-to-A."
+    columns: tuple[int, ...] = (6, 5, 5, 6, 5, 5, 6, 5, 5, 6)  # the cards dealt to each column
+    decks = 2
 
     @classmethod
     def default_options(cls):
@@ -22,20 +24,23 @@ class Spider(GameDef):
     def deal(self, g):
         g.reset_slots()
         suits = {1: "S", 2: "SH", 4: "SHDC"}[g.options.get("suits", 4)]
-        g.deck = make_deck(8 // len(suits), suits)
+        g.deck = make_deck(4 * self.decks // len(suits), suits)
         g.shuffle()
-        # 8 foundations (completed suits go here), then 10 columns
-        self.foundations = [g.add_slot("foundation") for _ in range(8)]
-        g.carriage_return()
-        self.tableau = [g.add_slot("tableau", "down") for _ in range(10)]
-        self.stock = g.add_slot("stock")
-        for col in range(10):
-            n = 6 if col % 3 == 0 else 5  # columns 1, 4, 7 and 10 get six
+        self._lay_out(g)
+        for t, n in zip(self.tableau, self.columns):
             for row in range(n):
-                g.deal_from_deck(self.tableau[col], 1, face_up=(row == n - 1))
+                g.deal_from_deck(t, 1, face_up=(row == n - 1))
         while g.deck:
             g.deal_from_deck(self.stock, 1, face_up=False)
         g.update_status()
+
+    def _lay_out(self, g):
+        """The foundations along the top, where the finished suits go, then
+        the columns with the stock at the end of their row."""
+        self.foundations = [g.add_slot("foundation") for _ in range(4 * self.decks)]
+        g.carriage_return()
+        self.tableau = [g.add_slot("tableau", "down") for _ in self.columns]
+        self.stock = g.add_slot("stock")
 
     def _run_len(self, pile):
         if not pile or not pile[-1].face_up:
@@ -69,8 +74,9 @@ class Spider(GameDef):
             return False
         if any(g.empty(t) for t in self.tableau):
             return False
-        for t in self.tableau:
-            g.slots[t].cards.append(g.slots[sid].cards.pop().up(True))
+        stock = g.slots[sid].cards
+        for t in self.tableau[: len(stock)]:  # a short last deal fills the first columns
+            g.slots[t].cards.append(stock.pop().up(True))
         return True
 
     def can_deal(self, g):
@@ -86,7 +92,7 @@ class Spider(GameDef):
         cols = "column" if n_empty == 1 else "columns"
         return (
             f"fill the {n_empty} empty {cols} before dealing "
-            "- Spider won't deal onto an empty column"
+            f"- {self.name} won't deal onto an empty column"
         )
 
     def fallback_move(self, g):
@@ -120,7 +126,7 @@ class Spider(GameDef):
         return best
 
     def is_dead_end(self, g):
-        # Fewer cards on the table than columns: they can never fill all ten,
+        # Fewer cards on the table than columns: they can never fill them all,
         # so the stock can never be dealt and the game never won.
         on_table = sum(len(g.cards(t)) for t in self.tableau)
         return not g.empty(self.stock) and on_table < len(self.tableau)
@@ -178,8 +184,11 @@ class Spider(GameDef):
     def status(self, g):
         done = sum(1 for f in self.foundations if not g.empty(f))
         stock = len(g.cards(self.stock))
-        deals = stock // 10
-        return f"Stock: {stock} ({deals} {'deal' if deals == 1 else 'deals'})  Done: {done}/8"
+        deals = -(-stock // len(self.tableau))  # a short last deal counts
+        return (
+            f"Stock: {stock} ({deals} {'deal' if deals == 1 else 'deals'})  "
+            f"Done: {done}/{len(self.foundations)}"
+        )
 
     def progress(self, g):
         """Spider progresses by building in-suit runs and completing suits.

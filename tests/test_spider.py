@@ -87,6 +87,21 @@ def test_the_status_says_one_deal_not_one_deals():
     assert g.status.startswith("Stock: 10 (1 deal)")
 
 
+def test_a_short_stock_deals_onto_the_first_columns_only():
+    # Spider's stock always holds whole deals, but a smaller Spider's last
+    # deal can be short
+    g = deal("spider", 1, suits=4)
+    stock = g.ids_of("stock")[0]
+    g.slots[stock].cards = [Card(r, "C", False) for r in (4, 5, 6)]
+    before = {t: list(g.cards(t)) for t in columns(g)}
+    assert g.deal()
+    assert not g.cards(stock)
+    for t, rank in zip(columns(g), (6, 5, 4)):
+        assert g.cards(t) == before[t] + [up(rank, "C")]
+    for t in columns(g)[3:]:
+        assert g.cards(t) == before[t]
+
+
 def test_an_empty_column_blocks_the_deal():
     g = deal("spider", 1, suits=4)
     g.slots[columns(g)[3]].cards = []
