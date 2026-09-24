@@ -10,6 +10,8 @@ of them is most of the game.
 - All 52 cards are dealt face up into eight columns: seven in each of
   the first four and six in each of the last four.
 - Four free cells and four foundations sit along the top, all empty.
+- Deals are numbered as in Microsoft FreeCell, so deal 617 here has the
+  same cards as deal 617 there, and solutions for a numbered deal work.
 
 ## Goal
 
