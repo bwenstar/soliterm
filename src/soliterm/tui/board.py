@@ -31,6 +31,8 @@ MAX_RIGHT_FAN = 6   # most cards shown in a right-expanding fan (waste/reserve)
                     # unless the game fans fewer (see fan_room)
 MIN_COLS = 40       # the smallest terminal any board is drawn on; a wide
 MIN_ROWS = 14       # game needs more (see BoardUI.needed_size)
+# on the message line while it has nothing else to say
+SHARING_NOTE = "some cards share a row; a taller terminal shows them all"
 
 # Box-drawing glyphs: unicode for a real card look, ASCII fallback for --ascii.
 _GLYPHS = {
@@ -130,10 +132,11 @@ class BoardUI:
         # harder (a FreeCell deal at 80x24 would lose ranks)
         self._code_top = self.origin_y
         self._code_indent = 9
-        # where this frame's board starts, and the rows between its rows of
-        # slots (see compute_positions)
+        # where this frame's board starts, the rows between its rows of
+        # slots, and whether cards share rows (see compute_positions)
         self._top = self.origin_y
         self._row_gap = ROW_GAP
+        self._sharing = False
 
     def set_view(self, view: str) -> None:
         """Configure rendering geometry for the chosen view.
@@ -503,10 +506,11 @@ class BoardUI:
             tops.append((0, 0))
         for top, gap in tops:
             positions = self._place(top, gap)
-            if all(self._fits_unshared(sid, y)
-                   for sid, (y, _) in positions.items()):
+            sharing = not all(self._fits_unshared(sid, y)
+                              for sid, (y, _) in positions.items())
+            if not sharing:
                 break
-        self._top, self._row_gap = top, gap
+        self._top, self._row_gap, self._sharing = top, gap, sharing
         return positions
 
     def _place(self, top: int, gap: int) -> Dict[int, Tuple[int, int]]:
@@ -621,6 +625,8 @@ class BoardUI:
                 if slot.kind == "stock":
                     self._draw_stock_count(sy, sx, cw, n, attr)
 
+        if self._sharing and not message:
+            message = SHARING_NOTE
         # status bar
         h, w = self.stdscr.getmaxyx()
         sy = h - 3

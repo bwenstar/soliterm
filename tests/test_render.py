@@ -197,7 +197,7 @@ def test_a_face_down_card_squeezed_to_one_row_shows_its_back(down, up):
     assert backs and all("#" in row for row in backs)
 
 
-KING_TO_ACE =[Card(r, "SH"[r % 2], True) for r in range(13, 0, -1)]
+KING_TO_ACE = [Card(r, "SH"[r % 2], True) for r in range(13, 0, -1)]
 DEALT = [Card(9, "H", True), Card(4, "S", True), Card(7, "H", True), Card(2, "S", True)]
 
 
@@ -278,6 +278,30 @@ def test_a_column_too_long_for_the_screen_says_how_many_cards_share_a_row(code_s
     # the run's King and the cards on top of the column keep their own rows
     assert shared
     assert rows_of_their_own(ui, scr, col) >= {5, len(cards) - 2, len(cards) - 1}
+
+
+def message_line(dealt, message, code_skin):
+    """The message line at 80x24 under a Spider column of five face-down
+    cards, King to Ace and `dealt` cards on it."""
+    g = deal("spider", 1)
+    clear_board(g)
+    col = g.ids_of("tableau")[0]
+    g.slots[col].cards = [Card(1, "C", False)] * 5 + KING_TO_ACE + DEALT[:dealt]
+    scr = FakeScr(24, 80)
+    ui = tui.BoardUI(scr, g, symbols=False, has_color=False)
+    ui.code_skin = code_skin
+    ui.draw(None, 1, None, None, 1.0, message)
+    return scr.text().splitlines()[22]
+
+
+@pytest.mark.parametrize("code_skin", [False, True])
+def test_the_message_line_says_when_cards_share_a_row(code_skin):
+    assert ("some cards share a row; a taller terminal shows them all"
+            in message_line(4, "", code_skin))
+    assert "share" not in message_line(2, "", code_skin)
+    # a message from the game comes first
+    line = message_line(4, "nothing to pick up there", code_skin)
+    assert "nothing to pick up there" in line and "share" not in line
 
 
 @pytest.mark.parametrize("code_skin", [False, True])
