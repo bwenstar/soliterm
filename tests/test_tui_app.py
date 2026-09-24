@@ -310,6 +310,21 @@ def test_two_clicks_far_apart_pick_up_and_put_down(monkeypatch):
     assert app.selected is None
 
 
+def test_a_click_just_after_a_drag_is_not_a_double_click(monkeypatch):
+    # the press that began the drag was not the first half of one
+    app, a, b = klondike_app([up(1, "H"), up(4, "S")], [up(5, "H")])
+    now = [100.0]
+    monkeypatch.setattr(soliterm.tui.app, "clock", lambda: now[0])
+    app.draw()
+    app.mouse_at(*cell_of(app, a, 1), curses.BUTTON1_PRESSED)
+    app.mouse_at(*cell_of(app, b, 0), curses.BUTTON1_RELEASED)
+    assert names(app, b) == ["5H", "4S"]
+    app.draw()
+    now[0] += 0.3
+    slow_click(app, a, 0)
+    assert names(app, a) == ["AH"] and app.selected == a
+
+
 def test_plus_and_minus_change_how_many_cards_are_held():
     app, a, b = klondike_app([up(9, "C"), up(8, "H"), up(7, "S")], [up(4, "S")])
     press(app, "-")

@@ -1051,6 +1051,8 @@ class App:
             self.cursor = target[0]
             self.hint = None
             self.drop_on(target[0])
+            # the press began a drag, not a double-click
+            self.last_click = None
             return None
         if bstate & curses.BUTTON1_PRESSED:
             self.pressed = target[0] if target else None
