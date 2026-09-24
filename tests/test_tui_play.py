@@ -773,6 +773,23 @@ def test_U_undoes_every_move_and_R_redoes_them(tui):
     assert "nothing to redo" in scr.frames[9]
 
 
+def test_U_on_a_resumed_game_says_when_it_stops_short_of_the_deal(tui, monkeypatch):
+    # a save keeps only the newest undo steps
+    monkeypatch.setattr(saves, "SAVED_STEPS", 3)
+    g = deal("klondike", 4)
+    for _ in range(5):
+        g.deal()
+    assert saves.keep(g, 42)
+    scr = tui(["U", "R", "U", "q"])
+    undone = scr.frames[1]
+    assert "Moves 2" in undone and soliterm.tui.app.UNDONE_ALL not in undone
+    assert soliterm.tui.app.UNDONE_KEPT in undone
+    assert "Moves 5" in scr.frames[2]
+    # and after a move played since, with the steps it adds
+    scr = tui(["d", "U"])
+    assert soliterm.tui.app.UNDONE_KEPT in scr.frames[2]
+
+
 def test_U_keeps_the_clock_running_and_the_game_under_way(tui, game_clock):
     # where N deals the hand again as a new game, at 0:00 and not kept
     scr = tui([Later(0, "d"), "d", Later(10, "U"), Later(5, -1)])

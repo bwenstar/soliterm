@@ -49,6 +49,9 @@ FINISH_OFFER = "Every card can go up now. Press a to finish."
 LOOK_ACTIONS = ("color", "theme", "four_color", "view", "code_skin")
 FINISH_REMINDER = "; a to finish"
 UNDONE_ALL = "back at the deal: r redoes a move, R all of them"
+# a save keeps only the newest undo steps, so U on a long resumed game stops
+# short of the deal
+UNDONE_KEPT = "back to the oldest move saved: r redoes a move, R all of them"
 # the longest a finish takes to watch, and the longest one card of it takes
 FINISH_S = 1.5
 FINISH_STEP_MS = 80
@@ -1452,7 +1455,11 @@ class App:
         self.hint = None
 
     def do_undo_all(self):
-        self.message = UNDONE_ALL if self.game.undo_all() else "nothing to undo"
+        if not self.game.undo_all():
+            self.message = "nothing to undo"
+        else:
+            # each step back takes a move off, so only the deal is at 0
+            self.message = UNDONE_KEPT if self.game.moves else UNDONE_ALL
         self.selected = None
         self.hint = None
 
