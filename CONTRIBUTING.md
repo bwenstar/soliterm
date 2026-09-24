@@ -23,9 +23,9 @@ mypy 2.3.1 won't install on Python 3.9, so on 3.9 skip that last line and
 leave the type check to CI.
 
 Those tools are the `dev` group in `pyproject.toml`, so with pip 25.1 or
-newer `python -m pip install -e . --group dev` installs the lot (all but
-mypy on 3.9). If you use uv, `uv sync --group dev` does the whole setup in
-one step.
+newer `python -m pip install -e . --group dev` installs the lot, and with uv
+`uv sync --group dev` does the whole setup in one step. Either way, mypy is
+left out on 3.9.
 
 The game reads and writes your real statistics, and GNOME AisleRiot's too if
 you have it installed. When you try out a change by hand, give it a throwaway
@@ -76,7 +76,7 @@ In annotations `X | Y` is fine, as long as the file has
 In CI the formatter runs as `ruff format --check .`, which only reports
 what it would change.
 
-ruff, mypy and vermin are pinned, to the same versions in the install line
+ruff, mypy and vermin are pinned to the same versions in the install lines
 above, in the `dev` group and in CI, so a new release can't turn the checks
 red on its own. When you move one of them up, change it in all three, and
 for ruff in `.pre-commit-config.yaml` too.
@@ -92,6 +92,10 @@ The commit that first formatted the whole tree is listed in
 ```sh
 git config blame.ignoreRevsFile .git-blame-ignore-revs
 ```
+
+With that set, `git blame` fails on a checkout from before the file
+existed. If you look at old tags a lot, pass it for one run instead:
+`git blame --ignore-revs-file .git-blame-ignore-revs FILE`.
 
 ## Building
 
