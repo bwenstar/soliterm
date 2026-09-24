@@ -494,7 +494,11 @@ same way.
   [man/soliterm.6](../man/soliterm.6), in menu order.
   `tests/test_man_page.py` checks every game is there. See how it reads
   with `man -l man/soliterm.6`.
-- The number of games, where the README and the man page give it.
+- The number of games, wherever it's given: the README, the man page,
+  the description in [pyproject.toml](../pyproject.toml), the docstring
+  of [`src/soliterm/__init__.py`](../src/soliterm/__init__.py), and the
+  README's count of the games its feature list leaves out ("and six
+  more"). `tests/test_game_lists.py` checks them all.
 - A line under Unreleased in [CHANGELOG.md](../CHANGELOG.md).
 
 ## Before you send it

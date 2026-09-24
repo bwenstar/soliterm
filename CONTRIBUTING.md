@@ -159,8 +159,8 @@ with a worked example. In short:
 7. Write `docs/games/<key>.md`, add a row to the tables in
    `docs/games/README.md` and `README.md`, give it an entry under GAMES in
    `man/soliterm.6` and a place in the Game list of
-   `.github/ISSUE_TEMPLATE/bug_report.yml`, and add a line to the
-   changelog.
+   `.github/ISSUE_TEMPLATE/bug_report.yml`, bring the number of games up
+   to date wherever it's given, and add a line to the changelog.
 
 ## The key reference
 
