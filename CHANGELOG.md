@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- The help screen no longer says every game builds its foundations up by
+  suit, which isn't true of them all.
+- A text-mode game won in one move says `1 move`, not `1 moves`.
+- Games played while not sharing statistics, for a game this version
+  doesn't have, are kept for the version that recorded them instead of
+  being dropped.
+
 ## 1.0.0 - 2026-06-29
 
 - Initial release. A dependency-free terminal Solitaire collection, a
