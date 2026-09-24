@@ -365,16 +365,16 @@ class App:
             safe_add(base + len(extra) + 1, 6,
                      "Up/Down move - Enter select - mouse click - q quit", CP(4))
             self.end_page()
-            key = self.page_key()
-            if self.boss_key(key):
+            k = self.page_key()
+            if self.boss_key(k):
                 continue
-            if key in (curses.KEY_UP, ord("k")):
+            if k in (curses.KEY_UP, ord("k")):
                 sel = (sel - 1) % len(items)
-            elif key in (curses.KEY_DOWN, ord("j")):
+            elif k in (curses.KEY_DOWN, ord("j")):
                 sel = (sel + 1) % len(items)
-            elif key in (ord("q"), ord("Q")):
+            elif k in (ord("q"), ord("Q")):
                 return None
-            elif key == curses.KEY_MOUSE:
+            elif k == curses.KEY_MOUSE:
                 try:
                     _, mx, my, _, bstate = curses.getmouse()
                 except curses.error:
@@ -390,7 +390,7 @@ class App:
                         sel = len(GAME_ORDER) + bidx
                         if bstate & (curses.BUTTON1_CLICKED | curses.BUTTON1_PRESSED):
                             return items[sel]
-            elif key in (curses.KEY_ENTER, 10, 13):
+            elif k in (curses.KEY_ENTER, 10, 13):
                 return items[sel]
 
     # ---- statistics dialog (AisleRiot fields) ---- #
