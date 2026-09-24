@@ -68,6 +68,23 @@ def board_state(g):
     return tuple(tuple(s.cards) for s in g.slots)
 
 
+def stalled_klondike(blocked=False):
+    """Klondike, every card face up, that safe autoplay leaves with one card
+    up: 5H and 5D wait on the black fours, and 4C is under 5H. Sent up in
+    any order that will go, every card still gets home. Blocked, 5C sits
+    on the 4C it needs, so they can't."""
+    g = deal("klondike", 1)
+    fids, t = g.ids_of("foundation"), g.ids_of("tableau")
+    clear_board(g)
+    for f, suit, top in zip(fids, "SHDC", [4, 4, 4, 3]):
+        g.slots[f].cards = [engine.Card(r, suit, True) for r in range(1, top + 1)]
+    lowest = {"S": 5, "H": 5 if blocked else 6, "D": 5, "C": 6 if blocked else 5}
+    for col, suit in zip(t[1:], "SHDC"):
+        g.slots[col].cards = [engine.Card(r, suit, True) for r in range(13, lowest[suit] - 1, -1)]
+    g.slots[t[0]].cards = [engine.Card(4, "C", True), engine.Card(5, "C" if blocked else "H", True)]
+    return g
+
+
 def legal_walk(g, rng, steps, allow=None):
     """Random play that mostly makes legal moves; yields after every step.
 

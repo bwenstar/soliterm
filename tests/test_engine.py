@@ -8,7 +8,15 @@ import pytest
 from soliterm import engine
 from soliterm.engine import GAME_ORDER, Card, core
 
-from helpers import EXPECTED_CARDS, card_count, card_multiset, clear_board, deal, random_op
+from helpers import (
+    EXPECTED_CARDS,
+    card_count,
+    card_multiset,
+    clear_board,
+    deal,
+    random_op,
+    stalled_klondike,
+)
 
 
 def board(g):
@@ -290,6 +298,63 @@ def test_autoplay_finishes_a_board_with_every_column_in_order(key):
         g.slots[col].cards = [up(r, odd if r % 2 else even) for r in range(13, 0, -1)]
     assert g.autoplay() == 52
     assert g.is_won()
+
+
+# -- finishing ----------------------------------------------------------------------
+
+
+def near_won():
+    """Klondike with A-Q home in every suit and the four kings on the tableau."""
+    g = deal("klondike", 1)
+    fids, tids = g.ids_of("foundation"), g.ids_of("tableau")
+    clear_board(g)
+    for i, suit in enumerate("SHDC"):
+        g.slots[fids[i]].cards = [up(r, suit) for r in range(1, 13)]
+        g.slots[tids[i]].cards = [up(13, suit)]
+    return g
+
+
+def test_finish_moves_on_near_won():
+    assert near_won().finish_moves() == [(6, 2), (7, 3), (8, 4), (9, 5)]
+
+
+def test_finish_moves_sends_up_what_safe_autoplay_leaves():
+    g = stalled_klondike()
+    before = g.serialize()
+    moves = g.finish_moves()
+    assert len(moves) == 37
+    assert moves[:2] == [(6, 3), (6, 5)]
+    assert g.serialize() == before
+
+
+def with_a_card_face_down():
+    g = near_won()
+    g.slots[6].cards = [g.cards(6)[0].up(False)]
+    return g
+
+
+def with_cards_in_the_stock():
+    g = near_won()
+    g.slots[0].cards, g.slots[9].cards = g.slots[9].cards, []
+    return g
+
+
+def won():
+    g = near_won()
+    g.autoplay()
+    return g
+
+
+@pytest.mark.parametrize(
+    "position",
+    [with_a_card_face_down, with_cards_in_the_stock, lambda: stalled_klondike(blocked=True), won],
+    ids=["a card face down", "cards in the stock", "a blocked card", "a won game"],
+)
+def test_finish_moves_is_none(position):
+    g = position()
+    before = g.serialize()
+    assert g.finish_moves() is None
+    assert g.serialize() == before
 
 
 # -- double click -------------------------------------------------------------------

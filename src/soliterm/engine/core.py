@@ -558,6 +558,47 @@ class Solitaire:
             self._redo = saved_redo
         return n
 
+    def finish_moves(self) -> list[tuple[int, int]] | None:
+        """The moves that would finish the game, one card each as (src, dst),
+        or None if it can't be finished by sending cards up.
+
+        Only offered once every card is face up and the stock is empty, as
+        then nothing is left to find out. Any card that can go up goes, safe
+        or not, since every card is going up. A position where one card has
+        to move elsewhere first is left to the player.
+        """
+        if self.is_won():
+            return None
+        if any(self.slots[s].cards for s in self.ids_of("stock")):
+            return None
+        if any(not c.face_up for slot in self.slots for c in slot.cards):
+            return None
+        found = self.ids_of("foundation")
+        if not found:
+            return None
+        g = self.clone()
+        rules = g.gamedef
+        out: list[tuple[int, int]] = []
+        while True:
+            move = None
+            for src, slot in enumerate(g.slots):
+                if slot.kind == "foundation" or not slot.cards:
+                    continue
+                if not rules.can_pickup(g, src, 1):
+                    continue
+                card = slot.cards[-1]
+                dst = next((f for f in found if rules.can_drop(g, src, [card], f)), None)
+                if dst is not None:
+                    move = (src, dst)
+                    break
+            if move is None:
+                break
+            cards = g._move_cards(move[0], move[1], 1)
+            rules.after_move(g, move[0], cards, move[1])
+            rules.post_move(g)
+            out.append(move)
+        return out if g.is_won() else None
+
     def update_status(self) -> None:
         self.status = self.gamedef.status(self)
 
