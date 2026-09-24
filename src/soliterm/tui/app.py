@@ -23,6 +23,17 @@ from typing import Callable
 from .. import APP_NAME, camo, deals, history, saves, store
 from ..deals import Code, Deal
 from ..engine import GAME_ORDER, GAMES, Solitaire
+from ..themes import (
+    BACK,
+    CHROME,
+    CURSOR,
+    FACE_BLACK,
+    FACE_RED,
+    HINT,
+    MESSAGE,
+    RED_SELECTED,
+    SELECTED,
+)
 from .board import (
     CODE_GUTTER,
     MIN_COLS,
@@ -285,15 +296,15 @@ class App:
             # suit colour as the text - red for hearts/diamonds, true black for
             # spades/clubs - so black suits read as black, not white, on any
             # terminal background.
-            curses.init_pair(1, curses.COLOR_RED, curses.COLOR_WHITE)  # red card face
-            curses.init_pair(2, curses.COLOR_BLACK, curses.COLOR_WHITE)  # black card face
-            curses.init_pair(3, curses.COLOR_BLACK, curses.COLOR_GREEN)  # selection
-            curses.init_pair(4, chrome, bg)  # chrome
-            curses.init_pair(5, curses.COLOR_BLACK, curses.COLOR_YELLOW)  # cursor
-            curses.init_pair(6, note, bg)  # message
-            curses.init_pair(7, curses.COLOR_WHITE, curses.COLOR_BLUE)  # card back
-            curses.init_pair(8, curses.COLOR_WHITE, curses.COLOR_GREEN)  # red card, selected
-            curses.init_pair(9, curses.COLOR_BLACK, curses.COLOR_CYAN)  # hinted card
+            curses.init_pair(FACE_RED, curses.COLOR_RED, curses.COLOR_WHITE)
+            curses.init_pair(FACE_BLACK, curses.COLOR_BLACK, curses.COLOR_WHITE)
+            curses.init_pair(SELECTED, curses.COLOR_BLACK, curses.COLOR_GREEN)
+            curses.init_pair(CHROME, chrome, bg)
+            curses.init_pair(CURSOR, curses.COLOR_BLACK, curses.COLOR_YELLOW)
+            curses.init_pair(MESSAGE, note, bg)
+            curses.init_pair(BACK, curses.COLOR_WHITE, curses.COLOR_BLUE)
+            curses.init_pair(RED_SELECTED, curses.COLOR_WHITE, curses.COLOR_GREEN)
+            curses.init_pair(HINT, curses.COLOR_BLACK, curses.COLOR_CYAN)
 
     def CP(self, n):
         return curses.color_pair(n) if self.has_color else 0
@@ -431,12 +442,12 @@ class App:
         self.waiting = saves.waiting()
         while True:
             self.begin_page()
-            safe_add(1, 4, f"{APP_NAME}  -  choose a game", CP(4) | curses.A_BOLD)
-            safe_add(2, 4, "solitaire for your terminal, AisleRiot-compatible", CP(4))
+            safe_add(1, 4, f"{APP_NAME}  -  choose a game", CP(CHROME) | curses.A_BOLD)
+            safe_add(2, 4, "solitaire for your terminal, AisleRiot-compatible", CP(CHROME))
             for i, key in enumerate(GAME_ORDER):
                 cls = GAMES[key]
                 marker = "> " if i == sel else "  "
-                attr = (CP(5) | curses.A_BOLD) if i == sel else 0
+                attr = (CP(CURSOR) | curses.A_BOLD) if i == sel else 0
                 about = cls.blurb
                 if key in self.waiting:
                     about = f"Resume your game: {self.resume_text(self.waiting[key])}"
@@ -446,13 +457,13 @@ class App:
                 i = len(GAME_ORDER) + j
                 label = labels[key]
                 marker = "> " if i == sel else "  "
-                attr = (CP(5) | curses.A_BOLD) if i == sel else 0
+                attr = (CP(CURSOR) | curses.A_BOLD) if i == sel else 0
                 safe_add(base + j, 6, f"{marker}{label}", attr)
             safe_add(
                 base + len(extra) + 1,
                 6,
                 "Up/Down move - Enter select - mouse click - q quit",
-                CP(4),
+                CP(CHROME),
             )
             self.end_page()
             k = self.page_key()
@@ -501,16 +512,18 @@ class App:
     def draw_stats(self, focus_key: str | None, streaks: dict[str, history.Streak]):
         CP, safe_add = self.CP, self.safe_add
         self.begin_page()
-        safe_add(1, 4, "Statistics", CP(4) | curses.A_BOLD)
-        safe_add(2, 4, "Wins / Total / Percentage / Best & Worst winning time", CP(4))
+        safe_add(1, 4, "Statistics", CP(CHROME) | curses.A_BOLD)
+        safe_add(2, 4, "Wins / Total / Percentage / Best & Worst winning time", CP(CHROME))
         if store.syncing():
-            safe_add(3, 4, "(shared with GNOME AisleRiot - sol)", CP(6) if self.has_color else 0)
+            safe_add(
+                3, 4, "(shared with GNOME AisleRiot - sol)", CP(MESSAGE) if self.has_color else 0
+            )
         y = 4
         header = (
             f"  {'Game':<16}{'Wins':>6}{'Total':>7}{'Win%':>7}{'Best':>8}{'Worst':>8}"
             f"{'Streak':>8}{'Longest':>8}"
         )
-        safe_add(y, 4, header, CP(6) | curses.A_BOLD)
+        safe_add(y, 4, header, CP(MESSAGE) | curses.A_BOLD)
         y += 1
         for key in GAME_ORDER:
             s = store.get_stat(key)
@@ -520,7 +533,7 @@ class App:
             worst = "N/A" if s["worst"] == 0 else store.fmt_time(s["worst"])
             # only the games played here are in the history
             cur, longest = streaks.get(key, ("N/A", "N/A"))
-            attr = (CP(5) | curses.A_BOLD) if key == focus_key else 0
+            attr = (CP(CURSOR) | curses.A_BOLD) if key == focus_key else 0
             safe_add(
                 y,
                 4,
@@ -529,7 +542,7 @@ class App:
                 attr,
             )
             y += 1
-        safe_add(y + 1, 4, "Press any key to continue.", CP(4))
+        safe_add(y + 1, 4, "Press any key to continue.", CP(CHROME))
         self.end_page()
 
     # ---- options dialog ---- #
@@ -546,14 +559,16 @@ class App:
         sel = 0
         while True:
             self.begin_page()
-            safe_add(1, 4, f"{cls.name} - options", CP(4) | curses.A_BOLD)
+            safe_add(1, 4, f"{cls.name} - options", CP(CHROME) | curses.A_BOLD)
             for i, (okey, label, values) in enumerate(spec):
                 cur = opts.get(okey, values[0])
                 vals = "  ".join(f"[{v}]" if v == cur else f" {v} " for v in values)
                 marker = "> " if i == sel else "  "
-                attr = (CP(5) | curses.A_BOLD) if i == sel else 0
+                attr = (CP(CURSOR) | curses.A_BOLD) if i == sel else 0
                 safe_add(3 + i, 6, f"{marker}{label:<18} {vals}", attr)
-            safe_add(3 + len(spec) + 1, 6, "Left/Right change - Enter/q accept - Esc cancel", CP(4))
+            safe_add(
+                3 + len(spec) + 1, 6, "Left/Right change - Enter/q accept - Esc cancel", CP(CHROME)
+            )
             self.end_page()
             k = self.page_key()
             if self.boss_key(k):
@@ -584,7 +599,7 @@ class App:
         text, error = "", ""
         while True:
             self.begin_page()
-            safe_add(1, 4, "Play a deal", CP(4) | curses.A_BOLD)
+            safe_add(1, 4, "Play a deal", CP(CHROME) | curses.A_BOLD)
             if current is not None:
                 safe_add(3, 6, f"This deal   : {current.deal_number}")
                 safe_add(4, 6, f"Share code  : {deals.code_of(current)}")
@@ -599,10 +614,10 @@ class App:
             if len(prompt) > room:
                 # a long code scrolls, so its end and the cursor stay in view
                 prompt = "< " + prompt[len(prompt) - room + 2 :]
-            safe_add(y + 1, 6, prompt, CP(5) | curses.A_BOLD)
+            safe_add(y + 1, 6, prompt, CP(CURSOR) | curses.A_BOLD)
             for i, line in enumerate(textwrap.wrap(error, DEAL_ERROR_W)[:DEAL_ERROR_ROWS]):
-                safe_add(y + 2 + i, 6, line, CP(6))
-            safe_add(y + 2 + DEAL_ERROR_ROWS, 6, "Enter play - Esc back", CP(4))
+                safe_add(y + 2 + i, 6, line, CP(MESSAGE))
+            safe_add(y + 2 + DEAL_ERROR_ROWS, 6, "Enter play - Esc back", CP(CHROME))
             self.end_page()
             k = self.page_key()
             # b is a letter here, so only F2 hides the box, unless it doesn't
@@ -637,8 +652,8 @@ class App:
         while True:
             self.begin_page()
             for i, line in enumerate(lines):
-                safe_add(2 + i, 6, line, (CP(6) | curses.A_BOLD) if i == 0 else 0)
-            safe_add(3 + len(lines), 6, "y  yes     n / Esc / Enter  no", CP(4))
+                safe_add(2 + i, 6, line, (CP(MESSAGE) | curses.A_BOLD) if i == 0 else 0)
+            safe_add(3 + len(lines), 6, "y  yes     n / Esc / Enter  no", CP(CHROME))
             self.end_page()
             k = self.page_key()
             if self.boss_key(k):
@@ -1524,18 +1539,21 @@ class App:
         while True:
             self.begin_page()
             if won:
-                safe_add(2, 6, "*** YOU WIN! ***", CP(6) | curses.A_BOLD)
+                safe_add(2, 6, "*** YOU WIN! ***", CP(MESSAGE) | curses.A_BOLD)
             else:
-                safe_add(2, 6, "No moves left - game over.", CP(6) | curses.A_BOLD)
+                safe_add(2, 6, "No moves left - game over.", CP(MESSAGE) | curses.A_BOLD)
             for i, line in enumerate(lines):
                 if line:
                     safe_add(4 + i, 6, line)
             for i, (_, label) in enumerate(choices):
                 marker = "> " if i == sel else "  "
-                attr = (CP(5) | curses.A_BOLD) if i == sel else 0
+                attr = (CP(CURSOR) | curses.A_BOLD) if i == sel else 0
                 safe_add(top + i, 6, f"{marker}{label}", attr)
             safe_add(
-                top + len(choices) + 1, 6, f"Up/Down + Enter, or {keys}. Click to choose.", CP(4)
+                top + len(choices) + 1,
+                6,
+                f"Up/Down + Enter, or {keys}. Click to choose.",
+                CP(CHROME),
             )
             self.end_page()
             k = self.page_key()

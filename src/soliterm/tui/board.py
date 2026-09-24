@@ -16,6 +16,17 @@ from collections.abc import Iterator
 from .. import APP_NAME, camo, store
 from ..deals import deal_label
 from ..engine import SUIT_SYMBOL, Card, Solitaire
+from ..themes import (
+    BACK,
+    CHROME,
+    CURSOR,
+    FACE_BLACK,
+    FACE_RED,
+    HINT,
+    MESSAGE,
+    RED_SELECTED,
+    SELECTED,
+)
 
 # Geometry of a rendered card. Cards are drawn as multi-line boxes that overlap
 # vertically (and horizontally for waste fans), AisleRiot-style: the top card of
@@ -74,14 +85,14 @@ def draw_code_backdrop(ui, notes: dict[int, str], last_row: int | None = None) -
     safe_add.
     """
     h, w = ui.stdscr.getmaxyx()
-    dim = ui.CP(4)
+    dim = ui.CP(CHROME)
     code_attr = 0  # source text in the terminal's own colours
     # editor-style header / tab bar
     ui.safe_add(
         0,
         0,
         " solver.py  -  ~/work/render-core/engine ".ljust(w - 1),
-        ui.CP(5) if ui.has_color else curses.A_REVERSE,
+        ui.CP(CURSOR) if ui.has_color else curses.A_REVERSE,
     )
     for screen_y in range(1, (h - 2 if last_row is None else last_row) + 1):
         lineno = screen_y  # 1-based line numbers down the file
@@ -195,16 +206,16 @@ class BoardUI:
             # both colours sit on a green selection background; red cards use a
             # white foreground (red-on-green just muddies into brown), black use
             # black-on-green - so a selected card always reads as green.
-            return (self.CP(8) if red else self.CP(3)) | curses.A_BOLD
+            return (self.CP(RED_SELECTED) if red else self.CP(SELECTED)) | curses.A_BOLD
         if cursor:
-            return self.CP(5) | curses.A_BOLD  # black-on-yellow cursor
+            return self.CP(CURSOR) | curses.A_BOLD  # black-on-yellow cursor
         if hinted:
-            return self.CP(9) | curses.A_BOLD  # black-on-cyan hint
+            return self.CP(HINT) | curses.A_BOLD  # black-on-cyan hint
         if card is None:
-            return self.CP(4)  # empty slot: chrome
+            return self.CP(CHROME)  # empty slot: chrome
         if not card.face_up:
-            return self.CP(7)  # face-down: blue card back
-        return self.CP(1) if red else self.CP(2)  # white face, red/black text
+            return self.CP(BACK)  # face-down: blue card back
+        return self.CP(FACE_RED) if red else self.CP(FACE_BLACK)  # white face, red/black text
 
     # -- card-box rendering ------------------------------------------------ #
     def _card_rows(self, card: Card | None, w: int, full: bool) -> list[str]:
@@ -587,7 +598,7 @@ class BoardUI:
             draw_too_small(self, self.game.gamedef.name, self.needed_size(), self.code_skin)
             self.stdscr.refresh()
             return
-        chrome = self.CP(4)
+        chrome = self.CP(CHROME)
         g = self.game
         positions = self.compute_positions()
         self.slot_origin = positions
@@ -656,7 +667,7 @@ class BoardUI:
             # render the status + message as trailing source comments so the
             # bottom of the screen still reads as code. Pad to the screen width
             # so the code background underneath these rows is fully cleared.
-            dim = self.CP(4)
+            dim = self.CP(CHROME)
             pad = w - self._gutter - 1
             stat = (
                 f"    # score={g.score} moves={g.moves} "
@@ -676,7 +687,7 @@ class BoardUI:
             # there's room after the score and the game's own status
             if self._top <= 1 and 2 + len(left) + 3 + len(label) + 2 <= w:
                 self.safe_add(sy, w - 2 - len(label), label, chrome)
-            self.safe_add(sy + 1, 2, message[: w - 4], self.CP(6) if self.has_color else 0)
+            self.safe_add(sy + 1, 2, message[: w - 4], self.CP(MESSAGE) if self.has_color else 0)
         self.stdscr.refresh()
 
     def _draw_stock_count(self, sy, sx, cw, n, attr) -> None:

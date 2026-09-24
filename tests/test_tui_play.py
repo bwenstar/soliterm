@@ -1655,6 +1655,29 @@ def test_a_dark_terminal_keeps_cyan_and_yellow_text(tui, monkeypatch):
     assert on_the_terminal == {curses.COLOR_CYAN, curses.COLOR_YELLOW}
 
 
+@pytest.mark.parametrize(
+    "colorfgbg, chrome, note",
+    [
+        pytest.param("15;0", curses.COLOR_CYAN, curses.COLOR_YELLOW, id="dark background"),
+        pytest.param("0;15", curses.COLOR_BLUE, curses.COLOR_MAGENTA, id="light background"),
+    ],
+)
+def test_classic_draws_the_pairs_1_0_0_drew(tui, monkeypatch, colorfgbg, chrome, note):
+    monkeypatch.setenv("COLORFGBG", colorfgbg)
+    scr = tui(["q"])
+    assert [pair for pair in scr.pairs if pair[0] <= 9] == [
+        (1, curses.COLOR_RED, curses.COLOR_WHITE),
+        (2, curses.COLOR_BLACK, curses.COLOR_WHITE),
+        (3, curses.COLOR_BLACK, curses.COLOR_GREEN),
+        (4, chrome, -1),
+        (5, curses.COLOR_BLACK, curses.COLOR_YELLOW),
+        (6, note, -1),
+        (7, curses.COLOR_WHITE, curses.COLOR_BLUE),
+        (8, curses.COLOR_WHITE, curses.COLOR_GREEN),
+        (9, curses.COLOR_BLACK, curses.COLOR_CYAN),
+    ]
+
+
 def test_a_hinted_card_has_a_background_of_its_own(tui):
     # so it reads on a light terminal as well as a dark one
     g = deal("klondike", 1)
