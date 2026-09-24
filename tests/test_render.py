@@ -236,6 +236,19 @@ def test_every_face_up_card_of_a_long_column_has_a_row_at_80x24(key, down, up,
     all_on_screen(ui, g, 24, 80)
 
 
+def test_the_slot_labels_give_way_before_cards_share_a_row():
+    # a third dealt card is one row too many with the labels above the board
+    g = deal("spider", 1)
+    clear_board(g)
+    col = g.ids_of("tableau")[0]
+    up = KING_TO_ACE + DEALT[:3]
+    g.slots[col].cards = [Card(1, "C", False)] * 5 + up
+    ui, scr = draw(g, h=24, w=80)
+    assert rows_of_their_own(ui, scr, col) >= set(range(5, 5 + len(up)))
+    assert "Fnd" not in scr.text()
+    all_on_screen(ui, g, 24, 80)
+
+
 @pytest.mark.parametrize("code_skin", [False, True])
 def test_a_column_too_long_for_the_screen_says_how_many_cards_share_a_row(code_skin):
     g = deal("spider", 1)

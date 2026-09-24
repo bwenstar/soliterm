@@ -492,12 +492,15 @@ class BoardUI:
         Also sets this frame's layout (see _choose_layout) and how high the
         board sits: where it usually does, unless a column would then have
         cards sharing rows. Then the lines above the board give way a row
-        at a time, and last the gaps between its rows of slots.
+        at a time, then the gaps between its rows of slots, and last the
+        slot labels, but not the code skin's file header.
         """
         self._choose_layout(self.stdscr.getmaxyx()[1])
         # In code-skin mode the board sits indented, inside the file.
         start = self._code_top if self.code_skin else self.origin_y
         tops = [(top, ROW_GAP) for top in range(start, 0, -1)] + [(1, 0)]
+        if not self.code_skin:
+            tops.append((0, 0))
         for top, gap in tops:
             positions = self._place(top, gap)
             if all(self._fits_unshared(sid, y)

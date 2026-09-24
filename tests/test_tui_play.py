@@ -248,12 +248,12 @@ def test_clicking_the_top_card_lifts_just_that_card(tui):
 
 
 def test_the_lift_keys_reach_cards_squeezed_onto_one_row(tui):
-    # too long a column for 19 rows puts JS 10S 9S on one row; a click there
+    # too long a column for 18 rows puts JS 10S 9S on one row; a click there
     # lifts from the JS, and - and + go through the cards under it
     run = [up(r, "S") for r in range(12, 0, -1)]
     g, a, b = board("spider", [Card(1, "S", False)] * 5 + run, [], suits=1)
     scr = tui([Click(a, 6), "-", "-", "+", curses.KEY_RIGHT, ENTER],
-              start_key="spider", game=g, h=19, w=80)
+              start_key="spider", game=g, h=18, w=80)
     assert "| +3 |" in scr.frames[0].replace("\u2502", "|")
     assert "picked up 11 card(s) from JS" in scr.frames[1]
     assert "holding 10 cards" in scr.frames[4]
