@@ -4,7 +4,7 @@
   soliterm --game freecell              # jump straight into a game
   soliterm --list                       # list the games
   soliterm --stats                      # print statistics and exit
-  soliterm --text --game golf --seed 1  # scriptable text mode
+  soliterm --text --game golf --deal 1  # scriptable text mode
 
 `python -m soliterm` does the same without the console script.
 """

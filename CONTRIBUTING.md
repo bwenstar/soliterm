@@ -156,7 +156,7 @@ Each game is one module in `src/soliterm/engine/games/`.
    `tests/helpers.py`. After that, `tests/test_conformance.py` picks the
    game up by itself and runs it, with every combination of its options,
    through the rules every game has to follow: the deal has every card,
-   a seed always deals the same hand, random play never loses a card,
+   a deal number always deals the same hand, random play never loses a card,
    undo and redo replay exactly, every hint is a legal move, and so on.
    The other tests that loop over `GAME_ORDER` cover it too. Add a test
    file of your own for the rules that are particular to the game.
@@ -176,9 +176,9 @@ the dev group. If your change alters what's on screen, regenerate the
 screenshots and commit them with it.
 
 `--list` shows the scenes and `--scene NAME` redraws only the ones you
-name. The scenes are a list near the top of the script: a game, a seed and
-the keys to press, so changing what a shot shows usually means editing a
-line or two there. `--out DIR` writes somewhere other than `docs/img/`,
+name. The scenes are a list near the top of the script: a deal and the
+keys to press, so changing what a shot shows usually means editing a line
+or two there. `--out DIR` writes somewhere other than `docs/img/`,
 which is handy for checking a change before you overwrite the real ones.
 
 ## Questions

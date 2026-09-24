@@ -33,7 +33,7 @@ soliterm                           # then just run "soliterm"
 PYTHONPATH=src python3 -m soliterm
 ```
 
-Common flags (all three forms): `--game NAME`, `--seed N`, `--list`,
+Common flags (all three forms): `--game NAME`, `--deal N`, `--list`,
 `--stats`, `--text` (force text mode), `--ascii`, `--color` / `--no-color`.
 
 ## Build the distributables
@@ -118,13 +118,13 @@ the local stats.
 ## Options
 
 ```
---game NAME     start a specific game        --seed N    reproducible deal
---text          force text mode              --ascii     letter suits S/H/D/C
---color         force colour in text mode    --no-color  disable colour
---list          list games and exit          --stats     print statistics
---reset-stats   clear statistics             --yes       don't ask first
---no-sync       leave AisleRiot's stats alone this run
---debug-info    what to paste into a bug report
+--game NAME       start a specific game      --deal N|CODE  a numbered or shared deal
+--text            force text mode            --ascii        letter suits S/H/D/C
+--color           force colour in text mode  --no-color     disable colour
+--list            list games and exit        --stats        print statistics
+--reset-stats     clear statistics           --yes          don't ask first
+--no-sync         leave AisleRiot's stats alone this run
+--debug-info      what to paste into a bug report
 ```
 
 Colour, code-skin, and other preferences persist in

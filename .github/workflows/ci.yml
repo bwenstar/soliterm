@@ -107,7 +107,7 @@ jobs:
           mkdir -p "$HOME"
           python dist/soliterm.pyz --version
           python dist/soliterm.pyz --list
-          printf 'hint\nq\n' | python dist/soliterm.pyz --text --game freecell --seed 1 --ascii --no-color
+          printf 'hint\nq\n' | python dist/soliterm.pyz --text --game freecell --deal 1 --ascii --no-color
       - name: Install the wheel into a clean venv
         env:
           HOME: ${{ runner.temp }}/home

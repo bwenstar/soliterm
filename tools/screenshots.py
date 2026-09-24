@@ -10,9 +10,9 @@ Each scene runs the game in a private tmux server with a throwaway home
 directory, types keys at it and grabs the screen with `tmux capture-pane -e`.
 The colour codes in that capture are turned back into a grid of cells and
 drawn with Pillow in DejaVu Sans Mono. Your own config and statistics are
-never read or written, and the deals are seeded, so the pictures come out
-the same each time apart from the clock and the boss screen's random text.
-It needs tmux 3.0 or newer, Pillow and the font.
+never read or written, and every game shown is a numbered deal, so the
+pictures come out the same each time apart from the clock and the boss
+screen's random text. It needs tmux 3.0 or newer, Pillow and the font.
 
 This is a development tool. Pillow is only needed here; the game itself
 never imports it.
@@ -61,8 +61,8 @@ OUT = ROOT / "docs" / "img"
 # a hint (and moves the cursor to the card it suggests), d deals, u undoes,
 # o opens the game's options, c toggles the code skin, b is the boss key
 # and q quits.
-# The moves were worked out by hand for these seeds. If a seed ever deals a
-# different hand, play it with --seed and write down the new keys.
+# The moves were worked out by hand for these deals. If a deal ever changes,
+# play it with --deal and write down the new keys.
 # --------------------------------------------------------------------------- #
 
 COLS, ROWS = 100, 32  # terminal size for every scene
