@@ -79,6 +79,14 @@ def test_each_deal_puts_a_face_up_card_on_every_column(suits):
     assert g.deal() is False
 
 
+def test_the_status_says_one_deal_not_one_deals():
+    g = deal("spider", 1, suits=4)
+    assert g.status.startswith("Stock: 50 (5 deals)")
+    for _ in range(4):
+        assert g.deal()
+    assert g.status.startswith("Stock: 10 (1 deal)")
+
+
 def test_an_empty_column_blocks_the_deal():
     g = deal("spider", 1, suits=4)
     g.slots[columns(g)[3]].cards = []
