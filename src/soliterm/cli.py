@@ -216,7 +216,8 @@ def reset_stats(yes: bool) -> int:
     n = store.reset_stats()
     history.clear()
     if sharing:
-        print(f"Statistics cleared for {n} game(s) (shared with GNOME AisleRiot).")
+        games = "1 game" if n == 1 else f"{n} games"
+        print(f"Statistics cleared for {games} (shared with GNOME AisleRiot).")
     else:
         print("Statistics cleared.")
     return 0

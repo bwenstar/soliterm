@@ -523,7 +523,16 @@ def test_reset_stats_clears_the_shared_aisleriot_record(cli, keyfile):
     assert store.get_stat("canfield")["total"] == 0
     assert ar.read_stat(ar.GAME_TO_SECTION["canfield"])["total"] == 0
     assert "Theme=tigullio.svgz" in path.read_text()
-    assert lines[-1] == "Statistics cleared for 1 game(s) (shared with GNOME AisleRiot)."
+    assert lines[-1] == "Statistics cleared for 1 game (shared with GNOME AisleRiot)."
+
+
+def test_a_shared_reset_counts_its_games_in_words(cli, keyfile):
+    keyfile(
+        f"[{ar.GAME_TO_SECTION['canfield']}]\nStatistic=2;9;100;400;\n\n"
+        f"[{ar.GAME_TO_SECTION['golf']}]\nStatistic=1;1;60;60;\n"
+    )
+    _rc, lines = cli("--reset-stats", "--yes")
+    assert lines[-1] == "Statistics cleared for 2 games (shared with GNOME AisleRiot)."
 
 
 @pytest.mark.parametrize("tty", [False, True])
