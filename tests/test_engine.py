@@ -367,15 +367,26 @@ def test_score_never_goes_below_zero():
 # -- restart and new deals ------------------------------------------------------
 
 
+def test_a_game_knows_its_deal_number():
+    g = deal("klondike", 5)
+    assert g.deal_number == 5
+    g.new_game(seed=8)
+    assert g.deal_number == 8
+    g.deal()
+    g.restart()
+    assert g.deal_number == 8
+    assert g.clone().deal_number == 8
+
+
 def test_restart_replays_the_same_hand():
     g = engine.new_solitaire("klondike")  # no fixed seed
-    snap, seed = board(g), g.current_seed
+    snap, seed = board(g), g.deal_number
     g.deal()
     g.deal()
     assert board(g) != snap
     g.restart()
     assert board(g) == snap
-    assert g.current_seed == seed
+    assert g.deal_number == seed
 
 
 def test_unseeded_new_games_differ():
@@ -383,7 +394,7 @@ def test_unseeded_new_games_differ():
     seeds = set()
     for _ in range(6):
         g.new_game()
-        seeds.add(g.current_seed)
+        seeds.add(g.deal_number)
     assert len(seeds) >= 2
 
 
@@ -403,7 +414,7 @@ def test_the_deals_after_a_fixed_seed_are_reproducible():
         a.new_game()
         b.new_game()
         assert board(a) == board(b)
-        assert a.current_seed == b.current_seed
+        assert a.deal_number == b.deal_number
 
 
 def test_restart_replays_a_new_deal_made_under_a_fixed_seed():

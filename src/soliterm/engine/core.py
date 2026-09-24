@@ -70,7 +70,7 @@ class Solitaire:
         self.status = ""
         self.moves = 0
         self.redeals_done = 0
-        self.current_seed = seed  # the concrete seed of the deal in play
+        self.deal_number = seed  # the concrete seed of the deal in play
         # How messages name cards: with suit symbols (2♥) or letters (2H).
         # The front-end sets it to match the board it draws.
         self.symbols = True
@@ -122,7 +122,7 @@ class Solitaire:
 
         With an explicit `seed` the deal is reproducible. Otherwise a concrete
         seed is chosen, from the run seeded by self.seed (--seed) if there is
-        one or at random if not, and remembered as `current_seed`, so the
+        one or at random if not, and remembered as `deal_number`, so the
         exact hand can be replayed via restart().
 
         Seeds are whole numbers from 0 up. A negative one is refused, since
@@ -137,7 +137,7 @@ class Solitaire:
         else:
             # no fixed seed: pick a concrete one so this deal can be replayed
             deal_seed = random.randrange(1, 2**31)
-        self.current_seed = deal_seed
+        self.deal_number = deal_seed
         self.rng = random.Random(deal_seed)
         self.score = 0
         self.base_val = 0
@@ -150,7 +150,7 @@ class Solitaire:
 
     def restart(self) -> None:
         """Re-deal the exact same hand (same shuffle) currently in play."""
-        self.new_game(seed=getattr(self, "current_seed", self.seed))
+        self.new_game(seed=getattr(self, "deal_number", self.seed))
 
     # -- simulation + move enumeration (used by hints / end-state) -------- #
 
@@ -164,7 +164,7 @@ class Solitaire:
         g = Solitaire.__new__(Solitaire)
         g.gamedef = self.gamedef
         g.seed = self.seed
-        g.current_seed = self.current_seed
+        g.deal_number = self.deal_number
         g.options = dict(self.options)
         g.symbols = self.symbols
         g._deal_seeds = None

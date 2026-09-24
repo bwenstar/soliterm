@@ -195,17 +195,17 @@ def test_a_slot_that_does_not_exist_is_named(cmd):
 @pytest.mark.parametrize("cmd", ["N", "restart", "Restart"])
 def test_capital_n_and_restart_start_this_deal_over(cmd, capsys):
     g = new_solitaire("golf")
-    seed, start = g.current_seed, board_state(g)
+    seed, start = g.deal_number, board_state(g)
     textmode.run_text(g, False, "golf", stream=io.StringIO(f"d\n{cmd}\nq\n"))
-    assert (g.current_seed, board_state(g), g.moves) == (seed, start, 0)
+    assert (g.deal_number, board_state(g), g.moves) == (seed, start, 0)
     assert "restarted this deal" in capsys.readouterr().out.splitlines()
 
 
 def test_small_n_still_deals_a_new_hand(capsys):
     g = new_solitaire("golf")
-    seed = g.current_seed
+    seed = g.deal_number
     textmode.run_text(g, False, "golf", stream=io.StringIO("n\nq\n"))
-    assert g.current_seed != seed
+    assert g.deal_number != seed
     assert "new deal" in capsys.readouterr().out.splitlines()
 
 
