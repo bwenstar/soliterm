@@ -10,6 +10,7 @@ How each of the games in Soliterm is played, with its rules, scoring and a few t
 | [FreeCell](freecell.md) | `freecell` | Every card face up, four free cells, and nearly every deal can be won. |
 | [Eight Off](eightoff.md) | `eightoff` | FreeCell's cousin with eight cells and columns built in suit; nearly all skill. |
 | [Golf](golf.md) | `golf` | Clear seven face-up columns onto the waste, one rank up or down, no wrapping. |
+| [Triple Peaks](triplepeaks.md) | `triplepeaks` | Clear three overlapping peaks onto the waste, a rank up or down, in scoring runs. |
 | [Yukon](yukon.md) | `yukon` | Klondike with no stock, where any face-up group can move, in order or not. |
 | [Scorpion](scorpion.md) | `scorpion` | Seven columns built down in suit, any face-up group moves, and no foundations. |
 | [Bakers Dozen](bakersdozen.md) | `bakersdozen` | One deck, thirteen open columns, no stock; build down by rank in any suit. |

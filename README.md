@@ -57,6 +57,7 @@ The zipapp builds with the standard library alone. `--wheel` runs
 | `freecell` | FreeCell | four free cells, supermoves |
 | `eightoff` | Eight Off | eight cells, build by suit |
 | `golf` | Golf | clear the tableau onto the waste |
+| `triplepeaks` | Triple Peaks | three peaks onto the waste, K wraps to A |
 | `yukon` | Yukon | move any face-up group |
 | `scorpion` | Scorpion | move any group, build suits in place |
 | `bakersdozen` | Bakers Dozen | no stock, thirteen columns |
