@@ -32,7 +32,8 @@
   deal or option starts afresh and leaves it waiting. Text mode keeps
   games too, when you're typing at a terminal.
 - SIGHUP and SIGTERM leave the way Ctrl-C does, so the game is kept, and
-  the exit status is 130.
+  the exit status is 130. One ignored already, as `nohup` ignores SIGHUP,
+  stays ignored.
 - Every game played here goes in `history.jsonl`, one line each. The
   statistics gain Streak and Longest columns, the win banner and text mode
   name a run of two or more wins, and `--stats` lists the last ten games.

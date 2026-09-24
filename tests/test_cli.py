@@ -1021,6 +1021,22 @@ def test_the_old_handlers_come_back(quieted):
 
 
 @posix_signals
+@pytest.mark.parametrize("name", ["SIGHUP", "SIGTERM"])
+def test_a_signal_ignored_already_stays_ignored(quieted, name):
+    signum = getattr(signal, name)
+    before = signal.signal(signum, signal.SIG_IGN)  # as nohup leaves SIGHUP
+    try:
+        with cli_mod._leave_on_signals() as came:
+            assert signal.getsignal(signum) == signal.SIG_IGN
+            os.kill(os.getpid(), signum)
+        assert came == []
+        assert signal.getsignal(signum) == signal.SIG_IGN
+    finally:
+        signal.signal(signum, before)
+    assert quieted == []
+
+
+@posix_signals
 def test_a_second_signal_waits_for_the_save(quieted):
     saved = []
     with cli_mod._leave_on_signals():

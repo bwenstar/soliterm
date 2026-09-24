@@ -309,10 +309,13 @@ def _leave_on_signals() -> Iterator[list[int]]:
 
     Both raise KeyboardInterrupt, so the game in play is saved or counted as
     it is for Ctrl-C. The first signal turns both off, so a second can't
-    cut that short. What it yields lists the signal that came, if one did.
+    cut that short. One ignored already, as nohup leaves SIGHUP, stays
+    ignored. What it yields lists the signal that came, if one did.
     """
     hup = getattr(signal, "SIGHUP", None)  # not on Windows
-    signums = [s for s in (hup, signal.SIGTERM) if s is not None]
+    signums = [
+        s for s in (hup, signal.SIGTERM) if s is not None and signal.getsignal(s) != signal.SIG_IGN
+    ]
     came: list[int] = []
 
     def leave(signum: int, frame: object) -> None:
