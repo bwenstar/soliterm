@@ -1,12 +1,14 @@
 """Share codes: what they look like, and reading them back however they
-were pasted."""
+were pasted. And the daily deal, which is the same for everyone."""
 
 import itertools
 import re
+from datetime import date
 
 import pytest
 
-from soliterm.deals import Code, code_of, parse, share_code
+from soliterm import deals
+from soliterm.deals import Code, Deal, code_of, parse, share_code
 from soliterm.engine import GAME_ORDER, GAMES
 
 from helpers import deal
@@ -52,6 +54,9 @@ def test_share_code(key, number, options, code):
         # and text mode's, with its note after the number
         ("Soliterm - Golf - Deal 8 (text mode)", "golf", 8, {}),
         ("Soliterm - Golf - Deal 8 (text mode). Type h for help.", "golf", 8, {}),
+        # a daily's, as the deal it is, with the standard options
+        ("Soliterm  -  Klondike  -  Daily 2026-09-24", "klondike", 20260924, KLONDIKE),
+        ("Soliterm - Golf - Daily 2026-09-24 (text mode)", "golf", 20260924, {}),
         ("klondike:d3:48213.", "klondike", 48213, {"draw": 3, "redeals": "standard"}),
         ("spider:s2:7", "spider", 7, {"suits": 2}),
         ("golf:0", "golf", 0, {}),
@@ -144,3 +149,38 @@ def test_every_option_has_a_letter_and_values_of_its_own(key):
         for value in values:
             token = name[0] + (str(value) if kinds == {int} else value[0])
             assert token.isalnum() and token.isascii(), token
+
+
+# -- the daily deal -------------------------------------------------------------------
+
+DAY = date(2026, 9, 24)
+
+
+def test_the_daily_number_is_the_date():
+    assert deals.daily_number(DAY) == 20260924
+    assert deals.daily_number(date(2027, 1, 2)) == 20270102
+    assert deals.daily("spider", DAY) == Deal("spider", 20260924, None, "2026-09-24")
+
+
+def board(g):
+    return [s.cards for s in g.slots]
+
+
+@pytest.mark.parametrize("key", GAME_ORDER)
+def test_a_daily_plays_the_standard_options(key):
+    # the player's own options stay out of it, so everyone gets the same cards
+    saved = {"draw": 3, "redeals": "none"} if key == "klondike" else {"suits": 4}
+    g = deals.deal_game(deals.daily(key, DAY), saved)
+    assert g.options == GAMES[key].default_options()
+    assert board(g) == board(deal(key, 20260924))
+    assert (g.deal_number, g.daily) == (20260924, "2026-09-24")
+    assert code_of(g) == f"{key}:20260924"
+    assert deals.deal_label(g) == "Daily 2026-09-24"
+    # n goes on to a deal at random, not the next day's
+    assert g.seed is None
+
+
+def test_a_dailys_code_typed_in_is_not_a_daily():
+    g = deals.deal_game(deals.deal_of(parse("klondike:20260924"), "klondike"), {})
+    assert g.daily is None and g.seed == 20260924
+    assert deals.deal_label(g) == "Deal 20260924"

@@ -3,10 +3,11 @@
 import io
 import re
 import signal
+from datetime import date
 
 import pytest
 
-from soliterm import history, saves, store, textmode
+from soliterm import deals, history, saves, store, textmode
 from soliterm.engine import GAME_ORDER, Card, new_solitaire
 from soliterm.textmode import render_text
 
@@ -254,6 +255,13 @@ def test_the_text_header_names_the_deal(capsys):
     textmode.run_text(g, False, "klondike", stream=io.StringIO("q\n"))
     header = capsys.readouterr().out.splitlines()[0]
     assert header == "Soliterm - Klondike - Deal 48213 (text mode). Type h for help."
+
+
+def test_the_text_header_names_a_daily(capsys):
+    g = deals.deal_game(deals.daily("klondike", date(2026, 9, 24)), {})
+    textmode.run_text(g, False, "klondike", stream=io.StringIO("q\n"))
+    header = capsys.readouterr().out.splitlines()[0]
+    assert header == "Soliterm - Klondike - Daily 2026-09-24 (text mode). Type h for help."
 
 
 def test_n_says_the_new_deal_number(capsys):

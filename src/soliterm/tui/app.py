@@ -598,7 +598,8 @@ class App:
             self.begin_page()
             safe_add(1, 4, "Play a deal", CP(CHROME) | curses.A_BOLD)
             if current is not None:
-                safe_add(3, 6, f"This deal   : {current.deal_number}")
+                this = f"daily {current.daily}" if current.daily else current.deal_number
+                safe_add(3, 6, f"This deal   : {this}")
                 safe_add(4, 6, f"Share code  : {deals.code_of(current)}")
                 y = 6
             else:
@@ -1547,9 +1548,10 @@ class App:
         pct = store.percentage(stat)
         pcts = "N/A" if pct is None else f"{pct:.0f}%"
         streak = history.streak_text(self.key) if won else ""
+        deal = f"daily {game.daily}" if game.daily else game.deal_number
         return [
             f"Game        : {game.gamedef.name}",
-            f"Deal        : {game.deal_number}   share code {deals.code_of(game)}",
+            f"Deal        : {deal}   share code {deals.code_of(game)}",
             f"Time        : {store.fmt_time(seconds)}",
             f"Score       : {game.score}",
             f"Moves       : {game.moves}",

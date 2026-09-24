@@ -1,14 +1,18 @@
-"""soliterm.deals - deal numbers and share codes.
+"""soliterm.deals - deal numbers, share codes and the daily deal.
 
 A share code names a deal so someone else can play it: the game, any
 options that differ from the defaults, and the deal number, as in
 klondike:d3:48213 (Klondike drawing three, deal 48213). Each option is
 its first letter and its value, or the first letter of its value.
+
+The daily deal is the same for everyone on a day: deal 20260924 with the
+standard options on 2026-09-24, by this computer's date.
 """
 
 from __future__ import annotations
 
 import re
+from datetime import date, datetime
 from typing import NamedTuple
 
 from . import APP_NAME, engine
@@ -32,11 +36,13 @@ class Code(NamedTuple):
 
 class Deal(NamedTuple):
     """A game to start: `key`, deal `number` (None for a random one), with
-    `options` over the saved ones (None for just the saved ones)."""
+    `options` over the saved ones (None for just the saved ones). `daily`
+    is the day, as "2026-09-24", when it's that day's daily deal."""
 
     key: str
     number: int | None = None
     options: dict | None = None
+    daily: str | None = None
 
 
 def _number(text: str) -> int:
@@ -70,7 +76,22 @@ def code_of(g: Solitaire) -> str:
 
 def deal_label(g: Solitaire) -> str:
     """What the title and the text header call the deal in play."""
-    return f"Deal {g.deal_number}"
+    return f"Daily {g.daily}" if g.daily else f"Deal {g.deal_number}"
+
+
+def today() -> date:
+    """The local date. Tests put their own day in here."""
+    return datetime.now().astimezone().date()
+
+
+def daily_number(day: date) -> int:
+    """The deal number of the daily deal on `day`: 20260924 on 2026-09-24."""
+    return int(day.strftime("%Y%m%d"))
+
+
+def daily(key: str, day: date) -> Deal:
+    """The daily deal of `key` on `day`."""
+    return Deal(key, daily_number(day), None, day.isoformat())
 
 
 def _options(key: str, text: str) -> dict:
@@ -132,6 +153,9 @@ def parse(text: str) -> Code:
     rest = parts[used:]
     if len(rest) >= 2 and rest[-2] == "deal":
         del rest[-2]  # "Klondike, deal 48213"
+    day = "".join(rest[1:])
+    if len(rest) == 4 and rest[0] == "daily" and len(day) == 8:
+        rest = [day]  # "Klondike  -  Daily 2026-09-24", which is deal 20260924
     if not rest or not _DIGITS.fullmatch(rest[-1]):
         if any(_DIGITS.fullmatch(p) for p in rest):
             raise ValueError(f"the deal number goes last in a share code, as in {EXAMPLE}")
@@ -150,7 +174,14 @@ def deal_of(code: Code, key: str) -> Deal:
 
 def deal_game(deal: Deal, saved: dict) -> Solitaire:
     """Deal what `deal` asks for. Options it leaves out come from `saved`,
-    the player's own."""
-    opts = {**GAMES[deal.key].default_options(), **saved, **(deal.options or {})}
+    the player's own, except in a daily deal, which plays the standard
+    ones so everyone gets the same game."""
+    opts = GAMES[deal.key].default_options()
+    if not deal.daily:
+        opts = {**opts, **saved, **(deal.options or {})}
     # looked up here, not imported, so a test can hand in its own game
-    return engine.new_solitaire(deal.key, seed=deal.number, options=opts)
+    g = engine.new_solitaire(deal.key, seed=deal.number, options=opts)
+    if deal.daily:
+        g.daily = deal.daily
+        g.seed = None  # the deals after a daily are random ones
+    return g

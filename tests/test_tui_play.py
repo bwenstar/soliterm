@@ -14,6 +14,7 @@ import os
 import re
 import signal
 import sys
+from datetime import date
 
 import pytest
 
@@ -29,6 +30,7 @@ from helpers import FakeScr, clear_board, deal, signal_once_written, stalled_klo
 
 ENTER = "\n"
 ESC = 27
+DAY = date(2026, 9, 24)  # the day of the daily deals here
 
 
 class Click:
@@ -376,6 +378,11 @@ def test_the_title_names_the_deal(tui):
     assert "Soliterm  -  Klondike  -  Deal 48213" in scr.frames[0]
 
 
+def test_the_title_names_a_daily(tui):
+    scr = tui([], start=deals.daily("fortythieves", DAY))
+    assert "Soliterm  -  Forty Thieves  -  Daily 2026-09-24" in scr.frames[0]
+
+
 # -- g: play a deal ------------------------------------------------------------------
 
 
@@ -434,6 +441,15 @@ def test_g_on_the_deal_in_play_says_so(tui, typed):
     scr = tui(["d", "g", *typed, ENTER], deal=5)
     assert "that's the deal in play (N starts it over)" in scr.frames[-1]
     assert len(scr.uis) == 1 and scr.uis[0].game.moves == 1
+
+
+def test_g_on_a_daily_names_its_day(tui):
+    scr = tui(["g", *"klondike:20260924", ENTER], start=deals.daily("klondike", DAY))
+    box = scr.frames[1]
+    assert "This deal   : daily 2026-09-24" in box
+    assert "Share code  : klondike:20260924" in box
+    assert "that's the deal in play (N starts it over)" in scr.frames[-1]
+    assert scr.uis[-1].game.daily == "2026-09-24"
 
 
 def test_g_asks_before_leaving_a_started_game(tui):
@@ -1164,6 +1180,12 @@ def test_the_banner_keeps_its_rows(tui, game_clock):
 def test_the_banner_shows_the_deal_and_share_code(tui):
     banner = tui(["a", "m"], game=near_won(48213, draw=3)).frames[1]
     assert "      Deal        : 48213   share code klondike:d3:48213\n" in banner
+
+
+def test_the_banner_says_a_daily_is_one(tui):
+    daily = deals.daily("klondike", DAY)
+    banner = tui(["a", "m"], start=daily, game=near_won(daily.number)).frames[1]
+    assert "      Deal        : daily 2026-09-24   share code klondike:20260924\n" in banner
 
 
 def played_before(key, results):
