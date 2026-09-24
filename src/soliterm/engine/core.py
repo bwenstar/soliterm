@@ -581,6 +581,27 @@ class Solitaire:
             )
         return "\n".join(parts)
 
+    def snapshot(self, steps: int) -> dict:
+        """The game as plain data, to be taken up again by resume_solitaire().
+
+        Undo and redo keep the `steps` steps nearest the position.
+        """
+
+        def newest(stack: list[bytes]) -> list[str]:
+            # not stack[-steps:], which is the whole stack when steps is 0
+            return [t.decode() for t in stack[max(0, len(stack) - steps) :]]
+
+        return {
+            "game": self.gamedef.key,
+            "options": dict(self.options),
+            "deal": self.deal_number,
+            "moves": self.moves,
+            "score": self.score,
+            "position": self.serialize(),
+            "undo": newest(self._undo),
+            "redo": newest(self._redo),
+        }
+
     def _parse(self, text: str) -> tuple[str, dict[str, int], list[Slot]]:
         """The game key, the counters and the slots (by sid) of a serialize() text.
 

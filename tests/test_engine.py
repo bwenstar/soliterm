@@ -587,6 +587,92 @@ def test_check_position_refuses_what_does_not_fit(start, new):
         g._check_position(swap_line(text, start, new))
 
 
+@pytest.mark.parametrize("steps", [0, 1, 500])
+def test_snapshot_keeps_the_newest_steps(steps):
+    g = deal("klondike", 4)
+    for _ in range(6):
+        g.deal()
+    g.undo()
+    g.undo()
+    undo = [t.decode() for t in g._undo]
+    redo = [t.decode() for t in g._redo]
+    want = {0: ([], []), 1: (undo[-1:], redo[-1:]), 500: (undo, redo)}[steps]
+    snap = g.snapshot(steps)
+    assert (snap["undo"], snap["redo"]) == want
+    assert snap["game"] == "klondike" and snap["deal"] == 4
+    assert snap["options"] == g.options and snap["options"] is not g.options
+    assert (snap["moves"], snap["score"]) == (4, g.score)
+    assert snap["position"] == g.serialize()
+
+
+@pytest.mark.parametrize("key", GAME_ORDER)
+def test_every_game_resumes_where_it_was(key):
+    g = deal(key, 1)
+    start = g.serialize()
+    for _ in range(5):
+        src, dst, n = g.hint_move() or g.legal_moves()[0]
+        assert g.deal() if src == dst else g.attempt_move(src, dst, n)
+    last = g.serialize()
+    assert g.undo()
+    h = engine.resume_solitaire(g.snapshot(500))
+    assert h.serialize() == g.serialize()
+    assert h.redo()
+    assert h.serialize() == last
+    for _ in range(5):
+        assert h.undo()
+    assert h.serialize() == start
+    assert not h.can_undo()
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        lambda s: s.update(game="nosuchgame"),
+        lambda s: s.update(game="spider", options={}),
+        lambda s: s.update(position=swap_line(s["position"], "s6|", "s6|tableau|down|1|3SU")),
+        lambda s: s.update(options={"draw": 2}),
+        lambda s: s.update(options={"draw": True}),
+        lambda s: s.update(deal=-1),
+        lambda s: s.update(deal=2**31),
+        lambda s: s.update(deal=True),
+        lambda s: s.update(undo=s["position"]),
+    ],
+    ids=[
+        "an unknown game",
+        "another game",
+        "a changed card",
+        "an unknown option value",
+        "an option of the wrong type",
+        "a negative deal",
+        "a deal past the last",
+        "a bool deal",
+        "undo not a list",
+    ],
+)
+def test_resume_refuses(change):
+    snap = deal("klondike", 4).snapshot(500)
+    engine.resume_solitaire(dict(snap))  # as it was, it resumes
+    change(snap)
+    with pytest.raises(ValueError, match="fit"):
+        engine.resume_solitaire(snap)
+
+
+def test_a_resumed_game_deals_at_random_after():
+    g = deal("klondike", 5)
+    g.deal()
+    h = engine.resume_solitaire(g.snapshot(500))
+    assert h.seed is None
+    assert h.deal_number == 5
+    h.restart()
+    assert board(h) == board(deal("klondike", 5))
+    # the next deals are fresh ones, not the numbers after deal 5
+    after = []
+    for _ in range(3):
+        h.new_game()
+        after.append(h.deal_number)
+    assert after != [6, 7, 8]
+
+
 # -- stuck detection ------------------------------------------------------------------
 
 

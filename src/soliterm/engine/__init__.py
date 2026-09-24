@@ -11,7 +11,8 @@ the games' rules, the statistics dialog). No GPL source code is copied.
   cards    Card, make_deck and the suit and rank constants
   core     Slot and Solitaire, the game state every front-end drives
   gamedef  GameDef, the base class for a game's rules, and its helpers
-  games    one module per game, plus the GAMES registry and new_solitaire()
+  games    one module per game, plus the GAMES registry, new_solitaire()
+           and resume_solitaire()
   rng      the shuffle behind every deal, and Microsoft FreeCell's deals
 
 Everything the front-ends need is importable straight from soliterm.engine.
@@ -20,7 +21,7 @@ Everything the front-ends need is importable straight from soliterm.engine.
 from .cards import ACE, JACK, KING, QUEEN, RANK_NAME, RED_SUITS, SUIT_SYMBOL, SUITS, Card, make_deck
 from .core import MAX_DEAL, RANDOM_DEALS, Slot, Solitaire
 from .gamedef import GameDef
-from .games import GAME_ORDER, GAMES, new_solitaire
+from .games import GAME_ORDER, GAMES, new_solitaire, resume_solitaire
 from .games.bakersdozen import BakersDozen
 from .games.canfield import Canfield
 from .games.eightoff import EightOff
@@ -59,4 +60,5 @@ __all__ = [
     "Yukon",
     "make_deck",
     "new_solitaire",
+    "resume_solitaire",
 ]
