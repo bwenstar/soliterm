@@ -16,8 +16,8 @@ of statistics shared between the two.
 
 ## Try it now
 
-With [pipx](https://pipx.pypa.io), this plays it straight away, without
-installing it:
+With [pipx](https://pipx.pypa.io), this downloads it into a temporary
+environment and plays it straight away:
 
 ```sh
 pipx run soliterm
@@ -62,16 +62,18 @@ install along with Soliterm. To play the `.pyz` there, run
 - **Your statistics, shared with AisleRiot.** When GNOME AisleRiot is
   installed the two keep one record, so a game won in either shows up in
   both. Soliterm adds win streaks on top.
-- **Deals you can share.** Every deal has a number, and a code such as
-  `klondike:d3:48213` lets a friend play the same cards. Every game has a
-  daily deal, the same for everyone that day, with nothing going online.
+- **Deals you can share.** Every deal has a number, and a share code
+  such as `klondike:d3:48213` (Klondike drawing three, deal 48213) lets a
+  friend play the same cards. Every game has a daily deal, the same for
+  everyone that day, with nothing going online.
 - **Leave whenever you like.** Quit in the middle of a game and it's
   waiting on the menu next time, clock and all.
 - **Four themes**, a four-colour deck and a compact view.
 - **A code skin and a boss key**, for playing where you perhaps shouldn't.
 - **A text mode** for pipes, scripts and terminals curses can't drive.
-- **Nothing to install but Python.** The game uses the standard library
-  alone and fits in one `.pyz` file.
+- **Nothing to install but Python**, and windows-curses on Windows, which
+  pip adds for you. The game uses the standard library alone and fits in
+  one `.pyz` file.
 
 ## Screenshots
 
