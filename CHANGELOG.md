@@ -69,6 +69,12 @@
 - `--reset-stats` clears the new games too, in AisleRiot's keyfile as well
   when sharing.
 - Spider's status line says `1 deal`, not `1 deals`.
+- A daily deal for every game, from `--daily` or Daily deal on the menu:
+  the same cards for everyone that day, with the standard options. When
+  it ends there's a line to share that names no cards. It works offline.
+- A daily left unfinished is kept like any other game, and its menu row
+  says it's a daily. That day's daily carries on with it, and `--stats`
+  marks the games that were dailies.
 
 ## 1.0.0 - 2026-06-29
 
