@@ -86,7 +86,7 @@ These and the recording at the top are all of a terminal
 | **The code skin** | **Triple Peaks, eight cards into a run** |
 | ![Klondike drawn inside what looks like a Python file called solver.py, with line numbers down the left and the score and the time written as a comment.](https://raw.githubusercontent.com/bwenstar/soliterm/main/docs/img/code-skin.png) | ![Triple Peaks deal 108: three overlapping peaks of cards, a waste fanned out from a run of eight, and the hint "Move 6♥ onto 7♦".](https://raw.githubusercontent.com/bwenstar/soliterm/main/docs/img/triple-peaks.png) |
 | **Yukon in the contrast theme** | **A win** |
-| ![Yukon deal 5 in the contrast theme: white cards with strong red and black suits, the cursor in yellow on the 3♥, the 4♣ it would go onto in cyan, and the hint "Move 3♥ onto 4♣".](https://raw.githubusercontent.com/bwenstar/soliterm/main/docs/img/contrast.png) | ![The win screen after Golf deal 216, with the time, the score, 48 moves, the share code golf:216, and the choices Replay this deal, New deal and Back to menu.](https://raw.githubusercontent.com/bwenstar/soliterm/main/docs/img/win.png) |
+| ![Yukon deal 5 in the contrast theme: white cards with strong red and black suits, the cursor in yellow on the 3♥, the 4♣ it would go onto in cyan, and the hint "Move 3♥ onto 4♣".](https://raw.githubusercontent.com/bwenstar/soliterm/main/docs/img/contrast.png) | ![The win screen after Golf deal 216, with the time, the score, 48 moves, the share code golf:216, and the choices Replay this deal, New deal and Back to menu, each with the key that picks it.](https://raw.githubusercontent.com/bwenstar/soliterm/main/docs/img/win.png) |
 
 ## The games
 
