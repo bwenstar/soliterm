@@ -119,18 +119,27 @@ def _set_aside(path: str) -> bool:
 
 
 def _write_json(path: str, obj: dict) -> bool:
-    """Save `obj` to `path` whole or not at all.
+    """Save `obj` to `path` as JSON, whole or not at all (see _write_text)."""
+    try:
+        text = json.dumps(obj, indent=2)
+    except (OSError, TypeError, ValueError):
+        return False
+    return _write_text(path, text)
 
-    The JSON goes to a temp file in the same directory, which then replaces
+
+def _write_text(path: str, text: str) -> bool:
+    """Save `text` to `path` whole or not at all.
+
+    The text goes to a temp file in the same directory, which then replaces
     the old file in one step, so a crash or a full disk leaves the old file
-    as it was rather than a truncated one.
+    as it was rather than a truncated one. Whatever stops the write, Ctrl-C
+    included, takes the temp file away with it.
     """
     folder = os.path.dirname(path)
     try:
         os.makedirs(folder, exist_ok=True)
-        text = json.dumps(obj, indent=2)
         fd, tmp = tempfile.mkstemp(dir=folder, prefix=f".{os.path.basename(path)}.", suffix=".tmp")
-    except (OSError, TypeError, ValueError):
+    except OSError:
         return False
     try:
         try:
@@ -142,12 +151,14 @@ def _write_json(path: str, obj: dict) -> bool:
             fh.flush()
             os.fsync(fh.fileno())
         os.replace(tmp, path)
-    except OSError:
+    except BaseException as exc:
         try:
             os.unlink(tmp)
         except OSError:
             pass
-        return False
+        if isinstance(exc, OSError):
+            return False
+        raise
     return True
 
 

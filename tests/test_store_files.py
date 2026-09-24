@@ -57,6 +57,20 @@ def test_a_failed_config_save_keeps_the_old_file(monkeypatch):
     assert os.listdir(store.config_dir()) == ["config.json"]
 
 
+def test_an_interrupted_write_leaves_no_tmp_file(monkeypatch):
+    store.record_result("golf", won=True, seconds=42)
+    before = read(store.stats_path())
+
+    def interrupted(fd):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(os, "fsync", interrupted)
+    with pytest.raises(KeyboardInterrupt):
+        store.save_stats({"golf": stat(9, 9, 9, 9)})
+    assert read(store.stats_path()) == before
+    assert set(os.listdir(store.data_dir())) <= {"stats.json", "stats.lock"}
+
+
 @pytest.mark.parametrize("text", ['{"golf": {"wins": 3, "tot', "[1, 2]", ""])
 def test_a_damaged_stats_file_is_kept_aside(text):
     write(store.stats_path(), text)
