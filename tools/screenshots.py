@@ -11,8 +11,8 @@ directory, types keys at it and grabs the screen with `tmux capture-pane -e`.
 The colour codes in that capture are turned back into a grid of cells and
 drawn with Pillow in DejaVu Sans Mono. Your own config and statistics are
 never read or written, and every game shown is a numbered deal, so the
-pictures come out the same each time apart from the clock and the boss
-screen's random text. It needs tmux 3.0 or newer, Pillow and the font.
+pictures come out the same each time apart from the clock. It needs tmux
+3.0 or newer, Pillow and the font.
 
 This is a development tool. Pillow is only needed here; the game itself
 never imports it.
@@ -119,7 +119,6 @@ def frames(seconds: float, every: int = 100) -> list[Step]:
 # 5S onto 6D (2 to 4) and 8C onto 9D (6 to 2). h puts the cursor on the
 # card it suggests.
 SIX_ON_SEVEN = "h Enter Left Left Left Enter"
-FIVE_ON_SIX = "h Enter Right Right Enter"
 
 # Then on to where every card can go up, 98 moves later, by following the
 # hints: d when the hint is to deal, h f when it sends a card up, and
@@ -147,14 +146,9 @@ GOLF_WIN = golf(
     " 7 6 3 d 5 4 d 2 6 7 d 3 3 5 d 1 d 5"
 )
 
+# The README shows every picture these draw, and the tests check the two
+# still agree.
 SCENES: list[Scene] = [
-    Scene("menu", "the game menu", None, [shot()]),
-    Scene(
-        "klondike-in-play",
-        "Klondike a few moves in, with a hint showing",
-        "klondike:946",
-        [Step(SIX_ON_SEVEN), Step(FIVE_ON_SIX), Step("d d d"), shot("h")],
-    ),
     Scene(
         "freecell",
         "FreeCell after one move, with the next hint showing",
@@ -172,13 +166,6 @@ SCENES: list[Scene] = [
         "Klondike played inside the code skin",
         "klondike:946",
         [Step(SIX_ON_SEVEN), shot("c")],
-    ),
-    Scene(
-        "boss-mode",
-        "the boss key's fake build output",
-        "klondike:946",
-        # the output scrolls by itself, so give it time to fill the screen
-        [shot("b", wait=3.0)],
     ),
     Scene(
         "hero",
@@ -815,6 +802,10 @@ def title_of(scene: Scene) -> str:
     return " ".join(["soliterm", *scene_args(scene)])
 
 
+def file_name(scene: Scene) -> str:
+    return f"{scene.name}.{'gif' if scene.animate else 'png'}"
+
+
 # --------------------------------------------------------------------------- #
 # Command line
 # --------------------------------------------------------------------------- #
@@ -867,7 +858,7 @@ def main(argv: list[str] | None = None) -> int:
                 frames = stage.run(scene)
                 title = title_of(scene)
                 images = [painter.image(parse(f.text), title) for f in frames]
-                written = [args.out / f"{scene.name}.{'gif' if scene.animate else 'png'}"]
+                written = [args.out / file_name(scene)]
                 if scene.animate:
                     save_gif(written[0], images, [f.hold for f in frames])
                 else:

@@ -2690,11 +2690,9 @@ def test_the_spider_screenshot_deals_two_suits_and_makes_its_move(tui):
 # the moves each scene makes on its way to its last shot, and whether that
 # shot shows a hint
 SCENE_MOVES = {
-    "klondike-in-play": (5, True),
     "freecell": (1, True),
     "spider": (1, True),
     "code-skin": (1, False),
-    "boss-mode": (0, False),
     "triple-peaks": (8, True),
     "contrast": (2, True),
 }

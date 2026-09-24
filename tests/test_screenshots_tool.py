@@ -5,6 +5,7 @@ test needs Pillow and skips without it.
 """
 
 import importlib.util
+import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -15,6 +16,7 @@ from soliterm.cli import build_parser
 from soliterm.engine import GAME_ORDER
 
 TOOL = Path(__file__).resolve().parents[1] / "tools" / "screenshots.py"
+README = TOOL.parents[1] / "README.md"
 
 pytestmark = pytest.mark.skipif(not TOOL.exists(), reason="no tools/ in this tree")
 
@@ -130,9 +132,20 @@ def test_a_scene_plays_its_deal(tool):
     freecell = scene(tool, "freecell")
     assert tool.scene_args(freecell) == ["--deal", "freecell:617"]
     assert tool.title_of(freecell) == "soliterm --deal freecell:617"
-    menu = scene(tool, "menu")
+    menu = tool.Scene("menu", "the game menu", None, [tool.shot()])
     assert tool.scene_args(menu) == []
     assert tool.title_of(menu) == "soliterm"
+
+
+def test_only_a_scene_that_moves_is_a_gif(tool):
+    assert tool.file_name(scene(tool, "hero")) == "hero.gif"
+    assert tool.file_name(scene(tool, "freecell")) == "freecell.png"
+
+
+def test_the_readme_shows_every_picture_the_scenes_draw(tool):
+    # one it doesn't show would only sit in docs/img and go stale
+    shown = set(re.findall(r"docs/img/([^)\s]+)", README.read_text(encoding="utf-8")))
+    assert shown == {tool.file_name(s) for s in tool.SCENES}
 
 
 def test_a_scene_passes_its_options_after_the_deal(tool):

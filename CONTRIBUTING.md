@@ -192,8 +192,10 @@ screenshots and commit them with it.
 `--list` shows the scenes and `--scene NAME` redraws only the ones you
 name. The scenes are a list near the top of the script: a deal and the
 keys to press, so changing what a shot shows usually means editing a line
-or two there. `--out DIR` writes somewhere other than `docs/img/`,
-which is handy for checking a change before you overwrite the real ones.
+or two there. A new scene's picture goes in the README too: the tests
+check that the README shows every picture the scenes draw. `--out DIR`
+writes somewhere other than `docs/img/`, which is handy for checking a
+change before you overwrite the real ones.
 
 Two scenes play a whole game: the hero GIF plays Klondike to the finish,
 and `win` plays Golf to the end banner. `tests/test_tui_play.py` presses
