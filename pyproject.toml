@@ -108,6 +108,15 @@ known-first-party = ["soliterm"]
 # tests/helpers.py, imported last in the tests, after the package itself
 known-local-folder = ["helpers"]
 
+[tool.mypy]
+# The floor is 3.9, but mypy no longer checks against anything older than
+# 3.10. vermin and the 3.9 test run cover what 3.10 lets through.
+python_version = "3.10"
+files = ["src"]
+check_untyped_defs = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 # Import the package straight from src/ without installing it (and tests/
