@@ -180,15 +180,22 @@ def signals_held() -> Iterator[None]:
     landing between the two would have the game saved or counted again on
     the way out. A signal that comes meanwhile lands as the block ends.
     Where signals can't be held (Windows) it does nothing.
+
+    The stats lock that saving and counting take comes first, while
+    signals still land, so a wait for it behind another copy of the game
+    that doesn't let go can be broken off. Leaving then waits for it
+    again, to save or count the game. After a SIGHUP or SIGTERM the
+    command line ignores both, so from then on only Ctrl-C breaks a wait.
     """
-    if not hasattr(signal, "pthread_sigmask"):
-        yield
-        return
-    old = signal.pthread_sigmask(signal.SIG_BLOCK, _LEAVING)
-    try:
-        yield
-    finally:
-        signal.pthread_sigmask(signal.SIG_SETMASK, old)
+    with _locked():
+        if not hasattr(signal, "pthread_sigmask"):
+            yield
+            return
+        old = signal.pthread_sigmask(signal.SIG_BLOCK, _LEAVING)
+        try:
+            yield
+        finally:
+            signal.pthread_sigmask(signal.SIG_SETMASK, old)
 
 
 @contextlib.contextmanager
@@ -201,24 +208,28 @@ def _locked() -> Iterator[None]:
     there is no fcntl, or when the lock file can't be made.
     """
     global _lock_depth  # noqa: PLW0603 (state for this process)
-    fh = None
+    fd = None
     if _lock_depth == 0 and fcntl is not None:
         try:
             os.makedirs(data_dir(), exist_ok=True)
             # kept open while we hold the lock; the finally below closes it
-            fh = open(os.path.join(data_dir(), "stats.lock"), "a")  # noqa: SIM115
-            fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
-        except OSError:
-            if fh is not None:
-                fh.close()
-            fh = None
+            fd = os.open(os.path.join(data_dir(), "stats.lock"), os.O_WRONLY | os.O_CREAT, 0o600)
+            with contextlib.suppress(OSError):
+                os.fchmod(fd, 0o600)  # one an older version left open to others
+            fcntl.flock(fd, fcntl.LOCK_EX)
+        except BaseException as exc:
+            if fd is not None:
+                os.close(fd)
+            fd = None
+            if not isinstance(exc, OSError):
+                raise  # Ctrl-C while it waited
     _lock_depth += 1
     try:
         yield
     finally:
         _lock_depth -= 1
-        if fh is not None:
-            fh.close()  # which also lets go of the lock
+        if fd is not None:
+            os.close(fd)  # which also lets go of the lock
 
 
 DEFAULT_CONFIG = {

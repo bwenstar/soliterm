@@ -6,6 +6,9 @@ import glob
 import json
 import multiprocessing
 import os
+import signal
+import threading
+import time
 
 import pytest
 
@@ -129,6 +132,58 @@ def test_two_games_recording_at_once_lose_nothing():
         p.join(30)
     assert [p.exitcode for p in procs] == [0, 0, 0, 0]
     assert store.get_stat("golf") == stat(100, 100, 42, 42)
+
+
+needs_flock = pytest.mark.skipif(
+    store.fcntl is None or not hasattr(signal, "pthread_kill"), reason="needs flock and signals"
+)
+
+
+@needs_flock
+def test_ctrl_c_still_stops_a_wait_for_the_lock():
+    os.makedirs(store.data_dir())
+    main = threading.get_ident()
+    with open(os.path.join(store.data_dir(), "stats.lock"), "a") as other:
+        # another copy of the game has the lock, and keeps it for a while
+        store.fcntl.flock(other.fileno(), store.fcntl.LOCK_EX)
+
+        def other_copy():
+            time.sleep(0.2)
+            signal.pthread_kill(main, signal.SIGINT)
+            time.sleep(0.5)
+            store.fcntl.flock(other.fileno(), store.fcntl.LOCK_UN)
+
+        waiting = threading.Thread(target=other_copy)
+        waiting.start()
+        try:
+            with pytest.raises(KeyboardInterrupt), store.signals_held():
+                store.record_result("golf", won=True, seconds=42)
+        finally:
+            waiting.join()
+    # Ctrl-C came while it waited, not once the lock was let go
+    assert store.get_stat("golf")["total"] == 0
+
+
+@pytest.mark.skipif(os.name != "posix", reason="needs POSIX file modes")
+def test_the_lock_file_is_the_players_own():
+    old = os.umask(0o022)
+    try:
+        store.record_result("golf", won=True, seconds=42)
+    finally:
+        os.umask(old)
+    assert os.stat(os.path.join(store.data_dir(), "stats.lock")).st_mode & 0o777 == 0o600
+
+
+@pytest.mark.skipif(os.name != "posix", reason="needs POSIX file modes")
+def test_a_lock_file_open_to_others_is_made_the_players_own():
+    # as an older version left it
+    os.makedirs(store.data_dir())
+    path = os.path.join(store.data_dir(), "stats.lock")
+    with open(path, "a"):
+        pass
+    os.chmod(path, 0o644)
+    store.record_result("golf", won=True, seconds=42)
+    assert os.stat(path).st_mode & 0o777 == 0o600
 
 
 # -- values of the wrong type ----------------------------------------------------------
