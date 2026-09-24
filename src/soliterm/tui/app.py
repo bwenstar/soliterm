@@ -589,7 +589,11 @@ class App:
             if current is None:
                 y += 1
                 safe_add(y, 6, f"A number on its own plays {GAMES[self.last_game()].name}.")
-            safe_add(y + 1, 6, f"> {text}_", CP(5) | curses.A_BOLD)
+            prompt, room = f"> {text}_", self.stdscr.getmaxyx()[1] - 7 - self.page_dx
+            if len(prompt) > room:
+                # a long code scrolls, so its end and the cursor stay in view
+                prompt = "< " + prompt[len(prompt) - room + 2 :]
+            safe_add(y + 1, 6, prompt, CP(5) | curses.A_BOLD)
             for i, line in enumerate(textwrap.wrap(error, DEAL_ERROR_W)[:DEAL_ERROR_ROWS]):
                 safe_add(y + 2 + i, 6, line, CP(6))
             safe_add(y + 2 + DEAL_ERROR_ROWS, 6, "Enter play - Esc back", CP(4))

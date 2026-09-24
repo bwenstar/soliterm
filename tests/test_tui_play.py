@@ -467,6 +467,20 @@ def test_the_pick_deal_box_fits_80x24(tui, skin, game):
     assert " ".join(shown.split()) == str(exc.value)
 
 
+@pytest.mark.parametrize("skin", [False, True])
+def test_a_long_deal_scrolls_to_keep_its_end_in_view(tui, skin):
+    if skin:
+        code_skin_on()
+    typed = "klondike:" + "x" * 45 + ":48213"
+    scr = tui(["g", *typed, ESC, -1], h=24, w=50)
+    rows = scr.frames[len(typed) + 1].split("\n")
+    (prompt,) = [row for row in rows if row.endswith("_")]
+    assert prompt.endswith(":48213_")
+    assert len(prompt) == 49  # all the room there is
+    # and the start, cut off, is marked as cut
+    assert prompt.split("< ")[1].startswith("xxx")
+
+
 def test_the_terminal_is_not_asked_to_report_pointer_motion(tui):
     scr = tui([])
     assert scr.masks
