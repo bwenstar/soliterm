@@ -157,7 +157,8 @@ with a worked example. In short:
    `tests/test_conformance.py`.
 6. Write `tests/test_<key>.py` for the rules that are the game's own.
 7. Write `docs/games/<key>.md`, add a row to the tables in
-   `docs/games/README.md` and `README.md`, and a line to the changelog.
+   `docs/games/README.md` and `README.md`, give it an entry under GAMES in
+   `man/soliterm.6`, and add a line to the changelog.
 
 ## The key reference
 

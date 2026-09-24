@@ -484,6 +484,11 @@ same way.
   know already, and give the scoring AisleRiot uses.
 - A row in the table in [docs/games/README.md](games/README.md).
 - A row in the games table in [README.md](../README.md).
+- An entry under GAMES in the man page,
+  [man/soliterm.6](../man/soliterm.6), in menu order.
+  `tests/test_man_page.py` checks every game is there. See how it reads
+  with `man -l man/soliterm.6`.
+- The number of games, where the README and the man page give it.
 - A line under Unreleased in [CHANGELOG.md](../CHANGELOG.md).
 
 ## Before you send it

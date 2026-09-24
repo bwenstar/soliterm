@@ -1,0 +1,491 @@
+.\" The manual page for soliterm. See how it reads with: man -l man/soliterm.6
+.\" The GAMES section lists every game, so a new game needs a line here too.
+.TH SOLITERM 6 2026-09-24 Soliterm "Games Manual"
+.\" never break these names across lines
+.hw soliterm AisleRiot
+.SH NAME
+soliterm \- solitaire in the terminal, played by AisleRiot's rules
+.SH SYNOPSIS
+.ad l
+.B soliterm
+.RB [ \-\-game
+.IR game ]
+.RB [ \-\-deal
+.IR number | code
+.RB "| " \-\-daily ]
+.RB [ \-\-draw
+.BR 1 | 3 ]
+.RB [ \-\-suits
+.BR 1 | 2 | 4 ]
+.RB [ \-\-text ]
+.RB [ \-\-ascii ]
+.RB [ \-\-color " | " \-\-no\-color ]
+.RB [ \-\-theme
+.IR theme ]
+.RB [ \-\-no\-animation ]
+.RB [ \-\-no\-sync ]
+.PP
+.B soliterm
+.BR \-\-list " | " \-\-stats " | " \-\-debug\-info
+.PP
+.B soliterm \-\-reset\-stats
+.RB [ \-\-yes ]
+.PP
+.B soliterm
+.BR \-\-help " | " \-\-version
+.ad
+.SH DESCRIPTION
+.B soliterm
+plays twelve solitaire card games in a terminal, with the keyboard or the
+mouse.
+It plays each one the way GNOME AisleRiot does, scoring and all, and when
+AisleRiot is installed the two keep one record between them of the games
+won and played and the best and worst times, so a game won in either
+shows up in both.
+.PP
+With no options it opens a menu of the games.
+Every deal has a number, shown on the board, and a share code such as
+.B klondike:d3:48213
+names a deal along with its options, so anyone can play the same cards.
+The daily deal of each game is the same for everyone that day, with no
+network involved.
+A game you leave unfinished with
+.BR q ,
+.B m
+or Ctrl-C, or by closing the terminal, is kept for next time, and picking
+that game again carries on where you left off.
+.PP
+Text mode plays the same games as plain lines of text.
+It prints the board, reads one command a line from standard input, and
+prints the board again, so it works in a pipe, in a script and on a
+terminal curses can't drive.
+.B soliterm
+plays in text mode when
+.B \-\-text
+is given, when its input or output isn't a terminal, when curses can't be
+loaded, or when
+.B TERM
+names no terminal it can draw on, and in the last two cases it says why
+on standard error.
+.SH OPTIONS
+.TP
+.BR \-h ", " \-\-help
+Print a short summary of the options and exit.
+.TP
+.B \-\-version
+Print the version and exit.
+.TP
+.BI \-\-game " game"
+Start
+.I game
+instead of the menu.
+.I game
+is one of the keys listed under
+.BR GAMES ,
+such as
+.BR klondike .
+.TP
+.BI \-\-deal " number\fR|\fPcode"
+Play deal
+.IR number ,
+from 0 to 2147483647, or the deal a share code names.
+A share code carries its game and options with it, as
+.B klondike:d3:48213
+is Klondike drawing three.
+A number on its own plays that deal of the game given with
+.BR \-\-game ,
+or of the game last played, with your usual options for it.
+FreeCell's numbers are the ones Microsoft FreeCell uses.
+After a numbered deal,
+.B n
+deals the next number.
+.TP
+.B \-\-daily
+Play today's daily deal of the game given with
+.BR \-\-game ,
+or of the game last played.
+It always has the standard options.
+.TP
+.BR "\-\-draw 1" | 3
+Klondike: draw one card at a time or three, for this run only.
+Given without
+.BR \-\-game ,
+it plays Klondike.
+.TP
+.BR "\-\-suits 1" | 2 | 4
+Spider: play with one, two or four suits, for this run only.
+Given without
+.BR \-\-game ,
+it plays Spider.
+.TP
+.B \-\-text
+Play in text mode even at a terminal.
+.TP
+.B \-\-ascii
+Show the suits as the letters S, H, D and C instead of their symbols, and
+draw the cards with plain ASCII.
+.B soliterm
+does this on its own when the terminal or the output can't show the
+symbols.
+.TP
+.B \-\-color
+Colour the cards in text mode even when the output isn't a terminal, and
+turn colour on in the full-screen game whatever
+.B NO_COLOR
+or the saved setting says.
+.TP
+.B \-\-no\-color
+Leave out colour, in either mode, for this run.
+.TP
+.BI \-\-theme " theme"
+Draw the full-screen game in
+.IR theme ,
+one of
+.BR classic ,
+.BR dark ,
+.B light
+and
+.BR contrast ,
+for this run only.
+The
+.B t
+key moves on to the next theme and keeps it.
+.TP
+.B \-\-no\-animation
+Send the cards up at the finish, and leave them be after a win, without
+animating them.
+.B \(dqanimation\(dq: false
+in
+.I config.json
+does the same for good.
+.TP
+.B \-\-list
+List the games, with their keys, and exit.
+.TP
+.B \-\-stats
+Print the statistics of every game, with the win streaks and the last ten
+games played, and exit.
+.TP
+.B \-\-reset\-stats
+Erase the statistics of every game and the history of games played, and
+exit.
+When statistics are shared, AisleRiot's own record of these games is
+erased too.
+It asks first, and keeps a backup of each file it clears.
+Saved games stay where they are.
+.TP
+.B \-\-yes
+With
+.BR \-\-reset\-stats ,
+clear the statistics without asking.
+Without a terminal to ask at,
+.B \-\-reset\-stats
+needs it.
+.TP
+.B \-\-debug\-info
+Print what a bug report needs: the versions of
+.B soliterm
+and Python, the terminal, curses and where the files are.
+It only reads, and changes nothing.
+.TP
+.B \-\-no\-sync
+Leave AisleRiot's statistics alone this time.
+The games played are kept in
+.BR soliterm 's
+own record, and go into AisleRiot's with the next game that's shared.
+.SH GAMES
+.TP
+.B klondike
+Klondike: the classic one-deck game, with seven columns and a stock,
+drawing one card or three.
+.TP
+.B spider
+Spider: two decks and ten columns, where full King to Ace runs clear
+away, in one, two or four suits.
+.TP
+.B spiderette
+Spiderette: Spider on one deck and seven columns, dealt like Klondike.
+.TP
+.B freecell
+FreeCell: every card face up, four free cells, and nearly every deal can
+be won.
+.TP
+.B eightoff
+Eight Off: FreeCell with eight cells and columns built down in suit.
+.TP
+.B golf
+Golf: clear seven columns onto the waste, one rank up or down.
+.TP
+.B triplepeaks
+Triple Peaks: clear three overlapping peaks onto the waste, one rank up
+or down, King and Ace next to each other.
+.TP
+.B yukon
+Yukon: Klondike with no stock, where any face-up group of cards can move.
+.TP
+.B scorpion
+Scorpion: seven columns built down in suit, any face-up group moves, and
+the runs clear away.
+.TP
+.B bakersdozen
+Bakers Dozen: thirteen open columns and no stock, built down by rank.
+.TP
+.B fortythieves
+Forty Thieves: two decks, ten columns built down in suit, and one pass
+through the stock.
+.TP
+.B canfield
+Canfield: a reserve of thirteen, three cards dealt at a time, and
+foundations that start from a rank the deal picks.
+.SH KEYS
+These are the keys on the board of the full-screen game.
+.B ?
+shows them there, and
+.I docs/keybindings.md
+has the keys of every screen.
+.TP
+.BR Arrows ", " k ", " j ", " l
+Move the cursor between the piles.
+.TP
+.BR Enter ", " Space
+Pick up the cards at the cursor, and press again on another pile to put
+them down.
+.TP
+.BR + ", " \-
+Lift one card more, or one fewer, while holding a run.
+.TP
+.B Esc
+Put the cards back, or clear the hint.
+.TP
+.B d
+Deal from the stock.
+.TP
+.B a
+Send up every card that's safe to send up, or, once every card left can
+go up, finish the game.
+.TP
+.B f
+Send the card at the cursor to its foundation.
+.TP
+.B h
+Show a hint.
+.TP
+.BR u ", " r
+Undo and redo a move.
+.B U
+and
+.B R
+undo or redo every move.
+.TP
+.BR n ", " N
+Deal a new game, or start this one over.
+.TP
+.B g
+Play a deal by its number or share code.
+.TP
+.BR o ", " s ", " ?
+The options of this game, the statistics, and help.
+.TP
+.BR m ", " q
+Back to the menu, or quit.
+A game under way is kept for next time.
+.TP
+.BR b ", " F2
+Boss mode: hide the game behind something that looks like work.
+.TP
+.BR c ", " x
+The code skin, which plays the game inside a source file, and the compact
+view.
+.TP
+.BR v ", " t ", " 4
+Colour on or off, the next theme, and the four-colour deck.
+.PP
+With the mouse, click a card to pick it up along with the cards on it,
+then click where it goes, or drag it there.
+A double-click sends a card up to its foundation, or deals from the
+stock.
+.PP
+In text mode, a slot is named by the number in its tag on the board, and
+.B 12 2
+moves cards from slot 12 to slot 2.
+.B h
+lists the other commands, and
+.I docs/text-mode.md
+explains them.
+.SH FILES
+.TP
+.I $XDG_CONFIG_HOME/soliterm/config.json
+The settings: each game's options, the colours and theme, the game last
+played, and
+.BR sync_aisleriot ,
+which turns sharing with AisleRiot off for good when set to
+.BR false .
+.TP
+.I $XDG_DATA_HOME/soliterm/stats.json
+The statistics of every game.
+.TP
+.I $XDG_DATA_HOME/soliterm/history.jsonl
+A line for every game played, which the streaks and
+.B \-\-stats
+come from.
+.TP
+.I $XDG_DATA_HOME/soliterm/saves/
+The games kept for next time, one file for each game.
+.TP
+.I $XDG_CONFIG_HOME/gnome\-games/aisleriot
+AisleRiot's own statistics, which
+.B soliterm
+shares when AisleRiot is installed.
+It only ever changes the statistics of the games it has, and leaves the
+rest of the file as it was.
+.PP
+With
+.B XDG_CONFIG_HOME
+unset, the settings go in
+.IR ~/.config ,
+and with
+.B XDG_DATA_HOME
+unset, the rest goes in
+.IR ~/.local/share .
+On Windows,
+.I ~
+is the user's profile folder.
+.PP
+.B soliterm
+used to be called aisle-cli.
+The first time it runs, it copies aisle-cli's
+.I config.json
+and
+.I stats.json
+across from the
+.I aisle\-cli
+folders, and leaves them where they were.
+.SH ENVIRONMENT
+.TP
+.B SOLITERM_NO_AISLERIOT
+When set to anything but the empty string or
+.BR 0 ,
+leaves AisleRiot's statistics alone, as
+.B \-\-no\-sync
+does.
+.TP
+.B NO_COLOR
+When set to anything but the empty string, turns colour off, as
+.B \-\-no\-color
+does.
+.B \-\-color
+still turns it on.
+.TP
+.B COLORFGBG
+Some terminals, such as rxvt and Konsole, put their colours here.
+When it ends in 7 or 15, a white background, the
+.B classic
+theme swaps the cyan and yellow of its titles, labels, messages and code
+skin for darker colours, and
+.B contrast
+darkens its code skin.
+.B dark
+and
+.B light
+look the same whatever it says.
+.TP
+.B TERM
+The terminal's type.
+When it's unset, is
+.BR dumb ,
+or names a type with no terminfo entry or one that can't move the
+cursor,
+.B soliterm
+plays in text mode.
+.TP
+.B ESCDELAY
+How many milliseconds curses waits after Esc for the rest of a key.
+.B soliterm
+makes it 25 unless it's set.
+.TP
+.BR XDG_CONFIG_HOME ", " XDG_DATA_HOME
+Where the files go, as under
+.BR FILES .
+Pointing them at an empty directory gives a fresh start that leaves your
+own files alone.
+.SH EXIT STATUS
+.TP
+.B 0
+The game was won, or you left it, or the input ran out, or one of the
+options that print something and exit did so.
+.TP
+.B 1
+.B \-\-reset\-stats
+cleared nothing, because the answer wasn't yes or a backup couldn't be
+made, or curses failed while the full-screen game was running.
+.TP
+.B 2
+The command line was wrong, or
+.B \-\-reset\-stats
+had no terminal to ask at and no
+.BR \-\-yes .
+.TP
+.B 130
+Ctrl-C, SIGHUP or SIGTERM.
+The game is kept or counted first, as it is for
+.BR q .
+.TP
+.B 141
+Whatever was reading the output stopped, as
+.BR head (1)
+does.
+.SH EXAMPLES
+Open the menu:
+.PP
+.RS
+.EX
+soliterm
+.EE
+.RE
+.PP
+Play FreeCell deal 617, or a share code someone sent you:
+.PP
+.RS
+.EX
+soliterm \-\-game freecell \-\-deal 617
+soliterm \-\-deal klondike:d3:48213
+.EE
+.RE
+.PP
+Play today's Spider daily deal:
+.PP
+.RS
+.EX
+soliterm \-\-daily \-\-game spider
+.EE
+.RE
+.PP
+Play Golf deal 216 in text mode, with letters for the suits:
+.PP
+.RS
+.EX
+soliterm \-\-text \-\-deal golf:216 \-\-ascii
+.EE
+.RE
+.PP
+Try something out without touching your statistics or AisleRiot's:
+.PP
+.RS
+.EX
+tmp=$(mktemp \-d)
+XDG_CONFIG_HOME=$tmp XDG_DATA_HOME=$tmp soliterm \-\-no\-sync
+.EE
+.RE
+.SH BUGS
+Report them at https://github.com/bwenstar/soliterm/issues, with what
+.B soliterm \-\-debug\-info
+prints.
+.SH AUTHOR
+Brendan Ta.
+.B soliterm
+is not affiliated with GNOME or the AisleRiot project.
+.SH SEE ALSO
+.BR sol (6)
+.PP
+The documentation at https://github.com/bwenstar/soliterm, with a page on
+every game.

@@ -79,6 +79,7 @@ Unreleased lists everything that has changed since.
   deal over as it does in the full-screen game.
 - Windows, through the windows-curses package, which pip installs there
   by itself.
+- A man page, `soliterm(6)`.
 
 ### Changed
 
