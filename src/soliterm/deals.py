@@ -18,6 +18,7 @@ EXAMPLE = "klondike:d3:48213"
 _SEPARATORS = re.compile(r"[\s:\-_./#',]+")
 _DIGITS = re.compile(r"[0-9]+")  # ASCII only, unlike str.isdigit
 _BARE = re.compile(r"#?[+-]?[0-9]+")
+_NOTE = re.compile(r"(?<=[0-9])\s*\([^0-9]*$")  # "Deal 8 (text mode)", after the number
 
 
 class Code(NamedTuple):
@@ -109,7 +110,7 @@ def _options(key: str, text: str) -> dict:
 def parse(text: str) -> Code:
     """Read a deal number or a share code. Raises ValueError saying what's
     wrong with it."""
-    text = text.strip().lower()
+    text = _NOTE.sub("", text.strip().lower())
     if _BARE.fullmatch(text):
         return Code(None, _number(text.lstrip("#")), None)
     parts = [p for p in _SEPARATORS.split(text) if p]
@@ -132,6 +133,10 @@ def parse(text: str) -> Code:
     if len(rest) >= 2 and rest[-2] == "deal":
         del rest[-2]  # "Klondike, deal 48213"
     if not rest or not _DIGITS.fullmatch(rest[-1]):
+        if any(_DIGITS.fullmatch(p) for p in rest):
+            raise ValueError(f"the deal number goes last in a share code, as in {EXAMPLE}")
+        if rest and rest[-1][0].isdigit():
+            raise ValueError(f"'{rest[-1]}' isn't a deal number")
         raise ValueError(f"{key} needs a deal number too, as in {key}:48213")
     fields = "".join(rest[:-1])
     options = _options(key, fields) if fields else GAMES[key].default_options()

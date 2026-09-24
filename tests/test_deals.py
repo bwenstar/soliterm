@@ -49,6 +49,9 @@ def test_share_code(key, number, options, code):
         ("Klondike, deal 48213", "klondike", 48213, KLONDIKE),
         # the board's title line, pasted whole
         ("Soliterm  -  Klondike  -  Deal 48213", "klondike", 48213, KLONDIKE),
+        # and text mode's, with its note after the number
+        ("Soliterm - Golf - Deal 8 (text mode)", "golf", 8, {}),
+        ("Soliterm - Golf - Deal 8 (text mode). Type h for help.", "golf", 8, {}),
         ("klondike:d3:48213.", "klondike", 48213, {"draw": 3, "redeals": "standard"}),
         ("spider:s2:7", "spider", 7, {"suits": 2}),
         ("golf:0", "golf", 0, {}),
@@ -78,6 +81,10 @@ def test_parse(text, key, number, options):
         ("klondike:2147483648", "deal numbers run from 0 to 2147483647, not 2147483648"),
         ("klondike", "klondike needs a deal number too, as in klondike:48213"),
         ("klondike:d3", "klondike needs a deal number too, as in klondike:48213"),
+        ("klondike (text mode)", "klondike needs a deal number too, as in klondike:48213"),
+        # a number that's there, just not where it goes
+        ("klondike:48213:d3", "the deal number goes last in a share code, as in klondike:d3:48213"),
+        ("klondike:12x", "'12x' isn't a deal number"),
         ("chess:5", "no game called 'chess'"),
         ("5 klondike", "the game goes first in a share code, as in klondike:d3:48213"),
         ("12x", "'12x' isn't a deal number"),
