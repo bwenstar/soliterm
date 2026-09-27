@@ -578,7 +578,9 @@ def test_ctrl_c_leaves_quietly_and_counts_like_quitting(before, lost, capsys):
 
 
 # what leaving says of a game it saved
-KEPT = "Saved your Klondike game (0:00, 1 move). Run soliterm --text --game klondike to pick it up."
+KEPT = (
+    "Saved your Klondike game (0:00, 1 move).\nRun soliterm --text --game klondike to pick it up."
+)
 
 
 def test_ctrl_c_saves_a_game_it_may_keep(monkeypatch, capsys):
@@ -595,6 +597,25 @@ def test_ctrl_c_saves_a_game_it_may_keep(monkeypatch, capsys):
     out, err = capsys.readouterr()
     assert out.endswith(f"\n{KEPT}\n")
     assert err == "\n"
+
+
+@pytest.mark.parametrize("key", GAME_ORDER)
+def test_the_saved_game_line_fits_80_columns(monkeypatch, capsys, key):
+    clock = Clock()
+    monkeypatch.setattr(textmode, "time", clock)
+
+    def script():
+        clock.now += 5025  # a long game, over an hour
+        yield "q\n"
+
+    g = deal(key, 1)
+    g.moves = 1234
+    textmode.run_text(g, False, key, stream=script(), keep=True)
+    out = capsys.readouterr().out
+    said = out[out.index("Saved your") : out.index("\nbye\n")].splitlines()
+    assert f"({store.fmt_time(5025)}, 1234 moves)" in said[0]
+    assert f"soliterm --text --game {key}" in said[-1]
+    assert max(len(line) for line in said) <= 80
 
 
 posix_signals = pytest.mark.skipif(not hasattr(signal, "SIGHUP"), reason="needs POSIX signals")

@@ -380,11 +380,9 @@ def run_text(
             if keep and under_way():
                 recorded = saves.keep(g, seconds())
                 if recorded:
-                    print(
-                        f"Saved your {g.gamedef.name} game ({so_far()}). "
-                        f"Run soliterm --text --game {game_key} to pick it up.",
-                        file=out,
-                    )
+                    # two lines, so a long game's still fits 80 columns
+                    print(f"Saved your {g.gamedef.name} game ({so_far()}).", file=out)
+                    print(f"Run soliterm --text --game {game_key} to pick it up.", file=out)
                     return
             give_up()
 
