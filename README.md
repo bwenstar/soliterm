@@ -185,15 +185,14 @@ day's cards again whenever you like.
 
 ## Saved games
 
-Leave a game with `q`, `m` or Ctrl-C, or close the terminal on it, and it's
-kept for next time with its clock, its score and the moves to undo, and
-the way out says so: `soliterm: saved your Klondike game; run soliterm to
-pick it up`. Each
-game has room for one saved game, so a Klondike and a Spider can both be
-waiting, but not two Klondikes. The game's row on the menu then reads
-`Resume your game: 0:42, 31 moves`, and picking it, or starting it with
-`--game`, carries on where you left off. A daily you leave is kept the same
-way, and that day's daily carries on with it.
+Leave a game with `q`, `m` or Ctrl-C, or close the terminal on it, and
+it's kept for next time with its clock, its score and the moves to undo,
+and the way out says so: `soliterm: saved your Klondike game; run soliterm
+to pick it up`. Each game has room for one saved game, so a Klondike and a
+Spider can both be waiting, but not two Klondikes. The game's row on the
+menu then reads `Resume your game: 0:42, 31 moves`, and picking it, or
+starting it with `--game`, carries on where you left off. A daily you
+leave is kept the same way, and that day's daily carries on with it.
 
 A few things give a game up instead, and it counts as a loss: `n` for a new
 deal, `g` for another deal, and changing the game's options with `o`. So
@@ -292,11 +291,12 @@ stk#0 wst#1
 score=0 moves=0 | Stock: 17 left
 ```
 
-A slot is named by the number in its tag, so `2 1` moves the top card of
-slot 2 onto the waste in slot 1. `d` deals, `hint` suggests a move and
-`h` lists the rest. It's also what you get when the input or the output
-isn't a terminal, so `printf 'hint\nq\n' | soliterm --deal golf:216`
-works, and when curses can't run, with a line on stderr saying why.
+A slot is named by the number in its tag. Here `d` deals a card onto the
+waste in slot 1, and after a second `d` puts 6S there, `2 1` moves the 5H
+from slot 2 onto it. `hint` suggests a move and `h` lists the rest. It's
+also what you get when the input or the output isn't a terminal, so
+`printf 'hint\nq\n' | soliterm --deal golf:216` works, and when curses
+can't run, with a line on stderr saying why.
 [docs/text-mode.md](https://github.com/bwenstar/soliterm/blob/main/docs/text-mode.md)
 has the whole of it.
 

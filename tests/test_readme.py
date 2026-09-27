@@ -5,7 +5,10 @@ import argparse
 import re
 from pathlib import Path
 
+from soliterm import textmode
 from soliterm.cli import build_parser
+
+from helpers import deal
 
 README = Path(__file__).resolve().parents[1] / "README.md"
 
@@ -37,9 +40,12 @@ def test_the_readme_links_to_no_heading_of_its_own():
     assert "](#" not in README.read_text(encoding="utf-8")
 
 
-def test_the_text_mode_example_moves_between_slots_on_its_board():
+def test_the_text_mode_example_plays_on_its_board():
     text = section("Text mode")
-    board = text[text.index("```text") : text.index("```", text.index("```text") + 3)]
-    slots = {int(n) for n in re.findall(r"#(\d+)", board)}
-    move = re.search(r"so `(\d+) (\d+)` moves", text)
-    assert move and {int(n) for n in move.groups()} <= slots
+    name, number = re.search(r"Soliterm - (\w+) - Deal (\d+)", text).groups()
+    g = deal(name.lower(), int(number))
+    said = text[text.index("A slot is named") : text.index("`hint`")]
+    commands = re.findall(r"`(d|\d+ \d+)`", said)
+    assert commands and re.fullmatch(r"\d+ \d+", commands[-1])
+    for command in commands:
+        assert textmode.apply_text_command(g, command)[0], command
