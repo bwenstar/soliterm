@@ -18,7 +18,7 @@ import sys
 import textwrap
 import time
 from collections.abc import Iterator
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from typing import Callable
 
 from .. import APP_NAME, camo, deals, history, saves, store, themes
@@ -1825,7 +1825,15 @@ def main(start: str | Deal | None = None, **options) -> int:
         # once the screen is back, where a game left for next time went
         kept = [GAMES[key].name for key in saves.kept()]
         if kept:
-            print(f"soliterm: {_saved_line(kept)}", file=sys.stderr)
+            try:
+                print(f"soliterm: {_saved_line(kept)}", file=sys.stderr)
+            except OSError:
+                # whatever read stderr has gone (EPIPE, or EINVAL on
+                # Windows). The line stays in stderr's buffer, where
+                # Python's flush at exit would fail on it again, so stderr
+                # goes to devnull instead.
+                with suppress(OSError):
+                    os.dup2(os.open(os.devnull, os.O_WRONLY), 2)
 
 
 def _saved_line(names: list[str]) -> str:

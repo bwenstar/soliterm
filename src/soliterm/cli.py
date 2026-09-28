@@ -292,7 +292,13 @@ def _quiet_on_broken_pipe(main: Callable[..., int]) -> Callable[..., int]:
     @functools.wraps(main)
     def run(*args, **kwargs) -> int:
         try:
-            rc = main(*args, **kwargs)
+            try:
+                rc = main(*args, **kwargs)
+            except SystemExit:
+                # --help and --version leave this way, their text still to
+                # be written
+                sys.stdout.flush()
+                raise
             sys.stdout.flush()  # so a late broken pipe comes up here
             return rc
         except OSError as exc:

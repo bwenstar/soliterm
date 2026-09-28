@@ -1345,8 +1345,10 @@ def test_python_m_soliterm_runs_the_command_line():
         (["--text", "--ascii", "--seed", "1"], "p\n" * 200),
         (["--list"], ""),
         (["--stats"], ""),
+        (["--help"], ""),
+        (["--version"], ""),
     ],
-    ids=["text", "list", "stats"],
+    ids=["text", "list", "stats", "help", "version"],
 )
 def test_output_to_a_reader_that_went_away_ends_quietly(args, stdin):
     # like piping into head: the far end of stdout is already closed
@@ -1367,6 +1369,40 @@ def test_output_to_a_reader_that_went_away_ends_quietly(args, stdin):
         os.close(w)
     assert p.stderr == ""
     assert p.returncode == 141
+
+
+# soliterm leaving the full-screen game with a game kept for next time, with
+# curses and the terminal stood in for
+KEPT_AND_LEFT = """
+import curses, sys
+from soliterm import cli, saves, tui
+curses.wrapper = lambda *args, **kwargs: saves._kept.append("klondike") or 0
+cli._load_tui = lambda: (tui, "")
+sys.stdin.isatty = sys.stdout.isatty = lambda: True
+sys.exit(cli.main(["--no-sync"]))
+"""
+
+
+def test_the_saved_game_line_to_a_reader_that_went_away_ends_quietly():
+    # as `soliterm 2> >(true)`: whatever read stderr has gone by the time
+    # the way out says where the game went
+    r, w = os.pipe()
+    os.close(r)
+    try:
+        p = subprocess.run(
+            [sys.executable, "-c", KEPT_AND_LEFT],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=w,
+            text=True,
+            env=child_env(),
+            check=False,
+            timeout=60,
+        )
+    finally:
+        os.close(w)
+    assert p.stdout == ""
+    assert p.returncode == 0
 
 
 @pytest.fixture
