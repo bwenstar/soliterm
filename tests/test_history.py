@@ -96,6 +96,39 @@ def test_bad_lines_are_skipped():
     assert store.notices() == []
 
 
+@pytest.mark.parametrize(
+    "bad",
+    [
+        {"game": "\x1b]0;pwned\x07\x1b[2J"},
+        {"at": "\x1b[2J" + AT},
+        {"at": "\ud800"},
+        {"game": "golf\ud800"},
+        {"game": ""},
+    ],
+    ids=[
+        "escapes in the game",
+        "escapes in the time",
+        "a surrogate",
+        "a surrogate game",
+        "no game",
+    ],
+)
+def test_a_line_whose_time_or_game_is_not_one_is_skipped(bad):
+    # a hand-edited or damaged history mustn't have --stats print escapes
+    good = {"at": AT, "game": "golf", "result": "won", "seconds": 5, "moves": 2}
+    write("".join(json.dumps(e) + "\n" for e in [good, {**good, **bad}]))
+    assert history.games() == [good]
+
+
+@pytest.mark.parametrize(
+    "newer", [{"game": "pyramid"}, {"game": "forty_thieves-2"}, {"at": "2031-01-02T03:04:05.5Z"}]
+)
+def test_a_line_a_newer_version_could_write_is_kept(newer):
+    e = {"at": AT, "game": "golf", "result": "lost", "seconds": 5, "moves": 2, **newer}
+    write(json.dumps(e) + "\n")
+    assert history.games() == [e]
+
+
 def test_streaks_count_wins_in_a_row_per_game():
     assert history.streaks() == {}
     for won in [True, True, False, True]:

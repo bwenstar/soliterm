@@ -511,6 +511,18 @@ def test_stats_flag_leaves_recent_out_with_no_history(cli):
     assert len(lines) == 1 + len(GAME_ORDER)
 
 
+def test_stats_print_nothing_a_terminal_would_act_on(cli):
+    history.record(deal("golf", 1), False, 60)
+    good = history.games()[0]
+    bad = [{"game": "\x1b]0;pwned\x07\x1b[2J"}, {"at": "\ud800"}]
+    with open(history.history_path(), "a", encoding="utf-8") as fh:
+        fh.writelines(json.dumps({**good, **e}) + "\n" for e in bad)
+    rc, lines = cli("--stats")
+    assert rc == 0
+    assert all(line.isprintable() for line in lines)
+    assert lines[-2:] == ["Recent games", history.line(good)]
+
+
 def test_stats_read_through_to_aisleriot(cli, keyfile):
     keyfile(f"[{ar.GAME_TO_SECTION['freecell']}]\nStatistic=3;4;75;300;\n")
     _rc, lines = cli("--stats")

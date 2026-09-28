@@ -6,6 +6,7 @@ from __future__ import annotations
 import datetime
 import json
 import os
+import re
 from typing import NamedTuple
 
 from . import store
@@ -106,11 +107,21 @@ def games() -> list[dict]:
     return found
 
 
+# The start of the time now() writes, as far as --stats shows it, and a game
+# key the way the games have them, a newer version's too. --stats prints
+# both, so a line with anything else in them, such as the escapes of a
+# hand-edited file, isn't a game.
+_AT = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}")
+_KEY = re.compile(r"[a-z0-9_-]{1,32}")
+
+
 def _is_game(e: object) -> bool:
     return (
         isinstance(e, dict)
         and isinstance(e.get("at"), str)
+        and _AT.match(e["at"]) is not None
         and isinstance(e.get("game"), str)
+        and _KEY.fullmatch(e["game"]) is not None
         and e.get("result") in ("won", "lost")
         and all(type(e.get(k)) is int and e[k] >= 0 for k in ("seconds", "moves"))
     )
