@@ -116,6 +116,58 @@ def test_following_the_hint_never_comes_back_to_a_position(key):
         assert g.attempt_move(*mv), f"hinted move {mv} was illegal"
 
 
+def follow_the_hint(g, steps):
+    """Do what the hint says, deals and all, for up to `steps` steps."""
+    for _ in range(steps):
+        mv = g.hint_move()
+        if mv is None or g.is_won():
+            break
+        if mv[0] == mv[1]:
+            assert g.deal()
+        else:
+            assert g.attempt_move(*mv), f"hinted move {mv} was illegal"
+
+
+@pytest.mark.parametrize(
+    "key, number, options",
+    [("canfield", 59, {}), ("klondike", 12, {"draw": 3})],
+    ids=["canfield:59", "klondike:d3:12"],
+)
+def test_the_hint_stops_dealing_when_dealing_only_goes_round(key, number, options):
+    # the waste goes back to the stock as often as you like here, and a
+    # full pass of the stock brings the same cards back round with nothing
+    # to play, while a move that sets one up leads on to a win
+    g = deal(key, number, **options)
+    follow_the_hint(g, 1000)
+    assert g.is_won(), f"the hint still says {g.hint()}"
+
+
+@pytest.mark.parametrize(
+    "key, options",
+    [
+        ("spider", {}),
+        ("spiderette", {}),
+        ("golf", {}),
+        ("triplepeaks", {}),
+        ("klondike", {"redeals": "none"}),
+    ],
+)
+def test_the_hint_deals_first_where_the_stock_runs_out(key, options):
+    # dealing on here can't bring the same cards round, so a deal that
+    # changes the board still comes before a move that only sets one up
+    g = deal(key, 7, **options)
+    for _ in range(300):
+        mv = g.hint_move()
+        if mv is None or g.is_won():
+            break
+        if g.best_move() is None and g.deal_is_productive():
+            assert mv[0] == mv[1], f"the hint said {g.hint()} where it could deal"
+        if mv[0] == mv[1]:
+            assert g.deal()
+        else:
+            assert g.attempt_move(*mv), f"hinted move {mv} was illegal"
+
+
 # -- a move that sets up the next one ------------------------------------------
 
 

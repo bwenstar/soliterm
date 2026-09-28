@@ -509,26 +509,52 @@ class Solitaire:
         A move that advances the game comes first, then a deal if dealing
         would change the board, then a move that sets up one that advances,
         then whatever the game itself offers (GameDef.fallback_move), and
-        last any move that goes somewhere (plain_move). A deal comes back as
-        (stock, stock, 0). See best_move(), setup_move() and plain_move()
-        for why following it never loops.
+        last any move that goes somewhere (plain_move). Where dealing only
+        brings the same cards round again (see dealing_goes_round), the
+        deal comes after the move that sets one up and the game's own
+        instead. A deal comes back as (stock, stock, 0). See best_move(),
+        setup_move() and plain_move() for why following it never loops.
         """
         if self.gamedef.is_dead_end(self):
             return None  # no move can save it; undo can
         mv = self.best_move()
         if mv is not None:
             return mv
-        if self.deal_is_productive():
-            stock = self.ids_of("stock")
-            if stock:
-                return (stock[0], stock[0], 0)
+        stock = self.ids_of("stock")
+        dealing = self.deal_is_productive()
+        if dealing and not self.dealing_goes_round():
+            return (stock[0], stock[0], 0)
         mv = self.setup_move()
         if mv is not None:
             return mv
         mv = self.gamedef.fallback_move(self)
         if mv is not None:
             return mv
+        if dealing:
+            return (stock[0], stock[0], 0)
         return self.plain_move()
+
+    def dealing_goes_round(self) -> bool:
+        """True if dealing on and on only brings the same cards round again,
+        with no move that advances the game at any turn of the stock.
+
+        Where the waste goes back to the stock as often as you like, as in
+        Canfield, the stock never runs out, and a hint that deals whenever
+        dealing changes the board would deal for good. This deals on a
+        copy until a move advances the game (False), the game won't deal
+        (False, the stock has run out) or the cards come back to where
+        they have been (True).
+        """
+        sim = self.clone()
+        been = {_cards_of(sim.slots)}
+        while sim.deal():
+            cards = _cards_of(sim.slots)
+            if cards in been:
+                return True
+            if sim.best_move() is not None:
+                return False
+            been.add(cards)
+        return False
 
     def plain_move(self) -> tuple[int, int, int] | None:
         """A move for the hint when nothing rates, as long as it goes

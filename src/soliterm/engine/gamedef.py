@@ -82,8 +82,9 @@ class GameDef:
         """A move for the hint when nothing else helps, as (src, dst, n).
 
         Only asked once no move advances the game, dealing would change
-        nothing and no move sets one up. Following it must never lead back
-        round to the same position. The default has nothing to offer.
+        nothing or only bring the same cards round again, and no move sets
+        one up. Following it must never lead back round to the same
+        position. The default has nothing to offer.
         """
         return None
 

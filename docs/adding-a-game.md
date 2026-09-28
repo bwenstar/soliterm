@@ -226,10 +226,12 @@ cards taken out of the waste, free cells and reserve, and cards built
 into runs. When no move raises it, the hint deals, or suggests a move
 that sets up one that does, and failing that any move that goes
 somewhere: not one the cards could go straight back from, one that only
-moves a gap, or one back to a position the game has been in. A game with
-no foundations, such as Golf, gives its own `progress`, and
-`fallback_move`, `is_dead_end` and `no_hint_reason` are there for a game
-whose hint needs more help.
+moves a gap, or one back to a position the game has been in. Where the
+waste can go back to the stock as often as you like, as in Canfield, a
+deal that only brings the same cards round again comes after the move
+that sets one up. A game with no foundations, such as Golf, gives its
+own `progress`, and `fallback_move`, `is_dead_end` and `no_hint_reason`
+are there for a game whose hint needs more help.
 
 ### Winning, dealing and the status line
 
