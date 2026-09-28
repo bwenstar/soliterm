@@ -1010,6 +1010,9 @@ def test_piped_text_mode_neither_resumes_nor_saves(cli):
 # while dumb and a glass teletype can't move the cursor
 TERMINFO = {"xterm": {"cup": b"\x1b[%i%p1%d;%p2%dH"}, "dumb": {}, "glass": {}}
 
+# the Windows console needs no TERM, so there it is never looked at
+needs_terminfo = pytest.mark.skipif(os.name == "nt", reason="needs terminfo")
+
 
 @pytest.fixture
 def terminal(monkeypatch):
@@ -1107,7 +1110,8 @@ def test_without_curses_text_mode_says_why(terminal, monkeypatch, capsys):
     err = capsys.readouterr().err
     assert len(err.splitlines()) == 1
     assert "text mode" in err and "curses" in err
-    assert "windows-curses" not in err
+    # the hint is only for Windows, where curses comes from windows-curses
+    assert ("windows-curses" in err) == (os.name == "nt")
 
 
 def test_without_curses_on_windows_suggests_windows_curses(terminal, monkeypatch, capsys):
@@ -1139,6 +1143,7 @@ def test_a_bug_in_the_full_screen_game_is_not_hidden(terminal, monkeypatch):
     assert terminal.started == []
 
 
+@needs_terminfo
 @pytest.mark.parametrize("term", [None, "", "dumb"])
 def test_without_a_terminal_type_text_mode_says_why(terminal, monkeypatch, capsys, term):
     if term is None:
@@ -1152,6 +1157,7 @@ def test_without_a_terminal_type_text_mode_says_why(terminal, monkeypatch, capsy
     assert "TERM" in err and "text mode" in err
 
 
+@needs_terminfo
 def test_an_unknown_terminal_type_means_text_mode(terminal, monkeypatch, capsys):
     # say, ssh from a terminal the far end has no terminfo entry for
     monkeypatch.setenv("TERM", "xterm-kitty")
@@ -1162,6 +1168,7 @@ def test_an_unknown_terminal_type_means_text_mode(terminal, monkeypatch, capsys)
     assert "TERM=xterm-kitty" in err and "text mode" in err
 
 
+@needs_terminfo
 def test_a_terminal_that_cannot_move_the_cursor_means_text_mode(terminal, monkeypatch, capsys):
     monkeypatch.setenv("TERM", "glass")
     assert terminal("--game", "golf") == 0
@@ -1182,6 +1189,7 @@ def test_the_windows_console_needs_no_terminal_type(terminal, monkeypatch, capsy
     assert capsys.readouterr().err == ""
 
 
+@needs_terminfo
 def test_curses_itself_turns_down_an_unknown_terminal_type():
     # the real terminfo lookup, in a process of its own
     code = "from soliterm import cli; print(cli._terminal_problem())"
