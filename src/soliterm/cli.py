@@ -478,7 +478,9 @@ def _run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
 
     # Colour in text mode: explicit --color/--no-color wins; otherwise on
     # unless NO_COLOR is set (https://no-color.org) or stdout isn't a TTY.
-    # The TUI gets the bare flag, since it also has the colour saved with v.
+    # Either way run_text leaves it off at a terminal that can't show it,
+    # as an old Windows console. The TUI gets the bare flag, since it also
+    # has the colour saved with v.
     if args.color is None:
         color = not os.environ.get("NO_COLOR")
         text_color = color and sys.stdout.isatty()

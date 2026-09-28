@@ -12,6 +12,7 @@ import re
 import shutil
 import sys
 import time
+from typing import Callable
 
 from . import APP_NAME, camo, history, saves, store
 from .deals import code_of, deal_label, share_line
@@ -297,6 +298,45 @@ def _can_write(out, text: str) -> bool:
     return True
 
 
+# The console mode that has a Windows console act on ANSI escapes, as other
+# terminals do. Windows 10 and later have it, but a console doesn't always
+# start with it on.
+_ENABLE_VIRTUAL_TERMINAL_PROCESSING = 0x0004
+
+
+def _show_escapes(out) -> tuple[bool, Callable[[], object] | None]:
+    """Whether out shows ANSI escapes, and what puts its console back after.
+
+    Off Windows the answer is yes, and so it is for a stream with no file
+    behind it, which is taken at its word. A Windows console gets the mode
+    that shows them until text mode is done. One too old for that doesn't
+    show them, and nor does a file that isn't a console, such as NUL, a
+    pipe or a file on disk.
+    """
+    if sys.platform != "win32":
+        return True, None
+    import ctypes
+    import msvcrt
+    from ctypes import wintypes
+
+    try:
+        handle = wintypes.HANDLE(msvcrt.get_osfhandle(out.fileno()))
+    except (AttributeError, OSError, ValueError):
+        return True, None
+    kernel32 = ctypes.WinDLL("kernel32")
+    mode = wintypes.DWORD()
+    if not kernel32.GetConsoleMode(handle, ctypes.byref(mode)):
+        return False, None
+    old = mode.value
+    if old & _ENABLE_VIRTUAL_TERMINAL_PROCESSING:
+        return True, None
+    if not kernel32.SetConsoleMode(
+        handle, wintypes.DWORD(old | _ENABLE_VIRTUAL_TERMINAL_PROCESSING)
+    ):
+        return False, None
+    return True, lambda: kernel32.SetConsoleMode(handle, wintypes.DWORD(old))
+
+
 def run_text(
     g: Solitaire,
     symbols: bool,
@@ -332,11 +372,13 @@ def run_text(
 
     def boss() -> None:
         # A screenful of plausible 'work' output instead of the board. On a
-        # terminal, wipe the screen and its scrollback and fill the height,
-        # so no card is left in view; a pipe just gets a block of lines.
+        # terminal, wipe the screen and its scrollback if it takes escapes,
+        # and fill the height, so no card is left in view; a pipe just gets
+        # a block of lines.
         rows = 40
         if out.isatty():
-            out.write("\x1b[H\x1b[2J\x1b[3J")
+            if shown:
+                out.write("\x1b[H\x1b[2J\x1b[3J")
             rows = shutil.get_terminal_size().lines
         for line in camo.screenful(theme, lines=rows):
             print(line, file=out)
@@ -391,6 +433,10 @@ def run_text(
                     return
             give_up()
 
+    shown, put_back = _show_escapes(out)
+    # colour a terminal can't show is only noise, though into a file or a
+    # pipe --color still means it
+    color = color and (shown or not out.isatty())
     try:
         try:
             if resume:
@@ -480,3 +526,6 @@ def run_text(
                 print(file=sys.stderr)  # off the line its ^C is on
                 store.cut_short(g.gamedef.name)
         return 130
+    finally:
+        if put_back is not None:
+            put_back()

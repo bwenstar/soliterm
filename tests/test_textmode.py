@@ -1,9 +1,12 @@
 """Text mode: the board it prints and the commands it takes."""
 
+import ctypes
 import io
 import os
 import re
 import signal
+import sys
+import types
 from datetime import date
 
 import pytest
@@ -399,6 +402,156 @@ def test_the_hint_uses_letters_too_when_stdout_cannot_show_symbols(monkeypatch):
         line for line in raw.getvalue().decode("ascii").splitlines() if line.startswith("Hint: ")
     )
     assert "Move AD to its foundation" in hint
+
+
+# -- a Windows console -------------------------------------------------------------------
+
+HANDLE = 0x44  # the handle stdout's file number has, as msvcrt gives it
+
+
+class Terminal(io.StringIO):
+    def isatty(self):
+        return True
+
+
+class ConsoleOut(Terminal):
+    """sys.stdout on Windows: a terminal, with a file number behind it."""
+
+    def fileno(self):
+        return 1
+
+
+class PipeOut(ConsoleOut):
+    def isatty(self):
+        return False
+
+
+class Kernel32:
+    """The console calls text mode makes, on a console whose mode is `mode`.
+
+    With `vt` False it's a Windows too old for the mode that shows escapes,
+    and with `console` False the handle isn't a console at all.
+    """
+
+    def __init__(self, out, mode=3, vt=True, console=True):
+        self.out, self.mode, self.vt, self.console = out, mode, vt, console
+        self.set = []  # each mode set, with all that had been written by then
+
+    def GetConsoleMode(self, handle, ref):
+        if handle.value != HANDLE or not self.console:
+            return 0
+        ref._obj.value = self.mode
+        return 1
+
+    def SetConsoleMode(self, handle, mode):
+        if handle.value != HANDLE or not self.console or (mode.value & 4 and not self.vt):
+            return 0
+        self.mode = mode.value
+        self.set.append((self.mode, self.out.getvalue()))
+        return 1
+
+
+@pytest.fixture
+def windows(monkeypatch):
+    """Makes this Windows, with `out` as stdout on the console it returns."""
+
+    def on(out, **console):
+        kernel32 = Kernel32(out, **console)
+        monkeypatch.setattr(sys, "platform", "win32")
+        monkeypatch.setattr(sys, "stdout", out)
+        monkeypatch.setitem(
+            sys.modules, "msvcrt", types.SimpleNamespace(get_osfhandle={1: HANDLE}.get)
+        )
+        monkeypatch.setattr(ctypes, "WinDLL", {"kernel32": kernel32}.get, raising=False)
+        monkeypatch.setattr(
+            textmode.shutil,
+            "get_terminal_size",
+            lambda fallback=(80, 24): os.terminal_size((80, 30)),
+        )
+        return kernel32
+
+    return on
+
+
+def after_the_board(text):
+    """The lines after the last board printed."""
+    lines = text.splitlines()
+    last = max(i for i, line in enumerate(lines) if "score=" in line)
+    return lines[last + 1 :]
+
+
+def leaving(leave):
+    """A deal from the stock, then `leave`: a command or what's raised."""
+    yield "d\n"
+    if isinstance(leave, str):
+        yield leave
+    else:
+        raise leave
+
+
+@pytest.mark.parametrize(
+    "leave,rc",
+    [("q\n", 0), (KeyboardInterrupt(), 130)],
+    ids=["q", "ctrl-c"],
+)
+def test_a_windows_console_shows_the_colours_and_gets_its_mode_back(leave, rc, windows):
+    out = ConsoleOut()
+    kernel32 = windows(out)
+    g = deal("golf", 7)
+    assert textmode.run_text(g, False, "golf", stream=leaving(leave), color=True) == rc
+    # on before the first line and back after the last
+    assert kernel32.set == [(3 | 4, ""), (3, out.getvalue())]
+    assert ANSI.search(out.getvalue())
+
+
+def test_the_console_mode_goes_back_after_an_error_too(windows):
+    kernel32 = windows(ConsoleOut())
+    g = deal("golf", 7)
+    with pytest.raises(OSError, match="gone"):
+        textmode.run_text(g, False, "golf", stream=leaving(OSError("gone")), color=True)
+    assert [mode for mode, _ in kernel32.set] == [3 | 4, 3]
+
+
+def test_a_console_already_showing_escapes_is_left_as_it_is(windows):
+    out = ConsoleOut()
+    kernel32 = windows(out, mode=3 | 4)
+    g = deal("golf", 7)
+    assert textmode.run_text(g, False, "golf", stream=io.StringIO("b\nq\n"), color=True) == 0
+    assert kernel32.set == []
+    assert ANSI.search(out.getvalue())
+    assert "\x1b[H\x1b[2J\x1b[3J" in out.getvalue()
+
+
+@pytest.mark.parametrize(
+    "console", [{"vt": False}, {"console": False}], ids=["old-windows", "not-a-console"]
+)
+def test_a_terminal_that_cant_show_escapes_gets_none(console, windows):
+    out = ConsoleOut()
+    kernel32 = windows(out, **console)
+    g = deal("golf", 7)
+    assert textmode.run_text(g, False, "golf", stream=io.StringIO("b\nq\n"), color=True) == 0
+    assert "\x1b" not in out.getvalue()
+    assert kernel32.mode == 3
+    # the boss screen can't clear the board away, but still fills the screen
+    assert len(after_the_board(out.getvalue())) == 30 + 1  # and then "bye"
+
+
+def test_colour_asked_for_into_a_pipe_keeps_its_codes(windows):
+    out = PipeOut()
+    windows(out, console=False)
+    g = deal("golf", 7)
+    assert textmode.run_text(g, False, "golf", stream=io.StringIO("q\n"), color=True) == 0
+    assert ANSI.search(out.getvalue())
+
+
+def test_on_windows_a_stdout_with_no_file_behind_it_is_taken_as_it_is(windows):
+    out = Terminal()
+    kernel32 = windows(out)
+    g = deal("golf", 7)
+    assert textmode.run_text(g, False, "golf", stream=io.StringIO("b\nq\n"), color=True) == 0
+    assert kernel32.set == []
+    assert ANSI.search(out.getvalue())
+    assert "\x1b[H\x1b[2J\x1b[3J" in out.getvalue()
 
 
 # -- results ----------------------------------------------------------------------------
