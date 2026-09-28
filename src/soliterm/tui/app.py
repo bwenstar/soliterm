@@ -146,6 +146,24 @@ def light_background() -> bool:
     return os.environ.get("COLORFGBG", "").split(";")[-1] in ("7", "15")
 
 
+def basic_colours() -> tuple[int, ...]:
+    """curses' numbers for the basic 8, in the order of themes.BASIC.
+
+    ncurses has them in that order too, but PDCurses, the curses on
+    Windows, goes by their blue, green and red bits, so its red is 4.
+    """
+    return (
+        curses.COLOR_BLACK,
+        curses.COLOR_RED,
+        curses.COLOR_GREEN,
+        curses.COLOR_YELLOW,
+        curses.COLOR_BLUE,
+        curses.COLOR_MAGENTA,
+        curses.COLOR_CYAN,
+        curses.COLOR_WHITE,
+    )
+
+
 def skip_mouse_event() -> None:
     """Take a mouse event the screen has no use for off ncurses' queue,
     where the next getmouse, on another screen, would find it."""
@@ -309,6 +327,7 @@ class App:
             self.light,
             self.default_colours,
             self.four_color,
+            basic_colours(),
         ):
             if n < room:
                 curses.init_pair(n, fg, bg)

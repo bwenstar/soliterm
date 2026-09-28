@@ -26,7 +26,7 @@ from soliterm import cli, deals, engine, history, saves, store, themes
 from soliterm.deals import Deal
 from soliterm.engine import Card
 from soliterm.tui import cascade
-from soliterm.tui.app import DEAL_TEXT_MAX
+from soliterm.tui.app import DEAL_TEXT_MAX, basic_colours
 from soliterm.tui.board import CODE_GUTTER
 
 from helpers import FakeScr, clear_board, deal, signal_once_written, stalled_klondike
@@ -2420,10 +2420,16 @@ def test_theme_flag_is_for_one_run(monkeypatch):
     assert "theme" not in store.load_config()
 
 
+def curses_pairs(theme, colours, **kwargs):
+    """themes.pair_colours in curses' own numbers for the basic 8, as the
+    tui hands them to init_pair."""
+    return themes.pair_colours(theme, colours, basic=basic_colours(), **kwargs)
+
+
 def test_a_theme_for_one_run_leaves_the_saved_one_alone(tui):
     store.save_config({**store.load_config(), "theme": "dark"})
     scr = tui(["v"], theme="light", colours=256)
-    assert scr.pairs == themes.pair_colours(themes.LIGHT, 256)
+    assert scr.pairs == curses_pairs(themes.LIGHT, 256)
     assert store.load_config()["theme"] == "dark"
 
 
@@ -2482,6 +2488,41 @@ def test_classic_draws_the_pairs_1_0_0_drew(tui, monkeypatch, colorfgbg, chrome,
     ]
 
 
+# PDCurses, the curses windows-curses brings, numbers the basic 8 by their
+# blue, green and red bits, where ncurses has them in the ANSI order
+PDCURSES = {
+    "BLACK": 0,
+    "BLUE": 1,
+    "GREEN": 2,
+    "CYAN": 3,
+    "RED": 4,
+    "MAGENTA": 5,
+    "YELLOW": 6,
+    "WHITE": 7,
+}
+
+
+def test_the_pairs_are_in_the_colour_numbers_of_the_curses_at_hand(tui, monkeypatch):
+    for name, n in PDCURSES.items():
+        monkeypatch.setattr(curses, "COLOR_" + name, n)
+    scr = tui(["4"], colours=256)
+    size = len(themes.CLASSIC.pairs)
+    first, again = scr.pairs[:size], scr.pairs[size:]
+    # red cards and blue backs, cyan labels and yellow messages, not the
+    # other way round
+    assert (themes.FACE_RED, 4, 7) in first
+    assert (themes.BACK, 7, 1) in first
+    assert (themes.CHROME, 3, -1) in first
+    assert (themes.MESSAGE, 6, -1) in first
+    # while the four-colour deck's tuned colours are xterm's on any curses
+    assert (themes.DIAMOND_FACE, 166, 7) in again
+    assert (themes.CLUB_FACE, 28, 7) in again
+    scr.pairs.clear()
+    # and on 8 colours its diamonds are blue
+    scr = tui(["q"])
+    assert (themes.DIAMOND_FACE, 1, 7) in scr.pairs
+
+
 def pairs_on(tui, monkeypatch, colorfgbg, **kwargs):
     """The init_pair calls of a session on a terminal that says colorfgbg."""
     monkeypatch.setenv("COLORFGBG", colorfgbg)
@@ -2498,7 +2539,7 @@ def test_dark_and_light_ignore_a_light_background(tui, monkeypatch, name, colour
     assert theme.name == name
     on_dark = pairs_on(tui, monkeypatch, "15;0", theme=name, colours=colours)
     on_light = pairs_on(tui, monkeypatch, "0;15", theme=name, colours=colours)
-    assert on_dark == on_light == themes.pair_colours(theme, colours)
+    assert on_dark == on_light == curses_pairs(theme, colours)
 
 
 @pytest.mark.parametrize("colours", [8, 256])
@@ -2508,8 +2549,8 @@ def test_classic_and_contrast_follow_a_light_background(tui, monkeypatch, name, 
     assert theme.name == name
     on_dark = pairs_on(tui, monkeypatch, "15;0", theme=name, colours=colours)
     on_light = pairs_on(tui, monkeypatch, "0;15", theme=name, colours=colours)
-    assert on_dark == themes.pair_colours(theme, colours, light=False)
-    assert on_light == themes.pair_colours(theme, colours, light=True)
+    assert on_dark == curses_pairs(theme, colours, light=False)
+    assert on_light == curses_pairs(theme, colours, light=True)
 
 
 def test_pairs_past_the_terminals_limit_fall_back(tui):
@@ -2637,7 +2678,7 @@ def test_t_cycles_the_themes_and_saves_the_choice(tui):
     size = len(themes.CLASSIC.pairs)
     sets = [scr.pairs[i : i + size] for i in range(0, len(scr.pairs), size)]
     assert sets == [
-        themes.pair_colours(themes.by_name(name), 256)
+        curses_pairs(themes.by_name(name), 256)
         for name in ("classic", "dark", "light", "contrast", "classic")
     ]
     assert scr.uis[-1].has_color
@@ -2656,14 +2697,14 @@ def test_t_with_colour_off_says_how_to_turn_it_on(tui):
 def test_the_saved_theme_is_the_one_played(tui):
     store.save_config({**store.load_config(), "theme": "light"})
     scr = tui(["q"], colours=256)
-    assert scr.pairs == themes.pair_colours(themes.LIGHT, 256)
+    assert scr.pairs == curses_pairs(themes.LIGHT, 256)
 
 
 def test_an_unknown_theme_name_is_kept_and_plays_classic(tui):
     # a newer version's theme, say; this one plays classic and leaves it be
     store.save_config({**store.load_config(), "theme": "solarized"})
     scr = tui(["v"], colours=256)
-    assert scr.pairs == themes.pair_colours(themes.CLASSIC, 256)
+    assert scr.pairs == curses_pairs(themes.CLASSIC, 256)
     cfg = store.load_config()
     assert cfg["color"] is False
     assert cfg["theme"] == "solarized"

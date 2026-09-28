@@ -1,15 +1,18 @@
-"""The colour themes: the tables of colour pairs the full-screen game draws in."""
+"""The colour themes: the tables of colour pairs the full-screen game draws in.
 
-import curses
+Unless it is handed curses' own numbers, pair_colours numbers the basic 8
+as themes does, so these tests don't depend on the curses at hand.
+"""
 
 import pytest
 
 from soliterm import themes
 
 
-def test_the_colour_numbers_are_curses_own():
+def test_the_basic_8_are_in_the_ansi_order():
+    # as in ESC[31m for red, which is ncurses' order too
     assert themes.DEFAULT == -1
-    assert [
+    ansi = (
         themes.BLACK,
         themes.RED,
         themes.GREEN,
@@ -18,46 +21,34 @@ def test_the_colour_numbers_are_curses_own():
         themes.MAGENTA,
         themes.CYAN,
         themes.WHITE,
-    ] == [
-        curses.COLOR_BLACK,
-        curses.COLOR_RED,
-        curses.COLOR_GREEN,
-        curses.COLOR_YELLOW,
-        curses.COLOR_BLUE,
-        curses.COLOR_MAGENTA,
-        curses.COLOR_CYAN,
-        curses.COLOR_WHITE,
-    ]
+    )
+    assert ansi == tuple(range(8))
+    assert ansi == themes.BASIC
 
 
 @pytest.mark.parametrize(
     "light, default_colours, chrome, note, bg",
     [
-        pytest.param(False, True, curses.COLOR_CYAN, curses.COLOR_YELLOW, -1, id="dark"),
-        pytest.param(True, True, curses.COLOR_BLUE, curses.COLOR_MAGENTA, -1, id="light"),
+        pytest.param(False, True, themes.CYAN, themes.YELLOW, -1, id="dark"),
+        pytest.param(True, True, themes.BLUE, themes.MAGENTA, -1, id="light"),
         # black stands in for the terminal's background, so it isn't light
         pytest.param(
-            True,
-            False,
-            curses.COLOR_CYAN,
-            curses.COLOR_YELLOW,
-            curses.COLOR_BLACK,
-            id="no default colours",
+            True, False, themes.CYAN, themes.YELLOW, themes.BLACK, id="no default colours"
         ),
     ],
 )
 def test_classic_is_the_colours_soliterm_always_had(light, default_colours, chrome, note, bg):
     rows = themes.pair_colours(themes.CLASSIC, 8, light, default_colours)
     assert rows[:9] == [
-        (1, curses.COLOR_RED, curses.COLOR_WHITE),
-        (2, curses.COLOR_BLACK, curses.COLOR_WHITE),
-        (3, curses.COLOR_BLACK, curses.COLOR_GREEN),
+        (1, themes.RED, themes.WHITE),
+        (2, themes.BLACK, themes.WHITE),
+        (3, themes.BLACK, themes.GREEN),
         (4, chrome, bg),
-        (5, curses.COLOR_BLACK, curses.COLOR_YELLOW),
+        (5, themes.BLACK, themes.YELLOW),
         (6, note, bg),
-        (7, curses.COLOR_WHITE, curses.COLOR_BLUE),
-        (8, curses.COLOR_WHITE, curses.COLOR_GREEN),
-        (9, curses.COLOR_BLACK, curses.COLOR_CYAN),
+        (7, themes.WHITE, themes.BLUE),
+        (8, themes.WHITE, themes.GREEN),
+        (9, themes.BLACK, themes.CYAN),
     ]
 
 
@@ -69,8 +60,8 @@ def test_a_name_this_version_does_not_know_is_classic():
 
 # -- every theme ---------------------------------------------------------------------
 
-PALE = {curses.COLOR_YELLOW, curses.COLOR_CYAN, curses.COLOR_WHITE}
-DIM = {curses.COLOR_BLACK, curses.COLOR_BLUE}
+PALE = {themes.YELLOW, themes.CYAN, themes.WHITE}
+DIM = {themes.BLACK, themes.BLUE}
 
 
 def luma(n):
@@ -114,15 +105,15 @@ def test_every_theme_sets_every_pair():
 
 def test_256_colour_terminals_get_the_tuned_colours():
     assert (themes.CHROME, 110, -1) in themes.pair_colours(themes.DARK, 256)
-    assert (themes.CHROME, curses.COLOR_CYAN, -1) in themes.pair_colours(themes.DARK, 8)
+    assert (themes.CHROME, themes.CYAN, -1) in themes.pair_colours(themes.DARK, 8)
 
 
 # xterm-direct and the other direct-colour terminals have 16777216 colours,
 # and read most numbers as red, green and blue rather than xterm's 256
 @pytest.mark.parametrize("colours", [16, 88, 16777216])
 def test_only_256_colour_terminals_get_the_tuned_colours(colours):
-    assert themes.pick((110, curses.COLOR_CYAN), colours) == curses.COLOR_CYAN
-    assert themes.pick(curses.COLOR_RED, colours) == curses.COLOR_RED
+    assert themes.pick((110, themes.CYAN), colours) == themes.CYAN
+    assert themes.pick(themes.RED, colours) == themes.RED
     for theme in themes.THEMES:
         for light in (False, True):
             for four_color in (False, True):
@@ -232,8 +223,8 @@ def test_the_four_colour_deck_has_orange_diamonds_and_green_clubs():
 @pytest.mark.parametrize("theme", themes.THEMES, ids=themes.NAMES)
 def test_on_8_colours_the_diamonds_are_blue(theme):
     pairs = colours_of(theme, 8, four_color=True)
-    assert pairs[themes.DIAMOND_FACE] == (curses.COLOR_BLUE, curses.COLOR_WHITE)
-    assert pairs[themes.CLUB_FACE] == (curses.COLOR_GREEN, curses.COLOR_WHITE)
+    assert pairs[themes.DIAMOND_FACE] == (themes.BLUE, themes.WHITE)
+    assert pairs[themes.CLUB_FACE] == (themes.GREEN, themes.WHITE)
 
 
 @pytest.mark.parametrize("theme", themes.THEMES, ids=themes.NAMES)
@@ -264,3 +255,56 @@ def test_classic_comments_look_like_its_labels(light):
     for colours in (8, 256):
         pairs = colours_of(themes.CLASSIC, colours, light)
         assert pairs[themes.COMMENT] == pairs[themes.CHROME]
+
+
+# -- curses' own numbers ------------------------------------------------------------------
+
+# PDCurses, the curses windows-curses brings, numbers the basic 8 by their
+# blue, green and red bits: its black, red, green, yellow, blue, magenta,
+# cyan and white
+PDCURSES = (0, 4, 2, 6, 1, 5, 3, 7)
+
+
+def test_the_basic_8_go_out_in_the_numbers_curses_has_for_them():
+    pairs = colours_of(themes.CLASSIC, 8, basic=PDCURSES, four_color=True)
+    # red cards, blue backs, cyan labels and yellow messages, not the other
+    # way round, and blue diamonds
+    assert pairs[themes.FACE_RED] == (4, 7)
+    assert pairs[themes.BACK] == (7, 1)
+    assert pairs[themes.CHROME] == (3, -1)
+    assert pairs[themes.MESSAGE] == (6, -1)
+    assert pairs[themes.DIAMOND_FACE] == (1, 7)
+    # while the tuned colours are xterm's whatever the curses
+    pairs = colours_of(themes.CLASSIC, 256, basic=PDCURSES, four_color=True)
+    assert pairs[themes.DIAMOND_FACE] == (166, 7)
+    assert pairs[themes.CLUB_FACE] == (28, 7)
+
+
+@pytest.mark.parametrize("four_color", [False, True])
+@pytest.mark.parametrize("colours", [8, 256])
+@pytest.mark.parametrize("theme", themes.THEMES, ids=themes.NAMES)
+def test_every_theme_is_the_same_colours_in_pdcurses_numbers(theme, colours, four_color):
+    def pdcurses(colour):
+        # the terminal's own colour and the tuned ones stay as they are
+        return PDCURSES[colour] if 0 <= colour < 8 else colour
+
+    for light in (False, True):
+        for default_colours in (False, True):
+            args = (theme, colours, light, default_colours, four_color)
+            assert themes.pair_colours(*args, basic=PDCURSES) == [
+                (n, pdcurses(fg), pdcurses(bg)) for n, fg, bg in themes.pair_colours(*args)
+            ]
+
+
+def test_the_tuned_colours_are_past_the_first_16():
+    # curses numbers those its own way, but past them every curses has
+    # xterm's numbers
+    for theme in themes.THEMES:
+        for pairs in (theme.pairs, theme.on_light):
+            for pair in pairs.values():
+                for colour in pair:
+                    if isinstance(colour, tuple):
+                        assert 16 <= colour[0] < 256, theme.name
+                        assert colour[1] in themes.BASIC, theme.name
+                    else:
+                        assert colour in themes.BASIC or colour == themes.DEFAULT, theme.name

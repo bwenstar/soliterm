@@ -8,9 +8,13 @@ from __future__ import annotations
 
 from typing import NamedTuple, Union
 
-# curses' colour numbers (curses.COLOR_BLACK and so on); -1 is the
-# terminal's own colour, as curses.use_default_colors() allows
+# The basic 8 colours, in the ANSI order (red is ESC[31m), which is
+# ncurses' order too; -1 is the terminal's own colour, as
+# curses.use_default_colors() allows. PDCurses, the curses on Windows,
+# numbers the 8 another way, so pair_colours takes curses' own numbers
+# for them.
 DEFAULT, BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE = range(-1, 8)
+BASIC = (BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE)
 
 # the colour pairs, by what they draw
 FACE_RED = 1  # a heart or a diamond: red on the white card face
@@ -185,17 +189,21 @@ def next_theme(theme: Theme) -> Theme:
     return THEMES[(NAMES.index(theme.name) + 1) % len(THEMES)]
 
 
-def pick(colour: Colour, colours: int) -> int:
-    """The curses number for `colour` on a terminal with `colours` colours.
+def pick(colour: Colour, colours: int, basic: tuple[int, ...] = BASIC) -> int:
+    """The curses number for `colour` on a terminal with `colours` colours,
+    where `basic` is curses' numbers for the basic 8, in BASIC's order.
 
     The tuned colours are xterm's 256, so a terminal with any other number
     gets the basic 8. That includes a direct-colour one (xterm-direct has
     16777216), which reads most numbers as red, green and blue and would
-    draw the 256 as dark blues.
+    draw the 256 as dark blues. The tuned ones are all past the first 16,
+    where every curses numbers them as xterm does.
     """
     if isinstance(colour, tuple):
-        return colour[0] if colours == 256 else colour[1]
-    return colour
+        if colours == 256:
+            return colour[0]
+        colour = colour[1]
+    return colour if colour == DEFAULT else basic[colour]
 
 
 def pair_colours(
@@ -204,6 +212,7 @@ def pair_colours(
     light: bool = False,
     default_colours: bool = True,
     four_color: bool = False,
+    basic: tuple[int, ...] = BASIC,
 ) -> list[tuple[int, int, int]]:
     """(pair, text, background) for every pair, as curses.init_pair takes them.
 
@@ -211,7 +220,8 @@ def pair_colours(
     when the terminal's own background shows through. Without default
     colours (use_default_colors failed), white text on black stands in
     for -1. Without the four-colour deck, diamonds and clubs are red and
-    black like hearts and spades.
+    black like hearts and spades. `basic` is curses' numbers for the basic
+    8, as pick takes them.
     """
     table = dict(theme.pairs)
     if light and default_colours:
@@ -221,9 +231,9 @@ def pair_colours(
         table[CLUB_FACE] = table[FACE_BLACK]
     out = []
     for n in sorted(table):
-        fg, bg = (pick(c, colours) for c in table[n])
+        fg, bg = (pick(c, colours, basic) for c in table[n])
         if not default_colours:
-            fg = WHITE if fg == DEFAULT else fg
-            bg = BLACK if bg == DEFAULT else bg
+            fg = basic[WHITE] if fg == DEFAULT else fg
+            bg = basic[BLACK] if bg == DEFAULT else bg
         out.append((n, fg, bg))
     return out
