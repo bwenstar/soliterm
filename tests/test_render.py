@@ -13,6 +13,7 @@ import pytest
 from soliterm import camo, themes, tui
 from soliterm.engine import GAME_ORDER, Card
 from soliterm.textmode import render_text
+from soliterm.tui.board import CODE_GUTTER, draw_too_small
 
 from helpers import FakeScr, Steps, clear_board, deal, steps
 
@@ -499,6 +500,34 @@ def test_a_tiny_terminal_gets_a_message_instead_of_a_board():
     ui, scr = draw(deal("klondike", 1), h=8, w=30)
     assert "Terminal too small." in scr.text()
     assert not ui.hit
+
+
+def too_small_notice(scr, code_skin):
+    """The too-small notice read off the screen as one line, with the code
+    skin's gutter and "# " taken off each row. The file's source follows."""
+    rows = scr.text().splitlines()
+    if code_skin:
+        rows = [row[CODE_GUTTER + 2 :] for row in rows[1:]]
+    return " ".join(rows)
+
+
+@pytest.mark.parametrize("code_skin", [False, True])
+@pytest.mark.parametrize("w, h", [(30, 10), (36, 12), (20, 8)])
+def test_the_too_small_notice_says_both_sizes_in_full(code_skin, w, h):
+    scr = FakeScr(h, w)
+    ui = tui.BoardUI(scr, deal("klondike", 1), symbols=False, has_color=False)
+    draw_too_small(ui, "This screen", (40, 23), code_skin)
+    assert all(len(row) < w for row in scr.text().splitlines())
+    assert too_small_notice(scr, code_skin).startswith(
+        f"Terminal too small. This screen needs 40x23, have {w}x{h}. Resize, or press q."
+    )
+
+
+@pytest.mark.parametrize("code_skin", [False, True])
+def test_a_board_too_big_for_a_narrow_terminal_says_its_size_in_full(code_skin):
+    ui, scr = draw(deal("fortythieves", 1), h=10, w=30, code_skin=code_skin)
+    w, h = ui.needed_size()
+    assert f"Forty Thieves needs {w}x{h}, have 30x10." in too_small_notice(scr, code_skin)
 
 
 # -- slots a game places by hand -------------------------------------------------------

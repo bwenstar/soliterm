@@ -131,18 +131,37 @@ def draw_code_backdrop(ui, notes: dict[int, str], last_row: int | None = None) -
                 ui.safe_add(screen_y, CODE_GUTTER + start, line[start:end], ui.CP(SYNTAX[kind]))
 
 
+def _fill(words: list[str], room: int) -> list[str]:
+    """`words` joined with spaces into as few lines of up to `room`
+    characters as will take them. A word is never split."""
+    lines = [words[0]]
+    for word in words[1:]:
+        if len(lines[-1]) + 1 + len(word) <= room:
+            lines[-1] += f" {word}"
+        else:
+            lines.append(word)
+    return lines
+
+
 def draw_too_small(ui, what: str, need: tuple[int, int], code_skin: bool) -> None:
     """Say the terminal is smaller than the (width, height) `what` needs,
     in place of drawing it cut off. `ui` is as for draw_code_backdrop."""
     h, w = ui.stdscr.getmaxyx()
+    # a narrow terminal gets the notice over more rows, never a size cut
+    # short; the code skin writes it after the gutter and a "# "
+    room = w - 1 - (CODE_GUTTER + 2 if code_skin else 0)
     notice = [
-        "Terminal too small.",
-        f"{what} needs {need[0]}x{need[1]}, have {w}x{h}.",
-        "Resize, or press q.",
+        *_fill(["Terminal", "too", "small."], room),
+        *_fill([*what.split(), f"needs {need[0]}x{need[1]},", f"have {w}x{h}."], room),
+        *_fill(["Resize,", "or", "press", "q."], room),
     ]
     if code_skin:
         # as a comment in the file, so the notice gives nothing away
-        draw_code_backdrop(ui, {1 + i: f"# {line}" for i, line in enumerate(notice)})
+        draw_code_backdrop(
+            ui,
+            {1 + i: f"# {line}" for i, line in enumerate(notice)},
+            last_row=max(h - 2, len(notice)),
+        )
     else:
         for i, line in enumerate(notice):
             ui.safe_add(i, 0, line)
