@@ -550,7 +550,9 @@ def get_stat(game_key: str) -> dict:
             if shared is not None:
                 # plus any games of ours the keyfile hasn't been given yet
                 waiting = _unsynced(load_stats()).get(game_key)
-                return _combined(_norm(shared), waiting) if waiting else _norm(shared)
+                if waiting:
+                    return _combined(_norm(shared), _keyfile_times(waiting))
+                return _norm(shared)
     return _norm(load_stats().get(game_key))
 
 
@@ -657,7 +659,9 @@ def _share(stats: dict, waiting: dict[str, dict], game_key: str) -> None:
             # A game the keyfile has no record of (a fresh keyfile, or sol
             # saving its own copy over ours) starts from our record, which
             # counts these games already, rather than from nothing.
-            return ours if cur is None else _combined(_norm(cur), games)
+            if cur is None:
+                return _keyfile_times(ours)
+            return _combined(_norm(cur), _keyfile_times(games))
 
         written = ar.update_stat(ar.GAME_TO_SECTION[key], add)
         if written is None:
@@ -705,7 +709,7 @@ def _merge_local_into_aisleriot_once() -> None:
             continue
 
         def add(cur: dict | None, ours: dict = ours) -> dict:
-            return _combined(_norm(cur), ours)
+            return _combined(_norm(cur), _keyfile_times(ours))
 
         if ar.update_stat(sect, add) is None:
             left[game_key] = ours
@@ -725,6 +729,14 @@ def _combined(a: dict, b: dict) -> dict:
         "best": min(bests) if bests else 0,
         "worst": max(a["worst"], b["worst"]),
     }
+
+
+def _keyfile_times(stat: dict) -> dict:
+    """`stat` ready to add to the keyfile's: a time over ar.MAX_TIME goes in
+    as no time. AisleRiot would read it back as none anyway, and as the worst
+    time it would push out one AisleRiot can read. Games that aren't shared
+    keep their real times in stats.json."""
+    return {**stat, **{k: 0 for k in ("best", "worst") if stat[k] > ar.MAX_TIME}}
 
 
 def any_stats() -> bool:

@@ -224,6 +224,8 @@ up in AisleRiot's Statistics window and a game won there shows up here.
 It only ever changes the entries for its twelve games and leaves the rest
 of that file as it was. Until AisleRiot has been run once to make that
 file's folder, results wait in Soliterm's own statistics and go in after.
+AisleRiot keeps no time for a win that took more than 100 minutes, so
+while the two share, Soliterm doesn't either.
 
 Two columns go beyond AisleRiot's: Streak, the wins in a row you're on,
 and Longest, the most you've had. They come from the games played here, so

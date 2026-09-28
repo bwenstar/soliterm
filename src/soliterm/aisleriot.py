@@ -10,6 +10,7 @@ Each game has a section keyed by its Scheme file name, e.g.:
 
 The Statistic value is `wins;total;best;worst;` where best/worst are winning
 times in whole seconds (best = fastest, worst = slowest; 0 means "no win yet").
+AisleRiot reads a time over 6000 seconds, 100 minutes, as no time too.
 
 This module lets our CLI share that exact file so games played in either
 program are mirrored in both. It edits the file surgically - only the
@@ -160,7 +161,8 @@ def _write_text(text: str, expect: str | None = None) -> bool:
         return False
 
 
-# The keyfile is read here the way GLib reads it, so that we and AisleRiot
+# The keyfile is read here the way GLib reads it, and its times taken the
+# way AisleRiot takes them (see _parse_statistic), so that we and AisleRiot
 # always see the same numbers. GLib's idea of white space (g_ascii_isspace)
 # leaves out the vertical tab.
 _SPACE = " \t\n\f\r"
@@ -228,15 +230,26 @@ def _glib_int(item: str) -> int | None:
     return n if -(2**31) <= n < 2**31 else None
 
 
+# The longest time AisleRiot keeps, in seconds (100 minutes). It reads a
+# best or worst time over it, or of 0 or less, as no time, and its
+# Statistics window shows N/A.
+MAX_TIME = 6000
+
+
 def _parse_statistic(value: str) -> dict[str, int]:
     """A Statistic value as AisleRiot reads it: four integers, or all zeros if
-    GLib can't read the list or it doesn't hold exactly four.
+    GLib can't read the list or it doesn't hold exactly four. A best or worst
+    time outside 1 to MAX_TIME seconds reads as 0, no time.
     """
     items = _list_items(value.lstrip(_SPACE))
     nums = [_glib_int(i) for i in items] if items is not None else []
     if len(nums) != 4 or None in nums:
         nums = [0, 0, 0, 0]
-    return {k: n or 0 for k, n in zip(("wins", "total", "best", "worst"), nums)}
+    stat = {k: n or 0 for k, n in zip(("wins", "total", "best", "worst"), nums)}
+    for k in ("best", "worst"):
+        if not 0 < stat[k] <= MAX_TIME:
+            stat[k] = 0
+    return stat
 
 
 def read_stat(section: str) -> dict[str, int] | None:

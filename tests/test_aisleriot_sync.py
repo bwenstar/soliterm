@@ -214,6 +214,22 @@ def test_a_last_line_with_no_newline_reads_and_writes_as_in_glib(keyfile):
     )
 
 
+@pytest.mark.parametrize(
+    "value, want",
+    [
+        ("5;9;6000;6000;", stat(5, 9, 6000, 6000)),
+        ("5;9;6001;6001;", stat(5, 9, 0, 0)),
+        ("5;9;120;21645;", stat(5, 9, 120, 0)),
+        ("5;9;-60;900;", stat(5, 9, 0, 900)),
+    ],
+)
+def test_a_time_over_100_minutes_reads_as_no_time(keyfile, value, want):
+    # as AisleRiot reads it: its Statistics window shows N/A
+    keyfile(f"[spider.scm]\nStatistic={value}\n")
+    assert ar.read_stat("spider.scm") == want
+    assert store.get_stat("spider") == want
+
+
 def test_a_statistic_aisleriot_reads_as_zeros_counts_from_zero(keyfile):
     path = keyfile("[spider.scm]\nStatistic=20;112;591;1966;5;\nOptions=2\n")
     assert store.get_stat("spider") == stat(0, 0, 0, 0)
@@ -290,6 +306,37 @@ def test_local_history_is_merged_into_the_keyfile_once(keyfile):
     # the next result must not add the local totals again
     store.record_result("spider", won=False, seconds=10)
     assert ar.read_stat("spider.scm")["total"] == 115
+
+
+@pytest.mark.parametrize(
+    "seconds, worst", [(6000, 6000), (6001, 900), (21645, 900)], ids=["6000", "6001", "21645"]
+)
+def test_a_win_over_100_minutes_goes_into_the_keyfile_with_no_time(keyfile, seconds, worst):
+    # AisleRiot would read the time back as none, so it mustn't take the
+    # place of a worst time it can read
+    path = keyfile(AR_KLONDIKE)
+    assert store.record_result("klondike", won=True, seconds=seconds) == stat(11, 41, 120, worst)
+    assert path.read_text() == f"[klondike.scm]\nStatistic=11;41;120;{worst};\n"
+    path = keyfile("[Aisleriot Config]\nRecent=golf;\n")
+    store.record_result("golf", won=True, seconds=seconds)
+    time = seconds if seconds <= 6000 else 0
+    assert ar.read_stat("golf.scm") == stat(1, 1, time, time)
+    assert f"Statistic=1;1;{time};{time};" in path.read_text()
+
+
+def test_a_win_over_100_minutes_keeps_its_time_while_not_shared(keyfile):
+    store.record_result("klondike", won=True, seconds=21645)
+    assert store.get_stat("klondike") == stat(1, 1, 21645, 21645)
+    keyfile(AR_KLONDIKE)
+    store.record_result("klondike", won=False, seconds=60)  # merged in
+    assert ar.read_stat("klondike.scm") == stat(11, 42, 120, 900)
+    store.update_config(sync_aisleriot=False)
+    store.record_result("klondike", won=True, seconds=21645)
+    assert store.get_stat("klondike") == stat(12, 43, 120, 21645)
+    store.update_config(sync_aisleriot=True)
+    assert store.get_stat("klondike") == stat(12, 43, 120, 900)  # waiting
+    store.record_result("klondike", won=False, seconds=60)
+    assert ar.read_stat("klondike.scm") == stat(12, 44, 120, 900)
 
 
 def test_a_save_by_aisleriot_just_before_ours_is_kept(keyfile, monkeypatch):

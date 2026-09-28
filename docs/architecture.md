@@ -169,6 +169,11 @@ back byte for byte.
   `SOLITERM_NO_AISLERIOT=1` or while the keyfile can't be written, are
   listed in `stats.json` and go into the keyfile with the next game that
   can be shared.
+- AisleRiot reads a best or worst time over 6000 seconds (100 minutes) as
+  no time, and so does Soliterm when it reads the keyfile. A win that long
+  goes into the keyfile with no time, since as the worst time it would push
+  out one AisleRiot can show. Only `stats.json`, for games not shared, keeps
+  the real time.
 
 The keyfile is read again right before it's written, because AisleRiot
 may have saved it in between: `update_stat` works the change out from the
