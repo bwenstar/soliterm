@@ -229,6 +229,10 @@ up in AisleRiot's Statistics window and a game won there shows up here.
 It only ever changes the entries for its twelve games and leaves the rest
 of that file as it was. Until AisleRiot has been run once to make that
 file's folder, results wait in Soliterm's own statistics and go in after.
+AisleRiot reads that file once, when it starts, and can write its own copy
+back over it when it quits. A game finished here while AisleRiot is open
+is then lost from AisleRiot's statistics, and from the same numbers here,
+so keep AisleRiot closed while you play here.
 AisleRiot keeps no time for a win that took more than 100 minutes, so
 while the two share, Soliterm doesn't either.
 

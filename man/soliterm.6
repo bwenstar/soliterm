@@ -347,6 +347,15 @@ AisleRiot's own statistics, which
 shares when AisleRiot is installed.
 It only ever changes the statistics of the games it has, and leaves the
 rest of the file as it was.
+AisleRiot reads the file once, when it starts, and can write its own copy
+back over it when it quits.
+A game finished in
+.B soliterm
+while AisleRiot is open is then lost from AisleRiot's statistics, and
+from the same numbers in
+.BR soliterm ,
+so keep AisleRiot closed while playing
+.BR soliterm .
 .PP
 With
 .B XDG_CONFIG_HOME

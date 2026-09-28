@@ -183,9 +183,13 @@ file as it is then, and if the file changes again while the new one is
 being written, it starts over. So a result AisleRiot saved a moment ago
 is never put back to an older number. That only closes the gap between
 Soliterm's read and its write. AisleRiot reads the keyfile once when it
-starts and writes its own copy whenever it saves, so a game finished here
-while AisleRiot is open can be written over by it. `stats.json` still has
-that game.
+starts and, if its copy has changed by the time it exits, writes the whole
+of it back, so a game finished here while AisleRiot is open is gone from
+the keyfile once AisleRiot closes. The statistics Soliterm shows come
+from the keyfile, so they lose it at once, and `stats.json` keeps it only
+until the next game of that kind is shared, when `_share` sets its record
+from what the keyfile then says. `history.jsonl` still lists the game, so
+it still counts towards the streaks.
 
 Every file is written whole: to a temporary file in the same folder that
 then replaces the old one in one step, so a crash or a full disk leaves
@@ -194,7 +198,10 @@ the old file as it was. A file that isn't valid JSON is moved aside to
 at all is left alone, and a lock beside `stats.json` keeps two copies of
 the game finishing at once from losing one result. While another copy
 has the lock, the game says it's waiting, on the bottom line or on
-stderr, instead of stopping without a word.
+stderr, instead of stopping without a word. The lock is `flock`, so there
+is one on Linux and macOS but none on Windows, where `_locked` does
+nothing and two copies finishing at the same moment can still lose one
+result.
 
 ## Saves and signals
 

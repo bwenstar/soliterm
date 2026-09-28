@@ -327,9 +327,11 @@ def update_stat(
     can't be read or written, it would not hold still, or `change` said no).
 
     This only closes the gap between our read and our write. AisleRiot reads
-    the keyfile once when it starts and writes its own copy back whenever it
-    saves, so a result we record while it is running is lost from the keyfile
-    at its next save. Our stats.json still has it.
+    the keyfile once when it starts and, if its copy has changed by the time
+    it exits, writes the whole of it back, so a result we record while it is
+    running is lost from the keyfile then. stats.json keeps it only until the
+    next game of that kind is shared, as store._share sets our record from
+    what this returns; history.jsonl still lists the game.
     """
     for _ in range(_UPDATE_TRIES):
         try:
