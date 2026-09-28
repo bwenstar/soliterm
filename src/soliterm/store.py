@@ -446,6 +446,12 @@ def _unwritable_keyfile() -> None:
     )
 
 
+def _unwritable_stats() -> None:
+    _notice(
+        f"couldn't write {stats_path()}, so that game is missing from the statistics kept there"
+    )
+
+
 def _can_sync() -> bool:
     """syncing(), unless the keyfile is there but can't be read.
 
@@ -564,7 +570,8 @@ def _record_result(game_key: str, won: bool, seconds: float) -> dict:
         waiting[game_key] = _combined(waiting.get(game_key, dict(EMPTY_STAT)), one)
         meta["unsynced"] = {**_foreign(meta.get("unsynced")), **waiting}
     stats[META_KEY] = meta
-    save_stats(stats)
+    if not save_stats(stats):
+        _unwritable_stats()
     return updated
 
 
@@ -636,7 +643,8 @@ def _share(stats: dict, waiting: dict[str, dict], game_key: str) -> None:
     if left:
         _unwritable_keyfile()
         meta["unsynced"] = {**foreign, **left}
-    save_stats(stats)
+    if not save_stats(stats):
+        _unwritable_stats()
 
 
 def _merge_local_into_aisleriot_once() -> None:
@@ -759,22 +767,30 @@ def shared_record() -> bool:
         return False  # unreadable, so reset_stats() leaves it as it is
 
 
-def reset_stats() -> int:
+def reset_stats() -> int | None:
     """Clear statistics for the games we manage. Returns how many were cleared.
 
     When syncing, each managed game's Statistic is zeroed in the shared keyfile
     too (other AisleRiot games and all non-Statistic keys are left untouched).
-    Local JSON is always cleared. Returns the count of games that had a record.
+    Local JSON is cleared first, and if it can't be written nothing is
+    cleared: None is returned, with a notice. Otherwise returns the count of
+    games that had a record.
     """
     with _locked():
         return _reset_stats()
 
 
-def _reset_stats() -> int:
+def _reset_stats() -> int | None:
     from .engine import GAME_ORDER  # local import to avoid a cycle at module load
 
-    cleared = 0
     stats = load_stats()
+    # stats.json goes first, so that if it can't be cleared nothing is
+    meta = dict(_meta(stats))
+    meta.pop("unsynced", None)  # games not yet shared are cleared too
+    if not save_stats({META_KEY: meta}):
+        _notice(f"couldn't write {stats_path()}, so nothing was cleared")
+        return None
+    cleared = 0
     if _can_sync():
         for game_key in GAME_ORDER:
             sect = ar.GAME_TO_SECTION.get(game_key)
@@ -797,9 +813,6 @@ def _reset_stats() -> int:
                 cleared += 1
     else:
         cleared = sum(1 for k in GAME_ORDER if _norm(stats.get(k))["total"] > 0)
-    meta = dict(_meta(load_stats()))
-    meta.pop("unsynced", None)  # games not yet shared are cleared too
-    save_stats({META_KEY: meta})
     return cleared
 
 

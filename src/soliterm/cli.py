@@ -220,6 +220,10 @@ def reset_stats(yes: bool) -> int:
     for path in backups:
         print(f"Backup saved to {path}")
     n = store.reset_stats()
+    if n is None:
+        # stats.json couldn't be written, so nothing was cleared (its
+        # notice says so) and the history stays with it
+        return 1
     history.clear()
     if sharing:
         games = "1 game" if n == 1 else f"{n} games"

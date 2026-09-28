@@ -15,6 +15,8 @@ import pytest
 from soliterm import aisleriot as ar
 from soliterm import cli, store
 
+from helpers import stats_json_in_use
+
 # chmod can take read access away from us, but not from root, and not on
 # Windows
 needs_permissions = pytest.mark.skipif(
@@ -421,6 +423,15 @@ def test_a_result_the_keyfile_could_not_take_is_kept_and_reported(keyfile, monke
     writes_again()
     store.record_result("klondike", won=False, seconds=5)
     assert ar.read_stat("klondike.scm") == stat(11, 42, 100, 900)
+
+
+def test_a_shared_result_stats_json_could_not_take_is_reported(keyfile, monkeypatch):
+    keyfile(AR_KLONDIKE)
+    stats_json_in_use(monkeypatch)
+    assert store.record_result("klondike", won=True, seconds=100) == stat(11, 41, 100, 900)
+    assert ar.read_stat("klondike.scm") == stat(11, 41, 100, 900)
+    assert not os.path.exists(store.stats_path())
+    assert any(f"couldn't write {store.stats_path()}" in n for n in store.notices())
 
 
 def test_history_the_keyfile_could_not_take_goes_in_later(keyfile, monkeypatch):

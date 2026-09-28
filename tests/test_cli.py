@@ -24,7 +24,7 @@ from soliterm.deals import Deal
 from soliterm.engine import GAME_ORDER, GAMES
 from soliterm.textmode import render_text
 
-from helpers import deal
+from helpers import deal, stats_json_in_use
 
 
 class TtyInput(io.StringIO):
@@ -726,6 +726,20 @@ def test_reset_stats_clears_nothing_when_the_backup_fails(cli, keyfile, monkeypa
     assert rc == 1
     assert "nothing was cleared" in cli.err
     assert path.read_text() == before
+
+
+def test_reset_stats_clears_nothing_when_stats_json_cant_be_written(cli, keyfile, monkeypatch):
+    path = keyfile(f"[{ar.GAME_TO_SECTION['canfield']}]\nStatistic=2;9;100;400;\n")
+    two_games()
+    shared, local = path.read_text(), Path(store.stats_path()).read_text()
+    stats_json_in_use(monkeypatch)
+    rc, lines = cli("--reset-stats", "--yes")
+    assert rc == 1
+    assert not any(line.startswith("Statistics cleared") for line in lines)
+    assert f"couldn't write {store.stats_path()}, so nothing was cleared" in cli.err
+    assert path.read_text() == shared
+    assert Path(store.stats_path()).read_text() == local
+    assert len(history.games()) == 2
 
 
 def test_reset_stats_twice_keeps_the_first_backup(cli, keyfile):

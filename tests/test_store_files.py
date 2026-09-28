@@ -14,6 +14,8 @@ import pytest
 
 from soliterm import store
 
+from helpers import stats_json_in_use
+
 
 def stat(wins, total, best, worst):
     return {"wins": wins, "total": total, "best": best, "worst": worst}
@@ -115,6 +117,30 @@ def test_an_unreadable_stats_file_is_never_replaced():
         os.chmod(store.stats_path(), 0o644)
     assert json.loads(read(store.stats_path())) == {"golf": stat(5, 9, 30, 90)}
     assert any("can't read" in n for n in store.notices())
+
+
+def test_a_result_stats_json_could_not_take_is_reported(monkeypatch):
+    store.record_result("golf", won=True, seconds=42)
+    before = read(store.stats_path())
+    stats_json_in_use(monkeypatch)
+    store.record_result("golf", won=False, seconds=42)
+    assert read(store.stats_path()) == before
+    assert any(
+        f"couldn't write {store.stats_path()}" in n and "that game is missing" in n
+        for n in store.notices()
+    )
+
+
+def test_a_reset_stats_json_could_not_take_clears_nothing(monkeypatch):
+    store.record_result("golf", won=True, seconds=42)
+    before = read(store.stats_path())
+    stats_json_in_use(monkeypatch)
+    assert store.reset_stats() is None
+    assert read(store.stats_path()) == before
+    assert any(
+        f"couldn't write {store.stats_path()}" in n and "nothing was cleared" in n
+        for n in store.notices()
+    )
 
 
 def _record_many(n):

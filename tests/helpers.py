@@ -42,6 +42,19 @@ def signal_once_written(monkeypatch, path, signum):
     monkeypatch.setattr(store, "_write_json", write)
 
 
+def stats_json_in_use(monkeypatch):
+    """Have every save of stats.json fail, as on Windows while another
+    program has the file open: the new one can't be put in its place."""
+    real = os.replace
+
+    def replace(src, dst):
+        if os.fspath(dst) == store.stats_path():
+            raise PermissionError(13, "Permission denied")
+        real(src, dst)
+
+    monkeypatch.setattr(os, "replace", replace)
+
+
 def card_count(g):
     return sum(len(s.cards) for s in g.slots)
 
