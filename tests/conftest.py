@@ -44,7 +44,8 @@ def keyfile(isolated_home):
 
     def write(text):
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(text, encoding="utf-8")
+        # as bytes, so Windows doesn't write each "\n" as "\r\n"
+        path.write_bytes(text.encode("utf-8"))
         return path
 
     write.path = path
