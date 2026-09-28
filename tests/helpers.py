@@ -22,6 +22,20 @@ EXPECTED_CARDS = {
     "canfield": 52,
 }
 
+# The codes windows-curses (PDCurses) gives the numpad keys it has codes of
+# its own for: Enter, + - / and *, and the arrows with NumLock off.
+PDCURSES_NUMPAD = {
+    "PADENTER": 459,
+    "PADPLUS": 465,
+    "PADMINUS": 464,
+    "PADSLASH": 458,
+    "PADSTAR": 463,
+    "KEY_A2": 450,
+    "KEY_C2": 456,
+    "KEY_B1": 452,
+    "KEY_B3": 454,
+}
+
 
 def deal(key, seed=1, **options):
     """A seeded game; options go in as keywords, e.g. deal("spider", suits=2)."""

@@ -35,7 +35,7 @@ from .board import (
     draw_too_small,
 )
 from .cascade import FRAME_MS, MAX_S, Cascade
-from .keys import BOSS_ACTIONS, PLAY_ACTIONS, help_lines
+from .keys import BOSS_ACTIONS, PLAY_ACTIONS, help_lines, numpad_keys
 
 # What a play-screen handler returns to leave the game in play: back to the
 # menu, or out of the program. None means keep playing.
@@ -258,6 +258,8 @@ class App:
         # a click or resize that came in just behind an Esc, for read_key
         # to hand out next
         self.pending_key: int | None = None
+        # the numpad keys to read as the main ones (windows-curses only)
+        self.numpad = numpad_keys(curses)
         # the saved games the menu offers, as saves.waiting() gives them
         self.waiting: dict[str, dict] = {}
         # per-game state, reset by start_game()
@@ -819,6 +821,7 @@ class App:
                 slept = 0.0
                 while slept < 0.22:
                     k = stdscr.getch()
+                    k = self.numpad.get(k, k)
                     if k == curses.KEY_MOUSE:
                         # a click to focus the window, the wheel or the
                         # pointer passing over must not give the game away
@@ -901,6 +904,9 @@ class App:
         With no key for wait_ms (a second unless the caller says) it returns
         -1 too, so play() draws the board again and the clock on the status
         line ticks.
+
+        A numpad key that windows-curses gives a code of its own comes back
+        as the main key it stands for, so numpad Enter is Enter.
         """
         if self.pending_key is not None:
             k, self.pending_key = self.pending_key, None
@@ -910,6 +916,7 @@ class App:
             k = self.stdscr.getch()
         finally:
             self.stdscr.timeout(-1)  # the other screens wait for a key
+        k = self.numpad.get(k, k)
         if k != 27:
             return k
         self.stdscr.nodelay(True)

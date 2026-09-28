@@ -17,6 +17,7 @@ import sys
 import threading
 import time
 from datetime import date
+from types import SimpleNamespace
 
 import pytest
 
@@ -29,7 +30,14 @@ from soliterm.tui import cascade
 from soliterm.tui.app import DEAL_TEXT_MAX, basic_colours
 from soliterm.tui.board import CODE_GUTTER
 
-from helpers import FakeScr, clear_board, deal, signal_once_written, stalled_klondike
+from helpers import (
+    PDCURSES_NUMPAD,
+    FakeScr,
+    clear_board,
+    deal,
+    signal_once_written,
+    stalled_klondike,
+)
 
 ENTER = "\n"
 ESC = 27
@@ -306,6 +314,56 @@ def test_the_keyboard_can_lift_part_of_a_run_into_an_empty_column(tui):
     tui([ENTER, "-", "-", curses.KEY_RIGHT, ENTER], start_key="spider", game=g)
     assert names(g, b) == ["5S"]
     assert names(g, a) == ["9H", "7S", "6S"]
+
+
+# -- the numpad on Windows -----------------------------------------------------------
+
+
+@pytest.fixture
+def pad(monkeypatch):
+    """curses as windows-curses has it, with codes of its own for some of
+    the numpad keys. Returns the codes by name."""
+    for name, code in PDCURSES_NUMPAD.items():
+        monkeypatch.setattr(curses, name, code, raising=False)
+    return SimpleNamespace(**PDCURSES_NUMPAD)
+
+
+def test_numpad_enter_picks_up_and_drops_on_windows(tui, pad):
+    g, _a, b = board("spider", [up(9, "H"), up(4, "S"), up(3, "S")], [up(5, "H")], suits=4)
+    tui([pad.PADENTER, curses.KEY_RIGHT, pad.PADENTER], start_key="spider", game=g)
+    assert names(g, b) == ["5H", "4S", "3S"]
+
+
+def test_numpad_minus_and_plus_change_the_lift_on_windows(tui, pad):
+    g, a, b = board("spider", [up(9, "H"), up(7, "S"), up(6, "S"), up(5, "S")], [], suits=4)
+    keys = [ENTER, pad.PADMINUS, pad.PADMINUS, pad.PADPLUS, curses.KEY_RIGHT, ENTER]
+    tui(keys, start_key="spider", game=g)
+    assert names(g, b) == ["6S", "5S"]
+    assert names(g, a) == ["9H", "7S"]
+
+
+def test_the_numpad_arrows_move_the_cursor_on_windows(tui, pad):
+    # with NumLock off: two right and one left is the next column
+    g, _a, b = board("spider", [up(9, "H"), up(4, "S"), up(3, "S")], [up(5, "H")], suits=4)
+    tui([ENTER, pad.KEY_B3, pad.KEY_B3, pad.KEY_B1, ENTER], start_key="spider", game=g)
+    assert names(g, b) == ["5H", "4S", "3S"]
+    # and up is the stock, where Enter deals, until down comes back
+    waste = deal("klondike", 1).ids_of("waste")[0]
+    scr = tui([pad.KEY_A2, ENTER], deal=1)
+    assert len(scr.uis[-1].game.cards(waste)) == 1
+    scr = tui([pad.KEY_A2, pad.KEY_C2, ENTER], deal=1)
+    assert len(scr.uis[-1].game.cards(waste)) == 0
+
+
+def test_numpad_enter_plays_from_the_menu_on_windows(tui, pad):
+    scr = tui([pad.PADENTER], start_key=None)
+    assert [ui.game.gamedef.key for ui in scr.uis] == ["klondike"]
+
+
+def test_the_numpad_types_a_share_code_and_enter_plays_it_on_windows(tui, pad):
+    scr = tui(["g", *"spider", pad.PADSLASH, "7", pad.PADENTER], deal=5)
+    assert "> spider/7_" in scr.frames[9]
+    assert [(ui.game.gamedef.key, ui.game.deal_number) for ui in scr.uis][-1] == ("spider", 7)
 
 
 @pytest.mark.parametrize("target", [(9, "D"), (4, "H")])

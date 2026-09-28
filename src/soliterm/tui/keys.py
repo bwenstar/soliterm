@@ -120,6 +120,30 @@ def actions(mode: str = "play") -> dict[int, str]:
 PLAY_ACTIONS = actions("play")
 BOSS_ACTIONS = actions("boss")
 
+
+def numpad_keys(mod) -> dict[int, int]:
+    """Key code -> the code to read it as, for the numpad keys that
+    windows-curses gives codes of their own: Enter, + - and /, and the
+    arrows with NumLock off. ncurses has none of these names and sends the
+    main keys' codes, so under it the table is empty.
+
+    The corners and middle of the NumLock-off numpad (Home, End, PgUp,
+    PgDn, 5) are left alone, as those keys do nothing here, and so is *.
+    """
+    same = {
+        "PADENTER": 10,
+        "PADPLUS": ord("+"),
+        "PADMINUS": ord("-"),
+        "PADSLASH": ord("/"),  # a share code can be typed with it
+        "KEY_A2": mod.KEY_UP,
+        "KEY_C2": mod.KEY_DOWN,
+        "KEY_B1": mod.KEY_LEFT,
+        "KEY_B3": mod.KEY_RIGHT,
+    }
+    codes = {name: getattr(mod, name, None) for name in same}
+    return {code: same[name] for name, code in codes.items() if code is not None}
+
+
 HELP_KEY_W = 20  # the help's key column, gap before the text included
 HELP_PACK_W = 60  # how wide a line of compact entries may get
 

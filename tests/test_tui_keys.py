@@ -4,6 +4,7 @@ screen both come from it, so these checks keep the two honest."""
 import curses
 import inspect
 import re
+from types import SimpleNamespace
 
 import pytest
 
@@ -11,7 +12,7 @@ from soliterm.tui import keys
 from soliterm.tui.app import App
 from soliterm.tui.board import CODE_GUTTER
 
-from helpers import FakeScr
+from helpers import PDCURSES_NUMPAD, FakeScr
 
 # how a label names the keys that are not a plain character
 NAMES = {
@@ -149,3 +150,30 @@ def test_4_is_the_four_colour_key():
 def test_tab_is_the_boss_mode_key():
     assert keys.BOSS_ACTIONS == {ord("\t"): "next_disguise"}  # noqa: SIM300 (it is the one under test)
     assert ord("\t") not in keys.PLAY_ACTIONS
+
+
+ARROWS = {name: getattr(curses, name) for name in ("KEY_UP", "KEY_DOWN", "KEY_LEFT", "KEY_RIGHT")}
+
+
+def test_the_numpad_keys_windows_gives_codes_of_their_own_are_read_as_the_main_keys():
+    # * and the corners and middle with NumLock off do nothing, so stay as
+    # they are
+    corners = {"KEY_A1": 449, "KEY_A3": 451, "KEY_B2": 453, "KEY_C1": 455, "KEY_C3": 457}
+    pdcurses = SimpleNamespace(**ARROWS, **PDCURSES_NUMPAD, **corners)
+    assert keys.numpad_keys(pdcurses) == {
+        459: 10,
+        465: ord("+"),
+        464: ord("-"),
+        458: ord("/"),
+        450: curses.KEY_UP,
+        456: curses.KEY_DOWN,
+        452: curses.KEY_LEFT,
+        454: curses.KEY_RIGHT,
+    }
+
+
+def test_no_key_is_read_as_another_under_ncurses():
+    # it sends the main keys' codes for the numpad, and has none of those
+    # names; the keypad corners and middle it does name are left alone
+    ncurses = SimpleNamespace(**ARROWS, KEY_A1=348, KEY_A3=349, KEY_B2=350, KEY_C1=351, KEY_C3=352)
+    assert keys.numpad_keys(ncurses) == {}
