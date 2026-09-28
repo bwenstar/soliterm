@@ -54,6 +54,10 @@ A game you leave unfinished with
 .B m
 or Ctrl-C, or by closing the terminal, is kept for next time, and picking
 that game again carries on where you left off.
+On Windows, closing the console window or pressing Ctrl-Break ends
+.B soliterm
+at once, so the game in play is neither kept nor counted, and if it was
+picked up from a save, that save is gone as well.
 .PP
 Text mode plays the same games as plain lines of text.
 It prints the board, reads one command a line from standard input, and
@@ -446,6 +450,10 @@ The game is kept or counted first, as it is for
 Whatever was reading the output stopped, as
 .BR head (1)
 does.
+.PP
+On Windows, closing the console window or pressing Ctrl-Break ends
+.B soliterm
+at once with status 0xC000013A, and the game is neither kept nor counted.
 .SH EXAMPLES
 Open the menu:
 .PP

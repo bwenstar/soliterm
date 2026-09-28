@@ -259,6 +259,11 @@ When the commands come from a pipe or a file, nothing is kept. A game
 left unfinished when the input runs out counts as lost, as long as it had
 a move made in it, and one nobody touched doesn't count at all.
 
+On Windows, closing the console window or pressing Ctrl-Break ends
+Soliterm at once. The game isn't kept or counted, and if you'd picked it
+up from a save, that save is gone as well. Leave with `q` or Ctrl-C to
+keep it.
+
 ## Exit status
 
 | Status | When |
@@ -269,6 +274,9 @@ a move made in it, and one nobody touched doesn't count at all.
 | 141 | whatever was reading the output stopped, as `head` does |
 
 A game leaving on 130 is saved or counted just as it is for `q`.
+On Windows, closing the console window or pressing Ctrl-Break ends
+Soliterm at once with status 0xC000013A, and the game is neither kept nor
+counted.
 
 ## Scripting
 
