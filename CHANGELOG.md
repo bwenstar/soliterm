@@ -12,7 +12,7 @@ Soliterm 1.0.0 lists the changes since.
 
 ## [Unreleased]
 
-## [1.0.0] - 2026-09-25
+## [1.0.0] - 2026-09-28
 
 Soliterm's first public release. It grew out of aisle-cli, a private
 project of mine, and these are the changes since aisle-cli 1.0.0, which is
