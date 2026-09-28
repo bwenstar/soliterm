@@ -832,8 +832,7 @@ class App:
                             # cycle theme without leaving camo
                             idx = camo.THEMES.index(theme)
                             theme = camo.THEMES[(idx + 1) % len(camo.THEMES)]
-                            cfg["camo_theme"] = theme
-                            store.save_config(cfg)
+                            self.keep_setting(camo_theme=theme)
                             gen = camo.stream(theme)
                             buf = []
                             break
@@ -961,8 +960,7 @@ class App:
         else:
             self.game = resumed[0]
             self.game.symbols = self.symbols
-        self.cfg["last_game"] = self.key
-        store.save_config(self.cfg)
+        self.keep_setting(last_game=self.key)
         self.ui = self.new_board()
         self.clock.reset()
         if resumed is not None:
@@ -1300,12 +1298,18 @@ class App:
         self.camouflage_screen()
         self.message = ""
 
+    def keep_setting(self, **changes: object) -> None:
+        """Make `changes` the new defaults, for this run and in config.json,
+        where the rest of the file stays as it is on disk (a hand edit made
+        since the game started, say) rather than as it was at the start."""
+        self.cfg.update(changes)
+        store.update_config(**changes)
+
     def do_code_skin(self):
         # code skin: keep playing with the board wrapped in source
         ui = self.ui
         ui.code_skin = not ui.code_skin
-        self.cfg["code_skin"] = ui.code_skin
-        store.save_config(self.cfg)
+        self.keep_setting(code_skin=ui.code_skin)
         self.message = "code skin on" if ui.code_skin else "code skin off"
 
     def do_color(self):
@@ -1315,8 +1319,7 @@ class App:
         else:
             self.has_color = not self.has_color
             self.ui.has_color = self.has_color
-            self.cfg["color"] = self.has_color
-            store.save_config(self.cfg)
+            self.keep_setting(color=self.has_color)
             self.message = "colour on" if self.has_color else "colour off (monochrome)"
 
     def do_theme(self):
@@ -1327,8 +1330,7 @@ class App:
             return
         self.theme = themes.next_theme(self.theme)
         self.init_pairs()
-        self.cfg["theme"] = self.theme.name
-        store.save_config(self.cfg)
+        self.keep_setting(theme=self.theme.name)
         self.message = f"{self.theme.name} theme{self.colour_note()}"
 
     def do_four_color(self):
@@ -1338,8 +1340,7 @@ class App:
             return
         self.four_color = not self.four_color
         self.init_pairs()
-        self.cfg["four_color"] = self.four_color
-        store.save_config(self.cfg)
+        self.keep_setting(four_color=self.four_color)
         state = "on" if self.four_color else "off"
         # kept all the same, for the next terminal, which may have the room
         short = self.four_color and getattr(curses, "COLOR_PAIRS", 256) <= themes.CLUB_FACE
@@ -1354,8 +1355,7 @@ class App:
         # toggle the board view: expanded card boxes <-> legacy cells
         new_view = "legacy" if self.ui.view == "expanded" else "expanded"
         self.ui.set_view(new_view)
-        self.cfg["view"] = new_view
-        store.save_config(self.cfg)
+        self.keep_setting(view=new_view)
         self.message = f"{new_view} view" + (
             " (compact)" if new_view == "legacy" else " (full cards)"
         )
@@ -1579,7 +1579,7 @@ class App:
             self.message = "options unchanged"
             return
         store.set_game_options(self.cfg, self.key, newopts)
-        store.save_config(self.cfg)
+        store.update_config(options={self.key: dict(newopts)})
         self.give_up()
         # the next deal, the way n deals it, so a session on a chosen deal
         # goes on to the next number

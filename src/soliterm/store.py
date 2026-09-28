@@ -337,10 +337,31 @@ def save_config(cfg: dict) -> bool:
     if on_disk is None:
         return False
     if not cfg.get("merged_into_aisleriot") and on_disk.get("merged_into_aisleriot") is True:
-        # a copy loaded before the merge (the TUI keeps one for the whole
-        # session) must not clear the flag
+        # a copy loaded before the merge must not clear the flag
         cfg["merged_into_aisleriot"] = True
     return _write_json(config_path(), cfg)
+
+
+def update_config(**changes: object) -> bool:
+    """Save the settings in `changes` to config.json, and only those.
+
+    The file is read again first and the rest of it kept as it is now: a
+    hand edit made since the game started, what another copy of the game
+    saved, or a key this version doesn't know. `options` gives the options
+    of the games that change, and the other games keep theirs. As with
+    save_config, a damaged file is set aside first and one that can't be
+    read is left alone. Returns False if nothing was saved.
+    """
+    data = _read_json(config_path())
+    if data is None:
+        return False
+    for key, value in changes.items():
+        old = data.get(key)
+        if key == "options" and isinstance(value, dict) and isinstance(old, dict):
+            data[key] = {**old, **value}
+        else:
+            data[key] = value
+    return _write_json(config_path(), data)
 
 
 def game_options(cfg: dict, game_key: str) -> dict:
@@ -670,9 +691,7 @@ def _merge_local_into_aisleriot_once() -> None:
     local[META_KEY] = meta
     if not save_stats(local):
         return
-    cfg = load_config()
-    cfg["merged_into_aisleriot"] = True
-    save_config(cfg)
+    update_config(merged_into_aisleriot=True)
     left: dict[str, dict] = {}
     for game_key, lstat in local.items():
         sect = ar.GAME_TO_SECTION.get(game_key)

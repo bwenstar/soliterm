@@ -1,5 +1,6 @@
 """Config persistence, including the UI preferences the TUI toggles save."""
 
+import glob
 import io
 import json
 import os
@@ -178,3 +179,44 @@ def test_a_last_game_that_no_longer_exists_falls_back_to_klondike(monkeypatch, c
     monkeypatch.setattr(sys, "stdin", io.StringIO("q\n"))
     assert main(["--text", "--no-color", "--seed", "1"]) == 0
     assert "Klondike" in capsys.readouterr().out
+
+
+def read_config():
+    with open(store.config_path(), encoding="utf-8") as fh:
+        return json.load(fh)
+
+
+def test_a_change_leaves_the_rest_of_the_file_as_it_is():
+    # a hand edit made since the game loaded the config, and keys and a
+    # game only a newer version knows
+    on_disk = {
+        "theme": "dark",
+        "sync_aisleriot": False,
+        "future_key": [1, 2],
+        "options": {"spider": {"suits": 2}, "pyramid": {"rounds": 3}},
+    }
+    write_config(on_disk)
+    assert store.update_config(color=False, options={"klondike": {"draw": 3}})
+    assert read_config() == {
+        **on_disk,
+        "color": False,
+        "options": {"spider": {"suits": 2}, "pyramid": {"rounds": 3}, "klondike": {"draw": 3}},
+    }
+
+
+def test_new_options_go_over_options_of_the_wrong_type():
+    write_config({"options": [1, 2], "theme": "dark"})
+    assert store.update_config(options={"klondike": {"draw": 3}})
+    assert read_config() == {"options": {"klondike": {"draw": 3}}, "theme": "dark"}
+
+
+@pytest.mark.parametrize("text", [None, "{not json", "[1, 2, 3]", ""])
+def test_a_change_to_a_missing_or_damaged_config_starts_a_new_one(text):
+    if text is not None:
+        os.makedirs(store.config_dir())
+        with open(store.config_path(), "w", encoding="utf-8") as fh:
+            fh.write(text)
+    assert store.update_config(theme="dark")
+    assert read_config() == {"theme": "dark"}
+    kept = glob.glob(store.config_path() + ".corrupt-*")
+    assert len(kept) == (0 if text is None else 1)

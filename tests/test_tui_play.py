@@ -2873,6 +2873,61 @@ def test_c_toggles_the_code_skin_and_saves_it(tui):
     assert store.load_config()["code_skin"] is False
 
 
+# config.json as the player left it by hand while the game was running,
+# with a key only a newer version knows
+HAND_EDITED = {"sync_aisleriot": False, "symbols": False, "future_key": {"on": True}}
+
+
+def edit_config_by_hand():
+    os.makedirs(store.config_dir(), exist_ok=True)
+    with open(store.config_path(), "w", encoding="utf-8") as fh:
+        json.dump(HAND_EDITED, fh)
+
+
+def config_on_disk():
+    with open(store.config_path(), encoding="utf-8") as fh:
+        return json.load(fh)
+
+
+@pytest.mark.parametrize(
+    "keys, saved",
+    [
+        (["v"], "color"),
+        (["t"], "theme"),
+        (["4"], "four_color"),
+        (["c"], "code_skin"),
+        (["x"], "view"),
+        (["b", "\t", "z"], "camo_theme"),
+        (["o", curses.KEY_RIGHT, ENTER], "options"),
+    ],
+)
+def test_a_setting_saves_its_own_key_and_leaves_a_hand_edit_alone(tui, keys, saved):
+    tui([Meanwhile(edit_config_by_hand, keys[0]), *keys[1:], "q"])
+    on_disk = config_on_disk()
+    assert set(on_disk) == {*HAND_EDITED, saved}
+    assert {key: on_disk[key] for key in HAND_EDITED} == HAND_EDITED
+
+
+def test_a_hand_edit_on_the_menu_survives_the_game_it_starts(tui):
+    # the README says to turn sharing off by hand; starting a game used to
+    # save the settings as they were at start over it, and turn it back on
+    tui([Meanwhile(edit_config_by_hand, ENTER), "q"], start_key=None)
+    assert config_on_disk() == {**HAND_EDITED, "last_game": "klondike"}
+    assert store.load_config()["sync_aisleriot"] is False
+
+
+def test_new_options_leave_another_games_options_alone(tui):
+    def spider_options_by_hand():
+        cfg = store.load_config()
+        store.set_game_options(cfg, "spider", {"suits": 2})
+        store.save_config(cfg)
+
+    tui([Meanwhile(spider_options_by_hand, "o"), curses.KEY_RIGHT, ENTER, "q"])
+    cfg = store.load_config()
+    assert store.game_options(cfg, "spider") == {"suits": 2}
+    assert store.game_options(cfg, "klondike")["draw"] == 3
+
+
 def code_skin_on():
     cfg = store.load_config()
     cfg["code_skin"] = True
