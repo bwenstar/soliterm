@@ -850,10 +850,13 @@ def _reset_stats() -> int | None:
     return cleared
 
 
-def percentage(stat: dict) -> float | None:
+def percent_text(stat: dict) -> str:
+    """The games won as a percentage of those played, as the statistics show
+    it: N/A with none played, and rounded as AisleRiot rounds it, with a half
+    going up (1 won of 8 is 13%)."""
     if stat["total"] <= 0:
-        return None
-    return 100.0 * stat["wins"] / stat["total"]
+        return "N/A"
+    return f"{int(100.0 * stat['wins'] / stat['total'] + 0.5)}%"
 
 
 def fmt_time(seconds: float) -> str:

@@ -618,8 +618,7 @@ class App:
         y += 1
         for key in GAME_ORDER:
             s = store.get_stat(key)
-            pct = store.percentage(s)
-            pcts = "N/A" if pct is None else f"{pct:.0f}%"
+            pcts = store.percent_text(s)
             best = "N/A" if s["best"] == 0 else store.fmt_time(s["best"])
             worst = "N/A" if s["worst"] == 0 else store.fmt_time(s["worst"])
             # only the games played here are in the history
@@ -1703,8 +1702,7 @@ class App:
         the streak are there even when empty, so the choices don't move up.
         A note from win_note goes after the best time."""
         game = self.game
-        pct = store.percentage(stat)
-        pcts = "N/A" if pct is None else f"{pct:.0f}%"
+        pcts = store.percent_text(stat)
         streak = history.streak_text(self.key) if won else ""
         deal = f"daily {game.daily}" if game.daily else game.deal_number
         return [

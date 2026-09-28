@@ -482,6 +482,13 @@ def test_stats_show_recorded_games(cli):
     assert stats_row(lines, "spider") == ["0", "0", "N/A", "N/A", "N/A", "N/A", "N/A"]
 
 
+@pytest.mark.parametrize(("wins", "total", "shown"), [(1, 8, "13%"), (1, 200, "1%"), (0, 0, "N/A")])
+def test_stats_round_a_half_percent_up_as_aisleriot_does(cli, wins, total, shown):
+    store.save_stats({"golf": {"wins": wins, "total": total, "best": 50, "worst": 50}})
+    _rc, lines = cli("--stats")
+    assert stats_row(lines, "golf")[2] == shown
+
+
 def test_stats_flag_prints_recent_games(cli, monkeypatch):
     days = iter(range(1, 13))
     monkeypatch.setattr(history, "now", lambda: f"2026-09-{next(days):02d}T14:05:11+10:00")

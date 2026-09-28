@@ -158,8 +158,7 @@ def print_stats() -> None:
     streaks = history.streaks()
     for key in GAME_ORDER:
         s = store.get_stat(key)
-        pct = store.percentage(s)
-        pcts = "N/A" if pct is None else f"{pct:.0f}%"
+        pcts = store.percent_text(s)
         best = "N/A" if s["best"] == 0 else store.fmt_time(s["best"])
         worst = "N/A" if s["worst"] == 0 else store.fmt_time(s["worst"])
         cur, longest = streaks.get(key, ("N/A", "N/A"))

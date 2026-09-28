@@ -1345,6 +1345,12 @@ def test_the_no_moves_banner_counts_the_game_it_ends(tui):
     assert store.get_stat("golf")["total"] == 1
 
 
+def test_the_banner_rounds_a_half_percent_up_as_aisleriot_does(tui):
+    store.save_stats({"golf": {"wins": 1, "total": 7, "best": 50, "worst": 50}})
+    scr = tui(["f", "m"], start_key="golf", game=one_move_left())
+    assert "Wins/Total  : 1/8  (13%)" in scr.frames[1]
+
+
 @pytest.mark.parametrize("k", ["n", "m", KeyboardInterrupt])
 def test_a_game_with_no_moves_left_counts_once_the_player_gives_it_up(tui, k):
     tui(["f", k], start_key="golf", game=one_move_left())
@@ -2760,6 +2766,12 @@ def test_the_stats_screen_shows_streak_columns(tui):
     assert "      Golf                 2      2   100%    1:00    1:00       2       2" in lines
     # a game with no history here has no streak to show
     assert "      Spider               0      0    N/A     N/A     N/A     N/A     N/A" in lines
+
+
+def test_the_stats_screen_rounds_a_half_percent_up_as_aisleriot_does(tui):
+    store.save_stats({"golf": {"wins": 1, "total": 8, "best": 50, "worst": 50}})
+    lines = [line.rstrip() for line in tui(["s", "z"]).frames[1].split("\n")]
+    assert "      Golf                 1      8    13%    0:50    0:50     N/A     N/A" in lines
 
 
 def test_the_stats_screen_says_they_are_shared_with_aisleriot(tui, keyfile):
