@@ -229,7 +229,10 @@ Leaving always goes the same way, whatever the reason:
 
 Text mode does the same in `run_text`, except that it only keeps games
 for someone typing at a terminal. A script's game is counted, as it
-always has been.
+always has been. Any other error out of its loop puts the game away too
+before it goes on, since on Linux a closing terminal's read fails with
+EIO before the SIGHUP comes, and a second call to `put_away` does
+nothing.
 
 ## Tests
 

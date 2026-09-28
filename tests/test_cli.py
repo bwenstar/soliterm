@@ -967,6 +967,100 @@ def test_a_signal_as_text_mode_resumes_puts_the_game_back(cli, monkeypatch, stop
     assert store.get_stat("klondike")["total"] == 0
 
 
+def keep_deal_7():
+    """Klondike deal 7 kept for next time, as KEPT_42 tells of it."""
+    g = deal("klondike", 7)
+    g.deal()
+    g.moves = 31
+    assert saves.keep(g, 42)
+
+
+class TtyBytes(io.BytesIO):
+    """The bytes typed at a terminal, for a stdin that decodes them itself."""
+
+    def isatty(self):
+        return True
+
+
+def test_a_byte_that_isnt_utf_8_is_a_bad_command(monkeypatch, capsys, stopped_clock):
+    keep_deal_7()
+    # as a Latin-1 terminal or a binary paste sends it
+    stdin = io.TextIOWrapper(TtyBytes(b"\xff\nq\n"), encoding="utf-8")
+    monkeypatch.setattr(sys, "stdin", stdin)
+    assert main(["--text"]) == 0
+    lines = capsys.readouterr().out.splitlines()
+    assert "bad command: '\\udcff' (try h)" in lines
+    assert lines[-3:] == [*KEPT_42, "bye"]
+    assert saves.waiting() == {"klondike": {"seconds": 42, "moves": 31}}
+
+
+class HungUp:
+    """A terminal that closes after what was typed at it: the next read
+    fails with EIO, as it does on Linux before the SIGHUP comes."""
+
+    def __init__(self, typed):
+        self.typed = typed.splitlines(keepends=True)
+        self.closed = False
+
+    def isatty(self):
+        return True
+
+    def __iter__(self):
+        yield from self.typed
+        self.closed = True
+        raise OSError(errno.EIO, "Input/output error")
+
+
+@pytest.mark.parametrize(
+    "resumed, typed, kept",
+    [(False, "d\n", {"seconds": 0, "moves": 1}), (True, "", {"seconds": 42, "moves": 31})],
+    ids=["new", "resumed"],
+)
+def test_closing_the_terminal_keeps_the_game(monkeypatch, stopped_clock, resumed, typed, kept):
+    if resumed:
+        keep_deal_7()
+    monkeypatch.setattr(sys, "stdin", HungUp(typed))
+    with pytest.raises(OSError, match="Input/output error"):
+        main(["--text"])
+    assert saves.waiting() == {"klondike": kept}
+    assert store.get_stat("klondike")["total"] == 0
+
+
+def test_a_hangup_as_a_closed_terminal_is_left_still_keeps_the_game(monkeypatch, stopped_clock):
+    stdin = HungUp("d\n")
+    real = store.signals_held
+    came = []
+
+    def signals_held():
+        if stdin.closed and not came:
+            # the SIGHUP after the EIO, landing before it can be held back
+            came.append(True)
+            raise KeyboardInterrupt
+        return real()
+
+    monkeypatch.setattr(store, "signals_held", signals_held)
+    monkeypatch.setattr(sys, "stdin", stdin)
+    assert main(["--text"]) == 130
+    assert saves.waiting() == {"klondike": {"seconds": 0, "moves": 1}}
+    assert store.get_stat("klondike")["total"] == 0
+
+
+class GoneAway(io.StringIO):
+    """stdout into a reader that has stopped reading, as head does."""
+
+    def write(self, text):
+        raise BrokenPipeError(errno.EPIPE, "Broken pipe")
+
+
+def test_output_nobody_reads_keeps_a_resumed_game(monkeypatch, stopped_clock):
+    keep_deal_7()
+    monkeypatch.setattr(sys, "stdout", GoneAway())
+    monkeypatch.setattr(sys, "stdin", TtyInput("p\n" * 60))
+    assert main(["--text"]) == 141
+    assert saves.waiting() == {"klondike": {"seconds": 42, "moves": 31}}
+    assert store.get_stat("klondike")["total"] == 0
+
+
 @pytest.mark.parametrize(
     "chosen", [("--deal", "3"), ("--draw", "3")], ids=["a deal number", "an option"]
 )

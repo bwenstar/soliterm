@@ -315,6 +315,10 @@ def run_text(
     """
     out = sys.stdout
     inp = stream if stream is not None else sys.stdin
+    if stream is None and hasattr(inp, "reconfigure"):
+        # a byte stdin's encoding has no character for, as from a Latin-1
+        # terminal or a binary paste, is then a bad command, not a crash
+        inp.reconfigure(errors="surrogateescape")
     # a cp1252 or ASCII stdout has no suit symbols; letters beat a crash
     symbols = symbols and _can_write(out, "".join(SUIT_SYMBOL.values()))
     theme = camo_theme if camo_theme in camo.THEMES else camo.DEFAULT_THEME
@@ -368,7 +372,8 @@ def run_text(
         # with saves.keep's notice saying why; a win not counted yet, as
         # when Ctrl-C comes just as it's made, counts as won. Signals wait
         # until it's done, so one can't cut it off halfway. A deal nobody
-        # touched has nothing to keep, so it doesn't wait for the lock.
+        # touched has nothing to keep, so it doesn't wait for the lock, and
+        # nor does one already put away, so calling it again does nothing.
         nonlocal recorded
         won = g.is_won() and not recorded
         if not won and not under_way():
@@ -387,74 +392,82 @@ def run_text(
             give_up()
 
     try:
-        if resume:
-            # From the take on, the game is out of the saves folder until
-            # put_away puts it back, so a signal waits until it is in play
-            with store.signals_held():
-                taken = saves.take(game_key)
-                if taken is not None:
-                    g, played = taken
-                    start -= played
-                    resumed = True
-        g.symbols = symbols  # hints name cards as the board does
-        name = g.gamedef.name
-        print(f"{APP_NAME} - {name} - {deal_label(g)} (text mode). Type h for help.", file=out)
-        if resumed:
-            print(f"Resumed your {name} game ({so_far()}). Type n for a new deal.", file=out)
-        elif note := unkept():
-            print(note, file=out)
-        print(file=out)
-        print(render_text(g, symbols, color), file=out)
-        for raw in inp:
-            line = raw.strip()
-            if not line:
-                continue
-            _ok, msg = apply_text_command(g, line)
-            if msg == "__quit__":
-                put_away()
-                print("bye", file=out)
-                return 0
-            if msg == "__newdeal__":
-                give_up()
-                g.new_game()
-                start, recorded, resumed = time.monotonic(), False, False
-                msg = f"new deal {g.deal_number}"
-                if note := unkept():
-                    msg = f"{msg}\n{note}"
-            elif msg == "__restart__":
-                # the same hand again: AisleRiot does not count a restart
-                g.restart()
-                start, recorded, resumed = time.monotonic(), False, False
-                msg = "restarted this deal"
-            if msg == "__print__":
-                print(render_text(g, symbols, color), file=out)
-                continue
-            if msg == "__boss__":
-                boss()
-                continue
-            if msg == TEXT_HELP:
-                print(msg, file=out)
-                continue
-            if msg:
-                print(msg, file=out)
+        try:
+            if resume:
+                # From the take on, the game is out of the saves folder until
+                # put_away puts it back, so a signal waits until it is in play
+                with store.signals_held():
+                    taken = saves.take(game_key)
+                    if taken is not None:
+                        g, played = taken
+                        start -= played
+                        resumed = True
+            g.symbols = symbols  # hints name cards as the board does
+            name = g.gamedef.name
+            print(f"{APP_NAME} - {name} - {deal_label(g)} (text mode). Type h for help.", file=out)
+            if resumed:
+                print(f"Resumed your {name} game ({so_far()}). Type n for a new deal.", file=out)
+            elif note := unkept():
+                print(note, file=out)
+            print(file=out)
             print(render_text(g, symbols, color), file=out)
-            if g.is_won() and not recorded:
-                secs = seconds()
-                count(True, secs)
-                print("Congratulations - you won!", file=out)
-                print(
-                    f"Score {g.score} in {store.fmt_time(secs)} ({store.moves_text(g.moves)}).",
-                    file=out,
-                )
-                print(f"Share code: {code_of(g)}", file=out)
-                if g.daily:
-                    print(share_line(g.gamedef.name, g.daily, True, secs, g.moves), file=out)
-                streak = history.streak_text(game_key)
-                if streak:
-                    print(f"{streak}.", file=out)
-                return 0
-        put_away()  # the input ran out: Ctrl-D, or the end of a script
-        return 0
+            for raw in inp:
+                line = raw.strip()
+                if not line:
+                    continue
+                _ok, msg = apply_text_command(g, line)
+                if msg == "__quit__":
+                    put_away()
+                    print("bye", file=out)
+                    return 0
+                if msg == "__newdeal__":
+                    give_up()
+                    g.new_game()
+                    start, recorded, resumed = time.monotonic(), False, False
+                    msg = f"new deal {g.deal_number}"
+                    if note := unkept():
+                        msg = f"{msg}\n{note}"
+                elif msg == "__restart__":
+                    # the same hand again: AisleRiot does not count a restart
+                    g.restart()
+                    start, recorded, resumed = time.monotonic(), False, False
+                    msg = "restarted this deal"
+                if msg == "__print__":
+                    print(render_text(g, symbols, color), file=out)
+                    continue
+                if msg == "__boss__":
+                    boss()
+                    continue
+                if msg == TEXT_HELP:
+                    print(msg, file=out)
+                    continue
+                if msg:
+                    print(msg, file=out)
+                print(render_text(g, symbols, color), file=out)
+                if g.is_won() and not recorded:
+                    secs = seconds()
+                    count(True, secs)
+                    print("Congratulations - you won!", file=out)
+                    print(
+                        f"Score {g.score} in {store.fmt_time(secs)} ({store.moves_text(g.moves)}).",
+                        file=out,
+                    )
+                    print(f"Share code: {code_of(g)}", file=out)
+                    if g.daily:
+                        print(share_line(g.gamedef.name, g.daily, True, secs, g.moves), file=out)
+                    streak = history.streak_text(game_key)
+                    if streak:
+                        print(f"{streak}.", file=out)
+                    return 0
+            put_away()  # the input ran out: Ctrl-D, or the end of a script
+            return 0
+        except Exception:
+            # the input or the output gone, as when a closing terminal's read
+            # fails before its SIGHUP comes, or a bug: the game is kept or
+            # counted as it is for q, and the error goes on. Inside the
+            # handler below, so a signal landing meanwhile puts it away again.
+            put_away()
+            raise
     except KeyboardInterrupt:
         # Ctrl-C leaves like q does, minus the traceback, and so do SIGHUP
         # and SIGTERM, which the command line turns into this
