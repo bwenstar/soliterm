@@ -1117,11 +1117,12 @@ def test_without_curses_text_mode_says_why(terminal, monkeypatch, capsys):
 def test_without_curses_on_windows_suggests_windows_curses(terminal, monkeypatch, capsys):
     exc = ModuleNotFoundError("No module named '_curses'", name="_curses")
     failing_tui_import(monkeypatch, exc)
+    real = os.name
     monkeypatch.setattr(os, "name", "nt")
     try:
         terminal("--game", "golf")
     finally:
-        monkeypatch.setattr(os, "name", "posix")
+        monkeypatch.setattr(os, "name", real)
     assert terminal.started == ["text"]
     err = capsys.readouterr().err
     assert "pip install windows-curses" in err and "text mode" in err
@@ -1180,11 +1181,12 @@ def test_a_terminal_that_cannot_move_the_cursor_means_text_mode(terminal, monkey
 
 def test_the_windows_console_needs_no_terminal_type(terminal, monkeypatch, capsys):
     monkeypatch.delenv("TERM")
+    real = os.name
     monkeypatch.setattr(os, "name", "nt")
     try:
         terminal("--game", "golf")
     finally:
-        monkeypatch.setattr(os, "name", "posix")
+        monkeypatch.setattr(os, "name", real)
     assert terminal.started == ["tui"]
     assert capsys.readouterr().err == ""
 
