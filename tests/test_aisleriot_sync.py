@@ -237,6 +237,7 @@ def test_a_failed_write_leaves_the_keyfile_intact(keyfile, monkeypatch):
     assert os.listdir(path.parent) == ["aisleriot"]
 
 
+@pytest.mark.skipif(os.name != "posix", reason="needs POSIX file modes")
 def test_rewriting_the_keyfile_keeps_its_mode(keyfile):
     path = keyfile(KEYFILE)
     os.chmod(path, 0o644)
