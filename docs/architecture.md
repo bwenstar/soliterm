@@ -97,7 +97,9 @@ moves left, and read a key.
    allows there. With cards already in hand,
    it calls `drop_on`, which asks the engine for
    `attempt_move`. When the whole run can't land, it tries the shorter
-   runs off the top, so a drop puts down as many cards as will go.
+   runs off the top, so a drop puts down as many cards as will go. One
+   that follows the last hint, from its pile to its place with the run
+   Enter lifted, puts down the cards the hint names first.
 4. Back in `handle_key`, the first move starts the clock, and when every
    card left can go up, the message line offers the finish.
 5. The next time round, `App.draw` hands the game, the cursor, what's in

@@ -337,6 +337,54 @@ def test_a_hint_marks_every_card_it_would_move():
     assert app.stdscr.attrs[cell_of(app, a, 3)] & curses.A_BOLD
 
 
+def yukon_app(*columns):
+    """An App playing Yukon with only the first few columns dealt."""
+    app = App(KeyScr())
+    app.start_game("yukon")
+    clear_board(app.game)
+    t = app.game.ids_of("tableau")
+    for sid, cards in zip(t, columns):
+        app.game.slots[sid].cards = list(cards)
+    return app, t
+
+
+# Yukon lifts any face-up cards, and the 8S alone or 8C to 8S both go on
+# the 9H: the hint moves the one card, and Enter lifts all four
+EIGHTS = [up(8, "C"), up(7, "H"), up(6, "C"), up(8, "S")]
+
+
+def test_following_a_hint_with_the_keys_makes_the_move_it_names():
+    app, (a, b, *_) = yukon_app(EIGHTS, [up(9, "H")])
+    assert app.game.hint_move() == (a, b, 1)
+    press(app, "h", ENTER)
+    assert (app.selected, app.selected_n) == (a, 4)
+    press(app, curses.KEY_RIGHT, ENTER)
+    assert names(app, a) == ["8C", "7H", "6C"]
+    assert names(app, b) == ["9H", "8S"]
+
+
+def test_the_lift_keys_still_say_how_many_cards_follow_a_hint():
+    app, (a, b, *_) = yukon_app(EIGHTS, [up(9, "H")])
+    press(app, "h", ENTER, "-", "+", curses.KEY_RIGHT, ENTER)
+    assert names(app, a) == []
+    assert names(app, b) == ["9H", "8C", "7H", "6C", "8S"]
+
+
+def test_a_drop_the_hint_did_not_name_lifts_the_longest_run():
+    app, (a, b, c, *_) = yukon_app(EIGHTS, [up(9, "H")], [up(9, "D")])
+    assert app.game.hint_move() == (a, b, 1)
+    press(app, "h", ENTER, curses.KEY_RIGHT, curses.KEY_RIGHT, ENTER)
+    assert names(app, c) == ["9D", "8C", "7H", "6C", "8S"]
+
+
+def test_a_hint_is_followed_once_and_not_again_after_an_undo():
+    app, (a, b, *_) = yukon_app(EIGHTS, [up(9, "H")])
+    press(app, "h", ENTER, curses.KEY_RIGHT, ENTER, "u")
+    assert names(app, a) == [str(c) for c in EIGHTS]
+    press(app, curses.KEY_LEFT, ENTER, curses.KEY_RIGHT, ENTER)
+    assert names(app, b) == ["9H", "8C", "7H", "6C", "8S"]
+
+
 def test_a_hint_with_nothing_to_suggest_says_what_the_game_says(monkeypatch):
     # the game knows whether dealing or undoing could still help
     monkeypatch.setattr(Solitaire, "no_hint_reason", lambda self: "nothing helps")

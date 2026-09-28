@@ -272,6 +272,9 @@ class App:
         self.cursor = 0
         self.hint: tuple[int, int, str] | None = None
         self.hint_n = 1  # how many cards the hint would move
+        # the move the last hint named and the board it was named on, kept
+        # for drop_on past the keys that clear the hint (see hinted_drop)
+        self.hinted: tuple[tuple[int, int, int], str] | None = None
         self.message = ""
         self.recorded = False  # counted, or put away in the saves folder
         # the end banner is up, so leaving now gives the game up
@@ -972,6 +975,7 @@ class App:
         self.played = None
         self.cursor = self.first_cursor()
         self.hint = None
+        self.hinted = None
         self.message = START_MESSAGE
         self.recorded = False
         self.dead_end_undone = False
@@ -1117,7 +1121,11 @@ class App:
         if self.selected is None:
             return
         game = self.game
-        ok = game.attempt_move(self.selected, sid, self.selected_n)
+        # following the hint makes the move it names, not the longest run
+        n = self.hinted_drop(sid)
+        ok = n > 0 and game.attempt_move(self.selected, sid, n)
+        if not ok:
+            ok = game.attempt_move(self.selected, sid, self.selected_n)
         if not ok and not self.selected_exact:
             # The default selection grabs the largest movable run, but the
             # whole run may not legally land here while a SUB-run does (e.g.
@@ -1132,6 +1140,22 @@ class App:
         self.selected = None
         self.selected_exact = False
         self.hint = None
+        self.hinted = None
+
+    def hinted_drop(self, dst: int) -> int:
+        """How many cards the last hint moves, if dropping the selection on
+        dst follows it, else 0. It does if the hint was for this board and
+        named a move from the selected pile to dst, and the player took
+        what Enter lifts rather than choosing how many with + or - or a
+        click on a card. Enter lifts the longest run, where the hint may
+        move fewer cards to the same place.
+        """
+        if self.hinted is None or self.selected_exact:
+            return 0
+        (src, to, n), board = self.hinted
+        if (src, to) != (self.selected, dst) or board != self.game.serialize():
+            return 0
+        return n
 
     def to_foundation(self, sid: int):
         if self.game.double_click(sid):
@@ -1213,6 +1237,7 @@ class App:
         self.last_click = None
         self.played = None
         self.hint = None
+        self.hinted = None
         self.cursor = self.first_cursor()
 
     def finish(self, won: bool) -> bool:
@@ -1382,12 +1407,14 @@ class App:
 
     def do_hint(self):
         self.hint = self.game.hint()
+        self.hinted = None
         if self.hint is None:
             # the game says why, and whether an undo could still help
             self.message = self.game.no_hint_reason()
         else:
             hsrc, hdst, desc = self.hint
             self.hint_n = self.hinted_run(hsrc, hdst)
+            self.hinted = ((hsrc, hdst, self.hint_n), self.game.serialize())
             # move the cursor to the suggested source for convenience
             self.cursor = hsrc
             self.message = f"Hint: {desc}"
