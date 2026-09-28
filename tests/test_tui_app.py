@@ -242,7 +242,7 @@ def test_the_code_skin_status_names_the_deal():
     cfg["code_skin"] = True
     store.save_config(cfg)
     _app, status = board_on("klondike")
-    assert "    # score=0 moves=0 t=0:00 deal=5  Stock: 24" in status
+    assert "  # score=0 moves=0 t=0:00 deal=5  Stock: 24" in status
 
 
 def test_main_hands_curses_wrapper_its_settings_by_name(monkeypatch):

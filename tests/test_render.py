@@ -754,6 +754,39 @@ def test_the_win_shows_in_full_on_the_status_line_at_80_columns(monkeypatch, key
     assert "*** YOU WIN! ***" in scr.text().splitlines()[21]
 
 
+def code_status(g, elapsed):
+    """The code skin's status row for g at 80x24, after `elapsed` seconds."""
+    scr = FakeScr(24, 80)
+    ui = tui.BoardUI(scr, g, symbols=False, has_color=False)
+    ui.code_skin = True
+    ui.draw(None, 1, None, None, elapsed, "")
+    return scr.text().splitlines()[21][ui._gutter :]
+
+
+@pytest.mark.parametrize("key", GAME_ORDER)
+def test_the_code_skin_status_shows_the_games_own_in_full_at_80_columns(key):
+    # a daily's deal number, and a long game's numbers
+    g = deal(key, 1)
+    g.deal_number, g.score, g.moves = 20260929, 1234, 1234
+    status = code_status(g, 83 * 60 + 45)
+    assert status.startswith("# score=1234 moves=1234 t=83:45 ")
+    assert status.endswith(f"  {g.status}")
+
+
+def test_the_code_skin_status_keeps_the_deal_while_there_is_room():
+    g = deal("golf", 1)
+    g.deal_number, g.score, g.moves = 20260929, 1234, 1234
+    status = code_status(g, 83 * 60 + 45)
+    assert status == f"# score=1234 moves=1234 t=83:45 deal=20260929  {g.status}"
+
+
+def test_the_code_skin_status_leaves_the_moves_out_after_the_deal():
+    g = deal("canfield", 1)
+    g.deal_number, g.score, g.moves = 20260929, 1234567, 1234567
+    status = code_status(g, 99999 * 60)
+    assert status == f"# score=1234567 t=99999:00  {g.status}"
+
+
 # -- the win's cascade ---------------------------------------------------------------
 
 

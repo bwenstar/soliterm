@@ -753,13 +753,25 @@ class BoardUI:
             # so the code background underneath these rows is fully cleared.
             comment = self.CP(COMMENT)
             pad = w - self._gutter - 1
-            stat = (
-                f"    # score={g.score} moves={g.moves} "
-                f"t={store.fmt_time(elapsed)} deal={g.deal_number}  {won}{g.status}"
-            )
+            counts = {
+                "score": g.score,
+                "moves": g.moves,
+                "t": store.fmt_time(elapsed),
+                "deal": g.deal_number,
+            }
+            # the game's own status is what matters, so a line too long for
+            # the screen goes without the deal (Play a deal and the end
+            # banner show it), then the moves, then the score
+            drop = ["deal", "moves", "score"]
+            while True:
+                shown = " ".join(f"{k}={v}" for k, v in counts.items())
+                stat = f"# {shown}  {won}{g.status}"
+                if len(stat) <= pad or not drop:
+                    break
+                del counts[drop.pop(0)]
             self.safe_add(sy, self._gutter, stat.ljust(pad)[:pad], comment)
             note = message or "code-skin mode (c to toggle)"
-            self.safe_add(sy + 1, self._gutter, f"    # {note}".ljust(pad)[:pad], comment)
+            self.safe_add(sy + 1, self._gutter, f"# {note}".ljust(pad)[:pad], comment)
         else:
             left = (
                 f"Score {g.score}   Time {store.fmt_time(elapsed)}   "
