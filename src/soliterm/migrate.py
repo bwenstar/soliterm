@@ -50,7 +50,7 @@ def _object(raw: bytes | None) -> dict | None:
     if raw is None:
         return None
     try:
-        data = json.loads(raw.decode("utf-8"))
+        data = json.loads(raw)  # read as the store reads it (see _read_json)
     except (ValueError, RecursionError):
         return None
     return data if isinstance(data, dict) else None

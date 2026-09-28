@@ -90,7 +90,10 @@ def _read_json(path: str) -> dict | None:
         )
         return None
     try:
-        data = json.loads(raw.decode("utf-8"))
+        # given bytes, json works out the encoding: UTF-8 with or without
+        # the BOM Notepad puts in, or UTF-16 or UTF-32 as PowerShell may save
+        # it (a file that fits none raises a ValueError too)
+        data = json.loads(raw)
     except (ValueError, RecursionError):
         data = None
     if isinstance(data, dict):

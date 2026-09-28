@@ -94,6 +94,26 @@ def test_a_damaged_config_is_kept_aside():
     assert any(kept[0] in n for n in store.notices())
 
 
+@pytest.mark.parametrize("encoding", ["utf-8-sig", "utf-16"], ids=["with a BOM", "UTF-16"])
+def test_files_saved_with_a_bom_or_in_utf_16_are_read(encoding):
+    # as Notepad and PowerShell save a file edited by hand on Windows
+    for path, obj in [
+        (store.config_path(), {"last_game": "golf", "symbols": False}),
+        (store.stats_path(), {"golf": stat(2, 3, 40, 90)}),
+    ]:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding=encoding) as fh:
+            json.dump(obj, fh)
+    assert store.load_config()["last_game"] == "golf"
+    assert store.load_config()["symbols"] is False
+    assert store.get_stat("golf") == stat(2, 3, 40, 90)
+    store.record_result("golf", won=True, seconds=42)
+    assert store.get_stat("golf") == stat(3, 4, 40, 90)
+    assert glob.glob(store.config_path() + ".corrupt-*") == []
+    assert glob.glob(store.stats_path() + ".corrupt-*") == []
+    assert store.notices() == []
+
+
 def test_two_damaged_files_in_the_same_second_are_both_kept(monkeypatch):
     monkeypatch.setattr(store.time, "strftime", lambda fmt, *a: "20260101-120000")
     write(store.stats_path(), "{one")

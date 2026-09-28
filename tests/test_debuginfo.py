@@ -195,6 +195,22 @@ def test_debug_info_shows_only_the_merge_markers(
     assert value(debug_info(), "sharing") == f"on; merged: {merged}; games waiting: 0"
 
 
+@pytest.mark.parametrize("encoding", ["utf-8-sig", "utf-16"], ids=["with a BOM", "UTF-16"])
+def test_debug_info_reads_files_saved_with_a_bom_or_in_utf_16(
+    debug_info, isolated_home, keyfile, encoding
+):
+    keyfile(AR_KLONDIKE)
+    put(config_file(isolated_home), json.dumps({"sync_aisleriot": False}).encode(encoding))
+    meta = {"merged_into_aisleriot": True, "unsynced": {"golf": stat(1, 1, 50, 50)}}
+    put(stats_file(isolated_home), json.dumps({store.META_KEY: meta}).encode(encoding))
+    lines = debug_info()
+    assert value(lines, "config") == f"{tilde('.config', 'soliterm', 'config.json')} (there)"
+    assert value(lines, "stats") == f"{tilde('.local', 'share', 'soliterm', 'stats.json')} (there)"
+    assert value(lines, "sharing") == (
+        "off (sync_aisleriot is false in config.json); merged: yes; games waiting: 1"
+    )
+
+
 # -- what it leaves alone ----------------------------------------------------------------
 
 
@@ -220,7 +236,7 @@ def old_home(home):
 def damaged_home(home):
     """Settings and stats the next run moves aside."""
     put(config_file(home), b'{"last_game": "golf"')
-    put(stats_file(home), b"\xff\xfe not UTF-8")
+    put(stats_file(home), b"\x80 not UTF-8")
     put(home / ".config" / "gnome-games" / "aisleriot", AR_KLONDIKE)
 
 
@@ -252,7 +268,7 @@ def test_debug_info_runs_before_migration(debug_info, isolated_home):
 
 @pytest.mark.parametrize(
     "broken",
-    [b'{"last_game": "golf"', b"[1, 2]", b"\xff\xfe not UTF-8"],
+    [b'{"last_game": "golf"', b"[1, 2]", b"\x80 not UTF-8"],
     ids=["cut short", "not an object", "not UTF-8"],
 )
 def test_debug_info_leaves_a_broken_config_where_it_is(debug_info, isolated_home, broken):

@@ -86,7 +86,7 @@ def _json_file(path: str) -> tuple[str, dict]:
     if raw is None:
         return state, {}
     try:
-        data = json.loads(raw.decode("utf-8"))
+        data = json.loads(raw)  # read as the store reads it (see _read_json)
     except (ValueError, RecursionError):
         data = None
     if not isinstance(data, dict):

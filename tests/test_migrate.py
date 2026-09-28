@@ -2,6 +2,7 @@
 soliterm folders the first time, and the AisleRiot merge never runs twice.
 """
 
+import glob
 import json
 import ntpath
 import os
@@ -22,7 +23,8 @@ def stat(wins, total, best, worst):
 
 @pytest.fixture
 def old(isolated_home):
-    """Paths of aisle-cli's files, and put(name, obj_or_text) to write one."""
+    """Paths of aisle-cli's files, and put(name, value) to write one, as
+    JSON unless it is bytes or text."""
     paths = {
         "config": isolated_home / ".config" / "aisle-cli" / "config.json",
         "stats": isolated_home / ".local" / "share" / "aisle-cli" / "stats.json",
@@ -31,7 +33,12 @@ def old(isolated_home):
     def put(name, value):
         path = paths[name]
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(value if isinstance(value, str) else json.dumps(value), encoding="utf-8")
+        if isinstance(value, bytes):
+            path.write_bytes(value)
+        else:
+            path.write_text(
+                value if isinstance(value, str) else json.dumps(value), encoding="utf-8"
+            )
         return path
 
     put.paths = paths
@@ -181,6 +188,20 @@ def test_damaged_old_files_are_copied_as_they_are(old, capsys):
     kept = [n for n in os.listdir(store.data_dir()) if ".corrupt-" in n]
     assert len(kept) == 1
     assert old.paths["config"].read_text() == "{not json"
+
+
+@pytest.mark.parametrize("encoding", ["utf-8-sig", "utf-16"], ids=["with a BOM", "UTF-16"])
+def test_old_files_saved_with_a_bom_or_in_utf_16_are_read(old, encoding):
+    old("config", json.dumps({"last_game": "golf", "merged_into_aisleriot": True}).encode(encoding))
+    old("stats", json.dumps({"golf": stat(2, 3, 40, 90)}).encode(encoding))
+    migrate.ensure()
+    assert store.load_config()["last_game"] == "golf"
+    assert store.load_config()["migrated_from"]["app"] == "aisle-cli"
+    assert store.get_stat("golf") == stat(2, 3, 40, 90)
+    # the old config's merge flag was read, and now sits with the stats
+    assert store.load_stats()[store.META_KEY] == {"merged_into_aisleriot": True}
+    assert glob.glob(store.config_path() + ".corrupt-*") == []
+    assert glob.glob(store.stats_path() + ".corrupt-*") == []
 
 
 def test_an_unreadable_old_file_is_tried_again_next_time(old, monkeypatch, capsys):
