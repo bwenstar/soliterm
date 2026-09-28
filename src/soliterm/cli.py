@@ -12,9 +12,11 @@
 from __future__ import annotations
 
 import argparse
+import errno
 import functools
 import os
 import signal
+import stat
 import sys
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -282,17 +284,20 @@ def _quiet_on_broken_pipe(main: Callable[..., int]) -> Callable[..., int]:
     """End quietly when whoever reads our output stops reading.
 
     Output piped into head, or a pager quit early, closes the pipe: the next
-    write raises BrokenPipeError, and so does Python's own flush at exit.
-    Pointing stdout at devnull leaves that last flush nowhere to fail.
+    write raises BrokenPipeError (OSError EINVAL on Windows), and so does
+    Python's own flush at exit. Pointing stdout at devnull leaves that last
+    flush nowhere to fail.
     """
 
     @functools.wraps(main)
     def run(*args, **kwargs) -> int:
         try:
             rc = main(*args, **kwargs)
-            sys.stdout.flush()  # so a late EPIPE comes up here
+            sys.stdout.flush()  # so a late broken pipe comes up here
             return rc
-        except BrokenPipeError:
+        except OSError as exc:
+            if not _reader_went_away(exc):
+                raise
             try:
                 _to_devnull(sys.stdout.fileno())
             except (OSError, ValueError):
@@ -300,6 +305,22 @@ def _quiet_on_broken_pipe(main: Callable[..., int]) -> Callable[..., int]:
             return 141  # what a shell shows for SIGPIPE
 
     return run
+
+
+def _reader_went_away(exc: OSError) -> bool:
+    """True if `exc` is a write to a pipe nobody reads any more.
+
+    Windows says EINVAL there, where other systems say EPIPE, so there an
+    EINVAL counts when stdout is a pipe and it wasn't about a file name.
+    """
+    if isinstance(exc, BrokenPipeError):
+        return True
+    if os.name != "nt" or exc.errno != errno.EINVAL or exc.filename is not None:
+        return False
+    try:
+        return stat.S_ISFIFO(os.fstat(sys.stdout.fileno()).st_mode)
+    except (OSError, ValueError):
+        return False  # a stdout with no file behind it
 
 
 def _to_devnull(*fds: int) -> None:

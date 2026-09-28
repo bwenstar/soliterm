@@ -1,5 +1,6 @@
 """The command line: --list, --stats, --reset-stats and a scripted text session."""
 
+import errno
 import io
 import json
 import os
@@ -1260,6 +1261,72 @@ def test_output_to_a_reader_that_went_away_ends_quietly(args, stdin):
         os.close(w)
     assert p.stderr == ""
     assert p.returncode == 141
+
+
+@pytest.fixture
+def pipe():
+    """A file on a pipe whose reader is still there, to stand in for stdout."""
+    r, w = os.pipe()
+    with os.fdopen(w, "w") as out:
+        yield out
+    os.close(r)
+
+
+@pytest.fixture
+def nulled(monkeypatch):
+    """Record the fds handed to _to_devnull rather than let it point this
+    process's output at devnull."""
+    fds = []
+    monkeypatch.setattr(cli_mod, "_to_devnull", lambda *given: fds.extend(given))
+    return fds
+
+
+def einval():
+    # what a write to a pipe nobody reads raises on Windows
+    raise OSError(errno.EINVAL, "Invalid argument")
+
+
+def as_on_windows(monkeypatch, main):
+    """_quiet_on_broken_pipe(main)() with os.name "nt": its exit code, or
+    the OSError it let out."""
+    run = cli_mod._quiet_on_broken_pipe(main)
+    real = os.name
+    monkeypatch.setattr(os, "name", "nt")
+    try:
+        return run()
+    except OSError as exc:
+        return exc
+    finally:
+        monkeypatch.setattr(os, "name", real)
+
+
+def test_on_windows_a_reader_that_went_away_ends_quietly_too(monkeypatch, pipe, nulled):
+    monkeypatch.setattr(sys, "stdout", pipe)
+    assert as_on_windows(monkeypatch, einval) == 141
+    assert nulled == [pipe.fileno()]
+
+
+def test_on_windows_any_other_einval_is_raised(monkeypatch, pipe, nulled, tmp_path):
+    def bad_name():
+        # as for a file name Windows won't take
+        raise OSError(errno.EINVAL, "Invalid argument", "a?b")
+
+    # on a stdout that isn't a pipe, or has no file behind it, and one from
+    # a file name while stdout is a pipe
+    with open(tmp_path / "out", "w") as file:
+        for stdout, main in [(file, einval), (io.StringIO(), einval), (pipe, bad_name)]:
+            monkeypatch.setattr(sys, "stdout", stdout)
+            exc = as_on_windows(monkeypatch, main)
+            assert isinstance(exc, OSError) and exc.errno == errno.EINVAL, stdout
+    assert nulled == []
+
+
+@pytest.mark.skipif(os.name == "nt", reason="Windows says EINVAL for a broken pipe")
+def test_off_windows_einval_on_a_pipe_is_raised(monkeypatch, pipe, nulled):
+    monkeypatch.setattr(sys, "stdout", pipe)
+    with pytest.raises(OSError, match="Invalid argument"):
+        cli_mod._quiet_on_broken_pipe(einval)()
+    assert nulled == []
 
 
 # -- leaving on a signal -----------------------------------------------------------------
