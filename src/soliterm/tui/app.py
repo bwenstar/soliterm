@@ -234,6 +234,7 @@ class App(Screens):
         symbols: bool | None = None,
         animation: bool | None = None,
         theme: str | None = None,
+        note: str = "",
     ):
         self.stdscr = stdscr
         # the game to go straight into, a key or a Deal, or None for the menu
@@ -300,6 +301,9 @@ class App(Screens):
         # for drop_on past the keys that clear the hint (see hinted_drop)
         self.hinted: tuple[tuple[int, int, int], str] | None = None
         self.message = ""
+        # a line from the command line for the first game to start with,
+        # as on the terminal type it plays as
+        self.note = note
         self.recorded = False  # counted, or put away in the saves folder
         # the end banner is up, so leaving now gives the game up
         self.ending = False
@@ -537,7 +541,8 @@ class App(Screens):
         else:
             self.message = self.unkept_note() or START_MESSAGE
         # before the first game gets going, over anything else it would say
-        self.message = store.aisleriot_open_note() or self.message
+        note, self.note = self.note, ""
+        self.message = store.aisleriot_open_note() or note or self.message
 
     def put_in_play(self, deal: Deal, resumed: tuple[Solitaire, int] | None) -> None:
         """Put the resumed game in play, or else a new deal of `deal`, with

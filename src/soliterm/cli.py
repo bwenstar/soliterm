@@ -233,7 +233,9 @@ def reset_stats(yes: bool) -> int:
 
 
 def _load_tui() -> tuple[Any, str]:
-    """The curses front end, or None and a line on why text mode it is.
+    """The curses front end and a line for the player on the terminal type
+    it plays as, "" when that is TERM's, or None and a line on why text
+    mode it is.
 
     Text mode it is when a module isn't there (curses on a Windows Python,
     say, or one left out of a package) or curses can't draw on this
@@ -247,21 +249,34 @@ def _load_tui() -> tuple[Any, str]:
         if os.name == "nt" and exc.name in ("curses", "_curses"):
             why += "; pip install windows-curses adds curses to Python on Windows"
         return None, why
-    problem = _terminal_problem()
+    problem, note = _check_terminal()
     if problem:
         return None, problem
-    return tui, ""
+    return tui, note
 
 
-def _terminal_problem() -> str | None:
-    """Why curses can't draw the game on this terminal, or None if it can.
+# The terminal types to play as when this system has no terminfo entry for
+# the one TERM names, as over ssh from a newer terminal than the far end
+# knows: nearly every terminal takes xterm's sequences, and tmux and
+# screen take screen's
+_STAND_INS = ("xterm-256color", "xterm")
+_SCREEN_STAND_INS = ("screen-256color", "screen")
+# what the player can do about a terminal type played as a stand-in
+_TERMINFO_HINT = "install its terminfo for the full look"
+
+
+def _check_terminal() -> tuple[str, str]:
+    """Why curses can't draw the game on this terminal, "" if it can, and a
+    line on the stand-in it plays as, "" for TERM's own type.
 
     Asked before the game starts: on a terminal type it doesn't know, or
     one that can't move the cursor, curses gives up with an error where
-    text mode would have done.
+    text mode would have done. A type it doesn't know is played as a
+    stand-in it does, if there is one, and TERM is set to that for curses
+    to start with.
     """
     if os.name == "nt":
-        return None  # the Windows console needs no TERM
+        return "", ""  # the Windows console needs no TERM
     import curses
 
     term = os.environ.get("TERM", "")
@@ -270,16 +285,40 @@ def _terminal_problem() -> str | None:
         "(xterm-256color suits most) for the full-screen game"
     )
     if not term:
-        return f"TERM isn't set, {rest}"
+        return f"TERM isn't set, {rest}", ""
     if term == "dumb":
-        return f"TERM=dumb can't move the cursor, {rest}"
+        return f"TERM=dumb can't move the cursor, {rest}", ""
     try:
         # fd 1, which curses draws on whatever sys.stdout is
         curses.setupterm(term, 1)
     except curses.error:
-        return f"TERM={term} isn't a terminal type known here, {rest}"
+        stand_in = _stand_in(term)
+        if stand_in is None:
+            return f"TERM={term} isn't a terminal type known here, {rest}", ""
+        os.environ["TERM"] = stand_in
+        return "", f"TERM={term} isn't known here, so playing as {stand_in}"
     if not curses.tigetstr("cup"):
-        return f"TERM={term} can't move the cursor, {rest}"
+        return f"TERM={term} can't move the cursor, {rest}", ""
+    return "", ""
+
+
+def _stand_in(term: str) -> str | None:
+    """The terminal type to play as in place of `term`, which curses doesn't
+    know, or None when it knows none of those tried: the first it knows,
+    if that can move the cursor.
+
+    Once curses has set up one type it looks up no other in the process,
+    so after the first it knows there is no trying the next.
+    """
+    import curses
+
+    inside = os.environ.get("TMUX") or os.environ.get("STY") or term.startswith(("tmux", "screen"))
+    for name in _SCREEN_STAND_INS if inside else _STAND_INS:
+        try:
+            curses.setupterm(name, 1)
+        except curses.error:
+            continue
+        return name if curses.tigetstr("cup") else None
     return None
 
 
@@ -475,6 +514,16 @@ def _say_waiting() -> None:
     print(f"soliterm: {store.LOCK_WAIT}", file=sys.stderr, flush=True)
 
 
+def _say_after(line: str) -> None:
+    """Say `line` on stderr once the game is over, unless whatever read it
+    has gone (EPIPE, or EINVAL on Windows): then stderr goes to devnull,
+    and the game still ends as it would have."""
+    try:
+        print(f"soliterm: {line}", file=sys.stderr, flush=True)
+    except OSError:
+        _to_devnull(2)
+
+
 @_quiet_on_broken_pipe
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
@@ -580,17 +629,23 @@ def _run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
         color = text_color = args.color
 
     if not args.text and sys.stdout.isatty() and sys.stdin.isatty():
-        tui, why = _load_tui()
+        tui, said = _load_tui()
         if tui is not None:
             with _leave_on_console_events():
-                return tui.main(
+                rc = tui.main(
                     start,
                     color=args.color,
                     symbols=symbols,
                     animation=False if args.no_animation else None,
                     theme=args.theme,
+                    note=said,
                 )
-        print(f"soliterm: {why}", file=sys.stderr)
+            if said:
+                # the first game said it, and now the screen is back, where
+                # it stays
+                _say_after(f"{said} ({_TERMINFO_HINT})")
+            return rc
+        print(f"soliterm: {said}", file=sys.stderr)
 
     # text mode, which keeps games only for someone typing at a terminal:
     # a script or a pipe plays its deal and counts it, as it always has

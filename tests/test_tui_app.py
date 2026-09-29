@@ -14,7 +14,7 @@ from soliterm import saves, store
 from soliterm.deals import Deal
 from soliterm.engine import Card, Solitaire
 from soliterm.tui import cascade
-from soliterm.tui.app import MENU, QUIT, App
+from soliterm.tui.app import MENU, QUIT, START_MESSAGE, App
 
 from helpers import FakeScr, clear_board, steps
 
@@ -604,3 +604,17 @@ def test_plus_and_minus_change_how_many_cards_are_held():
     press(app, "+")
     assert app.selected_n == 3 and "more" in app.message
     assert app.selected_exact
+
+
+@pytest.mark.parametrize("code_skin", [False, True])
+def test_the_first_game_starts_with_the_note_it_was_handed(code_skin):
+    # as the command line hands it the terminal type it plays as
+    note = "TERM=xterm-kitty isn't known here, so playing as xterm-256color"
+    store.save_config(dict(store.load_config(), code_skin=code_skin))
+    app = App(FakeScr(24, 80), note=note)
+    app.start_game("klondike")
+    assert app.message == note
+    app.draw()
+    assert note in app.stdscr.text()
+    app.start_game("golf")  # once is enough
+    assert app.message == START_MESSAGE

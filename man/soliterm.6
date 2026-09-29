@@ -425,10 +425,23 @@ look the same whatever it says.
 .TP
 .B TERM
 The terminal's type.
+When it names a type with no terminfo entry,
+.B soliterm
+plays as
+.BR xterm-256color ,
+or
+.B xterm
+if that's the one there, and says so as the first game starts and on
+stderr at the end.
+Inside tmux or screen it plays as
+.B screen-256color
+or
+.B screen
+instead.
 When it's unset, is
 .BR dumb ,
-or names a type with no terminfo entry or one that can't move the
-cursor,
+names a type that can't move the cursor, or none of those is known
+either,
 .B soliterm
 plays in text mode.
 Windows doesn't use it.

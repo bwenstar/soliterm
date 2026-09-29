@@ -46,7 +46,7 @@ def debug_info(monkeypatch, capsys):
     database only once per process: the real one would answer for
     whichever test got there first.
     """
-    monkeypatch.setattr(cli, "_terminal_problem", lambda: None)
+    monkeypatch.setattr(cli, "_check_terminal", lambda: ("", ""))
 
     def run(*args):
         rc = main(["--debug-info", *args])
@@ -139,8 +139,12 @@ def test_debug_info_says_whether_the_full_screen_game_can_run(debug_info, monkey
     pytest.importorskip("curses")
     assert value(debug_info(), "curses").endswith(", the full-screen game can run here")
     why = "TERM=dumb can't move the cursor, so playing in text mode"
-    monkeypatch.setattr(cli, "_terminal_problem", lambda: why)
+    monkeypatch.setattr(cli, "_check_terminal", lambda: (why, ""))
     assert value(debug_info(), "curses").endswith(f"; {why}")
+    # and when it plays as a terminal type of its own choosing
+    note = "TERM=xterm-kitty isn't known here, so playing as xterm-256color"
+    monkeypatch.setattr(cli, "_check_terminal", lambda: ("", note))
+    assert value(debug_info(), "curses").endswith(f", the full-screen game can run here; {note}")
 
 
 @pytest.mark.parametrize(
@@ -313,7 +317,7 @@ def test_debug_info_takes_the_size_from_the_first_terminal(
 
 
 def test_debug_info_prints_what_the_terminal_cant_show_as_escapes(monkeypatch):
-    monkeypatch.setattr(cli, "_terminal_problem", lambda: None)
+    monkeypatch.setattr(cli, "_check_terminal", lambda: ("", ""))
     # a byte the locale couldn't decode, and a letter ASCII can't hold, in a
     # path, as the C locale has no way to put one in the environment
     monkeypatch.setenv("TERM_PROGRAM", "caf\udce9")

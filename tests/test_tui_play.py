@@ -757,7 +757,7 @@ def test_ascii_on_the_command_line_reaches_the_tui(monkeypatch):
     monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
     monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
     # whatever TERM the tests run under, curses can draw here
-    monkeypatch.setattr(cli, "_terminal_problem", lambda: None)
+    monkeypatch.setattr(cli, "_check_terminal", lambda: ("", ""))
     assert cli.main(["--game", "klondike", "--ascii"]) == 0
     assert seen["symbols"] is False
     cli.main(["--game", "klondike"])
@@ -2795,7 +2795,7 @@ def test_the_tui_hears_whether_a_colour_flag_was_given(monkeypatch):
     monkeypatch.setattr(soliterm.tui, "main", lambda *a, **kw: seen.update(kw) or 0)
     monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
     monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
-    monkeypatch.setattr(cli, "_terminal_problem", lambda: None)
+    monkeypatch.setattr(cli, "_check_terminal", lambda: ("", ""))
     for argv, color in ([], None), (["--color"], True), (["--no-color"], False):
         cli.main(["--game", "klondike"] + argv)
         assert seen["color"] is color
@@ -2806,7 +2806,7 @@ def test_no_animation_reaches_the_tui(monkeypatch):
     monkeypatch.setattr(soliterm.tui, "main", lambda *a, **kw: seen.update(kw) or 0)
     monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
     monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
-    monkeypatch.setattr(cli, "_terminal_problem", lambda: None)
+    monkeypatch.setattr(cli, "_check_terminal", lambda: ("", ""))
     for argv, animation in ([], None), (["--no-animation"], False):
         cli.main(["--game", "klondike"] + argv)
         assert seen["animation"] is animation
@@ -2817,7 +2817,7 @@ def test_theme_flag_is_for_one_run(monkeypatch):
     monkeypatch.setattr(soliterm.tui, "main", lambda *a, **kw: seen.update(kw) or 0)
     monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
     monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
-    monkeypatch.setattr(cli, "_terminal_problem", lambda: None)
+    monkeypatch.setattr(cli, "_check_terminal", lambda: ("", ""))
     for argv, theme in ([], None), (["--theme", "light"], "light"):
         cli.main(["--game", "klondike"] + argv)
         assert seen["theme"] == theme

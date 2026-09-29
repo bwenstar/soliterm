@@ -407,9 +407,14 @@ they were. The man page's FILES section has the details.
   cut-off board, and carries on once you make the window bigger. The
   compact view, `x`, works there too and takes fewer rows.
 - **TERM.** The full-screen game goes by `TERM`, as curses does. When it
-  isn't set, is `dumb`, or names a terminal this system has no entry for,
-  Soliterm plays in text mode and says why. `xterm-256color` suits most
-  terminals.
+  names a terminal this system has no entry for, as over ssh from a
+  terminal newer than the far end, Soliterm plays as `xterm-256color`, or
+  `xterm` if that's all there is, and says so on the first game's message
+  line and again on stderr at the end. Inside tmux or screen it plays as
+  `screen-256color` or `screen` instead. Installing the terminal's own
+  terminfo entry there gets you its full look. When `TERM` isn't set, is
+  `dumb`, or none of those is known either, Soliterm plays in text mode
+  and says why. `xterm-256color` suits most terminals.
 - **Colours.** The `dark` and `light` themes need a terminal with 256
   colours. With 8 or 16, or direct colour such as `xterm-direct`, they look
   like `classic`. On Windows they have the 256 in Windows Terminal, where

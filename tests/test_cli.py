@@ -1137,9 +1137,18 @@ def test_piped_text_mode_neither_resumes_nor_saves(cli):
 
 # -- the full-screen game or text mode -------------------------------------------------
 
-# the terminal types the stubbed terminfo knows: xterm can draw the game,
-# while dumb and a glass teletype can't move the cursor
-TERMINFO = {"xterm": {"cup": b"\x1b[%i%p1%d;%p2%dH"}, "dumb": {}, "glass": {}}
+# the terminal types the stubbed terminfo knows: xterm and screen and their
+# 256 colour kin can draw the game, while dumb and a glass teletype can't
+# move the cursor
+CUP = {"cup": b"\x1b[%i%p1%d;%p2%dH"}
+TERMINFO = {
+    "xterm": CUP,
+    "xterm-256color": CUP,
+    "screen": CUP,
+    "screen-256color": CUP,
+    "dumb": {},
+    "glass": {},
+}
 
 # the Windows console needs no TERM, so there it is never looked at
 needs_terminfo = pytest.mark.skipif(os.name == "nt", reason="needs terminfo")
@@ -1170,6 +1179,9 @@ def terminal(monkeypatch):
     # the lambda reads looked_up[0] when it is called, not now
     monkeypatch.setattr(curses, "tigetstr", lambda cap: TERMINFO[looked_up[0]].get(cap))  # noqa: PLW0108
     monkeypatch.setenv("TERM", "xterm")
+    # the tests may run inside tmux or screen, which a stand-in goes by
+    monkeypatch.delenv("TMUX", raising=False)
+    monkeypatch.delenv("STY", raising=False)
     monkeypatch.setattr(tui_mod, "main", lambda *a, **kw: started.append("tui") or 0)
     monkeypatch.setattr(cli_mod, "run_text", lambda *a, **kw: started.append("text") or 0)
 
@@ -1289,15 +1301,99 @@ def test_without_a_terminal_type_text_mode_says_why(terminal, monkeypatch, capsy
     assert "TERM" in err and "text mode" in err
 
 
+def stand_in_note(term, stand_in):
+    return f"TERM={term} isn't known here, so playing as {stand_in}"
+
+
 @needs_terminfo
-def test_an_unknown_terminal_type_means_text_mode(terminal, monkeypatch, capsys):
+def test_an_unknown_terminal_type_plays_as_xterm(terminal, monkeypatch, capsys):
     # say, ssh from a terminal the far end has no terminfo entry for
+    import soliterm.tui as tui_mod
+
+    seen = []
+
+    def tui_main(start, **options):
+        seen.append((os.environ["TERM"], options["note"]))
+        print("the game is over", file=sys.stderr)
+        return 0
+
+    monkeypatch.setattr(tui_mod, "main", tui_main)
+    monkeypatch.setenv("TERM", "xterm-kitty")
+    assert terminal("--game", "golf") == 0
+    # TERM is set before curses starts, which reads it
+    note = stand_in_note("xterm-kitty", "xterm-256color")
+    assert seen == [("xterm-256color", note)]
+    # the screen has said it, and once it's gone stderr does
+    assert capsys.readouterr().err == (
+        f"the game is over\nsoliterm: {note} (install its terminfo for the full look)\n"
+    )
+    assert len(note) <= 72
+
+
+@needs_terminfo
+@pytest.mark.parametrize(
+    "env, term, gone, stand_in",
+    [
+        ({}, "xterm-kitty", ["xterm-256color"], "xterm"),
+        # inside tmux or screen, as the variables they set or TERM say
+        ({"TMUX": "/tmp/tmux-1000/default,1,0"}, "xterm-kitty", [], "screen-256color"),
+        ({"STY": "1.pts-0.host"}, "xterm-kitty", [], "screen-256color"),
+        ({}, "tmux-256color", [], "screen-256color"),
+        ({}, "screen.xterm-256color", ["screen-256color"], "screen"),
+    ],
+)
+def test_an_unknown_terminal_type_plays_as_the_first_known(
+    terminal, monkeypatch, env, term, gone, stand_in
+):
+    import soliterm.tui as tui_mod
+
+    notes = []
+    monkeypatch.setattr(tui_mod, "main", lambda start, **kw: notes.append(kw["note"]) or 0)
+    for name in gone:
+        monkeypatch.delitem(TERMINFO, name)
+    for name, value in env.items():
+        monkeypatch.setenv(name, value)
+    monkeypatch.setenv("TERM", term)
+    assert terminal("--game", "golf") == 0
+    assert os.environ["TERM"] == stand_in
+    assert notes == [stand_in_note(term, stand_in)]
+
+
+@needs_terminfo
+@pytest.mark.parametrize(
+    "env, gone",
+    [
+        ({}, ["xterm-256color", "xterm"]),
+        # inside tmux, xterm isn't tried
+        ({"TMUX": "/tmp/tmux-1000/default,1,0"}, ["screen-256color", "screen"]),
+    ],
+)
+def test_an_unknown_terminal_type_with_no_stand_in_means_text_mode(
+    terminal, monkeypatch, capsys, env, gone
+):
+    for name in gone:
+        monkeypatch.delitem(TERMINFO, name)
+    for name, value in env.items():
+        monkeypatch.setenv(name, value)
     monkeypatch.setenv("TERM", "xterm-kitty")
     assert terminal("--game", "golf") == 0
     assert terminal.started == ["text"]
+    assert os.environ["TERM"] == "xterm-kitty"
     err = capsys.readouterr().err
     assert len(err.splitlines()) == 1
-    assert "TERM=xterm-kitty" in err and "text mode" in err
+    assert "TERM=xterm-kitty isn't a terminal type known here" in err and "text mode" in err
+
+
+@needs_terminfo
+def test_a_stand_in_that_cannot_move_the_cursor_means_text_mode(terminal, monkeypatch, capsys):
+    # once curses has set up one terminal type it looks no other up, so
+    # the stand-ins end at the first one it knows
+    monkeypatch.setitem(TERMINFO, "xterm-256color", {})
+    monkeypatch.setenv("TERM", "xterm-kitty")
+    assert terminal("--game", "golf") == 0
+    assert terminal.started == ["text"]
+    assert os.environ["TERM"] == "xterm-kitty"
+    assert "TERM=xterm-kitty isn't a terminal type known here" in capsys.readouterr().err
 
 
 @needs_terminfo
@@ -1305,9 +1401,11 @@ def test_a_terminal_that_cannot_move_the_cursor_means_text_mode(terminal, monkey
     monkeypatch.setenv("TERM", "glass")
     assert terminal("--game", "golf") == 0
     assert terminal.started == ["text"]
+    # a type curses knows is taken at its word
+    assert os.environ["TERM"] == "glass"
     err = capsys.readouterr().err
     assert len(err.splitlines()) == 1
-    assert "TERM=glass" in err and "text mode" in err
+    assert "TERM=glass can't move the cursor" in err and "text mode" in err
 
 
 def test_the_windows_console_needs_no_terminal_type(terminal, monkeypatch, capsys):
@@ -1322,20 +1420,46 @@ def test_the_windows_console_needs_no_terminal_type(terminal, monkeypatch, capsy
     assert capsys.readouterr().err == ""
 
 
+# the real terminfo lookup, in a process of its own, as curses sets up
+# only one terminal type in a process
+TERMINAL_CHECK = """
+import os
+from soliterm import cli
+print(cli._check_terminal())
+print(os.environ["TERM"])
+"""
+# whether this curses has a terminfo entry for a type, as some builds of
+# Python look for one only in a folder of their own
+TERMINAL_KNOWN = "import curses, sys; curses.setupterm(sys.argv[1], 1)"
+
+
 @needs_terminfo
-def test_curses_itself_turns_down_an_unknown_terminal_type():
-    # the real terminfo lookup, in a process of its own
-    code = "from soliterm import cli; print(cli._terminal_problem())"
+@pytest.mark.parametrize(
+    "env, stand_in",
+    [({}, "xterm-256color"), ({"TMUX": "/tmp/tmux-1000/default,1,0"}, "screen-256color")],
+)
+def test_curses_itself_finds_the_stand_in_for_an_unknown_terminal_type(env, stand_in):
+    base = {k: v for k, v in child_env().items() if k not in ("TMUX", "STY")}
+    known = subprocess.run(
+        [sys.executable, "-c", TERMINAL_KNOWN, stand_in],
+        capture_output=True,
+        env=base,
+        check=False,
+        timeout=60,
+    )
+    if known.returncode:
+        pytest.skip(f"this curses has no terminfo entry for {stand_in}")
     r = subprocess.run(
-        [sys.executable, "-c", code],
+        [sys.executable, "-c", TERMINAL_CHECK],
         capture_output=True,
         text=True,
-        env=dict(child_env(), TERM="no-such-terminal"),
+        env=dict(base, TERM="no-such-terminal", **env),
         check=False,
         timeout=60,
     )
     assert r.returncode == 0, r.stderr
-    assert "TERM=no-such-terminal" in r.stdout
+    note = stand_in_note("no-such-terminal", stand_in)
+    assert r.stdout.splitlines() == [repr(("", note)), stand_in]
 
 
 # -- entry points ----------------------------------------------------------------------

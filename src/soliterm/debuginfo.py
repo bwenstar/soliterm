@@ -128,16 +128,18 @@ def _curses() -> str:
         import curses
     except ImportError as exc:
         return f"not available ({exc})"
-    from .cli import _terminal_problem  # here, since cli imports this module
+    from .cli import _check_terminal  # here, since cli imports this module
 
     found = getattr(curses, "ncurses_version", None)
     if found:
         version = f"ncurses {found.major}.{found.minor}.{found.patch}"
     else:
         version = "curses (version unknown)"
-    problem = _terminal_problem()
+    problem, note = _check_terminal()
     if problem:
         return f"{version}; {problem}"
+    if note:
+        return f"{version}, the full-screen game can run here; {note}"
     return f"{version}, the full-screen game can run here"
 
 
