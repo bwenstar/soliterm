@@ -368,6 +368,23 @@ which lists the games added since aisle-cli 1.0.0.
 A game AisleRiot doesn't have stays out of `GAME_TO_SECTION`, and its
 statistics stay in Soliterm's own `stats.json`.
 
+## Say what its wins score
+
+The records keep each game's fastest win, its fewest moves and its best
+score, one for each set of options, lost games too. So that a best score
+that won can be told from one that came close, add the game to
+`WIN_SCORE` in [records.py](../src/soliterm/records.py) with what a win
+of it scores, when every win scores the same:
+
+```python
+    "fortress": 52,
+```
+
+Fortress scores a point for each card on the foundations, so every win
+scores 52, and a lost game with 38 cards up scores 38. A game whose wins
+score differently, as Triple Peaks' runs do, goes in with `None`.
+`tests/test_records.py` fails for a game that isn't there.
+
 ## Run the conformance suite
 
 Add the number of cards in a full deal to `EXPECTED_CARDS` in

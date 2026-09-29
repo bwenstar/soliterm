@@ -17,6 +17,11 @@ class Streak(NamedTuple):
     current: int  # wins in a row up to the last game, so 0 after a loss
     longest: int
 
+    def after(self, won: bool) -> Streak:
+        """The streak after one more game."""
+        cur = self.current + 1 if won else 0
+        return Streak(cur, max(self.longest, cur))
+
 
 def history_path() -> str:
     return os.path.join(store.data_dir(), "history.jsonl")
@@ -144,9 +149,7 @@ def streaks() -> dict[str, Streak]:
     """Each game's win streak now and its longest, for the games in the history."""
     found: dict[str, Streak] = {}
     for e in games():
-        cur, best = found.get(e["game"], Streak(0, 0))
-        cur = cur + 1 if e["result"] == "won" else 0
-        found[e["game"]] = Streak(cur, max(best, cur))
+        found[e["game"]] = found.get(e["game"], Streak(0, 0)).after(e["result"] == "won")
     return found
 
 

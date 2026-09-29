@@ -162,15 +162,17 @@ with a worked example. In short:
 3. If AisleRiot has the game, map the key to AisleRiot's section for it
    in `GAME_TO_SECTION` in `src/soliterm/aisleriot.py`, and add the pair
    to `NEW_SECTIONS` in `tests/test_aisleriot_sync.py`.
-4. Add its number of cards to `EXPECTED_CARDS` in `tests/helpers.py`, and
+4. Add it to `WIN_SCORE` in `src/soliterm/records.py` with what every
+   win of it scores, or `None` if its wins score differently.
+5. Add its number of cards to `EXPECTED_CARDS` in `tests/helpers.py`, and
    if it has no foundations, or ones that only take a whole suit, its key
    to the list in `test_finish_scores_like_the_moves_one_by_one`. Then
    `python -m pytest tests/test_conformance.py -k <key>` runs it through
    the rules every game keeps.
-5. Once the deal is final, pin deals 1 and 2 in `DEALS` in
+6. Once the deal is final, pin deals 1 and 2 in `DEALS` in
    `tests/test_conformance.py`.
-6. Write `tests/test_<key>.py` for the rules that are the game's own.
-7. Write `docs/games/<key>.md`, add a row to the tables in
+7. Write `tests/test_<key>.py` for the rules that are the game's own.
+8. Write `docs/games/<key>.md`, add a row to the tables in
    `docs/games/README.md` and `README.md`, give it an entry under GAMES in
    `man/soliterm.6` and a place in the Game list of
    `.github/ISSUE_TEMPLATE/bug_report.yml`, bring the number of games up
