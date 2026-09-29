@@ -17,8 +17,9 @@ Soliterm plays in text mode when:
   in or the board is going to a file or another program;
 - curses can't be loaded, as on a Windows Python without the
   windows-curses package;
-- `TERM` isn't set, is `dumb`, names a terminal type this system has no
-  terminfo entry for, or names one that can't move the cursor.
+- off Windows, `TERM` isn't set, is `dumb`, names a terminal type this
+  system has no terminfo entry for, or names one that can't move the
+  cursor.
 
 In the last two cases it says why on stderr before it starts, for
 example:

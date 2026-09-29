@@ -312,7 +312,9 @@ ends with status 0xC000013A. Ctrl-Break needs no wait, and leaves with
 `KeyboardInterrupt` as ever. A process ended some other way, as
 `taskkill /f` does, keeps nothing, though a save that was taken up to
 resume it is offered again the next time, as it was when it was taken
-up.
+up. This has been tried in conhost, the classic console, on Windows
+Server 2025, but not yet in Windows Terminal, and the tests, in CI too,
+check it only against a fake `kernel32`.
 
 ## Tests
 

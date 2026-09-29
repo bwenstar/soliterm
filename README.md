@@ -436,7 +436,11 @@ they were. The man page's FILES section has the details.
   and pipx install along with it. Without it, Soliterm plays in text mode
   and tells you how to add it. `TERM` doesn't matter on Windows. Closing
   the console window or pressing Ctrl-Break keeps the game in play, as
-  Saved games above explains.
+  Saved games above explains. Soliterm has been tried there in the
+  classic console, conhost, on Windows Server 2025 (build 26100), with
+  Python 3.9.13 and 3.14.7 and windows-curses 2.4.2. Windows Terminal,
+  and desktop Windows 10 and 11, haven't been tried by hand yet, and the
+  tests CI runs on Windows don't use a real console.
 
 ## Contributing
 

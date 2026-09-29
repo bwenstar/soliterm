@@ -431,6 +431,7 @@ or names a type with no terminfo entry or one that can't move the
 cursor,
 .B soliterm
 plays in text mode.
+Windows doesn't use it.
 .TP
 .B ESCDELAY
 How many milliseconds curses waits after Esc for the rest of a key.
@@ -521,6 +522,12 @@ XDG_CONFIG_HOME=$tmp XDG_DATA_HOME=$tmp soliterm \-\-no\-sync
 Report them at https://github.com/bwenstar/soliterm/issues, with what
 .B soliterm \-\-debug\-info
 prints.
+.PP
+On Windows,
+.B soliterm
+has been tried in the classic console, conhost, on Windows Server 2025,
+with Python 3.9 and 3.14 and windows-curses 2.4.2, but not yet in Windows
+Terminal or on desktop Windows 10 or 11.
 .SH AUTHOR
 Brendan Ta.
 .PP
