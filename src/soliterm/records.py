@@ -1,17 +1,18 @@
-"""soliterm.records - each game's records, worked out from the history.
+"""soliterm.records - each game's records and the dailies, from the history.
 
 Nothing here is stored. Each function goes through the games in
-history.jsonl, as history.games() gives them, when it's asked, so the
-records always agree with the history, and a list of games can be passed
-in instead. A line of a game only a newer version knows is left out of
-the records of the games this one knows.
+history.jsonl, as history.games() gives them, when it's asked, so what
+it says always agrees with the history, and a list of games can be
+passed in instead. A line of a game only a newer version knows is left
+out of the records of the games this one knows.
 """
 
 from __future__ import annotations
 
+from datetime import date, timedelta
 from typing import NamedTuple
 
-from . import history
+from . import deals, history
 from .engine import GAME_ORDER, GAMES, is_day
 from .history import Streak
 
@@ -224,3 +225,87 @@ def on_this_deal(entry: dict, entries: list[dict] | None = None) -> DealBest | N
         return None
     beaten = entry["result"] == "won" and _by_time(entry) < _by_time(best)
     return DealBest(_best(best), beaten)
+
+
+class DayResult(NamedTuple):
+    """How a game's daily deal went on a day."""
+
+    result: str | None  # "won", "lost" when played and not won yet, None when not played
+    best: Best | None  # the best of that day's wins, on time with moves breaking a tie
+
+
+def dailies(entries: list[dict] | None = None, day: date | None = None) -> dict[str, DayResult]:
+    """How each game's daily deal went on `day`, today by default, in menu
+    order, from `entries`, the history by default.
+
+    A daily belongs to the day of its deal, the "daily" of its line, not
+    the day it was finished: one started before midnight and won after it
+    is the day before's, and so is one resumed from a save the next day.
+    The plain deal of a daily's number isn't that daily, as tomorrow's can
+    be played today that way.
+
+    This is only there to show. Nothing should refuse to deal a daily, or
+    deal it any differently, because of what it says: a daily can always
+    be played again. The dailies came without a "you've played today's
+    daily" state on purpose, as it was one a player could get stuck in.
+    """
+    if entries is None:
+        entries = history.games()
+    wanted = (deals.today() if day is None else day).isoformat()
+    found = dict.fromkeys(GAME_ORDER, DayResult(None, None))
+    fastest: dict[str, dict] = {}
+    for e in entries:
+        key = e["game"]
+        if e.get("daily") != wanted or key not in found:
+            continue
+        if e["result"] != "won":
+            found[key] = DayResult("lost", None)
+        elif key not in fastest or _by_time(e) < _by_time(fastest[key]):
+            fastest[key] = e
+    for key, e in fastest.items():  # won, whatever else was lost that day
+        found[key] = DayResult("won", _best(e))
+    return found
+
+
+_DAY = timedelta(days=1)
+
+
+def _won_days(entries: list[dict]) -> set[date]:
+    """The days with a daily won, in any game."""
+    found = set()
+    for e in entries:
+        daily = e.get("daily")
+        if e["result"] == "won" and isinstance(daily, str) and is_day(daily):
+            found.add(date.fromisoformat(daily))
+    return found
+
+
+def _runs(days: set[date]) -> dict[date, int]:
+    """How many days in a row each of `days` ends."""
+    found: dict[date, int] = {}
+    last: date | None = None
+    for day in sorted(days):
+        found[day] = found[last] + 1 if last is not None and last + _DAY == day else 1
+        last = day
+    return found
+
+
+def daily_streak(entries: list[dict] | None = None, today: date | None = None) -> Streak:
+    """The days in a row with a daily won, in any game, now and the longest,
+    from `entries`, the history by default.
+
+    The streak now runs to today, or to yesterday while today's dailies
+    aren't won yet, so it only ends when a whole day goes by without one.
+    A daily counts for the day of its deal, as in dailies(), and a daily of
+    a game only a newer version has counts too, as the day was still won.
+    Days are counted on the calendar, one date after another, and never
+    from the times the games were finished, so a change of the clocks, or
+    a game won after midnight, doesn't move a daily to another day.
+    """
+    if entries is None:
+        entries = history.games()
+    if today is None:
+        today = deals.today()
+    runs = _runs(_won_days(entries))
+    current = runs.get(today) or runs.get(today - _DAY, 0)
+    return Streak(current, max(runs.values(), default=0))

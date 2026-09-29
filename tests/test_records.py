@@ -1,15 +1,17 @@
 """The records of each game, worked out from the history: games played and
 won, the fastest win, the fewest moves, the best score, the longest
-streak, and how a game just played did against its deal's best."""
+streak, and how a game just played did against its deal's best. And the
+dailies of a day, and the streak of days with a daily won."""
 
 import time
+from datetime import date, timedelta
 
 import pytest
 
-from soliterm import history, records
+from soliterm import deals, history, records
 from soliterm.engine import GAME_ORDER, GAMES, Card
 from soliterm.history import Streak
-from soliterm.records import Best, DealBest, Records
+from soliterm.records import Best, DayResult, DealBest, Records
 
 from helpers import EXPECTED_CARDS, clear_board, deal
 
@@ -353,3 +355,280 @@ def test_the_best_on_a_deal_comes_from_the_history_by_default():
     history.record(deal("golf", 5), True, 50)
     first, last = history.games()
     assert records.on_this_deal(last) == DealBest(best(first), True)
+
+
+# -- the dailies ------------------------------------------------------------------------
+
+TODAY = date(2026, 9, 30)
+NOT_PLAYED = DayResult(None, None)
+
+
+def daily(day, key="klondike", result="won", at=None, **more):
+    """A daily's line, finished that evening in Sydney unless `at` says."""
+    return game(
+        key,
+        result,
+        deal=int(day.replace("-", "")),
+        daily=day,
+        at=at or f"{day}T20:00:00+10:00",
+        **more,
+    )
+
+
+def won_on(*days):
+    return [daily(day) for day in days]
+
+
+def test_a_history_with_no_dailies_has_every_game_not_played_and_no_streak():
+    # the plain deal of today's number isn't today's daily: tomorrow's can
+    # be played today that way
+    plain = [game(deal=20260930, at="2026-09-30T09:00:00+10:00"), game(deal=20261001)]
+    for lines in [], plain:
+        found = records.dailies(lines, TODAY)
+        assert list(found) == GAME_ORDER
+        assert all(d == NOT_PLAYED for d in found.values())
+        assert records.daily_streak(lines, TODAY) == Streak(0, 0)
+
+
+def test_a_daily_won_says_the_best_of_that_days_wins():
+    lines = [
+        daily("2026-09-30", seconds=200, moves=60),
+        daily("2026-09-30", seconds=150, moves=90, at="2026-09-30T20:10:00+10:00"),
+        daily("2026-09-30", seconds=150, moves=80, at="2026-09-30T20:20:00+10:00"),
+        daily("2026-09-30", seconds=150, moves=80, at="2026-09-30T20:30:00+10:00"),
+        daily("2026-09-30", result="lost", seconds=40, moves=10),
+        daily("2026-09-29", seconds=20, moves=5),
+    ]
+    found = records.dailies(lines, TODAY)
+    # on time, then moves, and the first to get there keeps it
+    assert found["klondike"] == DayResult("won", best(lines[2]))
+    assert found["klondike"].best.at == "2026-09-30T20:20:00+10:00"
+    assert found["golf"] == NOT_PLAYED
+
+
+def test_a_daily_played_and_not_won_is_lost_until_its_won():
+    lines = [daily("2026-09-30", result="lost"), daily("2026-09-30", "golf", "lost")]
+    found = records.dailies(lines, TODAY)
+    assert found["klondike"] == found["golf"] == DayResult("lost", None)
+    lines.append(daily("2026-09-30", seconds=300))
+    found = records.dailies(lines, TODAY)
+    assert found["klondike"] == DayResult("won", best(lines[-1]))
+    assert found["golf"] == DayResult("lost", None)
+
+
+def test_two_dailies_won_on_a_day_are_both_won():
+    lines = [daily("2026-09-30"), daily("2026-09-30", "spider", seconds=500)]
+    found = records.dailies(lines, TODAY)
+    assert (found["klondike"].result, found["spider"].result) == ("won", "won")
+    assert found["spider"].best.seconds == 500
+
+
+def test_a_daily_belongs_to_its_deals_day_not_the_day_it_was_finished():
+    # started before midnight, won after it
+    late = daily("2026-09-29", at="2026-09-30T00:20:00+10:00")
+    assert records.dailies([late], date(2026, 9, 29))["klondike"] == DayResult("won", best(late))
+    assert records.dailies([late], TODAY)["klondike"] == NOT_PLAYED
+
+
+def test_another_days_daily_is_left_out():
+    lines = [daily("2026-09-29"), daily("2026-10-01", at="2026-09-30T21:00:00+10:00")]
+    assert all(d == NOT_PLAYED for d in records.dailies(lines, TODAY).values())
+
+
+@pytest.mark.parametrize("bad", [20260930, "20260930", "2026-9-30", "2026-09-31", None, ""])
+def test_a_line_whose_day_it_cant_go_by_is_no_daily(bad):
+    lines = [{**daily("2026-09-30"), "daily": bad}]
+    assert records.dailies(lines, TODAY)["klondike"] == NOT_PLAYED
+    assert records.daily_streak(lines, TODAY) == Streak(0, 0)
+
+
+def test_a_newer_versions_game_is_left_out_of_the_dailies():
+    lines = [{**daily("2026-09-30"), "game": "pyramid"}]
+    assert list(records.dailies(lines, TODAY)) == GAME_ORDER
+
+
+def test_the_dailies_are_todays_from_the_history_by_default(monkeypatch):
+    monkeypatch.setattr(deals, "today", lambda: TODAY)
+    g = deal("golf", 20260930)
+    g.daily = "2026-09-30"
+    history.record(g, False, 90)
+    assert records.dailies()["golf"] == DayResult("lost", None)
+    history.record(g, True, 80)
+    assert records.dailies()["golf"] == DayResult("won", best(history.games()[-1]))
+    assert records.daily_streak() == Streak(1, 1)
+    monkeypatch.setattr(deals, "today", lambda: date(2026, 10, 1))
+    assert records.dailies()["golf"] == NOT_PLAYED
+    assert records.daily_streak() == Streak(1, 1)
+
+
+# -- a streak of days -------------------------------------------------------------------
+
+
+def test_the_streak_is_the_days_in_a_row_with_a_daily_won():
+    lines = won_on("2026-09-28", "2026-09-29", "2026-09-30")
+    assert records.daily_streak(lines, TODAY) == Streak(3, 3)
+
+
+def test_today_not_won_yet_leaves_the_streak_running_to_yesterday():
+    lines = won_on("2026-09-28", "2026-09-29")
+    assert records.daily_streak(lines, TODAY) == Streak(2, 2)
+    lines.append(daily("2026-09-30", result="lost"))
+    assert records.daily_streak(lines, TODAY) == Streak(2, 2)
+
+
+def test_a_missed_day_ends_the_streak():
+    lines = won_on("2026-09-24", "2026-09-25", "2026-09-26", "2026-09-28", "2026-09-29")
+    assert records.daily_streak(lines, TODAY) == Streak(2, 3)
+    # yesterday missed as well as today not won yet
+    assert records.daily_streak(lines[:3], TODAY) == Streak(0, 3)
+    assert records.daily_streak(lines, date(2026, 10, 1)) == Streak(0, 3)
+
+
+def test_a_day_with_only_losses_ends_the_streak():
+    lines = [
+        *won_on("2026-09-27", "2026-09-28"),
+        daily("2026-09-29", result="lost"),
+        daily("2026-09-29", "golf", "lost"),
+        daily("2026-09-30"),
+    ]
+    assert records.daily_streak(lines, TODAY) == Streak(1, 2)
+
+
+def test_two_dailies_won_on_a_day_count_it_once():
+    lines = [
+        daily("2026-09-29"),
+        daily("2026-09-29", "golf"),
+        daily("2026-09-29"),
+        daily("2026-09-30"),
+    ]
+    assert records.daily_streak(lines, TODAY) == Streak(2, 2)
+
+
+def test_a_daily_won_in_any_game_counts_the_day():
+    lines = [
+        daily("2026-09-27", "spider"),
+        daily("2026-09-28", "golf"),
+        daily("2026-09-29", "klondike", "lost"),
+        daily("2026-09-29", "freecell"),
+        # a daily won in a game a newer version has is still a day won
+        {**daily("2026-09-30"), "game": "pyramid"},
+    ]
+    assert records.daily_streak(lines, TODAY) == Streak(4, 4)
+
+
+def test_days_recorded_out_of_order_still_run_in_a_row():
+    # a daily resumed from a save is recorded when it's finished
+    lines = [
+        daily("2026-09-29", at="2026-09-29T08:00:00+10:00"),
+        daily("2026-09-27", at="2026-09-29T09:00:00+10:00"),
+        daily("2026-09-24", at="2026-09-29T09:30:00+10:00"),
+        daily("2026-09-28", at="2026-09-29T10:00:00+10:00"),
+        daily("2026-09-25", at="2026-09-29T11:00:00+10:00"),
+    ]
+    assert records.daily_streak(lines, TODAY) == Streak(3, 3)
+    assert records.daily_streak(lines, date(2026, 9, 26)) == Streak(2, 3)
+
+
+def test_a_streak_counts_the_days_of_the_deals_across_midnight():
+    lines = [
+        daily("2026-09-28", at="2026-09-28T23:10:00+10:00"),
+        # the 29th's, finished after midnight, and the 30th's, started and
+        # won on the 30th before it
+        daily("2026-09-30", at="2026-09-30T00:05:00+10:00"),
+        daily("2026-09-29", at="2026-09-30T00:20:00+10:00"),
+    ]
+    assert records.daily_streak(lines, TODAY) == Streak(3, 3)
+    assert records.daily_streak(lines[:2], TODAY) == Streak(1, 1)
+
+
+@pytest.mark.parametrize(
+    "ats",
+    [
+        # London, as the clocks go back at 2 in the morning of 2026-10-25,
+        # which has 25 hours, and forward at 1 on 2027-03-28, with 23
+        [
+            ("2026-10-24", "2026-10-24T23:59:00+01:00"),
+            ("2026-10-25", "2026-10-25T00:30:00+01:00"),  # the 24th, going by UTC
+            ("2026-10-26", "2026-10-26T23:30:00+00:00"),
+        ],
+        [
+            ("2026-10-24", "2026-10-24T00:10:00+01:00"),
+            ("2026-10-25", "2026-10-25T23:50:00+00:00"),  # 48 hours and 40 minutes on
+            ("2026-10-26", "2026-10-26T00:10:00+00:00"),
+        ],
+        [
+            ("2027-03-27", "2027-03-27T23:50:00+00:00"),
+            ("2027-03-28", "2027-03-28T23:50:00+01:00"),
+            ("2027-03-29", "2027-03-29T00:10:00+01:00"),  # the 28th, going by UTC
+        ],
+        [
+            ("2027-03-27", "2027-03-27T00:10:00+00:00"),
+            ("2027-03-28", "2027-03-28T23:50:00+01:00"),  # 46 hours and 40 minutes on
+            ("2027-03-29", "2027-03-29T23:50:00+01:00"),
+        ],
+        # Sydney, forward at 2 on 2026-10-04 and back at 3 on 2027-04-04
+        [
+            ("2026-10-03", "2026-10-03T00:30:00+10:00"),  # the 2nd, going by UTC
+            ("2026-10-04", "2026-10-04T23:30:00+11:00"),
+            ("2026-10-05", "2026-10-05T00:30:00+11:00"),  # the 4th, going by UTC
+        ],
+        [
+            ("2027-04-03", "2027-04-03T23:30:00+11:00"),
+            ("2027-04-04", "2027-04-04T00:30:00+11:00"),
+            ("2027-04-05", "2027-04-05T23:30:00+10:00"),
+        ],
+    ],
+    ids=[
+        "london-back",
+        "london-back-far",
+        "london-forward",
+        "london-forward-far",
+        "sydney-forward",
+        "sydney-back",
+    ],
+)
+def test_a_streak_runs_through_a_change_of_the_clocks(ats):
+    lines = [daily(day, at=at) for day, at in ats]
+    today = date.fromisoformat(ats[-1][0])
+    assert records.daily_streak(lines, today) == Streak(3, 3)
+    assert records.daily_streak(lines, today + timedelta(days=1)) == Streak(3, 3)
+    for day, _ in ats:
+        assert records.dailies(lines, date.fromisoformat(day))["klondike"].result == "won"
+
+
+@pytest.mark.parametrize(
+    "ats",
+    [
+        # a day between, missed, though the two are under 26 hours apart
+        [("2026-10-24", "2026-10-24T23:59:00+01:00"), ("2026-10-26", "2026-10-26T00:01:00+00:00")],
+        [("2027-03-27", "2027-03-27T23:59:00+00:00"), ("2027-03-29", "2027-03-29T00:01:00+01:00")],
+        [("2026-10-03", "2026-10-03T23:59:00+10:00"), ("2026-10-05", "2026-10-05T00:01:00+11:00")],
+        [("2027-04-03", "2027-04-03T23:59:00+11:00"), ("2027-04-05", "2027-04-05T00:01:00+10:00")],
+    ],
+    ids=["london-back", "london-forward", "sydney-forward", "sydney-back"],
+)
+def test_a_day_missed_over_a_change_of_the_clocks_ends_the_streak(ats):
+    lines = [daily(day, at=at) for day, at in ats]
+    today = date.fromisoformat(ats[-1][0])
+    assert records.daily_streak(lines, today) == Streak(1, 1)
+
+
+def test_a_streak_reaches_the_first_and_last_days_there_are():
+    lines = won_on("0001-01-01", "0001-01-02", "9999-12-30", "9999-12-31")
+    assert records.daily_streak(lines, TODAY) == Streak(0, 2)
+
+
+def test_the_dailies_and_the_streak_of_20000_games_take_well_under_100_ms():
+    first = date(2000, 1, 1)
+    lines = [
+        daily((first + timedelta(days=n // 3)).isoformat(), GAME_ORDER[n % len(GAME_ORDER)])
+        for n in range(20000)
+    ]
+    last = first + timedelta(days=6666)
+    start = time.perf_counter()
+    found = records.dailies(lines, last)
+    streak = records.daily_streak(lines, last)
+    took = time.perf_counter() - start
+    assert {key for key, d in found.items() if d.result == "won"} == {"triplepeaks", "yukon"}
+    assert streak == Streak(6667, 6667)
+    assert took < 1.0  # generous, for a slow machine

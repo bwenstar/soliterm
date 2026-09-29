@@ -34,7 +34,7 @@ modules around them keep the files.
 | [`aisleriot.py`](../src/soliterm/aisleriot.py) | reads and writes AisleRiot's keyfile, a line at a time |
 | [`saves.py`](../src/soliterm/saves.py) | the games kept for next time, one of each kind |
 | [`history.py`](../src/soliterm/history.py) | `history.jsonl`, a line for every game, for streaks and `--stats` |
-| [`records.py`](../src/soliterm/records.py) | each game's records, worked out from the history whenever they're asked for |
+| [`records.py`](../src/soliterm/records.py) | each game's records and the dailies, worked out from the history whenever they're asked for |
 | [`migrate.py`](../src/soliterm/migrate.py) | copies aisle-cli's settings and statistics across on the first run |
 | [`debuginfo.py`](../src/soliterm/debuginfo.py) | what `--debug-info` prints, without writing anything |
 | [`themes.py`](../src/soliterm/themes.py) | the colour themes, as tables of colour pairs, away from curses |
