@@ -36,6 +36,8 @@ jobs:
       rc: ${{ steps.version.outputs.rc }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
@@ -127,6 +129,8 @@ jobs:
       PRERELEASE: ${{ needs.build.outputs.prerelease }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: actions/download-artifact@v8
         with:
           name: dist
