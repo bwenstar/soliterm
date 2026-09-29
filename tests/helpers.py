@@ -2,6 +2,9 @@
 
 import curses
 import os
+import signal
+import threading
+import time
 from collections import Counter
 
 from soliterm import engine, store
@@ -67,6 +70,44 @@ def stats_json_in_use(monkeypatch):
         real(src, dst)
 
     monkeypatch.setattr(os, "replace", replace)
+
+
+def until(done, timeout=30):
+    """Wait for done() to come true, and say whether it did in `timeout`
+    seconds, which is more than the slowest machine needs: the deadline is
+    there so a test gone wrong fails rather than hangs."""
+    deadline = time.monotonic() + timeout
+    while not done():
+        if time.monotonic() > deadline:
+            return False
+        time.sleep(0.001)
+    return True
+
+
+def signal_as_it_waits(main, signum, other):
+    """A thread, still to be started, that sends signum to the thread
+    `main` once it waits for the stats lock another copy of the game holds
+    (on the open lock file `other`), and has that copy let go once the
+    signal has broken the wait off.
+
+    It watches store.waiting_for_lock() rather than sleeping for a set
+    time, so however slow the machine, the signal goes once the wait has
+    begun, and the lock stays taken until the wait is over: only the
+    signal can end it. Its `seen` says whether the wait came, and then its
+    end, before the lock was let go. A wait that never comes gets no
+    signal, which would land wherever the test had got to by then.
+    """
+
+    def run():
+        thread.seen.append(until(store.waiting_for_lock))
+        if thread.seen[0]:
+            signal.pthread_kill(main, signum)
+            thread.seen.append(until(lambda: not store.waiting_for_lock()))
+        store.fcntl.flock(other.fileno(), store.fcntl.LOCK_UN)
+
+    thread = threading.Thread(target=run)
+    thread.seen = []
+    return thread
 
 
 def card_count(g):

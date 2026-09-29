@@ -8,13 +8,12 @@ import multiprocessing
 import os
 import signal
 import threading
-import time
 
 import pytest
 
 from soliterm import store
 
-from helpers import stats_json_in_use
+from helpers import signal_as_it_waits, stats_json_in_use
 
 
 def stat(wins, total, best, worst):
@@ -188,25 +187,18 @@ needs_flock = pytest.mark.skipif(
 @needs_flock
 def test_ctrl_c_still_stops_a_wait_for_the_lock(ctrl_c):
     os.makedirs(store.data_dir())
-    main = threading.get_ident()
     with open(os.path.join(store.data_dir(), "stats.lock"), "a") as other:
         # another copy of the game has the lock, and keeps it for a while
         store.fcntl.flock(other.fileno(), store.fcntl.LOCK_EX)
-
-        def other_copy():
-            time.sleep(0.2)
-            signal.pthread_kill(main, signal.SIGINT)
-            time.sleep(0.5)
-            store.fcntl.flock(other.fileno(), store.fcntl.LOCK_UN)
-
-        waiting = threading.Thread(target=other_copy)
-        waiting.start()
+        ctrl_c_now = signal_as_it_waits(threading.get_ident(), signal.SIGINT, other)
+        ctrl_c_now.start()
         try:
             with pytest.raises(KeyboardInterrupt), store.signals_held():
                 store.record_result("golf", won=True, seconds=42)
         finally:
-            waiting.join()
-    # Ctrl-C came while it waited, not once the lock was let go
+            ctrl_c_now.join()
+    # Ctrl-C came while it waited, and broke it off before the lock was let go
+    assert ctrl_c_now.seen == [True, True]
     assert store.get_stat("golf")["total"] == 0
 
 

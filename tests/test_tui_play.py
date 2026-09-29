@@ -15,7 +15,6 @@ import re
 import signal
 import sys
 import threading
-import time
 from datetime import date
 from types import SimpleNamespace
 
@@ -35,6 +34,7 @@ from helpers import (
     FakeScr,
     clear_board,
     deal,
+    signal_as_it_waits,
     signal_once_written,
     stalled_klondike,
 )
@@ -1309,14 +1309,8 @@ def test_a_second_signal_as_it_waits_for_the_lock_says_what_was_lost(
     killers = []
     with open(os.path.join(store.data_dir(), "stats.lock"), "a") as other:
 
-        def kill_it():
-            time.sleep(0.2)  # into the wait
-            signal.pthread_kill(main_thread, getattr(signal, second))
-            time.sleep(0.5)
-            store.fcntl.flock(other.fileno(), store.fcntl.LOCK_UN)
-
         def say_waiting(self):
-            killers.append(threading.Thread(target=kill_it))
+            killers.append(signal_as_it_waits(main_thread, getattr(signal, second), other))
             killers[-1].start()
 
         monkeypatch.setattr(soliterm.tui.app.App, "say_waiting", say_waiting)
@@ -1327,7 +1321,7 @@ def test_a_second_signal_as_it_waits_for_the_lock_says_what_was_lost(
         for killer in killers:
             killer.join()
     assert scr.rc == 130
-    assert len(killers) == 1
+    assert [killer.seen for killer in killers] == [[True, True]]
     assert saves.waiting() == {}
     assert store.get_stat("klondike")["total"] == 0
     assert store.notices() == [
