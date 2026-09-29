@@ -248,6 +248,12 @@ before it goes on, since on Linux a closing terminal's read fails with
 EIO before the SIGHUP comes, and a second call to `put_away` does
 nothing.
 
+Windows sends no SIGHUP or SIGTERM to turn into anything. Closing the
+console window or pressing Ctrl-Break ends the process there and then
+(status 0xC000013A), so the game in play is neither kept nor counted,
+and a save that was taken up to resume it is gone too. Ctrl-C still
+raises `KeyboardInterrupt` and leaves as `q` does.
+
 ## Tests
 
 The suite never reads or writes your own files: the autouse fixture in
