@@ -54,7 +54,7 @@ jobs:
         utf8: ["1"]
         # Every version runs on Linux. macOS and Windows get the oldest
         # and the newest, which is where platform trouble tends to show,
-        # and the one still to come.
+        # and macOS the one still to come too.
         exclude:
           - { os: macos-latest, python: "3.10" }
           - { os: macos-latest, python: "3.11" }
@@ -64,6 +64,10 @@ jobs:
           - { os: windows-latest, python: "3.11" }
           - { os: windows-latest, python: "3.12" }
           - { os: windows-latest, python: "3.13" }
+          # windows-curses only comes as wheels and has none for 3.15
+          # yet, so Soliterm can't be installed there. Put it back once
+          # it has.
+          - { os: windows-latest, python: "3.15" }
         include:
           - { os: ubuntu-latest, python: "3.13", coverage: true }
           # Windows as players have it: without UTF-8 mode, which only
