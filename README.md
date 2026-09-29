@@ -213,6 +213,12 @@ menu then reads `Resume your game: 0:42, 31 moves`, and picking it, or
 starting it with `--game`, carries on where you left off. A daily you
 leave is kept the same way, and that day's daily carries on with it.
 
+A game you pick up from a save stays in the saves folder while you play
+it, so if Soliterm crashes or is killed, the next run offers it again as
+it was when you picked it up. While it's in play, another Soliterm window
+doesn't offer it, and a new deal of that game there says it won't be
+kept.
+
 A few things give a game up instead, and it counts as a loss: `n` for a new
 deal, `g` for another deal, and changing the game's options with `o`. So
 does leaving the "No moves left" screen, whether for a new deal or the
@@ -221,8 +227,9 @@ deal on that screen don't count anything.
 
 On Windows, closing the console window or pressing Ctrl-Break ends
 Soliterm at once, in text mode too. The game in play isn't kept or
-counted, and if you'd picked it up from a save, that save is gone as well.
-Leave with `q`, `m` or Ctrl-C to keep it.
+counted, though if you'd picked it up from a save, that save is offered
+again the next time, as it was when you picked it up. Leave with `q`, `m`
+or Ctrl-C to keep it.
 
 A deal you ask for by number or share code, or with `--draw` or `--suits`,
 is always the deal you asked for, even when that game has a saved game
@@ -370,7 +377,7 @@ the exit statuses. From a checkout, read it with `man -l man/soliterm.6`.
 | `~/.config/soliterm/config.json` | your settings: each game's options, the colours and theme, the game last played |
 | `~/.local/share/soliterm/stats.json` | the statistics of every game |
 | `~/.local/share/soliterm/history.jsonl` | a line for every game played here, which the streaks come from |
-| `~/.local/share/soliterm/saves/` | the games kept for next time, one file for each game |
+| `~/.local/share/soliterm/saves/` | the games kept for next time, one file for each game, and the ones being played |
 | `~/.config/gnome-games/aisleriot` | AisleRiot's own statistics, shared when AisleRiot is installed |
 
 `XDG_CONFIG_HOME` takes the place of `~/.config` and `XDG_DATA_HOME` of

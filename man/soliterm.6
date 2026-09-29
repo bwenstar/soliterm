@@ -56,8 +56,9 @@ or Ctrl-C, or by closing the terminal, is kept for next time, and picking
 that game again carries on where you left off.
 On Windows, closing the console window or pressing Ctrl-Break ends
 .B soliterm
-at once, so the game in play is neither kept nor counted, and if it was
-picked up from a save, that save is gone as well.
+at once, so the game in play is neither kept nor counted, though if it
+was picked up from a save, that save is offered again next time, as it
+was when picked up.
 .PP
 Text mode plays the same games as plain lines of text.
 It prints the board, reads one command a line from standard input, and
@@ -340,6 +341,9 @@ come from.
 .TP
 .I $XDG_DATA_HOME/soliterm/saves/
 The games kept for next time, one file for each game.
+A game picked up from one stays there, under another name, while it's
+played, so one lost to a crash is offered again next time, as it was
+when picked up.
 .TP
 .I $XDG_CONFIG_HOME/gnome\-games/aisleriot
 AisleRiot's own statistics, which

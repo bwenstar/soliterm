@@ -30,12 +30,17 @@ def isolated_home(tmp_path, monkeypatch):
     monkeypatch.setattr(store, "_notices", [])
     monkeypatch.setattr(store, "_no_sync", False)
     monkeypatch.setattr(saves, "_kept", [])
+    playing = {}
+    monkeypatch.setattr(saves, "_playing", playing)
     # AisleRiot may be installed here, or even open; a test that wants it
     # says so
     monkeypatch.setattr(ar, "installed", lambda: False)
     monkeypatch.setattr(ar, "PROC_ROOT", str(tmp_path / "no-proc"))
     monkeypatch.setattr(store, "_looked_for_aisleriot", False)
-    return home
+    yield home
+    # the lock of a game a test left in play, so its folder can go
+    for fd in playing.values():
+        store._let_go(fd)
 
 
 @pytest.fixture

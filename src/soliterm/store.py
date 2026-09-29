@@ -318,6 +318,21 @@ def _lock_later(fd: int) -> None:
         time.sleep(_LOCK_POLL)
 
 
+def _lock_file(path: str) -> int | None:
+    """Open `path` and lock it, without waiting: the fd that holds the lock,
+    to give to _let_go, or None if another copy of the game has it. OSError
+    if it can't be made or locked."""
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT, 0o600)
+    try:
+        if _lock_now(fd):
+            return fd
+    except BaseException:
+        _let_go(fd)
+        raise
+    _let_go(fd)
+    return None
+
+
 def _let_go(fd: int) -> None:
     """Let go of the lock on the file open on fd, and close it."""
     try:

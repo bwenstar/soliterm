@@ -1,6 +1,7 @@
 """Text mode: the board it prints and the commands it takes."""
 
 import ctypes
+import errno
 import io
 import os
 import re
@@ -11,15 +12,17 @@ from datetime import date
 
 import pytest
 
-from soliterm import deals, history, saves, store, textmode
+from soliterm import cli, deals, history, saves, store, textmode
 from soliterm.engine import GAME_ORDER, Card, new_solitaire
 from soliterm.textmode import render_text
 
 from helpers import (
+    OtherCopy,
     Steps,
     board_state,
     clear_board,
     deal,
+    nothing_in_play,
     signal_once_written,
     stalled_klondike,
     steps,
@@ -965,3 +968,125 @@ def test_n_on_a_resumed_game_counts_it_lost_with_its_saved_time(monkeypatch, cap
     # the resumed game was under way before a move; the new deal never was
     assert [(e["result"], e["seconds"], e["moves"]) for e in history.games()] == [("lost", 47, 0)]
     assert saves.waiting() == {}
+
+
+# -- a resumed game, whichever way it goes -----------------------------------------------
+
+
+def keep_one():
+    """Klondike deal 4, one deal in, 31 moves and 0:42 on, kept for next time."""
+    g = deal("klondike", 4)
+    g.deal()
+    g.moves = 31
+    assert saves.keep(g, 42)
+
+
+def typing(*lines):
+    """The lines typed, with an error raised, or a signal sent, where one
+    is given in their place."""
+    for line in lines:
+        if line in ("SIGHUP", "SIGTERM"):
+            os.kill(os.getpid(), getattr(signal, line))
+        elif not isinstance(line, str):
+            raise line
+        else:
+            yield line + "\n"
+
+
+def resume_one(*lines):
+    """Run text mode as at a terminal, on the game kept for Klondike, as
+    what is typed goes. Its exit status."""
+    return textmode.run_text(
+        deal("klondike", 1), False, "klondike", stream=typing(*lines), keep=True, resume=True
+    )
+
+
+@pytest.mark.parametrize(
+    "leave, rc",
+    [(["q"], 0), ([], 0), ([KeyboardInterrupt], 130), (["SIGHUP"], 130), (["SIGTERM"], 130)],
+    ids=["q", "the end of the input", "ctrl-c", "sighup", "sigterm"],
+)
+def test_leaving_a_resumed_game_keeps_it_again(monkeypatch, leave, rc):
+    if leave[:1] in (["SIGHUP"], ["SIGTERM"]) and not hasattr(signal, "SIGHUP"):
+        pytest.skip("needs POSIX signals")
+    monkeypatch.setattr(textmode, "time", Clock())
+    monkeypatch.setattr(cli, "_quiet_output", lambda: None)
+    keep_one()
+    with cli._leave_on_signals():
+        assert resume_one("d", *leave) == rc
+    assert saves.waiting() == {"klondike": {"seconds": 42, "moves": 32}}
+    assert store.get_stat("klondike")["total"] == 0
+    assert nothing_in_play()
+
+
+HUNG_UP = OSError(errno.EIO, "Input/output error")
+
+
+def test_an_error_in_a_resumed_game_keeps_it_again_and_goes_on(monkeypatch):
+    monkeypatch.setattr(textmode, "time", Clock())
+    keep_one()
+    with pytest.raises(OSError, match="Input/output error"):
+        resume_one("d", HUNG_UP)
+    assert saves.waiting() == {"klondike": {"seconds": 42, "moves": 32}}
+    assert nothing_in_play()
+
+
+def test_an_error_keeping_it_doesnt_hide_the_error_that_led_there(monkeypatch):
+    keep_one()
+
+    def keep(g, seconds):
+        raise ValueError("and this")
+
+    monkeypatch.setattr(saves, "keep", keep)
+    with pytest.raises(OSError, match="Input/output error"):
+        resume_one("d", HUNG_UP)
+
+
+def test_winning_a_resumed_game_takes_it_out_of_play():
+    g = deal("klondike", 1)
+    king = one_card_from_won(g)
+    assert saves.keep(g, 42)
+    assert resume_one(f"f {king}") == 0
+    assert store.get_stat("klondike")["wins"] == 1
+    assert saves.waiting() == {}
+    assert nothing_in_play()
+
+
+@pytest.mark.parametrize(
+    "typed, lost", [(["n", "q"], 1), (["n"], 1), (["N", "q"], 0)], ids=["n", "n then the end", "N"]
+)
+def test_dealing_over_a_resumed_game_takes_it_out_of_play(typed, lost):
+    keep_one()
+    assert resume_one(*typed) == 0
+    assert store.get_stat("klondike")["total"] == lost
+    assert saves.waiting() == {}
+    assert nothing_in_play()
+
+
+def test_a_resumed_game_killed_in_play_is_offered_again_as_it_was(monkeypatch, capsys):
+    keep_one()
+    with OtherCopy() as other:
+        other.says("Resumed your Klondike game (0:42, 31 moves)")
+        other.types("d")
+        other.says("moves=32 ")
+        other.kill()
+    assert saves.waiting() == {"klondike": {"seconds": 42, "moves": 31}}
+    monkeypatch.setattr(textmode, "time", Clock())
+    assert resume_one("d", "q") == 0
+    assert "Resumed your Klondike game (0:42, 31 moves)." in capsys.readouterr().out
+    assert saves.waiting() == {"klondike": {"seconds": 42, "moves": 32}}
+
+
+def test_a_game_another_copy_has_in_play_isnt_resumed_here(capsys):
+    keep_one()
+    with OtherCopy() as other:
+        other.says("Resumed your Klondike game (0:42, 31 moves)")
+        assert resume_one("d", "q") == 0
+        assert other.quits() == 0
+    lines = capsys.readouterr().out.splitlines()
+    assert lines[1] == (
+        "a saved Klondike game is being played somewhere else, so this one won't be kept"
+    )
+    # the game played here had no room to be kept; the other one did
+    assert store.get_stat("klondike")["total"] == 1
+    assert saves.waiting()["klondike"]["moves"] == 31

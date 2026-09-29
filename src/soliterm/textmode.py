@@ -426,6 +426,7 @@ def run_text(
     def count(won: bool, secs: int) -> None:
         nonlocal recorded
         with store.signals_held():
+            saves.let_go(game_key)  # a game taken up from a save, done with
             history.record(g, won, secs)
             recorded = True
 
@@ -436,8 +437,11 @@ def run_text(
     def unkept() -> str:
         # a new deal while a game of its kind is saved, which leaves no room
         # to keep this one too
+        name = g.gamedef.name
         if keep and game_key in saves.waiting(game_key):
-            return f"a saved {g.gamedef.name} game is waiting, so this one won't be kept"
+            return f"a saved {name} game is waiting, so this one won't be kept"
+        if keep and saves.elsewhere(game_key):
+            return f"a saved {name} game is being played somewhere else, so this one won't be kept"
         return ""
 
     def put_away() -> None:
@@ -476,8 +480,8 @@ def run_text(
     try:
         try:
             if resume:
-                # From the take on, the game is out of the saves folder until
-                # put_away puts it back, so a signal waits until it is in play
+                # From the take on, the save is in play until put_away keeps
+                # the game again, so a signal waits until there's one to keep
                 with store.signals_held():
                     taken = saves.take(game_key)
                     if taken is not None:
@@ -524,7 +528,9 @@ def run_text(
                     if note := unkept():
                         msg = f"{msg}\n{note}"
                 elif msg == "__restart__":
-                    # the same hand again: AisleRiot does not count a restart
+                    # the same hand again: AisleRiot does not count a restart,
+                    # and a game taken up from a save goes with it
+                    saves.let_go(game_key)
                     g.restart()
                     start, recorded, resumed = time.monotonic(), False, False
                     msg = "restarted this deal"
@@ -560,9 +566,11 @@ def run_text(
         except Exception:
             # the input or the output gone, as when a closing terminal's read
             # fails before its SIGHUP comes, or a bug: the game is kept or
-            # counted as it is for q, and the error goes on. Inside the
-            # handler below, so a signal landing meanwhile puts it away again.
-            put_away()
+            # counted as it is for q, and the error goes on, not one that
+            # doing so ran into. Inside the handler below, so a signal
+            # landing meanwhile puts it away again.
+            with suppress(Exception):
+                put_away()
             raise
     except KeyboardInterrupt:
         # Ctrl-C leaves like q does, minus the traceback, and so do SIGHUP

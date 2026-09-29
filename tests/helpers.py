@@ -1,14 +1,17 @@
 """Helpers shared by the test modules (import them with `from helpers import`)."""
 
 import curses
+import glob
 import os
 import signal
+import subprocess
+import sys
 import threading
 import time
 from collections import Counter
 from pathlib import Path
 
-from soliterm import engine, store
+from soliterm import engine, saves, store
 
 # Cards in a full deal of each game.
 EXPECTED_CARDS = {
@@ -48,6 +51,85 @@ def child_env():
     return dict(
         os.environ, PYTHONPATH=os.pathsep.join(p for p in (src, os.environ.get("PYTHONPATH")) if p)
     )
+
+
+# Text mode as it runs at a terminal, keeping a game left under way and
+# resuming the one saved, on Klondike
+TEXT_COPY = """
+import sys
+from soliterm import engine, textmode
+g = engine.new_solitaire("klondike", seed=1)
+sys.exit(textmode.run_text(g, False, "klondike", keep=True, resume=True))
+"""
+
+
+class OtherCopy:
+    """Another copy of the game playing Klondike in text mode, in a process
+    of its own with this one's HOME. Use it in a with block, which kills it
+    if it's still there at the end."""
+
+    def __init__(self):
+        self.p = subprocess.Popen(
+            [sys.executable, "-u", "-c", TEXT_COPY],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            env=dict(child_env(), SOLITERM_NO_AISLERIOT="1"),
+        )
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        if self.p.poll() is None:
+            self.p.kill()
+        self.p.wait(60)
+        self.p.stdin.close()
+        self.p.stdout.close()
+
+    def says(self, text):
+        """Read what it prints up to a line with `text` in it. One that
+        never comes, as when it waits for a command instead, fails the test
+        in 30 seconds rather than hanging the suite."""
+        seen = ""
+        timer = threading.Timer(30, self.p.kill)
+        timer.start()
+        try:
+            for line in iter(self.p.stdout.readline, ""):
+                seen += line
+                if text in line:
+                    return
+        finally:
+            timer.cancel()
+        raise AssertionError(f"it didn't say {text!r}:\n{seen}")
+
+    def types(self, line):
+        self.p.stdin.write(line + "\n")
+        self.p.stdin.flush()
+
+    def quits(self):
+        """Type q, and give its exit status once it has gone."""
+        self.types("q")
+        return self.p.wait(60)
+
+    def kill(self):
+        """Stop it there and then, as a crash or a closed window does."""
+        self.p.kill()
+        self.p.wait(60)
+
+
+def crashed(key="klondike"):
+    """This copy going with the game it took up for `key` still in play, as
+    a crash or a closed window leaves it: nothing tidied, and the lock let
+    go of, as the system does."""
+    store._let_go(saves._playing.pop(key))
+
+
+def nothing_in_play():
+    """Whether every game taken up from a save is out of play: this copy
+    holds no game's lock, and no in-play save is left in the folder."""
+    return saves._playing == {} and not glob.glob(os.path.join(saves.saves_dir(), "*.in-play.*"))
 
 
 def deal(key, seed=1, **options):

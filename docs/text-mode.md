@@ -253,16 +253,18 @@ The saved game is the same one the full-screen game would resume, and the
 other way round. Asking for a particular deal or options starts afresh
 and leaves the save waiting, and text mode says so as it starts, and
 again after each `n`:
-`a saved Golf game is waiting, so this one won't be kept`.
+`a saved Golf game is waiting, so this one won't be kept`. While that
+saved game is being played in another window, it says this instead:
+`a saved Golf game is being played somewhere else, so this one won't be kept`.
 
 When the commands come from a pipe or a file, nothing is kept. A game
 left unfinished when the input runs out counts as lost, as long as it had
 a move made in it, and one nobody touched doesn't count at all.
 
 On Windows, closing the console window or pressing Ctrl-Break ends
-Soliterm at once. The game isn't kept or counted, and if you'd picked it
-up from a save, that save is gone as well. Leave with `q` or Ctrl-C to
-keep it.
+Soliterm at once. The game isn't kept or counted, though if you'd picked
+it up from a save, that save is offered again next time, as it was when
+you picked it up. Leave with `q` or Ctrl-C to keep it.
 
 ## Exit status
 

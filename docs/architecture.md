@@ -226,10 +226,30 @@ again, `resume_solitaire` in
 [`engine/games/__init__.py`](../src/soliterm/engine/games/__init__.py)
 deals the same hand afresh and checks every saved position against it,
 same slots and same cards, so a damaged or hand-edited save is set aside
-instead of played. The save is taken out of the folder as the game
-resumes, so it can't be played twice. Once the full-screen game has put
-the terminal back, `main` in [`tui/app.py`](../src/soliterm/tui/app.py)
-names the games this run left in the folder, from `saves.kept()`.
+instead of played. Once the full-screen game has put the terminal back,
+`main` in [`tui/app.py`](../src/soliterm/tui/app.py) names the games this
+run left in the folder, from `saves.kept()`.
+
+A save that's taken up stays in the folder until the game is done with.
+`take` renames it to `saves/<game>.in-play.json`, a name 1.0 never
+reads, so it neither offers the game nor sets it aside, and locks
+`saves/<game>.lock` the way `stats.lock` is locked, for as long as the
+game is in play. The in-play file goes only once the game is kept again,
+with the new save written first, or counted, or dealt again from the
+start with `N` or Replay, which counts nothing; that happens inside
+`store.signals_held`, and then the lock is let go. So a game that goes
+any other way, by a crash, a `kill -9` or a closed console window, is
+still there: the next start that can take the lock finds the in-play
+file and offers it again, as it was when it was taken up. Where no lock
+can be had at all, as on a file system without them, the save comes out
+of the folder as it did in 1.0, and a crash loses it. One whose lock
+another copy holds is in play there, and is left alone, not offered, not
+set aside and not touched, and while it is, that copy has the game's one
+slot, so a game of that kind left here counts as lost. A save beside an
+in-play file was kept after the game was taken up, by 1.0 say, so it's
+the newer one and the in-play file goes. The in-play file goes just
+before the game is counted, so a crash between the two loses that game
+from the statistics rather than counting it twice.
 
 Leaving always goes the same way, whatever the reason:
 
@@ -244,15 +264,17 @@ Leaving always goes the same way, whatever the reason:
   gone.
 - The play loop catches it and calls `put_away`, which keeps the game, or
   counts it as won or lost when it can't be kept. A deal never started
-  has nothing to keep, so it leaves at once, without the stats lock.
+  has nothing to keep, so it leaves at once, without the stats lock. Any
+  other error out of the loop, a bug say, puts the game away the same
+  way before it goes on, and an error doing that doesn't hide it.
 - Saving a game or counting it, and marking it done, happen inside
   `store.signals_held`, which holds those signals back until the block
   is over. Without it, a signal landing between the two would have the
   game saved or counted a second time on the way out. Taking a save up
   and putting the game in play happen inside it too, so no signal lands
-  while the game is out of the folder but not yet in play. It takes the
-  stats lock first, while signals still land, so Ctrl-C or a signal can
-  break off a wait for another copy of the game.
+  while the save is in play but there's no game yet to keep again. It
+  takes the stats lock first, while signals still land, so Ctrl-C or a
+  signal can break off a wait for another copy of the game.
 
 Text mode does the same in `run_text`, except that it only keeps games
 for someone typing at a terminal. A script's game is counted, as it
@@ -273,8 +295,9 @@ the time until it's back.
 Windows sends no SIGHUP or SIGTERM to turn into anything. Closing the
 console window or pressing Ctrl-Break ends the process there and then
 (status 0xC000013A), so the game in play is neither kept nor counted,
-and a save that was taken up to resume it is gone too. Ctrl-C still
-raises `KeyboardInterrupt` and leaves as `q` does.
+though one taken up from a save is offered again the next time, as it
+was when it was taken up. Ctrl-C still raises `KeyboardInterrupt` and
+leaves as `q` does.
 
 ## Tests
 

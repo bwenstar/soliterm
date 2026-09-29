@@ -900,42 +900,55 @@ class App:
         Returns True if they quit the program, False to go back to the menu.
         """
         try:
-            self.start_game(key, deal)
-            while True:
-                self.game.update_status()
-                self.draw()
-                if self.game.is_won() and not self.recorded:
-                    if self.finish(True):
-                        continue
-                    return False
-                # stuck: no productive move and the player has actually started
-                if (
-                    self.clock.started
-                    and not self.recorded
-                    and not self.dead_end_undone
-                    and self.game.is_stuck()
-                ):
-                    if self.finish(False):
-                        continue
-                    return False
-                outcome = self.handle_key(self.read_key())
-                if outcome is not None:
-                    return outcome == QUIT
+            try:
+                self.start_game(key, deal)
+                while True:
+                    self.game.update_status()
+                    self.draw()
+                    if self.game.is_won() and not self.recorded:
+                        if self.finish(True):
+                            continue
+                        return False
+                    # stuck: no productive move and the player has actually started
+                    if (
+                        self.clock.started
+                        and not self.recorded
+                        and not self.dead_end_undone
+                        and self.game.is_stuck()
+                    ):
+                        if self.finish(False):
+                            continue
+                        return False
+                    outcome = self.handle_key(self.read_key())
+                    if outcome is not None:
+                        return outcome == QUIT
+            except Exception:
+                # a bug, say: the game is kept or counted as it is for q, and
+                # the error goes on, not one that doing so ran into. Inside
+                # the handler below, so a signal meanwhile puts it away again.
+                if hasattr(self, "game"):
+                    with suppress(Exception):
+                        self.leave()
+                raise
         except KeyboardInterrupt:
-            # Ctrl-C, wherever in the game it comes, leaves the way q does,
-            # but on the end banner there is nothing left to come back to
+            # Ctrl-C, wherever in the game it comes, leaves the way q does
             if not hasattr(self, "game"):  # there is none before the first deal
                 raise
             try:
-                if self.ending:
-                    self.give_up()
-                else:
-                    self.put_away()
+                self.leave()
             finally:
                 # another Ctrl-C, say as it waited for another copy's lock
                 if not self.recorded and (self.game.is_won() or self.under_way()):
                     store.cut_short(self.game.gamedef.name)
             raise
+
+    def leave(self) -> None:
+        """Put the game away as the program goes, but on the end banner
+        there is nothing left to come back to, so it's counted."""
+        if self.ending:
+            self.give_up()
+        else:
+            self.put_away()
 
     def read_key(self, wait_ms: int = 1000) -> int:
         """The next key on the play screen or a dialog, or -1 for an Alt
@@ -988,8 +1001,8 @@ class App:
         listed = resumes and key in self.waiting
         # the menu listed it, but another window has had it since
         gone = listed and not os.path.exists(saves.save_path(key))
-        # From the take on, a resumed game is out of the saves folder until
-        # put_away puts it back, so a signal waits until it is set up
+        # From the take on, the save is in play until put_away keeps the
+        # game again, so a signal waits until there's one set up to keep
         with store.signals_held():
             resumed = saves.take(key) if resumes else None
             self.put_in_play(deal, resumed)
@@ -1037,18 +1050,22 @@ class App:
         self.skip_cascade = False
 
     def unkept_note(self) -> str:
-        """What a new deal says while a game of its kind is saved, as then
-        leaving this one can't keep it too; "" when there's room for it.
+        """What a new deal says while a game of its kind is saved, or taken
+        up in another window, as then leaving this one can't keep it too;
+        "" when there's room for it.
 
         The slot is looked at again, for a game another window has saved
         since the menu, and the menu's list of saves is brought up to date.
         """
+        name = GAMES[self.key].name
         saved = saves.waiting(self.key).get(self.key)
-        if saved is None:
-            self.waiting.pop(self.key, None)
-            return ""
-        self.waiting[self.key] = saved
-        return f"a saved {GAMES[self.key].name} game is waiting, so this one won't be kept"
+        if saved is not None:
+            self.waiting[self.key] = saved
+            return f"a saved {name} game is waiting, so this one won't be kept"
+        self.waiting.pop(self.key, None)
+        if saves.elsewhere(self.key):
+            return f"a saved {name} game is being played somewhere else, so this one won't be kept"
+        return ""
 
     @staticmethod
     def resume_text(save: dict) -> str:
@@ -1278,12 +1295,16 @@ class App:
         """Count the game in play in the statistics, once, and return its
         statistics after. Every game the TUI counts comes through here."""
         with store.signals_held():
+            saves.let_go(self.key)  # a game taken up from a save, done with
             stat = history.record(self.game, won, seconds)
             self.recorded = True
         return stat
 
     def reset_for(self, new_game_fn: Callable[[], object]):
         """Run a (re)deal and reset the per-game UI state."""
+        # a game taken up from a save and not counted, as dealing it again
+        # from the start doesn't count it, goes with it
+        saves.let_go(self.key)
         new_game_fn()
         self.clock.reset()
         self.recorded = False

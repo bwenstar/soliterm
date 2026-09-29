@@ -32,8 +32,11 @@ from soliterm.tui.board import CODE_GUTTER
 from helpers import (
     PDCURSES_NUMPAD,
     FakeScr,
+    OtherCopy,
     clear_board,
+    crashed,
     deal,
+    nothing_in_play,
     signal_as_it_waits,
     signal_once_written,
     stalled_klondike,
@@ -2172,6 +2175,152 @@ def test_a_save_that_cant_be_written_counts_a_loss(tui):
     assert store.notices() == [
         f"couldn't save your Klondike game to {saves.save_path('klondike')}, so it counts as lost"
     ]
+
+
+# -- a resumed game, whichever way it goes -------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "leave",
+    [["q"], ["m", "q"], [KeyboardInterrupt], [Signal("SIGHUP")], [Signal("SIGTERM")]],
+    ids=["q", "m", "ctrl-c", "sighup", "sigterm"],
+)
+def test_leaving_a_resumed_game_keeps_it_again(tui, monkeypatch, game_clock, leave):
+    if isinstance(leave[0], Signal) and not hasattr(signal, "SIGHUP"):
+        pytest.skip("needs POSIX signals")
+    monkeypatch.setattr(cli, "_quiet_output", lambda: None)
+    keep_one()
+    with cli._leave_on_signals():
+        tui(["d", *leave])
+    assert saves.waiting() == {"klondike": {"seconds": 42, "moves": 32}}
+    assert store.get_stat("klondike")["total"] == 0
+    assert nothing_in_play()
+
+
+def test_an_error_mid_game_keeps_it_and_goes_on(tui, game_clock):
+    keep_one()
+    with pytest.raises(RuntimeError):
+        tui(["d", RuntimeError])
+    assert saves.waiting() == {"klondike": {"seconds": 42, "moves": 32}}
+    assert store.get_stat("klondike")["total"] == 0
+    assert nothing_in_play()
+
+
+def test_an_error_keeping_it_doesnt_hide_the_error_that_led_there(tui, monkeypatch):
+    keep_one()
+
+    def keep(g, seconds):
+        raise ValueError("and this")
+
+    monkeypatch.setattr(saves, "keep", keep)
+    with pytest.raises(RuntimeError):
+        tui(["d", RuntimeError])
+    # neither kept nor counted, so what was taken up is still in play, for
+    # the next run to offer
+    crashed()
+    assert saves.waiting() == {"klondike": {"seconds": 42, "moves": 31}}
+
+
+@pytest.mark.parametrize("after", [["m", "q"], [KeyboardInterrupt]], ids=["m", "ctrl-c"])
+def test_winning_a_resumed_game_takes_it_out_of_play(tui, after):
+    assert saves.keep(near_won(5), 42)
+    scr = tui(["a", *after])
+    assert "YOU WIN" in scr.frames[1]
+    assert store.get_stat("klondike")["wins"] == 1
+    assert saves.waiting() == {}
+    assert nothing_in_play()
+
+
+@pytest.mark.parametrize(
+    "keys, lost",
+    [(["n"], 1), (["N"], 0), (["g", "6", ENTER, "y"], 1), (["o", curses.KEY_RIGHT, ENTER, "y"], 1)],
+    ids=["n", "N", "g", "new options"],
+)
+def test_dealing_over_a_resumed_game_takes_it_out_of_play(tui, keys, lost):
+    keep_one()
+    tui([*keys, "q"])
+    assert store.get_stat("klondike")["total"] == lost
+    assert saves.waiting() == {}
+    assert nothing_in_play()
+
+
+def played_out():
+    """Golf deal 1 played by its hints to where no move is left, as a real
+    game gets there, with every move before it to undo."""
+    g = deal("golf", 1)
+    while not g.is_stuck():
+        move = g.best_move()
+        if move is None:
+            assert g.deal()
+        else:
+            g.attempt_move(*move)
+    return g
+
+
+@pytest.mark.parametrize(
+    "keys, lost, kept",
+    [
+        (["n", "q"], 1, False),
+        (["m", "q"], 1, False),
+        ([KeyboardInterrupt], 1, False),
+        (["s", "q"], 0, False),  # replayed, which counts nothing
+        (["u", "q"], 0, True),  # and played on
+    ],
+    ids=["n", "m", "ctrl-c", "same deal", "undo"],
+)
+def test_a_resumed_game_with_no_moves_left_comes_out_of_play(tui, keys, lost, kept):
+    assert saves.keep(played_out(), 42)
+    scr = tui(keys, start_key="golf")
+    assert "No moves left" in scr.frames[0]
+    assert store.get_stat("golf")["total"] == lost
+    assert ("golf" in saves.waiting()) == kept
+    assert nothing_in_play()
+
+
+def test_a_game_resumed_again_in_the_same_run_is_taken_up_afresh(tui, game_clock):
+    keep_one()
+    scr = tui([ENTER, "d", "m", ENTER, "d", "m", "j", ENTER, "d", "q"], start_key=None)
+    assert "Resumed your game (0:42, 32 moves)" in scr.frames[4]
+    assert saves.waiting() == {
+        "klondike": {"seconds": 42, "moves": 33},
+        "spider": {"seconds": 0, "moves": 1},
+    }
+    assert nothing_in_play()
+
+
+def test_a_resumed_game_outlasts_an_error_and_a_kill(tui, game_clock):
+    keep_one()
+    with pytest.raises(RuntimeError):
+        tui(["d", RuntimeError])
+    assert saves.waiting() == {"klondike": {"seconds": 42, "moves": 32}}
+    # taken up in text mode, played on, and the process killed
+    with OtherCopy() as other:
+        other.says("Resumed your Klondike game (0:42, 32 moves)")
+        other.types("d")
+        other.says("moves=33 ")
+        other.kill()
+    # the next run offers it as it was taken up
+    scr = tui([ENTER, "d", "q"], start_key=None)
+    assert "> Klondike         Resume your game: 0:42, 32 moves" in scr.frames[0]
+    assert "Resumed your game (0:42, 32 moves)" in scr.frames[1]
+    assert saves.waiting() == {"klondike": {"seconds": 42, "moves": 33}}
+    assert nothing_in_play()
+
+
+ELSEWHERE = "a saved Klondike game is being played somewhere else, so this one won't be kept"
+
+
+def test_a_game_another_copy_has_in_play_isnt_offered_here(tui):
+    keep_one()
+    with OtherCopy() as other:
+        other.says("Resumed your Klondike game (0:42, 31 moves)")
+        scr = tui([ENTER, "d", "q"], start_key=None)
+        assert other.quits() == 0
+    assert "Resume your game" not in scr.frames[0]
+    assert ELSEWHERE in scr.frames[1]
+    # the game played here had no room to be kept; the other one did
+    assert store.get_stat("klondike")["total"] == 1
+    assert saves.waiting()["klondike"]["moves"] == 31
 
 
 # -- options -------------------------------------------------------------------------
