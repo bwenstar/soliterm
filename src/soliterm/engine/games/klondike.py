@@ -162,6 +162,41 @@ class Klondike(GameDef):
     def autoplay(self, g):
         return self._send_up(g, safe_only=True)
 
+    def fallback_move(self, g):
+        """Take a card back down off a foundation when a card can then build
+        on it and turn up a face-down card, as AisleRiot suggests too.
+
+        Taking a card down loses ground, so the generic hint never offers
+        it, and the card could always go straight back. The next hint
+        builds on it (best_move won't send it back up while that advances),
+        and autoplay leaves it down while a card that builds on it is still
+        in play. Every such pair leaves fewer cards face down, and a card
+        never goes face down again, so following it can't loop.
+        """
+        hidden = self._face_down(g)
+        for src, dst, n in g.legal_moves():
+            if g.kind(src) != "foundation":
+                continue
+            sim = g.clone()
+            if not sim.attempt_move(src, dst, n):
+                continue
+            for then in sim.legal_moves():
+                if not {then[0], then[1]} & {src, dst}:
+                    continue
+                after = sim.clone()
+                if after.attempt_move(*then) and self._face_down(after) < hidden:
+                    return (src, dst, n)
+        return None
+
+    def _face_down(self, g):
+        return sum(not c.face_up for t in self.tableau for c in g.cards(t))
+
+    def no_hint_reason(self, g):
+        if any(g.kind(src) == "foundation" for src, _, _ in g.legal_moves()):
+            # AisleRiot says as much, rather than leaving undo as the way on
+            return "no move clearly helps - try moving a card down from a foundation"
+        return None
+
     def _send_up(self, g, safe_only):
         """Move cards up to the foundations until none will go, and return
         how many went. With safe_only, only those autoplay counts as safe."""

@@ -231,6 +231,59 @@ def test_the_hint_names_no_move_that_just_goes_back_and_forth():
     assert src == t[2] and desc == "Move 2♦ to the empty column"
 
 
+# -- a card taken back off a foundation --------------------------------------
+
+
+def a_card_to_take_down(builds=True):
+    """Klondike with the stock used up and one move left: 5♠ can come down
+    off its foundation onto 6♦. Built on, 4♦ turns up the 8♥ under it, or
+    with 4♣ there nothing can build on it."""
+    g = deal("klondike", 1)
+    clear_board(g)
+    f, t = g.ids_of("foundation"), g.ids_of("tableau")
+    g.slots[f[0]].cards = [Card(r, "S", True) for r in range(1, 6)]
+    g.slots[t[0]].cards = [Card(9, "C", False), Card(7, "C", True), Card(6, "D", True)]
+    g.slots[t[1]].cards = [Card(8, "H", False), Card(4, "D" if builds else "C", True)]
+    return g, f, t
+
+
+def test_a_card_comes_down_off_a_foundation_to_turn_up_a_hidden_one():
+    g, f, t = a_card_to_take_down()
+    assert g.hint() == (f[0], t[0], "Move 5♠ onto 6♦")
+    assert g.attempt_move(f[0], t[0], 1)
+    # built on, not sent straight back up, by the hint or by autoplay
+    assert g.hint() == (t[1], t[0], "Move 4♦ onto 5♠")
+    assert g.autoplay() == 0
+    assert g.attempt_move(t[1], t[0], 1)
+    assert g.cards(t[1]) == [Card(8, "H", True)]
+
+
+def test_a_card_taken_down_with_nothing_to_build_on_it_goes_back_up():
+    g, f, t = a_card_to_take_down(builds=False)
+    assert g.attempt_move(f[0], t[0], 1)
+    assert g.hint() == (t[0], f[0], "Move 5♠ to its foundation")
+
+
+@pytest.mark.parametrize("number", [54, 55, 81])
+def test_following_the_hint_takes_cards_down_to_win_klondike(number):
+    # each gets stuck with the stock used up until a card comes back down
+    # off a foundation to turn up a hidden one, and then goes on to a win
+    g = deal("klondike", number)
+    seen = set()
+    for _ in range(400):
+        mv = g.hint_move()
+        if mv is None or g.is_won():
+            break
+        if mv[0] == mv[1]:
+            assert g.deal()
+            continue
+        state = board_state(g)
+        assert state not in seen, "the hint came back to a position"
+        seen.add(state)
+        assert g.attempt_move(*mv), f"hinted move {mv} was illegal"
+    assert g.is_won(), f"the hint gave up: {g.no_hint_reason()}"
+
+
 # -- when there is nothing to hint ------------------------------------------------
 
 
@@ -270,3 +323,14 @@ def test_a_board_with_no_moves_says_so():
         g.slots[t].cards = [Card(5, "S", True), Card(13, "SHDC"[i % 4], True)]
     assert not g.legal_moves()
     assert g.no_hint_reason() == "no moves left"
+
+
+def test_no_hint_says_to_try_a_card_down_off_a_foundation_before_undo():
+    g, f, t = a_card_to_take_down(builds=False)
+    assert g.attempt_move(f[0], t[0], 1) and g.attempt_move(t[0], f[0], 1)
+    assert g.hint() is None and g.can_undo()
+    reason = g.no_hint_reason()
+    assert reason == "no move clearly helps - try moving a card down from a foundation"
+    # whole on the message line at 80 columns, in the code skin too
+    assert len(reason) <= 72
+    assert apply_text_command(g, "hint") == (True, f"Hint: {reason}.")

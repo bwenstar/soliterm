@@ -34,7 +34,9 @@ from Ace to King.
   finishing a game off quickly.
 - The top card of a foundation can come back down onto a column where it
   fits, which is sometimes the only way to free a card. It can't move
-  across to another foundation.
+  across to another foundation. When nothing else helps, the hint
+  suggests bringing a card down if another can then go on it and turn a
+  face-down card over, and failing that it says to try one.
 - Dealing from the stock turns one card, or three, onto the waste,
   depending on the Cards to draw option (fewer if that's all the stock
   has left). Only the top card of the waste can be played.

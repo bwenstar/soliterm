@@ -439,9 +439,27 @@ class Solitaire:
         between two equally valid columns scores zero gain). Because progress is
         bounded and a returned move strictly increases it, following best_move()
         can never cycle. Returns None when no move makes progress.
+
+        A card the last move took down off a foundation goes straight back up
+        only when nothing else advances: it came down to be built on (see
+        Klondike's fallback_move), and sending it back would only undo that.
         """
-        found = self._most_progress(self.legal_moves(), self.progress())
+        moves = self.legal_moves()
+        found = self._most_progress(moves, self.progress())
+        if found is not None and self._sends_back_up(found[0]):
+            rest = [m for m in moves if m != found[0]]
+            found = self._most_progress(rest, self.progress()) or found
         return None if found is None else found[0]
+
+    def _sends_back_up(self, move: tuple[int, int, int]) -> bool:
+        """True if `move` sends a card up to a foundation and so puts the
+        cards back where they were before the last move."""
+        if not self._undo or self.kind(move[1]) != "foundation":
+            return False
+        sim = self.clone()
+        sim.attempt_move(*move)
+        before = self._parse(self._undo[-1].decode())[2]
+        return _cards_of(sim.slots) == _cards_of(before)
 
     def _most_progress(
         self, moves: list[tuple[int, int, int]], base: int
