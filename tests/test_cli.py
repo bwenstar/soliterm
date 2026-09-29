@@ -1426,6 +1426,30 @@ def test_the_saved_game_line_to_a_reader_that_went_away_ends_quietly():
     assert p.returncode == 0
 
 
+def test_a_notice_to_a_reader_that_went_away_ends_quietly():
+    # the same for the notes on the way out, here about a damaged stats.json
+    stats = Path(store.stats_path())
+    stats.parent.mkdir(parents=True)
+    stats.write_text("{not json")
+    r, w = os.pipe()
+    os.close(r)
+    try:
+        p = subprocess.run(
+            [sys.executable, "-m", "soliterm", "--no-sync", "--stats"],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=w,
+            text=True,
+            env=child_env(),
+            check=False,
+            timeout=60,
+        )
+    finally:
+        os.close(w)
+    assert p.stdout.startswith("Game ")
+    assert p.returncode == 0
+
+
 @pytest.fixture
 def pipe():
     """A file on a pipe whose reader is still there, to stand in for stdout."""

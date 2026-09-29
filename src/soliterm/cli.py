@@ -417,8 +417,14 @@ def main(argv: list[str] | None = None) -> int:
         return 130 if came else rc
     finally:
         # anything that kept the stats from being shared or saved as usual
-        for msg in store.notices():
-            print(f"soliterm: {msg}", file=sys.stderr)
+        try:
+            for msg in store.notices():
+                print(f"soliterm: {msg}", file=sys.stderr)
+        except OSError:
+            # whatever read stderr has gone (EPIPE, or EINVAL on Windows),
+            # which is no reason to lose stdout or end with 120 when
+            # Python's flush at exit meets the same pipe
+            _to_devnull(2)
 
 
 def _requested_deal(args: argparse.Namespace, cfg: dict) -> deals.Deal | None:
