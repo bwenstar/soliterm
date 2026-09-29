@@ -16,17 +16,18 @@ of statistics shared between the two.
 
 ## Try it now
 
-With [pipx](https://pipx.pypa.io), this downloads it into a temporary
-environment and plays it straight away:
+With [pipx](https://pipx.pypa.io) or [uv](https://docs.astral.sh/uv/),
+this downloads it into a temporary environment and plays it straight
+away:
 
 ```sh
-pipx run soliterm
+pipx run soliterm          # or: uvx soliterm
 ```
 
 To keep it:
 
 ```sh
-pipx install soliterm      # or: pip install soliterm
+pipx install soliterm      # or: uv tool install soliterm, or pip install soliterm
 soliterm
 ```
 
@@ -37,6 +38,18 @@ and run it with Python:
 ```sh
 curl -LO https://github.com/bwenstar/soliterm/releases/latest/download/soliterm.pyz
 python3 soliterm.pyz
+```
+
+To check it before you run it, take `SHA256SUMS` from the same
+release, which has the SHA-256 of each of its files. The last line
+needs the [GitHub CLI](https://cli.github.com): it checks GitHub's
+record that the file was built on GitHub Actions from Soliterm's own
+repository.
+
+```sh
+curl -LO https://github.com/bwenstar/soliterm/releases/latest/download/SHA256SUMS
+sha256sum -c SHA256SUMS --ignore-missing   # soliterm.pyz: OK
+gh attestation verify soliterm.pyz --repo bwenstar/soliterm
 ```
 
 Or play from a checkout:
