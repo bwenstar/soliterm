@@ -167,6 +167,12 @@ won.
 `--draw 3` and `--suits 2` change Klondike's draw or Spider's suits for a
 single run without saving them.
 
+A deal number or a share code deals the same cards in every release, a
+daily's included.
+[docs/compatibility.md](https://github.com/bwenstar/soliterm/blob/main/docs/compatibility.md)
+lists that and the rest of what stays the same from one release to the
+next, from text mode's commands to the files.
+
 ### The daily deal
 
 `soliterm --daily` deals today's hand of the game you played last, or of

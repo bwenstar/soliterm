@@ -131,6 +131,13 @@ fixed paths in tests. When a test needs AisleRiot to be installed, use the
 `keyfile` fixture, which writes a fake keyfile into the test's home.
 `tests/test_isolation.py` checks the fixture itself.
 
+**Keep what's promised.** [docs/compatibility.md](docs/compatibility.md)
+lists what stays the same from one release to the next: the deals and
+share codes, the game keys and slot ids, the options, what text mode takes
+and prints, and the files. Adding to them is fine, such as a new option or
+a new key in a file, but nothing there may go or change its meaning, since
+people's scripts and older copies of the game rely on it.
+
 **Keep commits small and focused.** One change per commit, with a subject
 line that says what it does. A refactor and the fix it makes room for go in
 separate commits. That keeps review easy and makes `git bisect` useful.

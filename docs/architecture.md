@@ -4,7 +4,9 @@ This is a map of the code for anyone who wants to change it. It's short
 on purpose: each section says where to look, and the docstrings in the
 files say the rest. Everything under `src/soliterm` is standard library
 Python, 3.9 or newer, and the only package it ever needs is
-windows-curses, on Windows.
+windows-curses, on Windows. None of it is an API to build on: the modules
+are provisional and can change in any release.
+[compatibility.md](compatibility.md) says what does stay the same.
 
 ## The layout
 
