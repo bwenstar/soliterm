@@ -1,10 +1,16 @@
-"""soliterm.records - each game's records and the dailies, from the history.
+"""soliterm.records - records, dailies and achievements, from the history.
 
 Nothing here is stored. Each function goes through the games in
 history.jsonl, as history.games() gives them, when it's asked, so what
 it says always agrees with the history, and a list of games can be
-passed in instead. A line of a game only a newer version knows is left
-out of the records of the games this one knows.
+passed in instead: reading the history takes longer than any of these,
+so a screen that shows more than one reads it once and passes it to
+each. A line of a game only a newer version knows is left out of the
+records of the games this one knows.
+
+So --reset-stats, which copies the history to history.jsonl.bak and then
+clears it, takes the records, the dailies and the achievements with it,
+and putting history.jsonl.bak back as history.jsonl brings them back.
 """
 
 from __future__ import annotations
@@ -270,17 +276,18 @@ def dailies(entries: list[dict] | None = None, day: date | None = None) -> dict[
 _DAY = timedelta(days=1)
 
 
-def _won_days(entries: list[dict]) -> set[date]:
-    """The days with a daily won, in any game."""
-    found = set()
-    for e in entries:
+def _won_days(entries: list[dict]) -> dict[date, int]:
+    """The days with a daily won, in any game, each with the place in
+    `entries` of the first line that won one."""
+    found: dict[date, int] = {}
+    for n, e in enumerate(entries):
         daily = e.get("daily")
         if e["result"] == "won" and isinstance(daily, str) and is_day(daily):
-            found.add(date.fromisoformat(daily))
+            found.setdefault(date.fromisoformat(daily), n)
     return found
 
 
-def _runs(days: set[date]) -> dict[date, int]:
+def _runs(days: dict[date, int]) -> dict[date, int]:
     """How many days in a row each of `days` ends."""
     found: dict[date, int] = {}
     last: date | None = None
@@ -304,8 +311,85 @@ def daily_streak(entries: list[dict] | None = None, today: date | None = None) -
     """
     if entries is None:
         entries = history.games()
+    return _streak(_runs(_won_days(entries)), today)
+
+
+def _streak(runs: dict[date, int], today: date | None) -> Streak:
+    """daily_streak() from _runs()."""
     if today is None:
         today = deals.today()
-    runs = _runs(_won_days(entries))
     current = runs.get(today) or runs.get(today - _DAY, 0)
     return Streak(current, max(runs.values(), default=0))
+
+
+class Achievement(NamedTuple):
+    """Something to do, and whether it's done."""
+
+    earned: bool
+    at: str | None  # when it was earned: the "at" of the line that earned it
+    done: int  # how far along it is, out of goal
+    goal: int
+    left: tuple[str, ...] = ()  # the games still to win, for a win in every game
+
+
+class Achievements(NamedTuple):
+    """Every achievement, and how far along each is."""
+
+    clean: dict[str, Achievement]  # each game won with no hint and no undo
+    every_game: Achievement  # a win in every game
+    seven_dailies: Achievement  # dailies won seven days in a row
+
+
+_WEEK = 7  # the days in a row for seven dailies
+
+
+def _earned(
+    entries: list[dict], n: int | None, done: int, goal: int, left: tuple[str, ...] = ()
+) -> Achievement:
+    """An achievement earned by the nth line of `entries`, or if n is None,
+    one not earned yet and `done` out of `goal` of the way there."""
+    if n is None:
+        return Achievement(False, None, done, goal, left)
+    return Achievement(True, entries[n]["at"], goal, goal)
+
+
+def achievements(entries: list[dict] | None = None, today: date | None = None) -> Achievements:
+    """What's been done, from `entries`, the history by default. Like the
+    rest here, it's worked out when it's asked for and never stored, and
+    each is earned by the first line that did it.
+
+    A clean win is a win with no hint asked for and no move undone, so it
+    has to be a line that counts both, as from 1.1 on. A win in every game
+    is in every game this version has, so a game added later is one left
+    to win until it's won. Seven dailies is earned when daily_streak()'s
+    longest reaches seven days, and until then it's as far along as the
+    streak now, on `today`, today by default.
+    """
+    if entries is None:
+        entries = history.games()
+    first_win: dict[str, int] = {}
+    clean: dict[str, int] = {}
+    known = set(GAME_ORDER)
+    for n, e in enumerate(entries):
+        key = e["game"]
+        if e["result"] != "won" or key not in known:
+            continue
+        first_win.setdefault(key, n)
+        if key not in clean and history.counts(e) == (0, 0):
+            clean[key] = n
+    left = tuple(key for key in GAME_ORDER if key not in first_win)
+    last_won = None if left else max(first_win.values())
+    days = _won_days(entries)
+    runs = _runs(days)
+    # for each seven days in a row, the line that won the last of them to
+    # be won, and the first of those earned it
+    weeks = [
+        max(days[day - back * _DAY] for back in range(_WEEK))
+        for day, run in runs.items()
+        if run >= _WEEK
+    ]
+    return Achievements(
+        {key: _earned(entries, clean.get(key), 0, 1) for key in GAME_ORDER},
+        _earned(entries, last_won, len(first_win), len(GAME_ORDER), left),
+        _earned(entries, min(weeks, default=None), _streak(runs, today).current, _WEEK),
+    )

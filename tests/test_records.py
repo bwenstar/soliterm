@@ -1,17 +1,20 @@
 """The records of each game, worked out from the history: games played and
 won, the fastest win, the fewest moves, the best score, the longest
 streak, and how a game just played did against its deal's best. And the
-dailies of a day, and the streak of days with a daily won."""
+dailies of a day, the streak of days with a daily won, and the
+achievements."""
 
+import os
 import time
 from datetime import date, timedelta
 
 import pytest
 
 from soliterm import deals, history, records
+from soliterm.cli import main
 from soliterm.engine import GAME_ORDER, GAMES, Card
 from soliterm.history import Streak
-from soliterm.records import Best, DayResult, DealBest, Records
+from soliterm.records import Achievement, Best, DayResult, DealBest, Records
 
 from helpers import EXPECTED_CARDS, clear_board, deal
 
@@ -631,4 +634,162 @@ def test_the_dailies_and_the_streak_of_20000_games_take_well_under_100_ms():
     took = time.perf_counter() - start
     assert {key for key, d in found.items() if d.result == "won"} == {"triplepeaks", "yukon"}
     assert streak == Streak(6667, 6667)
+    assert took < 1.0  # generous, for a slow machine
+
+
+# -- achievements -----------------------------------------------------------------------
+
+NOT_CLEAN = Achievement(False, None, 0, 1)
+
+
+def at(n):
+    """The time of the nth game of a run of them, a minute apart."""
+    return f"2026-09-30T{10 + n // 60:02}:{n % 60:02}:00+10:00"
+
+
+def test_no_games_earn_nothing():
+    found = records.achievements([], TODAY)
+    assert list(found.clean) == GAME_ORDER
+    assert all(a == NOT_CLEAN for a in found.clean.values())
+    assert found.every_game == Achievement(False, None, 0, len(GAME_ORDER), tuple(GAME_ORDER))
+    assert found.seven_dailies == Achievement(False, None, 0, 7)
+
+
+def test_a_clean_win_is_one_with_no_hint_and_no_undo():
+    lines = [
+        game(hints=1, undos=0, at=at(0)),
+        game(hints=0, undos=2, at=at(1)),
+        game(result="lost", hints=0, undos=0, at=at(2)),
+        game(at=at(3)),  # from before 1.1, which counts neither
+        game(hints=0, at=at(4)),
+        game(hints=0, undos=None, at=at(5)),
+        game(hints="0", undos=0, at=at(6)),
+        game(hints=0, undos=0, at=at(7)),
+        game(hints=0, undos=0, at=at(8)),
+        game("golf", hints=2, undos=0, at=at(9)),
+    ]
+    found = records.achievements(lines, TODAY).clean
+    # when it was first earned
+    assert found["klondike"] == Achievement(True, at(7), 1, 1)
+    assert found["golf"] == found["spider"] == NOT_CLEAN
+
+
+def test_a_clean_win_counts_from_the_history():
+    history.record(deal("golf", 4), False, 30)
+    history.record(deal("golf", 4), True, 60)
+    (_, won) = history.games()
+    assert history.counts(won) == (0, 0)
+    assert records.achievements().clean["golf"] == Achievement(True, won["at"], 1, 1)
+
+
+def test_a_win_in_every_game_counts_the_games_won_and_the_ones_left():
+    keys = GAME_ORDER[:9]
+    lines = [game(key, at=at(n)) for n, key in enumerate(keys)]
+    lines += [game("canfield", "lost"), {**game(), "game": "pyramid"}]
+    found = records.achievements(lines, TODAY).every_game
+    assert found == Achievement(False, None, 9, len(GAME_ORDER), tuple(GAME_ORDER[9:]))
+    assert (found.done, found.goal) == (9, 12)
+
+
+def test_a_win_in_every_game_is_earned_by_the_last_game_to_be_won():
+    lines = [game(key, at=at(n)) for n, key in enumerate(reversed(GAME_ORDER))]
+    lines.insert(3, game("klondike", at="2026-09-29T09:00:00+10:00"))
+    lines.append(game("golf", at=at(99)))
+    found = records.achievements(lines, TODAY).every_game
+    # klondike, last in, had been won already
+    assert found == Achievement(True, at(10), 12, 12, ())
+
+
+def test_a_game_added_later_is_the_one_left_to_win(monkeypatch):
+    lines = [game(key, at=at(n), hints=0, undos=0) for n, key in enumerate(GAME_ORDER)]
+    monkeypatch.setattr(records, "GAME_ORDER", [*GAME_ORDER, "pyramid"])
+    found = records.achievements(lines, TODAY)
+    assert found.every_game == Achievement(False, None, 12, 13, ("pyramid",))
+    assert found.clean["pyramid"] == NOT_CLEAN
+    assert found.clean["canfield"] == Achievement(True, at(11), 1, 1)
+
+
+def test_seven_dailies_is_a_week_of_days_in_a_row_with_one_won():
+    days = [f"2026-09-{d}" for d in range(24, 31)]
+    lines = [daily(day, at=f"{day}T21:00:00+10:00") for day in days]
+    assert records.achievements(lines[:6], TODAY).seven_dailies == Achievement(False, None, 6, 7)
+    assert records.achievements(lines, TODAY).seven_dailies == Achievement(
+        True, "2026-09-30T21:00:00+10:00", 7, 7
+    )
+    assert records.daily_streak(lines, TODAY) == Streak(7, 7)
+
+
+def test_seven_dailies_counts_the_streak_now_until_its_earned():
+    lines = won_on("2026-09-20", "2026-09-21", "2026-09-22", "2026-09-23", "2026-09-28")
+    lines.append(daily("2026-09-29", "golf"))
+    assert records.achievements(lines, TODAY).seven_dailies == Achievement(False, None, 2, 7)
+    assert records.achievements(lines, date(2026, 10, 2)).seven_dailies == Achievement(
+        False, None, 0, 7
+    )
+
+
+def test_seven_dailies_stays_earned_after_the_streak_ends():
+    days = [f"2026-09-{d:02}" for d in range(1, 8)]
+    lines = [daily(day) for day in days]
+    assert records.achievements(lines, TODAY).seven_dailies == Achievement(
+        True, "2026-09-07T20:00:00+10:00", 7, 7
+    )
+
+
+def test_seven_dailies_is_earned_by_the_line_that_made_the_seventh_day():
+    # the 4th was won from a save after the rest, and a longer run was
+    # finished later still
+    days = ["2026-09-01", "2026-09-02", "2026-09-03", "2026-09-05", "2026-09-06", "2026-09-07"]
+    lines = [
+        *(daily(day, at=at(n)) for n, day in enumerate(days)),
+        *(daily(f"2026-09-{d}", at=at(10 + d)) for d in range(20, 28)),
+        daily("2026-09-04", at=at(50)),
+        daily("2026-09-04", at=at(51)),
+        daily("2026-09-08", at=at(52)),
+    ]
+    assert records.achievements(lines, TODAY).seven_dailies.at == at(10 + 26)
+    lines = lines[:6] + lines[-3:] + lines[6:-3]
+    assert records.achievements(lines, TODAY).seven_dailies.at == at(50)
+
+
+def test_the_achievements_come_from_the_history_by_default(monkeypatch):
+    monkeypatch.setattr(deals, "today", lambda: TODAY)
+    assert records.achievements() == records.achievements([], TODAY)
+    g = deal("golf", 20260930)
+    g.daily = "2026-09-30"
+    history.record(g, True, 80)
+    found = records.achievements()
+    assert found.seven_dailies == Achievement(False, None, 1, 7)
+    assert found.every_game.done == 1
+
+
+def test_reset_stats_takes_the_records_and_achievements_with_the_history(capsys):
+    history.record(deal("golf", 4), True, 60)
+    before = records.achievements()
+    assert before.clean["golf"].earned and records.records()["golf"].won == 1
+    assert main(["--reset-stats", "--yes"]) == 0
+    assert records.achievements() == records.achievements([])
+    assert records.records() == records.records([])
+    # and they come back with the history
+    os.replace(history.history_path() + ".bak", history.history_path())
+    assert records.achievements() == before
+
+
+def test_the_achievements_of_20000_games_take_well_under_100_ms():
+    first = date(2000, 1, 1)
+    lines = [
+        daily(
+            (first + timedelta(days=n // 3)).isoformat(),
+            GAME_ORDER[n % len(GAME_ORDER)],
+            "won" if n % 5 else "lost",
+            hints=n // 12 % 2,
+            undos=0,
+        )
+        for n in range(20000)
+    ]
+    start = time.perf_counter()
+    found = records.achievements(lines, first + timedelta(days=6666))
+    took = time.perf_counter() - start
+    assert found.every_game.earned and found.seven_dailies.earned
+    assert all(a.earned for a in found.clean.values())
     assert took < 1.0  # generous, for a slow machine
