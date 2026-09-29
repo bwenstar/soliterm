@@ -12,6 +12,9 @@ from .rng import Pcg32, fisher_yates, stream_of
 
 MAX_DEAL = 2**31 - 1  # deal numbers run from 0 to this
 RANDOM_DEALS = 1_000_000  # a random deal is one of the first million, short to share
+# why_not's answer when the game has nothing better to say; no game should
+# leave it that
+REFUSED = "the rules don't allow it"
 
 if TYPE_CHECKING:
     from .gamedef import GameDef
@@ -668,6 +671,28 @@ class Solitaire:
                 return f"nothing {place} goes on the waste"
             return f"{card} doesn't go on the waste"
         return f"{self.gamedef.name} has no foundations"
+
+    def why_not(self, src: int, dst: int, n: int | None = None) -> str:
+        """Why moving n cards from src to dst is refused, for the player to
+        read after "illegal move: ". With no n, it's about the run a bare
+        move tries first, the longest src gives up, not a shorter one tried
+        after it. Only asked once attempt_move has refused the move."""
+        if not (0 <= src < len(self.slots)) or not (0 <= dst < len(self.slots)):
+            return "no such slot"
+        pile = self.cards(src)
+        if not pile:
+            return "nothing there to move"
+        if src == dst:
+            return "the cards are there already"
+        if n is None:
+            n = self.default_pickup(src) or 1
+        if n <= 0:
+            return "a move takes at least one card"
+        if n > len(pile):
+            if len(pile) == 1:
+                return "there is only 1 card there"
+            return f"there are only {len(pile)} cards there"
+        return self.gamedef.why_not(self, src, pile[len(pile) - n :], dst) or REFUSED
 
     def can_deal(self) -> bool:
         return self.gamedef.can_deal(self)

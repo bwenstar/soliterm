@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from ..cards import KING, RANK_NAME
-from ..gamedef import GameDef
+from ..gamedef import GameDef, alt_color_wanted
 
 
 class Canfield(GameDef):
@@ -77,6 +77,21 @@ class Canfield(GameDef):
                 return True  # any card may start an empty column
             return self._t_down_altcolor(top, c)
         return False
+
+    def why_not(self, g, src, cards, dst):
+        if g.kind(src) == "foundation" and cards[-1].rank == g.base_val:
+            return f"{cards[-1].label(g.symbols)} started that foundation, so it stays there"
+        reason = (
+            self.lift_refusal(g, src, cards)
+            or self.run_refusal(g, cards, self._t_down_altcolor)
+            or self.slot_refusal(g, cards, dst)
+        )
+        if reason:
+            return reason
+        if g.kind(dst) == "foundation":
+            return self.foundation_refusal(g, cards, dst, base=g.base_val, wrap=True)
+        top = g.top(dst)  # an empty column takes any card, so there is one
+        return self.column_refusal(g, cards[0], top, alt_color_wanted(top, wrap=True))
 
     def on_click(self, g, sid):
         if sid != self.stock:

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from ..cards import ACE, KING
-from ..gamedef import GameDef
+from ..gamedef import GameDef, alt_color_wanted
 
 
 class Yukon(GameDef):
@@ -51,6 +51,20 @@ class Yukon(GameDef):
                 return cards[0].rank == KING
             return self.alt_color_down(top, cards[0])
         return False
+
+    def why_not(self, g, src, cards, dst):
+        if g.kind(src) == "foundation":
+            return "cards on the foundations stay there"
+        # any face-up group moves, in any order
+        reason = self.lift_refusal(g, src, cards) or self.slot_refusal(g, cards, dst)
+        if reason:
+            return reason
+        if g.kind(dst) == "foundation":
+            return self.foundation_refusal(g, cards, dst)
+        top = g.top(dst)
+        if top is None:
+            return "an empty column takes only a King"
+        return self.column_refusal(g, cards[0], top, alt_color_wanted(top))
 
     def on_double_click(self, g, sid):
         if g.kind(sid) != "tableau":

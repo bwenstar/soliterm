@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from ..gamedef import GameDef
+from ..cards import ACE, KING
+from ..gamedef import GameDef, a_rank
 
 # (rows down, half cards across) of each peak card, top row first
 SPOTS = (
@@ -68,6 +69,27 @@ class TriplePeaks(GameDef):
         if dst != self.waste or top is None:
             return False
         return (cards[0].rank - top.rank) % 13 in (1, 12)  # a rank up or down; K and A touch
+
+    def why_not(self, g, src, cards, dst):
+        kind = g.kind(src)
+        if kind == "waste":
+            return "nothing comes back off the waste"
+        if kind == "tableau" and not cards[0].face_up:
+            return "a face-down card stays until both cards over it are gone"
+        reason = self.lift_refusal(g, src, cards)
+        if reason:
+            return reason
+        if dst != self.waste:
+            if g.kind(dst) == "tableau":
+                return "nothing moves between the peaks"
+            return self.slot_refusal(g, cards, dst)
+        top = g.top(self.waste)
+        if top is None:
+            return "the waste is empty - deal from the stock first"
+        # a King and an Ace touch
+        below = a_rank(top.rank - 1 if top.rank > ACE else KING)
+        above = a_rank(top.rank % KING + 1)
+        return f"only {below} or {above} goes on {top.label(g.symbols)}"
 
     def on_click(self, g, sid):
         if sid == self.stock:

@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from ..cards import KING
-from ..gamedef import GameDef
+from ..cards import ACE, KING
+from ..gamedef import GameDef, a_rank
 
 
 class Golf(GameDef):
@@ -40,6 +40,28 @@ class Golf(GameDef):
             return False  # nothing plays on a King (no wrap)
         c = cards[0].rank
         return c == w + 1 or c == w - 1
+
+    def why_not(self, g, src, cards, dst):
+        if g.kind(src) == "waste":
+            return "nothing comes back off the waste"
+        reason = self.lift_refusal(g, src, cards)
+        if reason:
+            return reason
+        if len(cards) > 1:
+            return "cards go to the waste one at a time"
+        if dst != self.waste:
+            if g.kind(dst) == "tableau":
+                return "cards never go from one column to another"
+            return self.slot_refusal(g, cards, dst)
+        top = g.top(self.waste)
+        if top is None:
+            return "the waste is empty - deal from the stock first"
+        on = top.label(g.symbols)
+        if top.rank == KING:
+            return f"nothing goes on {on} - ranks don't wrap round in Golf"
+        if top.rank == ACE:
+            return f"only a 2 goes on {on} - ranks don't wrap round in Golf"
+        return f"only {a_rank(top.rank - 1)} or {a_rank(top.rank + 1)} goes on {on}"
 
     def on_click(self, g, sid):
         if sid == self.stock and not g.empty(self.stock):

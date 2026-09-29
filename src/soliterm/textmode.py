@@ -283,7 +283,8 @@ def apply_text_command(g: Solitaire, cmd: str) -> tuple[bool, str]:
                     if g.attempt_move(src, dst, k):
                         ok = True
                         break
-            return ok, "" if ok else "illegal move"
+            # why the run asked for won't go, the longest one with no count
+            return ok, "" if ok else f"illegal move: {g.why_not(src, dst, count)}"
     except (ValueError, IndexError):
         pass
     return False, f"bad command: {cmd!r} (try h)"

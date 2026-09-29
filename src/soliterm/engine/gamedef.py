@@ -2,8 +2,62 @@
 
 from __future__ import annotations
 
-from .cards import ACE, Card
+from typing import Callable
+
+from .cards import ACE, JACK, KING, QUEEN, Card
 from .core import Solitaire
+
+RANK_WORD = {ACE: "Ace", JACK: "Jack", QUEEN: "Queen", KING: "King"}
+# the slots a card can lie on alone, as a reason names them
+ONE_CARD_SLOT = {
+    "waste": "the waste",
+    "foundation": "a foundation",
+    "reserve": "the reserve",
+    "freecell": "a free cell",
+}
+
+
+def a_rank(rank: int, color: str = "") -> str:
+    """A card of this rank as a sentence names it: "an Ace", "a 7", "an 8"
+    or, with a colour, "a red Queen"."""
+    word = f"{color} {RANK_WORD.get(rank, rank)}".lstrip()
+    return ("an " if word[0] in "A8" else "a ") + word
+
+
+def how_many(n: int, noun: str) -> str:
+    """n of noun, as in "no free cells", "1 free cell" or "3 free cells"."""
+    if n == 1:
+        return f"1 {noun}"
+    return f"{n or 'no'} {noun}s"
+
+
+def cards_up_to(n: int) -> str:
+    """The most cards that can move, as in "up to 1 card" or "up to 4 cards"."""
+    return f"up to {n} card" + ("" if n == 1 else "s")
+
+
+def alt_color_wanted(top: Card, wrap: bool = False) -> str | None:
+    """What builds on top down by alternate colours, as in "a black 4", or
+    None under an Ace unless the ranks wrap round to a King."""
+    if top.rank == ACE and not wrap:
+        return None
+    rank = top.rank - 1 if top.rank > ACE else KING
+    return a_rank(rank, "black" if top.is_red else "red")
+
+
+def suit_wanted(top: Card, symbols: bool) -> str | None:
+    """What builds on top down by suit, as in "9H", or None under an Ace."""
+    if top.rank == ACE:
+        return None
+    return Card(top.rank - 1, top.suit, True).label(symbols)
+
+
+def rank_wanted(top: Card) -> str | None:
+    """What builds on top down regardless of suit, as in "any 7", or None
+    under an Ace."""
+    if top.rank == ACE:
+        return None
+    return f"any {RANK_WORD.get(top.rank - 1, top.rank - 1)}"
 
 
 class GameDef:
@@ -98,6 +152,34 @@ class GameDef:
         generic message does (see Solitaire.no_hint_reason)."""
         return None
 
+    def why_not(self, g: Solitaire, src: int, cards: list[Card], dst: int) -> str:
+        """Why moving `cards`, the top of src, to dst is refused, for the
+        player to read after "illegal move: ". Only asked once the move has
+        been refused, with src and dst two different slots.
+
+        The default knows Klondike's rules: runs built down by alternate
+        colours, foundations up by suit from the Ace, and only a King in an
+        empty column. A game with other rules says why by its own. A reason
+        names cards the way the board does (g.symbols), never one face down,
+        and is at most 58 characters, so the message fits the message line
+        at 80 columns. "" leaves it to a line that just says no.
+        """
+        reason = (
+            self.lift_refusal(g, src, cards)
+            or self.run_refusal(g, cards, self.alt_color_down)
+            or self.slot_refusal(g, cards, dst)
+        )
+        if reason:
+            return reason
+        if g.kind(dst) == "foundation":
+            if g.kind(src) == "foundation":
+                return "a card can't move from one foundation to another"
+            return self.foundation_refusal(g, cards, dst)
+        top = g.top(dst)
+        if top is None:
+            return "an empty column takes only a King"
+        return self.column_refusal(g, cards[0], top, alt_color_wanted(top))
+
     def can_deal(self, g: Solitaire) -> bool:
         return bool(g.ids_of("stock")) and not g.empty(g.ids_of("stock")[0])
 
@@ -146,6 +228,79 @@ class GameDef:
     @staticmethod
     def same_suit_up(prev: Card, nxt: Card) -> bool:
         return prev.suit == nxt.suit and nxt.rank == prev.rank + 1
+
+    # The pieces of a why_not. Each says why a move breaks one rule most
+    # games share, or "" when it doesn't.
+
+    @staticmethod
+    def lift_refusal(g: Solitaire, src: int, cards: list[Card]) -> str:
+        """Cards that can't leave src at all: the stock's, a face-down one,
+        or more than the top of a slot that isn't a column."""
+        kind = g.kind(src)
+        if kind == "stock":
+            return "cards in the stock can only be dealt"
+        if not all(c.face_up for c in cards):
+            return "a face-down card can't be moved"
+        if len(cards) > 1 and kind in ONE_CARD_SLOT:
+            return f"only the top card of {ONE_CARD_SLOT[kind]} can move"
+        return ""
+
+    @staticmethod
+    def run_refusal(g: Solitaire, cards: list[Card], builds: Callable[[Card, Card], bool]) -> str:
+        """Cards that aren't one built run, where builds(upper, lower) says
+        whether lower builds on upper."""
+        for a, b in zip(cards, cards[1:]):
+            if not builds(a, b):
+                return (
+                    f"{b.label(g.symbols)} doesn't build on {a.label(g.symbols)}, "
+                    "so they can't move together"
+                )
+        return ""
+
+    @staticmethod
+    def slot_refusal(g: Solitaire, cards: list[Card], dst: int) -> str:
+        """A slot that takes nothing dropped on it, or a free cell that
+        can't take these cards."""
+        kind = g.kind(dst)
+        if kind in ("stock", "waste", "reserve"):
+            return f"nothing goes on the {kind}"
+        if kind == "freecell":
+            if len(cards) > 1:
+                return "a free cell holds one card"
+            if not g.empty(dst):
+                return "that free cell is full"
+        return ""
+
+    @staticmethod
+    def foundation_refusal(
+        g: Solitaire, cards: list[Card], dst: int, base: int | None = None, wrap: bool = False
+    ) -> str:
+        """Cards that don't go up on foundation dst, built up by suit from
+        the Ace, or from a base rank that wraps round from King to Ace."""
+        if len(cards) > 1:
+            return "cards go up to a foundation one at a time"
+        top = g.top(dst)
+        if top is None:
+            if base is None:
+                return "an empty foundation takes only an Ace"
+            return f"an empty foundation takes only {a_rank(base)}, the base rank"
+        if len(g.cards(dst)) >= 13 or (top.rank == KING and not wrap):
+            return "that foundation is complete"
+        wanted = Card(top.rank % KING + 1, top.suit, True)
+        return (
+            f"{cards[0].label(g.symbols)} doesn't go on {top.label(g.symbols)}, "
+            f"which takes {wanted.label(g.symbols)} next"
+        )
+
+    @staticmethod
+    def column_refusal(g: Solitaire, lead: Card, top: Card, wanted: str | None) -> str:
+        """lead doesn't build on top, the card on top of a column, which
+        takes `wanted` (as "a black 4"), or nothing when that is None."""
+        if not top.face_up:
+            return "nothing goes on a face-down card"
+        if wanted is None:
+            return f"nothing builds on {top.label(g.symbols)}"
+        return f"{lead.label(g.symbols)} doesn't go on {top.label(g.symbols)}, which takes {wanted}"
 
     def foundation_for(self, g: Solitaire, card: Card) -> int | None:
         """The foundation a card can go to right now (up-by-suit, ace base)."""

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from ..cards import KING
-from ..gamedef import GameDef
+from ..gamedef import GameDef, suit_wanted
 
 
 class Scorpion(GameDef):
@@ -44,6 +44,16 @@ class Scorpion(GameDef):
         if top is None:
             return cards[0].rank == KING
         return top.face_up and self.tableau_adjacent(top, cards[0])
+
+    def why_not(self, g, src, cards, dst):
+        # any face-up group moves, in any order
+        reason = self.lift_refusal(g, src, cards) or self.slot_refusal(g, cards, dst)
+        if reason:
+            return reason
+        top = g.top(dst)
+        if top is None:
+            return "an empty column takes only a King"
+        return self.column_refusal(g, cards[0], top, suit_wanted(top, g.symbols))
 
     def on_click(self, g, sid):
         stock = g.slots[self.stock].cards

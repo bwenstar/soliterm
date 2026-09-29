@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from ..cards import ACE, KING
-from ..gamedef import GameDef
+from ..gamedef import GameDef, cards_up_to, how_many, suit_wanted
 
 
 class EightOff(GameDef):
@@ -67,6 +67,30 @@ class EightOff(GameDef):
                 return cards[0].rank == KING  # only a King leads an empty column
             return top.suit == cards[0].suit and top.rank == cards[0].rank + 1
         return False
+
+    def why_not(self, g, src, cards, dst):
+        reason = self.lift_refusal(g, src, cards) or self.run_refusal(
+            g, cards, self.tableau_adjacent
+        )
+        if reason:
+            return reason
+        most = self._max_group(g)
+        if len(cards) > most:
+            reason = f"{cards_up_to(most)} with {how_many(self._free(g), 'free cell')}"
+            if any(g.empty(t) for t in self.tableau):
+                reason += " - empty columns don't help"
+            return reason
+        reason = self.slot_refusal(g, cards, dst)
+        if reason:
+            return reason
+        if g.kind(dst) == "foundation":
+            if g.kind(src) == "foundation":
+                return "a card can't move from one foundation to another"
+            return self.foundation_refusal(g, cards, dst)
+        top = g.top(dst)
+        if top is None:
+            return "an empty column takes only a King"
+        return self.column_refusal(g, cards[0], top, suit_wanted(top, g.symbols))
 
     def on_double_click(self, g, sid):
         if g.kind(sid) not in ("tableau", "freecell"):

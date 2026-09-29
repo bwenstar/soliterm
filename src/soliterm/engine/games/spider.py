@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from ..cards import make_deck
-from ..gamedef import GameDef
+from ..gamedef import GameDef, rank_wanted
 
 
 class Spider(GameDef):
@@ -69,6 +69,28 @@ class Spider(GameDef):
         if top is None:
             return True
         return top.face_up and top.rank == cards[0].rank + 1
+
+    def why_not(self, g, src, cards, dst):
+        if g.kind(src) == "foundation":
+            return "a finished run stays on its foundation"
+        reason = self.lift_refusal(g, src, cards)
+        if reason:
+            return reason
+        for a, b in zip(cards, cards[1:]):
+            if a.suit != b.suit:
+                return (
+                    f"{a.label(g.symbols)} and {b.label(g.symbols)} aren't one suit, "
+                    "so they can't move together"
+                )
+        reason = self.run_refusal(g, cards, lambda a, b: b.rank == a.rank - 1) or self.slot_refusal(
+            g, cards, dst
+        )
+        if reason:
+            return reason
+        if g.kind(dst) == "foundation":
+            return "a King-to-Ace run in one suit goes up by itself"
+        top = g.top(dst)  # an empty column takes any card, so there is one
+        return self.column_refusal(g, cards[0], top, rank_wanted(top))
 
     def on_click(self, g, sid):
         if g.kind(sid) != "stock" or g.empty(sid):

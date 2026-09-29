@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from ..cards import ACE
-from ..gamedef import GameDef
+from ..gamedef import GameDef, alt_color_wanted, cards_up_to, how_many
 from ..rng import microsoft_deal
 
 
@@ -59,6 +59,31 @@ class FreeCell(GameDef):
                 return True
             return self.alt_color_down(top, cards[0])
         return False
+
+    def why_not(self, g, src, cards, dst):
+        if g.kind(src) == "foundation":
+            return "cards on the foundations stay there"
+        reason = (
+            self.lift_refusal(g, src, cards)
+            or self.run_refusal(g, cards, self.alt_color_down)
+            or self.slot_refusal(g, cards, dst)
+        )
+        if reason:
+            return reason
+        if g.kind(dst) == "foundation":
+            return self.foundation_refusal(g, cards, dst)
+        top = g.top(dst)
+        if top is not None and not self.alt_color_down(top, cards[0]):
+            return self.column_refusal(g, cards[0], top, alt_color_wanted(top))
+        # it fits, so the run is too long for the free cells and empty
+        # columns to shuffle it across
+        free = sum(1 for c in self.cells if g.empty(c))
+        empty = sum(1 for t in self.tableau if g.empty(t) and t != dst)
+        columns = "other empty column" if top is None else "empty column"
+        return (
+            f"{cards_up_to(self._max_supermove(g, dst))} with "
+            f"{how_many(free, 'free cell')} and {how_many(empty, columns)}"
+        )
 
     def on_double_click(self, g, sid):
         if g.kind(sid) not in ("tableau", "freecell"):

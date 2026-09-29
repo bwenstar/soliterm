@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from ..cards import ACE, KING
-from ..gamedef import GameDef
+from ..gamedef import GameDef, rank_wanted
 
 
 class BakersDozen(GameDef):
@@ -51,6 +51,18 @@ class BakersDozen(GameDef):
                 return False  # empty columns cannot be refilled
             return top.rank == c.rank + 1  # build down by rank, any suit
         return False
+
+    def why_not(self, g, src, cards, dst):
+        if len(cards) > 1:
+            return "cards move one at a time in Bakers Dozen"
+        if g.kind(dst) == "foundation":
+            if g.kind(src) == "foundation":
+                return "a card can't move from one foundation to another"
+            return self.foundation_refusal(g, cards, dst)
+        top = g.top(dst)
+        if top is None:
+            return "an empty column can't be filled again"
+        return self.column_refusal(g, cards[0], top, rank_wanted(top))
 
     def on_double_click(self, g, sid):
         if g.kind(sid) != "tableau":

@@ -725,7 +725,10 @@ class App(Screens):
                 if game.attempt_move(self.selected, sid, n):
                     ok = True
                     break
-        self.message = "" if ok else "illegal move"
+        # why the run held won't go, not a shorter one tried after it
+        self.message = (
+            "" if ok else f"illegal move: {game.why_not(self.selected, sid, self.selected_n)}"
+        )
         self.selected = None
         self.selected_exact = False
         self.hint = None

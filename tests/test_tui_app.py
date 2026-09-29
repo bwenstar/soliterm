@@ -44,9 +44,9 @@ def up(rank, suit):
     return Card(rank, suit, True)
 
 
-def klondike_app(first, second, keys=(), scr=None):
+def klondike_app(first, second, keys=(), scr=None, **settings):
     """An App playing Klondike with only the first two columns dealt."""
-    app = App(scr or KeyScr(keys))
+    app = App(scr or KeyScr(keys), **settings)
     app.start_game("klondike")
     t = app.game.ids_of("tableau")
     for sid in t:
@@ -410,8 +410,22 @@ def test_an_illegal_drop_says_so_and_changes_nothing():
     app, _a, _b = klondike_app([up(5, "H")], [up(4, "H")])
     before = app.game.serialize()
     press(app, ENTER, curses.KEY_RIGHT, ENTER)
-    assert app.message == "illegal move"
+    assert app.message == "illegal move: 5♥ doesn't go on 4♥, which takes a black 3"
     assert app.game.serialize() == before
+
+
+def test_the_full_screen_game_says_why_about_the_selection():
+    app, _a, _b = klondike_app([up(8, "S"), up(7, "H")], [up(5, "D")])
+    press(app, ENTER, curses.KEY_RIGHT, ENTER)
+    assert app.message == "illegal move: 8♠ doesn't go on 5♦, which takes a black 4"
+    press(app, curses.KEY_LEFT, ENTER, "-", curses.KEY_RIGHT, ENTER)
+    assert app.message == "illegal move: 7♥ doesn't go on 5♦, which takes a black 4"
+
+
+def test_the_reason_names_cards_in_letters_with_ascii():
+    app, _a, _b = klondike_app([up(8, "S")], [up(5, "D")], symbols=False)
+    press(app, ENTER, curses.KEY_RIGHT, ENTER)
+    assert app.message == "illegal move: 8S doesn't go on 5D, which takes a black 4"
 
 
 def test_keys_the_play_screen_does_not_use_do_nothing():

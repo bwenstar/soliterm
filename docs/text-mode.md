@@ -139,8 +139,18 @@ to its foundation:
 ```
 
 `11 10 1` moves exactly one card. A comma works in place of the space, so
-`12,2` is the same move. A move the rules don't allow prints
-`illegal move`, and a slot that isn't on the board says which ones are:
+`12,2` is the same move. A move the rules don't allow says why, naming
+the cards the way the board does. On the board above, the 8 of Diamonds
+won't go on the 10:
+
+```text
+7 8
+illegal move: 8D doesn't go on 10D, which takes a black 9
+```
+
+The reason is about the cards you asked to move: with no count, the
+longest run the slot gives up. A slot that isn't on the board says which
+ones are:
 
 ```text
 99 2

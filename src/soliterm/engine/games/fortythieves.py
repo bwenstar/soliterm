@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from ..cards import ACE, make_deck
-from ..gamedef import GameDef
+from ..gamedef import GameDef, cards_up_to, how_many, suit_wanted
 
 
 class FortyThieves(GameDef):
@@ -66,6 +66,33 @@ class FortyThieves(GameDef):
                 return True
             return top.suit == c.suit and top.rank == c.rank + 1
         return False
+
+    def why_not(self, g, src, cards, dst):
+        if g.kind(src) == "foundation":
+            return "cards on the foundations stay there"
+        reason = (
+            self.lift_refusal(g, src, cards)
+            or self.run_refusal(g, cards, self.tableau_adjacent)
+            or self.slot_refusal(g, cards, dst)
+        )
+        if reason:
+            return reason
+        if g.kind(dst) == "foundation":
+            top = g.top(dst)
+            first = cards[-1]  # a run goes up from its top card
+            if len(cards) > 1 and top is not None and len(g.cards(dst)) < 13:
+                return (
+                    f"a run goes up from its top card, and {first.label(g.symbols)} "
+                    f"doesn't go on {top.label(g.symbols)}"
+                )
+            return self.foundation_refusal(g, [first], dst)
+        top = g.top(dst)
+        if top is not None and not self.tableau_adjacent(top, cards[0]):
+            return self.column_refusal(g, cards[0], top, suit_wanted(top, g.symbols))
+        # it fits, so the run is too long to shuffle through the empty columns
+        empty = sum(1 for t in self.tableau if t not in (src, dst) and g.empty(t))
+        columns = "other empty column" if top is None else "empty column"
+        return f"{cards_up_to(self._max_group(g, src, dst))} with {how_many(empty, columns)}"
 
     def on_click(self, g, sid):
         if sid == self.stock and not g.empty(self.stock):
