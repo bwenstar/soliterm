@@ -12,6 +12,85 @@ Soliterm 1.0.0 lists the changes since.
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-09-29
+
+### Added
+
+- [docs/compatibility.md](docs/compatibility.md) says what stays the same
+  from one release to the next: the deals, share codes and the daily
+  deal, the game keys and slot ids, the command line, what a script can
+  read in text mode, and the files, with what an older version makes of
+  a newer one's. It also says what isn't promised.
+- On Linux, while statistics are shared, the first game says so when
+  AisleRiot is open, on the bottom line or, in text mode, on stderr. A
+  game finished here while it's open drops out of both when it quits. It
+  looks through /proc for a `sol` of your own and runs nothing.
+- Each game counts the hints you asked for and the moves you took back.
+  The history's line for a game and its save carry them as `hints` and
+  `undos`, for records to come, and nothing shows them yet. A game
+  resumed from an older save leaves them out, as unknown, rather than
+  counting from 0. 1.0.1 reads both as it did.
+- The README shows how to play with uv (`uvx soliterm` or
+  `uv tool install soliterm`), and how to check a downloaded
+  `soliterm.pyz` against the release's `SHA256SUMS` and the attestation
+  of where it was built.
+- The README, the man page and the architecture notes say which Windows
+  setups Soliterm has been tried on: conhost on Windows Server 2025, with
+  Python 3.9 and 3.14. Windows Terminal and desktop Windows 10 and 11
+  haven't been tried by hand yet.
+
+### Changed
+
+- The Klondike hint takes a card back down from a foundation when that
+  lets another go on it and turns a face-down card over, and where
+  nothing clearly helps it says to try one, as AisleRiot does, rather
+  than to undo. Following the hint alone now wins 120 of the first 300
+  deals drawing one, up from 106, and none of the other options wins
+  fewer.
+- On Windows the board draws the suits and the card edges, where a
+  console always got letters and plus signs. A console font without the
+  glyphs still needs `--ascii`.
+- On Windows the dark, light and contrast themes use their own colours
+  in Windows Terminal and in ConEmu with its ANSI on. The classic
+  console only has 16 colours, which would draw the diamonds in the
+  hearts' red, so there they look like `classic`, as on any 16-colour
+  terminal.
+- In Golf and Triple Peaks, `f` or a double-click on a card that doesn't
+  go on the waste names the card, as text mode does. A face-down one is
+  "that face-down card", so it isn't given away.
+
+### Fixed
+
+- A game picked up from its save is no longer lost for good when it ends
+  some other way than `q`, `m` or Ctrl-C, such as a crash, a `kill -9`
+  or, on Windows, the console closing. The save stays in the folder as
+  `saves/<game>.in-play.json` while the game is played, locked so no
+  other copy can take it up, and the next start offers it again as it
+  was. An error in the full-screen game puts the game away first, as
+  text mode does.
+- On Windows, closing the console window or pressing Ctrl-Break keeps
+  the game, or counts it, as Ctrl-C does. Both used to end Soliterm at
+  once and lose it. After a close Windows still ends the process, with
+  status 0xC000013A, and Ctrl-Break leaves with 130.
+- On Windows two copies finishing at once no longer lose a result. The
+  lock on the statistics was only there on Linux and macOS, and with two
+  copies recording 25 wins each at the same moment, stats.json kept 5 to
+  7 of the 50.
+- On Windows bold no longer changes the colours. PDCurses draws it as
+  the bright one, which turned the cursor and the selection grey, and in
+  the tuned themes a card picked up dark grey and the banner's gold pale.
+- Ctrl-Z stops the game clock, as it does in AisleRiot, so a game left
+  stopped for an hour no longer comes back an hour slower. In the
+  full-screen game up to a second of play can go with the stop.
+- The tests pass under `LC_ALL=C` without UTF-8 mode, with SIGINT
+  ignored from the start, as a build in the background has it, and from
+  the unpacked sdist, which now carries the games' pages too. The ones
+  that break off a wait for the statistics lock watch for the wait
+  rather than sleep, so a slow machine doesn't fail them.
+  CONTRIBUTING.md tells packagers what the suite needs.
+- The man page and the text-mode notes said an unset or unknown `TERM`
+  means text mode, which only holds off Windows.
+
 ## [1.0.1] - 2026-09-29
 
 ### Fixed
@@ -321,6 +400,7 @@ at the bottom of CHANGELOG.md.
 - 17 test files covering the engine, all nine games' rules, scoring, undo/redo,
   hints, statistics persistence, and the rendering modes.
 
-[Unreleased]: https://github.com/bwenstar/soliterm/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/bwenstar/soliterm/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/bwenstar/soliterm/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/bwenstar/soliterm/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/bwenstar/soliterm/releases/tag/v1.0.0
