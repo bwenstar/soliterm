@@ -90,6 +90,30 @@ def color_attr(n: int) -> int:
     return curses.color_pair(n)
 
 
+def drawn_attr(attr: int) -> int:
+    """attr as the curses at hand should be given it.
+
+    PDCurses, the curses on Windows, has no bold type. It draws A_BOLD as
+    the text colour plus 8, which makes the basic colours bright, as many
+    terminals do, but turns black grey and any colour past the basic 8
+    into another: the dark theme's white, 231, into the dark grey 239.
+    There bold is kept only on the text it brightens, in the terminal's
+    own colour or a basic one but black.
+    """
+    if sys.platform != "win32" or not attr & curses.A_BOLD:
+        return attr
+    # worked out here, as curses.pair_number in Python 3.9 looks for the
+    # pair where ncurses keeps it, and on PDCurses gives 0 for every one
+    pair = (attr & curses.A_COLOR) // (curses.A_COLOR & -curses.A_COLOR)
+    try:
+        fg = curses.pair_content(pair)[0]
+    except curses.error:
+        return attr
+    if fg == curses.COLOR_BLACK or fg >= 8:
+        return attr & ~curses.A_BOLD
+    return attr
+
+
 # the pair a face-up card is drawn in, by suit
 SUIT_FACE = {"H": FACE_RED, "D": DIAMOND_FACE, "S": FACE_BLACK, "C": CLUB_FACE}
 
@@ -384,7 +408,7 @@ class BoardUI:
         h, w = self.stdscr.getmaxyx()
         if 0 <= y < h and 0 <= x < w:
             try:
-                self.stdscr.addnstr(y, x, text, max(0, w - x - 1), attr)
+                self.stdscr.addnstr(y, x, text, max(0, w - x - 1), drawn_attr(attr))
             except curses.error:
                 pass
 

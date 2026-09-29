@@ -183,8 +183,11 @@ def tui(monkeypatch):
     # set here rather than in run() so a test can put its own in first
     monkeypatch.setattr(curses, "curs_set", lambda n: None)
     monkeypatch.setattr(curses, "use_default_colors", lambda: None)
-    # a test that wants a light background sets COLORFGBG itself
+    # a test that wants a light background sets COLORFGBG itself, and one
+    # in Windows Terminal or ConEmu sets what windows-curses goes by there
     monkeypatch.delenv("COLORFGBG", raising=False)
+    monkeypatch.delenv("WT_SESSION", raising=False)
+    monkeypatch.delenv("CONEMUANSI", raising=False)
 
     def run(
         keys,
@@ -220,6 +223,15 @@ def tui(monkeypatch):
 
         monkeypatch.setattr(curses, "init_pair", init_pair)
         monkeypatch.setattr(curses, "color_pair", lambda n: n << 8)
+        # where color_pair puts the pair, as ncurses has it (PDCurses keeps
+        # it higher up)
+        monkeypatch.setattr(curses, "A_COLOR", 0xFF00)
+
+        def pair_content(n):
+            # the colours init_pair last gave n, and pair 0 the terminal's
+            return next((pair[1:] for pair in reversed(pairs) if pair[0] == n), (-1, -1))
+
+        monkeypatch.setattr(curses, "pair_content", pair_content)
         monkeypatch.setattr(curses, "getmouse", lambda: scr.mouse)
         if game is not None:
             real = engine.new_solitaire
@@ -2898,6 +2910,110 @@ def test_the_pairs_are_in_the_colour_numbers_of_the_curses_at_hand(tui, monkeypa
     # and on 8 colours its diamonds are blue
     scr = tui(["q"])
     assert (themes.DIAMOND_FACE, 1, 7) in scr.pairs
+
+
+@pytest.mark.parametrize(
+    "platform, env, colours, picked",
+    [
+        # PDCurses says 768 in any console, and writes xterm's colour codes,
+        # the first 256 of them xterm's, in Windows Terminal and in ConEmu
+        # with its ANSI on
+        ("win32", {"WT_SESSION": "1f0c"}, 768, 256),
+        ("win32", {"CONEMUANSI": "ON"}, 768, 256),
+        # the classic console has the nearest of its own 16 for each
+        ("win32", {}, 768, 16),
+        ("win32", {"CONEMUANSI": "OFF"}, 768, 16),
+        ("linux", {}, 256, 256),
+        ("linux", {}, 88, 88),
+        # direct colour would draw the 256 as dark blues
+        ("linux", {}, 16777216, 16777216),
+    ],
+)
+@pytest.mark.parametrize("name", ["dark", "light", "contrast"])
+def test_the_tuned_colours_go_where_curses_has_them(
+    tui, monkeypatch, platform, env, colours, picked, name
+):
+    monkeypatch.setattr(sys, "platform", platform)
+    if platform == "win32":
+        for colour, n in PDCURSES.items():
+            monkeypatch.setattr(curses, "COLOR_" + colour, n)
+    for var, value in env.items():
+        monkeypatch.setenv(var, value)
+    scr = tui(["q"], theme=name, colours=colours)
+    assert scr.pairs == curses_pairs(themes.by_name(name), picked)
+
+
+def test_the_classic_console_keeps_the_four_colour_deck_apart(tui, monkeypatch):
+    # there the tuned orange, 166, would be drawn in the hearts' dark red
+    monkeypatch.setattr(sys, "platform", "win32")
+    for colour, n in PDCURSES.items():
+        monkeypatch.setattr(curses, "COLOR_" + colour, n)
+    scr = tui(["4"], colours=768)
+    pairs = {n: (fg, bg) for n, fg, bg in scr.pairs}
+    assert pairs[themes.DIAMOND_FACE] == (PDCURSES["BLUE"], PDCURSES["WHITE"])
+    assert pairs[themes.FACE_RED] == (PDCURSES["RED"], PDCURSES["WHITE"])
+
+
+def bold_text_colours(tui, monkeypatch, platform, theme, colours):
+    """The text colour of everything drawn bold in a short game: the board
+    with its cursor, a card picked up and the stock's count, and the menu,
+    in theme on `platform` with `colours` colours."""
+    drawn = []
+    real = FakeScr.addnstr
+
+    def addnstr(self, y, x, text, n, attr=0):
+        drawn.append(attr)
+        real(self, y, x, text, n, attr)
+
+    monkeypatch.setattr(FakeScr, "addnstr", addnstr)
+    monkeypatch.setattr(sys, "platform", platform)
+    if platform == "win32":
+        for colour, n in PDCURSES.items():
+            monkeypatch.setattr(curses, "COLOR_" + colour, n)
+        # in Windows Terminal, where the tuned colours are drawn
+        monkeypatch.setenv("WT_SESSION", "1f0c")
+    scr = tui([ENTER, "m", "q"], deal=1, theme=theme, colours=colours)
+    pairs = {n: (fg, bg) for n, fg, bg in scr.pairs}
+    return [pairs.get((attr >> 8) & 0xFF, (-1, -1))[0] for attr in drawn if attr & curses.A_BOLD]
+
+
+@pytest.mark.parametrize("theme", ["classic", "dark"])
+def test_bold_leaves_the_colours_alone_on_windows(tui, monkeypatch, theme):
+    # PDCurses has no bold type and draws A_BOLD as the text colour plus 8,
+    # which would turn the cursor's black grey and the dark theme's white
+    # (231) on a red card picked up the dark grey 239. Bold stays where it
+    # brightens the text: the terminal's own colour and the basic ones
+    bold = bold_text_colours(tui, monkeypatch, "win32", theme, 768)
+    assert all(fg == -1 or 1 <= fg <= 7 for fg in bold), bold
+    if theme == "classic":
+        # the labels, in cyan, are still bright
+        assert PDCURSES["CYAN"] in bold
+
+
+def test_bold_goes_by_the_pair_where_pdcurses_keeps_it(monkeypatch):
+    # windows-curses keeps the pair in the top 8 bits, and pair_number in
+    # Python 3.9 gives 0 for every pair there
+    from soliterm.tui.board import drawn_attr
+
+    bold = 0x800000
+    monkeypatch.setattr(sys, "platform", "win32")
+    monkeypatch.setattr(curses, "A_COLOR", -0x1000000)
+    monkeypatch.setattr(curses, "A_BOLD", bold)
+    monkeypatch.setattr(curses, "COLOR_BLACK", 0)
+    monkeypatch.setattr(curses, "pair_number", lambda attr: 0)
+    # PDCurses answers 7 for the terminal's own text colour
+    content = {0: (7, 0), 3: (0, 2), 4: (3, 7), 7: (231, 25)}
+    monkeypatch.setattr(curses, "pair_content", content.__getitem__)
+    assert drawn_attr(3 << 24 | bold) == 3 << 24  # black on green
+    assert drawn_attr(7 << 24 | bold) == 7 << 24  # 231 on 25
+    assert drawn_attr(4 << 24 | bold) == 4 << 24 | bold  # cyan, made bright
+    assert drawn_attr(bold) == bold  # the terminal's own colours
+    assert drawn_attr(3 << 24) == 3 << 24
+
+
+def test_bold_is_bold_as_ever_off_windows(tui, monkeypatch):
+    bold = bold_text_colours(tui, monkeypatch, "linux", "dark", 256)
+    assert 16 in bold and 231 in bold
 
 
 def pairs_on(tui, monkeypatch, colorfgbg, **kwargs):

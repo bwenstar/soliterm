@@ -412,7 +412,9 @@ they were. The man page's FILES section has the details.
   terminals.
 - **Colours.** The `dark` and `light` themes need a terminal with 256
   colours. With 8 or 16, or direct colour such as `xterm-direct`, they look
-  like `classic`.
+  like `classic`. On Windows they have the 256 in Windows Terminal, where
+  windows-curses writes xterm's colour codes. The classic console shows
+  only its own 16, so there they look like `classic` too.
 - **Light backgrounds.** Some terminals, such as rxvt and Konsole, say
   what their colours are in `COLORFGBG`, and when it ends in `;7` or `;15`
   Soliterm takes the background to be light. If yours doesn't set it, or

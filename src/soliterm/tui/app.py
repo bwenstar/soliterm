@@ -34,6 +34,7 @@ from .board import (
     color_attr,
     draw_code_backdrop,
     draw_too_small,
+    drawn_attr,
 )
 from .cascade import FRAME_MS, MAX_S, Cascade
 from .keys import BOSS_ACTIONS, PLAY_ACTIONS, help_lines, numpad_keys
@@ -172,6 +173,26 @@ def basic_colours() -> tuple[int, ...]:
         curses.COLOR_CYAN,
         curses.COLOR_WHITE,
     )
+
+
+def colour_count() -> int:
+    """The number of colours to pick the theme's colours by.
+
+    PDCurses, the curses on Windows, says 768 whatever the console. It
+    writes xterm's colour codes only in Windows Terminal and in ConEmu with
+    its ANSI on, which it tells by WT_SESSION and ConEmuANSI as it starts.
+    There colours 16 to 255 are xterm's, the ones the tuned colours are
+    for, so it counts as 256. The classic console gets the nearest of its
+    own 16 for each, which would draw the four-colour deck's orange
+    diamonds in the hearts' red, so there it counts as 16. Every other
+    curses says what it has.
+    """
+    colours = getattr(curses, "COLORS", 8)
+    if sys.platform == "win32" and colours > 256:
+        # Windows has the names in capitals whatever case they were set in
+        xterm = os.environ.get("WT_SESSION") is not None or os.environ.get("CONEMUANSI") == "ON"
+        return 256 if xterm else 16
+    return colours
 
 
 def skip_mouse_event() -> None:
@@ -362,7 +383,7 @@ class App:
         room = getattr(curses, "COLOR_PAIRS", 256)
         for n, fg, bg in themes.pair_colours(
             self.theme,
-            getattr(curses, "COLORS", 8),
+            colour_count(),
             self.light,
             self.default_colours,
             self.four_color,
@@ -381,7 +402,7 @@ class App:
         h, w = self.stdscr.getmaxyx()
         if 0 <= y < h and 0 <= x < w:
             try:
-                self.stdscr.addnstr(y, x, text, max(0, w - x - 1), attr)
+                self.stdscr.addnstr(y, x, text, max(0, w - x - 1), drawn_attr(attr))
             except curses.error:
                 pass
 

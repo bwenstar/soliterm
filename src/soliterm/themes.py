@@ -197,7 +197,8 @@ def pick(colour: Colour, colours: int, basic: tuple[int, ...] = BASIC) -> int:
     gets the basic 8. That includes a direct-colour one (xterm-direct has
     16777216), which reads most numbers as red, green and blue and would
     draw the 256 as dark blues. The tuned ones are all past the first 16,
-    where every curses numbers them as xterm does.
+    where every curses numbers them as xterm does. PDCurses, on Windows,
+    says 768 however many it can show (see tui.app.colour_count).
     """
     if isinstance(colour, tuple):
         if colours == 256:
