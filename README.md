@@ -225,11 +225,11 @@ does leaving the "No moves left" screen, whether for a new deal or the
 menu, with `q` or Ctrl-C, or by closing the terminal. Undo and Replay this
 deal on that screen don't count anything.
 
-On Windows, closing the console window or pressing Ctrl-Break ends
-Soliterm at once, in text mode too. The game in play isn't kept or
-counted, though if you'd picked it up from a save, that save is offered
-again the next time, as it was when you picked it up. Leave with `q`, `m`
-or Ctrl-C to keep it.
+On Windows, closing the console window keeps the game just as closing a
+terminal does, and Ctrl-Break keeps it as Ctrl-C does, in text mode too.
+Ended some other way, as `taskkill /f` does, Soliterm can't keep or count
+the game in play, though if you'd picked it up from a save, that save is
+offered again the next time, as it was when you picked it up.
 
 A deal you ask for by number or share code, or with `--draw` or `--suits`,
 is always the deal you asked for, even when that game has a saved game
@@ -435,7 +435,7 @@ they were. The man page's FILES section has the details.
 - **Windows.** The game needs the windows-curses package there, which pip
   and pipx install along with it. Without it, Soliterm plays in text mode
   and tells you how to add it. `TERM` doesn't matter on Windows. Closing
-  the console window or pressing Ctrl-Break loses the game in play, as
+  the console window or pressing Ctrl-Break keeps the game in play, as
   Saved games above explains.
 
 ## Contributing

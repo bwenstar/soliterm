@@ -259,11 +259,12 @@ from the statistics rather than counting it twice.
 Leaving always goes the same way, whatever the reason:
 
 - `_leave_on_signals` in [`cli.py`](../src/soliterm/cli.py) turns SIGHUP
-  and SIGTERM into the `KeyboardInterrupt` Ctrl-C raises, so the terminal
-  closing or a `kill` leaves by the same road as `q`. After the first,
-  another does nothing, so the second SIGHUP a closing terminal often
-  sends can't cut that short, unless it comes while the game waits for
-  the stats lock: then it breaks off the wait, as a second Ctrl-C does.
+  and SIGTERM, and SIGBREAK on Windows, into the `KeyboardInterrupt`
+  Ctrl-C raises, so the terminal closing or a `kill` leaves by the same
+  road as `q`. After the first, another does nothing, so the second
+  SIGHUP a closing terminal often sends can't cut that short, unless it
+  comes while the game waits for the stats lock: then it breaks off the
+  wait, as a second Ctrl-C does.
   A signal that was already ignored, as under `nohup`, stays ignored.
   After a hangup, output goes to `/dev/null`, since the terminal has
   gone.
@@ -297,12 +298,21 @@ play with it. Text mode has no curses in the way, so `run_text` handles
 SIGTSTP itself: it stops the usual way inside the handler and leaves out
 the time until it's back.
 
-Windows sends no SIGHUP or SIGTERM to turn into anything. Closing the
-console window or pressing Ctrl-Break ends the process there and then
-(status 0xC000013A), so the game in play is neither kept nor counted,
-though one taken up from a save is offered again the next time, as it
-was when it was taken up. Ctrl-C still raises `KeyboardInterrupt` and
-leaves as `q` does.
+Windows sends no SIGHUP or SIGTERM to turn into anything. Instead, while
+a game can be in play, `_leave_on_console_events` in `cli.py` sets a
+console control handler, which Windows calls on a thread of its own when
+the console window closes or Ctrl-Break is pressed. It interrupts the
+main thread the way Ctrl-C does, and breaks off a read of stdin with
+`CancelIoEx`, since the interrupt alone doesn't end the read text mode
+waits in. Windows ends the process as soon as the handler returns from a
+close, and 5 seconds after it in any case, so the handler waits, for up
+to 4 seconds, for the way out to put the game away. The process still
+ends with status 0xC000013A. Ctrl-Break needs no wait, and leaves with
+130 as Ctrl-C does. Ctrl-C is left to Python, which raises
+`KeyboardInterrupt` as ever. A process ended some other way, as
+`taskkill /f` does, keeps nothing, though a save that was taken up to
+resume it is offered again the next time, as it was when it was taken
+up.
 
 ## Tests
 

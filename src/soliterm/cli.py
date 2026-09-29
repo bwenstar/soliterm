@@ -349,19 +349,24 @@ def _quiet_output() -> None:
 
 @contextmanager
 def _leave_on_signals() -> Iterator[list[int]]:
-    """Leave on SIGHUP (the terminal closing) or SIGTERM the way Ctrl-C does.
+    """Leave on SIGHUP (the terminal closing), SIGTERM or, on Windows,
+    SIGBREAK (Ctrl-Break) the way Ctrl-C does.
 
-    Both raise KeyboardInterrupt, so the game in play is saved or counted as
+    They raise KeyboardInterrupt, so the game in play is saved or counted as
     it is for Ctrl-C. After the first, another does nothing, so the second
     SIGHUP a closing terminal often sends can't cut that short, unless it
     comes while the way out waits for the stats lock: then it breaks off
     the wait, as a second Ctrl-C does. One ignored already, as nohup
     leaves SIGHUP, stays ignored. What it yields lists the signals that
-    came.
+    came. While a game may be in play on Windows, Ctrl-Break goes to
+    _leave_on_console_events instead.
     """
     hup = getattr(signal, "SIGHUP", None)  # not on Windows
+    brk = getattr(signal, "SIGBREAK", None)  # only on Windows
     signums = [
-        s for s in (hup, signal.SIGTERM) if s is not None and signal.getsignal(s) != signal.SIG_IGN
+        s
+        for s in (hup, signal.SIGTERM, brk)
+        if s is not None and signal.getsignal(s) != signal.SIG_IGN
     ]
     came: list[int] = []
 
@@ -385,6 +390,84 @@ def _leave_on_signals() -> Iterator[list[int]]:
         for s, handler in old.items():
             if handler is not None:  # None: one set outside Python
                 signal.signal(s, handler)
+
+
+# The console control events that leave: CTRL_BREAK_EVENT, then
+# CTRL_CLOSE_EVENT (the console window closing), CTRL_LOGOFF_EVENT and
+# CTRL_SHUTDOWN_EVENT (logging off or shutting down with it open)
+_CTRL_BREAK_EVENT = 1
+_CONSOLE_LEAVING = (_CTRL_BREAK_EVENT, 2, 5, 6)
+# How long the handler holds Windows off, after the console closes, while
+# the game is put away: Windows ends the process 5 seconds after the close
+# in any case
+_CLOSE_WAIT = 4.0
+# Every handler set, kept for the life of the process, as Windows may
+# still be in one as the way out takes it out
+_console_handlers: list[object] = []
+
+
+@contextmanager
+def _leave_on_console_events() -> Iterator[None]:
+    """On Windows, leave the way Ctrl-C does when the console window closes
+    or Ctrl-Break is pressed, while a game may be in play.
+
+    Windows sends no signal for the close, but calls a handler on a thread
+    of its own and ends the process once it returns. This one interrupts
+    the main thread as Ctrl-C would, and breaks off a read of stdin, which
+    the interrupt alone doesn't reach and which text mode waits in. Then
+    it holds Windows off until the block is over, with the game put away,
+    or for as long as Windows allows. Logging off and shutting down are
+    taken the same way, though Windows sends those only to a process
+    without user32.dll loaded, and Python has it loaded by then.
+
+    Ctrl-Break comes here too, and leaves the same way without the wait,
+    as Windows doesn't end the process for it. Left to its SIGBREAK, which
+    comes only after this handler, it would be too late to be pending as
+    the read is broken off, and a Ctrl-Break that a program sends doesn't
+    end the read by itself. After the first event, another does no more
+    than wait. Ctrl-C is left to Python's handler. Off Windows, or where
+    the handler can't be set, it does nothing.
+    """
+    if sys.platform != "win32":
+        yield
+        return
+    import _thread
+    import ctypes
+    import msvcrt
+    import threading
+    from ctypes import wintypes
+
+    kernel32 = ctypes.WinDLL("kernel32")
+    try:
+        stdin = wintypes.HANDLE(msvcrt.get_osfhandle(sys.stdin.fileno()))
+    except (AttributeError, OSError, ValueError):
+        stdin = None  # a stdin with no file behind it has no read to break off
+    done = threading.Event()
+    came: list[int] = []
+
+    def on_event(event: int) -> bool:
+        if event not in _CONSOLE_LEAVING:
+            return False
+        # one that comes as the way out ends has nothing left to interrupt
+        if not came and not done.is_set():
+            came.append(event)
+            _thread.interrupt_main()
+            if stdin is not None:
+                kernel32.CancelIoEx(stdin, None)
+        if event != _CTRL_BREAK_EVENT:
+            done.wait(_CLOSE_WAIT)
+        return True
+
+    handler = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.DWORD)(on_event)
+    if not kernel32.SetConsoleCtrlHandler(handler, True):
+        yield
+        return
+    _console_handlers.append(handler)
+    try:
+        yield
+    finally:
+        done.set()
+        kernel32.SetConsoleCtrlHandler(handler, False)
 
 
 def _say_waiting() -> None:
@@ -499,13 +582,14 @@ def _run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
     if not args.text and sys.stdout.isatty() and sys.stdin.isatty():
         tui, why = _load_tui()
         if tui is not None:
-            return tui.main(
-                start,
-                color=args.color,
-                symbols=symbols,
-                animation=False if args.no_animation else None,
-                theme=args.theme,
-            )
+            with _leave_on_console_events():
+                return tui.main(
+                    start,
+                    color=args.color,
+                    symbols=symbols,
+                    animation=False if args.no_animation else None,
+                    theme=args.theme,
+                )
         print(f"soliterm: {why}", file=sys.stderr)
 
     # text mode, which keeps games only for someone typing at a terminal:
@@ -515,15 +599,16 @@ def _run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
     # as in the TUI, only a plain start, with no deal number or options, or
     # a daily over a save of the same daily, resumes
     resumes = keep and deals.resumes(deal, saves.waiting(deal.key).get(deal.key))
-    return run_text(
-        deals.deal_game(deal, store.game_options(cfg, deal.key)),
-        symbols,
-        deal.key,
-        color=text_color,
-        camo_theme=cfg.get("camo_theme"),
-        keep=keep,
-        resume=resumes,
-    )
+    with _leave_on_console_events():
+        return run_text(
+            deals.deal_game(deal, store.game_options(cfg, deal.key)),
+            symbols,
+            deal.key,
+            color=text_color,
+            camo_theme=cfg.get("camo_theme"),
+            keep=keep,
+            resume=resumes,
+        )
 
 
 if __name__ == "__main__":

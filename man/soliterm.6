@@ -54,11 +54,15 @@ A game you leave unfinished with
 .B m
 or Ctrl-C, or by closing the terminal, is kept for next time, and picking
 that game again carries on where you left off.
-On Windows, closing the console window or pressing Ctrl-Break ends
+On Windows, a game left by closing the console window or with Ctrl-Break
+is kept too.
+If
 .B soliterm
-at once, so the game in play is neither kept nor counted, though if it
-was picked up from a save, that save is offered again next time, as it
-was when picked up.
+is ended some other way, as
+.B taskkill /f
+does, the game in play is neither kept nor counted, though if it was
+picked up from a save, that save is offered again next time, as it was
+when picked up.
 .PP
 Text mode plays the same games as plain lines of text.
 It prints the board, reads one command a line from standard input, and
@@ -459,7 +463,7 @@ had no terminal to ask at and no
 .BR \-\-yes .
 .TP
 .B 130
-Ctrl-C, SIGHUP or SIGTERM.
+Ctrl-C, SIGHUP, SIGTERM or, on Windows, Ctrl-Break.
 The game is kept or counted first, as it is for
 .BR q .
 .TP
@@ -468,9 +472,9 @@ Whatever was reading the output stopped, as
 .BR head (1)
 does.
 .PP
-On Windows, closing the console window or pressing Ctrl-Break ends
+On Windows, closing the console window still ends
 .B soliterm
-at once with status 0xC000013A, and the game is neither kept nor counted.
+with status 0xC000013A, but only once the game has been kept or counted.
 .SH EXAMPLES
 Open the menu:
 .PP

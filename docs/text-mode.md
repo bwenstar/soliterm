@@ -261,10 +261,10 @@ When the commands come from a pipe or a file, nothing is kept. A game
 left unfinished when the input runs out counts as lost, as long as it had
 a move made in it, and one nobody touched doesn't count at all.
 
-On Windows, closing the console window or pressing Ctrl-Break ends
-Soliterm at once. The game isn't kept or counted, though if you'd picked
-it up from a save, that save is offered again next time, as it was when
-you picked it up. Leave with `q` or Ctrl-C to keep it.
+On Windows, closing the console window keeps the game too, and so does
+Ctrl-Break. Ended some other way, as `taskkill /f` does, Soliterm can't
+keep or count the game, though if you'd picked it up from a save, that
+save is offered again next time, as it was when you picked it up.
 
 ## Exit status
 
@@ -272,13 +272,12 @@ you picked it up. Leave with `q` or Ctrl-C to keep it.
 | --- | --- |
 | 0 | the game was won, or you left with `q`, or the input ran out |
 | 2 | the command line was wrong, such as `--deal` with a code that isn't one |
-| 130 | Ctrl-C, or the terminal closing (SIGHUP), or SIGTERM |
+| 130 | Ctrl-C, or the terminal closing (SIGHUP), or SIGTERM, or Ctrl-Break on Windows |
 | 141 | whatever was reading the output stopped, as `head` does |
 
 A game leaving on 130 is saved or counted just as it is for `q`.
-On Windows, closing the console window or pressing Ctrl-Break ends
-Soliterm at once with status 0xC000013A, and the game is neither kept nor
-counted.
+On Windows, closing the console window still ends Soliterm with status
+0xC000013A, but only once the game has been kept or counted.
 
 ## Scripting
 

@@ -573,9 +573,12 @@ def run_text(
                 put_away()
             raise
     except KeyboardInterrupt:
-        # Ctrl-C leaves like q does, minus the traceback, and so do SIGHUP
-        # and SIGTERM, which the command line turns into this
-        print(file=sys.stderr)
+        # Ctrl-C leaves like q does, minus the traceback, and so do SIGHUP,
+        # SIGTERM, Ctrl-Break and a Windows console closing, which the
+        # command line turns into this. A stderr that can't be written,
+        # with its console gone, doesn't keep the game from being put away.
+        with suppress(OSError):
+            print(file=sys.stderr)
         try:
             put_away()
         finally:

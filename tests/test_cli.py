@@ -1,5 +1,7 @@
 """The command line: --list, --stats, --reset-stats and a scripted text session."""
 
+import _thread
+import ctypes
 import errno
 import io
 import json
@@ -1643,3 +1645,292 @@ def test_a_hangup_exits_130_whatever_curses_made_of_it(monkeypatch, quieted):
     monkeypatch.setattr(cli_mod, "_run", hung_up)
     assert main([]) == 130
     assert quieted == [True]
+
+
+# -- leaving on Windows: Ctrl-Break and the console closing ------------------------------
+
+
+class WindowsSignals:
+    """The signal module as Windows has it, with SIGBREAK for Ctrl-Break and
+    no SIGHUP. The handlers are kept here rather than set."""
+
+    SIG_DFL, SIG_IGN = signal.SIG_DFL, signal.SIG_IGN
+    SIGINT, SIGTERM, SIGBREAK = 2, 15, 21
+
+    def __init__(self):
+        self.handlers = {
+            self.SIGINT: signal.default_int_handler,
+            self.SIGTERM: self.SIG_DFL,
+            self.SIGBREAK: self.SIG_DFL,
+        }
+
+    def getsignal(self, signum):
+        return self.handlers[signum]
+
+    def signal(self, signum, handler):
+        old, self.handlers[signum] = self.handlers[signum], handler
+        return old
+
+    def send(self, signum):
+        """signum coming, to the handler that was set for it."""
+        self.handlers[signum](signum, None)
+
+
+@pytest.fixture
+def windows_signals(monkeypatch):
+    signals = WindowsSignals()
+    monkeypatch.setattr(cli_mod, "signal", signals)
+    return signals
+
+
+def test_ctrl_break_leaves_the_way_ctrl_c_does(windows_signals, quieted):
+    brk = windows_signals.SIGBREAK
+    with cli_mod._leave_on_signals() as came:
+        with pytest.raises(KeyboardInterrupt):
+            windows_signals.send(brk)
+        # another, as the game is put away, does nothing
+        windows_signals.send(brk)
+    assert came == [brk]
+    assert windows_signals.handlers[brk] == signal.SIG_DFL
+    # the console is still there to write to
+    assert quieted == []
+
+
+class BreakIn(TtyInput):
+    """What was typed at a Windows console, then Ctrl-Break."""
+
+    def __init__(self, typed, signals):
+        super().__init__(typed)
+        self.signals = signals
+
+    def __iter__(self):
+        yield from self.getvalue().splitlines(keepends=True)
+        self.signals.send(self.signals.SIGBREAK)
+
+
+def test_ctrl_break_in_text_mode_keeps_the_game(monkeypatch, windows_signals, stopped_clock):
+    monkeypatch.setattr(sys, "stdin", BreakIn("d\n", windows_signals))
+    assert main(["--text"]) == 130
+    assert saves.waiting() == {"klondike": {"seconds": 0, "moves": 1}}
+    assert store.get_stat("klondike")["total"] == 0
+
+
+# a Windows handle for stdin
+STDIN_HANDLE = 0x50
+
+
+class ConsoleIn(TtyInput):
+    """Typing at a Windows console, on file descriptor 0."""
+
+    def fileno(self):
+        return 0
+
+
+class ConsoleKernel32:
+    """The console calls the handler for the console closing makes. With
+    `sets` False the handler can't be set."""
+
+    def __init__(self):
+        self.sets = True
+        self.handlers = []  # those set and not taken out yet
+        self.cancelled = []  # the handles whose reads were broken off
+
+    def SetConsoleCtrlHandler(self, handler, add):
+        if not self.sets:
+            return 0
+        if add:
+            self.handlers.append(handler)
+        else:
+            self.handlers.remove(handler)
+        return 1
+
+    def CancelIoEx(self, handle, overlapped):
+        assert overlapped is None  # every read on it
+        self.cancelled.append(handle.value)
+        return 1
+
+
+@pytest.fixture
+def console(monkeypatch):
+    """Makes this Windows, typing at a console whose closing a test sets off
+    by calling console.kernel32.handlers[0](2) (CTRL_CLOSE_EVENT), and
+    returns what that did: the interrupts of the main thread, and each
+    threading.Event made, which only says how long it was waited for, and
+    which saves were waiting as it was set."""
+    kernel32 = ConsoleKernel32()
+    made, interrupted = [], []
+
+    class Event:
+        def __init__(self):
+            self.waits, self.saved = [], None
+            made.append(self)
+
+        def is_set(self):
+            return self.saved is not None
+
+        def set(self):
+            self.saved = saves.waiting()
+
+        def wait(self, timeout=None):
+            self.waits.append(timeout)
+            return self.is_set()
+
+    def get_osfhandle(fd):
+        if fd != 0:
+            raise OSError(errno.EBADF, "Bad file descriptor")
+        return STDIN_HANDLE
+
+    monkeypatch.setattr(sys, "platform", "win32")
+    monkeypatch.setattr(sys, "stdin", ConsoleIn())
+    monkeypatch.setitem(sys.modules, "msvcrt", types.SimpleNamespace(get_osfhandle=get_osfhandle))
+    monkeypatch.setattr(ctypes, "WinDLL", {"kernel32": kernel32}.get, raising=False)
+    monkeypatch.setattr(ctypes, "WINFUNCTYPE", lambda *types: lambda fn: fn, raising=False)
+    monkeypatch.setattr(threading, "Event", Event)
+    monkeypatch.setattr(_thread, "interrupt_main", lambda: interrupted.append(True))
+    return types.SimpleNamespace(kernel32=kernel32, events=made, interrupted=interrupted)
+
+
+def test_the_console_closing_interrupts_as_ctrl_c_does_and_waits(console):
+    with cli_mod._leave_on_console_events():
+        (on_event,) = console.kernel32.handlers
+        (done,) = console.events
+        # Ctrl-C is for Python's own handler
+        assert not on_event(0)
+        assert console.interrupted == [] and done.waits == []
+        assert on_event(2)
+        assert console.interrupted == [True]
+        # the read text mode waits in, which the interrupt doesn't reach
+        assert console.kernel32.cancelled == [STDIN_HANDLE]
+        # for the way out, but not past the 5 seconds Windows gives it
+        assert len(done.waits) == 1 and 0 < done.waits[0] < 5
+        # logging off, shutting down and Ctrl-Break then add nothing but
+        # the wait
+        assert on_event(5) and on_event(6) and on_event(1)
+        assert console.interrupted == [True]
+        assert console.kernel32.cancelled == [STDIN_HANDLE]
+        assert len(done.waits) == 3
+        assert not done.is_set()
+    # the way out is over
+    assert done.is_set()
+    assert console.kernel32.handlers == []
+
+
+def test_ctrl_break_interrupts_without_holding_windows_off(console):
+    with cli_mod._leave_on_console_events():
+        (on_event,) = console.kernel32.handlers
+        (done,) = console.events
+        # taken here, so its SIGBREAK doesn't come as well
+        assert on_event(1)
+        assert console.interrupted == [True]
+        # a read that one a program sends doesn't end
+        assert console.kernel32.cancelled == [STDIN_HANDLE]
+        assert done.waits == []
+        # another adds nothing, and nor does the console closing
+        assert on_event(1) and on_event(2)
+        assert console.interrupted == [True]
+        assert console.kernel32.cancelled == [STDIN_HANDLE]
+        assert len(done.waits) == 1
+
+
+def test_an_event_as_the_way_out_ends_interrupts_nothing(console):
+    with cli_mod._leave_on_console_events():
+        (on_event,) = console.kernel32.handlers
+    assert on_event(2) and on_event(1)
+    assert console.interrupted == [] and console.kernel32.cancelled == []
+
+
+def test_a_stdin_with_no_handle_is_still_interrupted(monkeypatch, console):
+    monkeypatch.setattr(sys, "stdin", TtyInput())
+    with cli_mod._leave_on_console_events():
+        assert console.kernel32.handlers[0](2)
+    assert console.interrupted == [True] and console.kernel32.cancelled == []
+
+
+def test_a_handler_windows_wont_take_changes_nothing(console):
+    console.kernel32.sets = False
+    with cli_mod._leave_on_console_events():
+        pass
+    assert console.kernel32.handlers == []
+
+
+def test_off_windows_the_console_is_left_alone(monkeypatch, console):
+    monkeypatch.setattr(sys, "platform", "linux")
+    with cli_mod._leave_on_console_events():
+        assert console.kernel32.handlers == [] and console.events == []
+
+
+class LeftAfter(ConsoleIn):
+    """What was typed at a Windows console, then a console control event."""
+
+    def __init__(self, typed, console, event):
+        super().__init__(typed)
+        self.console, self.event = console, event
+
+    def __iter__(self):
+        yield from self.getvalue().splitlines(keepends=True)
+        assert self.console.kernel32.handlers[0](self.event)
+        # the interrupt, landing as the read is broken off
+        raise KeyboardInterrupt
+
+
+@pytest.mark.parametrize("event", [2, 1], ids=["closed", "ctrl-break"])
+@pytest.mark.parametrize(
+    "resumed, typed, kept",
+    [(False, "d\n", {"seconds": 0, "moves": 1}), (True, "", {"seconds": 42, "moves": 31})],
+    ids=["new", "resumed"],
+)
+def test_closing_the_console_keeps_a_text_game(
+    monkeypatch, console, stopped_clock, resumed, typed, kept, event
+):
+    if resumed:
+        keep_deal_7()
+    monkeypatch.setattr(sys, "stdin", LeftAfter(typed, console, event))
+    assert main(["--text"]) == 130
+    assert saves.waiting() == {"klondike": kept}
+    assert store.get_stat("klondike")["total"] == 0
+    # the handler held Windows off until the game was put away, or had it
+    # wait for nothing
+    (done,) = console.events
+    assert done.saved == {"klondike": kept}
+    assert console.kernel32.handlers == []
+
+
+def test_the_console_closing_is_seen_to_while_the_tui_runs(monkeypatch, console):
+    handlers = []
+
+    def run(start, **options):
+        handlers.append(len(console.kernel32.handlers))
+        return 0
+
+    monkeypatch.setattr(cli_mod, "_load_tui", lambda: (types.SimpleNamespace(main=run), ""))
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+    assert main([]) == 0
+    assert handlers == [1]
+    assert console.kernel32.handlers == []
+
+
+def test_no_game_no_handler_for_the_console_closing(monkeypatch, console):
+    handlers = []
+    monkeypatch.setattr(cli_mod, "print_stats", lambda: handlers.append(console.kernel32.handlers))
+    assert main(["--stats"]) == 0
+    assert handlers == [[]]
+
+
+class Unwritable(io.StringIO):
+    """stderr on a console that has gone."""
+
+    def write(self, text):
+        raise OSError(errno.EIO, "Input/output error")
+
+
+def test_a_stderr_that_cant_be_written_still_lets_the_game_be_kept(monkeypatch, stopped_clock):
+    class Interrupted(TtyInput):
+        def __iter__(self):
+            yield "d\n"
+            raise KeyboardInterrupt
+
+    monkeypatch.setattr(sys, "stdin", Interrupted())
+    monkeypatch.setattr(sys, "stderr", Unwritable())
+    monkeypatch.setattr(cli_mod, "_to_devnull", lambda *fds: None)
+    assert main(["--text"]) == 130
+    assert saves.waiting() == {"klondike": {"seconds": 0, "moves": 1}}
