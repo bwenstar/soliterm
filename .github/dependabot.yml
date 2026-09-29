@@ -1,5 +1,7 @@
 # Checks the actions in .github/workflows for new versions once a week
-# and puts whatever it finds into a single pull request. There is no pip
+# and puts whatever it finds into a single pull request. The actions are
+# pinned to a commit, with the version it was tagged as in a comment
+# beside it, and Dependabot moves the two together. There is no pip
 # entry. The only runtime dependency is windows-curses on Windows, and
 # the linters are pinned on purpose, to the same versions in four places:
 # the dev group in pyproject.toml, the install line in ci.yml, the one in
