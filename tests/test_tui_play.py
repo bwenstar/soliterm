@@ -1196,7 +1196,7 @@ def test_a_signal_mid_game_saves_it(tui, monkeypatch, name):
 
 @pytest.mark.skipif(not hasattr(signal, "SIGHUP"), reason="needs POSIX signals")
 @pytest.mark.parametrize("name", ["SIGINT", "SIGHUP", "SIGTERM"])
-def test_a_signal_as_q_saves_the_game_keeps_it_once(tui, monkeypatch, name):
+def test_a_signal_as_q_saves_the_game_keeps_it_once(tui, monkeypatch, ctrl_c, name):
     monkeypatch.setattr(cli, "_quiet_output", lambda: None)
     signal_once_written(monkeypatch, saves.save_path("klondike"), getattr(signal, name))
     with cli._leave_on_signals():
@@ -1843,7 +1843,7 @@ def signal_once_taken(monkeypatch, signum):
 
 @pytest.mark.skipif(not hasattr(signal, "SIGHUP"), reason="needs POSIX signals")
 @pytest.mark.parametrize("name", ["SIGINT", "SIGTERM"])
-def test_a_signal_as_a_save_is_resumed_puts_it_back(tui, monkeypatch, game_clock, name):
+def test_a_signal_as_a_save_is_resumed_puts_it_back(tui, monkeypatch, game_clock, ctrl_c, name):
     keep_one()
     signal_once_taken(monkeypatch, getattr(signal, name))
     with cli._leave_on_signals():

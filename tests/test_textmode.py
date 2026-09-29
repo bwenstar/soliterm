@@ -775,7 +775,7 @@ posix_signals = pytest.mark.skipif(not hasattr(signal, "SIGHUP"), reason="needs 
 
 
 @posix_signals
-def test_ctrl_c_as_q_saves_the_game_keeps_it_once(monkeypatch, capsys):
+def test_ctrl_c_as_q_saves_the_game_keeps_it_once(monkeypatch, capsys, ctrl_c):
     signal_once_written(monkeypatch, saves.save_path("klondike"), signal.SIGINT)
     g = deal("klondike", 1)
     assert textmode.run_text(g, False, "klondike", stream=iter(["d\n", "q\n"]), keep=True) == 130
@@ -842,7 +842,7 @@ def test_leaving_an_untouched_deal_does_not_wait_for_the_lock(keep, leave):
 
 
 @posix_signals
-def test_ctrl_c_as_n_counts_the_game_leaves_it_unsaved(monkeypatch):
+def test_ctrl_c_as_n_counts_the_game_leaves_it_unsaved(monkeypatch, ctrl_c):
     signal_once_written(monkeypatch, store.stats_path(), signal.SIGINT)
     g = deal("klondike", 1)
     assert textmode.run_text(g, False, "klondike", stream=iter(["d\n", "n\n"]), keep=True) == 130
@@ -851,7 +851,7 @@ def test_ctrl_c_as_n_counts_the_game_leaves_it_unsaved(monkeypatch):
 
 
 @posix_signals
-def test_ctrl_c_as_a_win_is_counted_still_puts_it_in_the_history(monkeypatch):
+def test_ctrl_c_as_a_win_is_counted_still_puts_it_in_the_history(monkeypatch, ctrl_c):
     signal_once_written(monkeypatch, store.stats_path(), signal.SIGINT)
     g = deal("klondike", 1)
     script = iter([f"f {one_card_from_won(g)}\n"])

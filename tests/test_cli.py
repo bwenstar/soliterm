@@ -980,7 +980,9 @@ def test_text_mode_resumes_at_a_tty(cli, stopped_clock):
 
 @pytest.mark.skipif(not hasattr(signal, "SIGHUP"), reason="needs POSIX signals")
 @pytest.mark.parametrize("name", ["SIGINT", "SIGTERM"])
-def test_a_signal_as_text_mode_resumes_puts_the_game_back(cli, monkeypatch, stopped_clock, name):
+def test_a_signal_as_text_mode_resumes_puts_the_game_back(
+    cli, monkeypatch, stopped_clock, ctrl_c, name
+):
     g = deal("klondike", 7)
     g.deal()
     g.moves = 31

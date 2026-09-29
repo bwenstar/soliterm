@@ -6,6 +6,8 @@ AisleRiot keyfile. The store and keyfile modules resolve their paths at call
 time, so setting the environment here is enough.
 """
 
+import signal
+
 import pytest
 
 from soliterm import aisleriot as ar
@@ -31,6 +33,16 @@ def isolated_home(tmp_path, monkeypatch):
     # AisleRiot may be installed here; a test that wants it says so
     monkeypatch.setattr(ar, "installed", lambda: False)
     return home
+
+
+@pytest.fixture
+def ctrl_c():
+    """Have SIGINT raise KeyboardInterrupt, as Ctrl-C does, for a test that
+    sends it. A script that starts the tests in the background starts them
+    with SIGINT ignored, and Python then leaves it that way."""
+    before = signal.signal(signal.SIGINT, signal.default_int_handler)
+    yield
+    signal.signal(signal.SIGINT, before)
 
 
 @pytest.fixture

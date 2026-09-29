@@ -186,7 +186,7 @@ needs_flock = pytest.mark.skipif(
 
 
 @needs_flock
-def test_ctrl_c_still_stops_a_wait_for_the_lock():
+def test_ctrl_c_still_stops_a_wait_for_the_lock(ctrl_c):
     os.makedirs(store.data_dir())
     main = threading.get_ident()
     with open(os.path.join(store.data_dir(), "stats.lock"), "a") as other:
