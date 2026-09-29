@@ -216,8 +216,8 @@ finished or given up. Then it counts once, with all the time you spent on
 it.
 
 Text mode keeps games too, but only when you're typing at a terminal,
-where Ctrl-D keeps the game as `q` does. From a script or a pipe, leaving a
-game you've started counts it as lost.
+where Ctrl-D (Ctrl-Z and then Enter on Windows) keeps the game as `q` does.
+From a script or a pipe, leaving a game you've started counts it as lost.
 
 ## Statistics and AisleRiot
 

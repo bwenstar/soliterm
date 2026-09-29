@@ -199,7 +199,7 @@ nothing left to do, it says why.
   scrollback first. The kind of work is the one boss mode was last left
   on in the full-screen game. Type `p` to see the board again.
 - `q`, `quit` or `exit` leaves. So does the end of the input, which is
-  Ctrl-D at a terminal.
+  Ctrl-D at a terminal, or Ctrl-Z and then Enter in a Windows console.
 - Anything else prints `bad command: 'foo' (try h)`.
 
 ## Deal numbers and share codes
