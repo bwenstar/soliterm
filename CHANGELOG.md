@@ -12,6 +12,64 @@ Soliterm 1.0.0 lists the changes since.
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-09-29
+
+### Fixed
+
+- On Linux, text mode keeps your game when the terminal closes on it, as
+  the README said it did, and a byte that isn't UTF-8 in what you type is
+  a bad command now instead of a crash. Both used to lose the game, and
+  one you'd resumed lost its save for good.
+- Text mode shows its colours in a Windows console, where it printed the
+  escape codes as text, and boss mode clears the screen there. A console
+  that can't show them gets none.
+- On Windows, numpad Enter, numpad + and -, and the numpad arrows with
+  NumLock off do what the main keys do, in the game and on the menu.
+- The hint no longer says "Deal from the stock" forever in Canfield, or
+  in Klondike drawing three or with unlimited redeals, where dealing only
+  brings the same cards round again. It offers the move that sets one up
+  instead, which on canfield:59 leads on to a win. In Klondike drawing
+  one with its two redeals, the hint makes that move while it still has
+  a redeal in hand, rather than spending the redeal first.
+- Following a hint with the keys makes the move the hint names. Enter
+  lifts the longest run, and dropping that where the hint said used to
+  put all of it down, even when the hint moved fewer cards.
+- Changing a setting in the full-screen game saves only that setting.
+  It used to write back the whole config.json it read at the start, over
+  any edit made by hand in the meantime and without the keys it didn't
+  know.
+- A config.json or stats.json saved with a byte order mark, as Notepad
+  can save it, or in UTF-16, as PowerShell can, is read as it is. It used
+  to be set aside as damaged, and everything in it started over.
+- When stats.json can't be written, Soliterm says the game is missing
+  from it, where it used to count the game on screen and then lose it
+  without a word. `--reset-stats` then clears nothing, says why and
+  exits 1.
+- A best or worst time over 100 minutes counts as no time, as it does in
+  AisleRiot, so the two show the same statistics, and a win that long is
+  shared with no time.
+- The win percentage rounds a half up, as AisleRiot does, so 1 win in 8
+  is 13% in both.
+- The code skin shows the game's status whole at 80 columns, where five
+  games lost the end of it, and leaves out the deal number first when
+  there isn't room.
+- The "Terminal too small" notice gives the whole size it needs and the
+  size it has, even in a narrow window.
+- `--stats` skips a line of `history.jsonl` with control characters or
+  broken text in it, rather than print them to the terminal or crash.
+- Output to a reader that has gone, as with `| head`, ends with status
+  141 for `--help` and `--version` as well, and when whatever reads
+  stderr has gone, the status is no longer 120.
+- The docs say that on Windows, closing the console window or pressing
+  Ctrl-Break ends Soliterm at once and loses the game, where `q`, `m` and
+  Ctrl-C keep it, and that text mode's end of input there is Ctrl-Z and
+  then Enter.
+- The docs say that a game finished here while AisleRiot is open drops
+  out of the statistics of both when AisleRiot quits, since it writes its
+  own copy of the keyfile back, and that the lock that stops two copies
+  of Soliterm losing each other's results is only there on Linux and
+  macOS.
+
 ## [1.0.0] - 2026-09-28
 
 Soliterm's first public release. It grew out of aisle-cli, a private
@@ -263,5 +321,6 @@ at the bottom of CHANGELOG.md.
 - 17 test files covering the engine, all nine games' rules, scoring, undo/redo,
   hints, statistics persistence, and the rendering modes.
 
-[Unreleased]: https://github.com/bwenstar/soliterm/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/bwenstar/soliterm/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/bwenstar/soliterm/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/bwenstar/soliterm/releases/tag/v1.0.0
