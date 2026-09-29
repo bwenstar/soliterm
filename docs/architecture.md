@@ -145,8 +145,10 @@ so everyone playing that day gets the same cards with no network.
 
 The tests keep every number honest. `DEALS` in
 [`tests/test_conformance.py`](../tests/test_conformance.py) holds a hash
-of deals 1 and 2 of each game, so a change that would deal different
-cards, and break every share code for that game, fails straight away.
+of deals 1 and 2 of each game, and `DEALS_IN_1_0_0` one of more deals,
+from 0 to 2147483647, as 1.0.0 dealt them, so a change that would deal
+different cards, and break every share code for that game, fails
+straight away.
 
 ## Statistics and AisleRiot
 

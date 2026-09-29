@@ -6,6 +6,7 @@ import random
 
 import pytest
 
+from soliterm import deals
 from soliterm.engine import GAME_ORDER, GAMES, Card
 
 from helpers import (
@@ -195,6 +196,76 @@ DEALS = {
 @pytest.mark.parametrize("key", sorted(DEALS))
 def test_a_deal_number_still_deals_the_same_hand(key):
     assert tuple(deal_digest(deal(key, number)) for number in (1, 2)) == DEALS[key]
+
+
+# More deals, by share code, with the digests 1.0.0's own code gave them,
+# so each one says the code still deals what it did in 1.0.0: deal 0,
+# 999999 and a daily's of every game, Spider in one and two suits, FreeCell
+# past the 32,000 deals Microsoft FreeCell had, and the last number,
+# 2147483647, in a few games.
+DEALS_IN_1_0_0 = {
+    "klondike:0": "406a688eb6f7b563",
+    "klondike:999999": "bd2f7872b8fec58c",
+    "klondike:20260929": "9fcb82ab24c0b61c",
+    "klondike:2147483647": "23cf12868c61cfb5",
+    "spider:0": "eaf6e28370453cfc",
+    "spider:999999": "1558a66a94da015e",
+    "spider:20260929": "bb83fde1cf4ee1d4",
+    "spider:2147483647": "9ec27ce4e9e64e6e",
+    "spider:s1:0": "248c715ff6a76e1e",
+    "spider:s1:1": "c6bea50263fc9645",
+    "spider:s1:2": "bde8c8b196141900",
+    "spider:s1:999999": "662d98ba34341bd8",
+    "spider:s1:20260929": "65fab5a7154dad27",
+    "spider:s2:0": "8a4de95d69341c32",
+    "spider:s2:1": "3489618bdcf44ad0",
+    "spider:s2:2": "ea0b0f705fd7c626",
+    "spider:s2:999999": "84d04a34727df6c7",
+    "spider:s2:20260929": "a7ddd351de7ecd91",
+    "spiderette:0": "e808a0acb8d50131",
+    "spiderette:999999": "e8b9896ba6f023ca",
+    "spiderette:20260929": "7c34ebc3905f1282",
+    "freecell:0": "134bba09677b09a8",
+    "freecell:32000": "26500780c466544b",
+    "freecell:32001": "c9b2a0f77f7a2764",
+    "freecell:65536": "07755ef719ce183e",
+    "freecell:999999": "53158cb404b8c1bf",
+    "freecell:1000000": "b6002b7c129c246e",
+    "freecell:20260929": "a860b2fe7d396125",
+    "freecell:2147483647": "eef10e7a5e76b02a",
+    "eightoff:0": "11678787a3cb6857",
+    "eightoff:999999": "688ecf447d1825a9",
+    "eightoff:20260929": "55290ed92f8ef344",
+    "golf:0": "a5d2f239b25d2a06",
+    "golf:999999": "ce27a4823da3fec3",
+    "golf:20260929": "39cb8f67b565465c",
+    "golf:2147483647": "d80e2cd749771efa",
+    "triplepeaks:0": "69907b391ef8584f",
+    "triplepeaks:999999": "9844bcda8566ca13",
+    "triplepeaks:20260929": "82672284439c17ac",
+    "yukon:0": "ded76ee298fe411d",
+    "yukon:999999": "ce03b5d07581bf8f",
+    "yukon:20260929": "86cbd220be3cc1f6",
+    "scorpion:0": "a8208e908187624b",
+    "scorpion:999999": "00b168840d6cf825",
+    "scorpion:20260929": "7adb75ec32b9a221",
+    "bakersdozen:0": "28ed5b24f8ae6555",
+    "bakersdozen:999999": "7492ba4fff673d06",
+    "bakersdozen:20260929": "4c199c1076202774",
+    "fortythieves:0": "f7567850794dde17",
+    "fortythieves:999999": "74c581cfd17de4db",
+    "fortythieves:20260929": "9cb6efe44360f96d",
+    "canfield:0": "da2b7dbb14472fb6",
+    "canfield:999999": "0f73b1f88abc6330",
+    "canfield:20260929": "be23271957ca6deb",
+    "canfield:2147483647": "b7648c1f4508f878",
+}
+
+
+@pytest.mark.parametrize("code", DEALS_IN_1_0_0)
+def test_a_share_code_deals_what_it_did_in_1_0_0(code):
+    key, number, options = deals.parse(code)
+    assert deal_digest(deal(key, number, **options)) == DEALS_IN_1_0_0[code]
 
 
 def test_the_draw_option_does_not_change_the_deal():
