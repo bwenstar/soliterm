@@ -11,7 +11,7 @@ from TEXT_HELP in src/soliterm/textmode.py. So a key added there shows up
 here by running this again, and tests/test_keybindings_doc.py fails until
 someone does.
 
-The other screens read their keys one screen at a time in app.py, with
+The other screens read their keys one screen at a time in screens.py, with
 nothing to generate them from, so they and the mouse are written out by
 hand in OTHER_SCREENS and MOUSE below. When one of those screens changes,
 change the text here and run the script.

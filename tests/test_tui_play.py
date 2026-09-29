@@ -26,8 +26,9 @@ from soliterm import cli, deals, engine, history, saves, store, themes
 from soliterm.deals import Deal
 from soliterm.engine import Card
 from soliterm.tui import cascade
-from soliterm.tui.app import DEAL_TEXT_MAX, basic_colours
+from soliterm.tui.app import basic_colours
 from soliterm.tui.board import CODE_GUTTER
+from soliterm.tui.screens import DEAL_TEXT_MAX
 
 from helpers import (
     PDCURSES_NUMPAD,

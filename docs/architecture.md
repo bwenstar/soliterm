@@ -22,7 +22,8 @@ modules around them keep the files.
 | [`engine/cards.py`](../src/soliterm/engine/cards.py) | `Card`, `make_deck` and the suit and rank constants |
 | [`engine/rng.py`](../src/soliterm/engine/rng.py) | the shuffles: PCG32, Fisher-Yates and Microsoft FreeCell's deals |
 | [`engine/games/`](../src/soliterm/engine/games/) | one module per game, and in `__init__.py` the registry, `GAMES` and `GAME_ORDER` |
-| [`tui/app.py`](../src/soliterm/tui/app.py) | the full-screen game: the menu, the dialogs, the play loop and the end banner |
+| [`tui/app.py`](../src/soliterm/tui/app.py) | the full-screen game: the session and the play loop |
+| [`tui/screens.py`](../src/soliterm/tui/screens.py) | the screens other than the board: the menu, the dialogs, the statistics, the help, boss mode and the end banner |
 | [`tui/board.py`](../src/soliterm/tui/board.py) | draws a board with curses and keeps the map that clicks go through |
 | [`tui/keys.py`](../src/soliterm/tui/keys.py) | `KEYMAP`, the one table of what each key does |
 | [`tui/cascade.py`](../src/soliterm/tui/cascade.py) | the sums behind the cards bouncing off the board after a win |
