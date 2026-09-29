@@ -128,7 +128,9 @@ def numpad_keys(mod) -> dict[int, int]:
     main keys' codes, so under it the table is empty.
 
     The corners and middle of the NumLock-off numpad (Home, End, PgUp,
-    PgDn, 5) are left alone, as those keys do nothing here, and so is *.
+    PgDn, 5) are left alone, and so is *. The board has no use for them,
+    and the lists of games that take Home, End, PgUp and PgDn go by the
+    main keys.
     """
     same = {
         "PADENTER": 10,

@@ -27,7 +27,7 @@ from ..engine import GAMES, Solitaire
 from .board import BoardUI, can_draw_unicode, color_attr
 from .cascade import FRAME_MS, MAX_S, Cascade
 from .keys import PLAY_ACTIONS, numpad_keys
-from .screens import LEFT_CLICK, Screens
+from .screens import LEFT_CLICK, WHEEL_DOWN, WHEEL_UP, Screens
 
 # What a play-screen handler returns to leave the game in play: back to the
 # menu, or out of the program. None means keep playing.
@@ -55,15 +55,20 @@ FINISH_STEP_MS = 80
 # that hid it can bring it back.
 SMALL_SCREEN_ACTIONS = ("quit", "redraw", "boss", "mouse", "code_skin", "view")
 
-# The mouse events the game asks for: the left button only. Asking for
-# REPORT_MOUSE_POSITION as well would have the terminal report every move of
-# the pointer, button or not.
-MOUSE_MASK = (
+# The mouse events the game asks for: the left button, and the wheel, which
+# scrolls the lists of games. Asking for REPORT_MOUSE_POSITION as well would
+# have the terminal report every move of the pointer, button or not.
+LEFT_BUTTON = (
     curses.BUTTON1_PRESSED
     | curses.BUTTON1_RELEASED
     | curses.BUTTON1_CLICKED
     | curses.BUTTON1_DOUBLE_CLICKED
 )
+MOUSE_MASK = LEFT_BUTTON | WHEEL_UP | WHEEL_DOWN
+# PDCurses, which windows-curses is, only says which way the wheel went
+# when the mask has its MOUSE_WHEEL_SCROLL too, a bit the curses module
+# doesn't name. ncurses has BUTTON_CTRL there, so only Windows asks for it.
+PDC_WHEEL = 0x2000000
 # A second click on the same slot this soon after the first is a
 # double-click. ncurses is left to report every press straight away, since
 # its own double-click wait would hold each single click back as long.
@@ -311,7 +316,7 @@ class App(Screens):
             pass
         self.stdscr.keypad(True)
         try:
-            curses.mousemask(MOUSE_MASK)
+            curses.mousemask(MOUSE_MASK | (PDC_WHEEL if sys.platform == "win32" else 0))
             curses.mouseinterval(0)
         except curses.error:
             pass
@@ -1218,7 +1223,7 @@ class App(Screens):
 
     def mouse_at(self, y: int, x: int, bstate: int):
         """Act on a mouse event at screen cell (y, x) with button state bstate."""
-        if not bstate & MOUSE_MASK:
+        if not bstate & LEFT_BUTTON:
             # the pointer moving, the wheel or another button: none of them
             # should shift the cursor or wipe the hint
             return

@@ -24,7 +24,7 @@ import soliterm.tui
 from soliterm import aisleriot as ar
 from soliterm import cli, deals, engine, history, saves, store, themes
 from soliterm.deals import Deal
-from soliterm.engine import Card
+from soliterm.engine import Card, GameDef
 from soliterm.tui import cascade
 from soliterm.tui.app import basic_colours
 from soliterm.tui.board import CODE_GUTTER
@@ -105,10 +105,21 @@ class ScriptedScr(FakeScr):
         self.keys = list(keys)
         self.uis = uis
         self.frames = []  # the screen each time a key was read
+        # what was drawn in the cursor's colours each time, by row
+        self.cursor_rows = []
         self.mouse = None
         self.spare = 0
         self.delay = -1  # how long getch waits for a key, in ms; -1 for ever
         self.delays = []  # the delay each key was read with
+
+    def erase(self):
+        super().erase()
+        self.lit = {}
+
+    def addnstr(self, y, x, text, n, attr=0):
+        super().addnstr(y, x, text, n, attr)
+        if attr & curses.A_COLOR == curses.color_pair(themes.CURSOR) and text.strip():
+            self.lit[y] = text
 
     def nodelay(self, flag):
         self.delay = 0 if flag else -1
@@ -118,6 +129,7 @@ class ScriptedScr(FakeScr):
 
     def getch(self):
         self.frames.append(self.text())
+        self.cursor_rows.append(dict(self.lit))
         self.delays.append(self.delay)
         if not self.keys:
             # out of script: keep pressing q until the game lets go
@@ -3455,12 +3467,18 @@ def test_the_code_skin_keeps_the_too_small_notice_inside_the_code_file(tui):
     assert len(shown) == 2 and all(re.match(r" *\d+  # ", row) for row in shown)
 
 
+# The rows the screens with a list of games take with three rows of it, the
+# fewest they scroll it in
+SCROLLED_MIN = {"choose a game": 14, "Daily deals for": 8, "Statistics": 10}
+
+
 @pytest.mark.parametrize("screen, start_key, game, keys", EVERY_SCREEN)
 def test_a_screen_too_tall_for_the_terminal_says_so(tui, screen, start_key, game, keys):
-    # rather than lose its last lines off the bottom
+    # rather than lose its last lines off the bottom, or scroll its list
+    # in fewer rows than that
     scr = tui(keys + [Resize(40, 120), *OUT], start_key=start_key, game=game and game())
     rows = scr.frames[len(keys)].rstrip().split("\n")
-    need = len(rows)
+    need = SCROLLED_MIN.get(screen, len(rows))
     scr = tui(
         keys + [Resize(need - 1, 120), Resize(need, 120), *OUT],
         start_key=start_key,
@@ -3479,6 +3497,284 @@ def test_keys_the_player_cannot_see_do_nothing_on_a_small_menu(tui):
     assert "Terminal too small" in scr.frames[0]
     assert scr.uis == []
     assert scr.rc == 0
+
+
+# -- lists of games longer than the terminal ------------------------------------------------
+
+
+WHEEL_UP = curses.BUTTON4_PRESSED
+# Python before 3.10 has no BUTTON5 constants, and this is ncurses 6's
+WHEEL_DOWN = getattr(curses, "BUTTON5_PRESSED", 0x200000)
+MENU_MOVES = [curses.KEY_UP] * 4  # from the first game round to Daily deal
+
+# The screens with a row for every game: the line that says which it is,
+# the game to start (None for the menu), the keys to get there, and the
+# lines that stay in view however far the list scrolls.
+LONG_LISTS = [
+    (
+        "choose a game",
+        None,
+        [],
+        ["solitaire for your terminal", "Daily deal", "Play a deal", "View statistics", "Quit"]
+        + ["Up/Down move - Enter select - mouse click - q quit"],
+    ),
+    ("Daily deals for", None, [*MENU_MOVES, ENTER], ["Up/Down move - Enter play - Esc back"]),
+    (
+        "Statistics",
+        "klondike",
+        ["s"],
+        ["Wins / Total / Percentage", "(shared with GNOME AisleRiot - sol)", "Streak Longest"]
+        + ["Press any key"],
+    ),
+]
+
+
+def stub_game(n):
+    """A game with not much more than a name, for the lists of games."""
+
+    class Stub(GameDef):
+        key = f"stub{n:02}"
+        name = f"Stub {n:02}"
+        blurb = short_blurb = "Stands in for a game to come."
+
+        def deal(self, g):
+            g.reset_slots()
+            g.make_deck()
+            g.shuffle()
+            for _ in range(4):
+                g.deal_from_deck(g.add_slot("tableau", "down"), 1, face_up=True)
+
+    return Stub
+
+
+def add_games(monkeypatch, n):
+    """n more games after the real ones, everywhere the games are listed.
+    Returns the keys of them all, in order."""
+    stubs = [stub_game(i) for i in range(1, n + 1)]
+    for cls in stubs:
+        monkeypatch.setitem(engine.GAMES, cls.key, cls)
+    real = engine.GAME_ORDER
+    order = [*real, *(cls.key for cls in stubs)]
+    # every module that holds the list under its own name
+    for name, module in list(sys.modules.items()):
+        if name.startswith("soliterm") and getattr(module, "GAME_ORDER", None) is real:
+            monkeypatch.setattr(module, "GAME_ORDER", order)
+    return order
+
+
+@pytest.fixture
+def many_games(monkeypatch):
+    """24 more games after the real ones. Returns the keys of them all."""
+    return add_games(monkeypatch, 24)
+
+
+@pytest.fixture(params=["the-games-at-80x16", "24-more-at-80x24"])
+def crowd(request, monkeypatch):
+    """The keys of the games, in order, and the rows of a terminal too
+    short to list them all at once: the games there are in one a few rows
+    short, or 24 more of them in one of the usual size."""
+    if request.param == "the-games-at-80x16":
+        return engine.GAME_ORDER, 16
+    return add_games(monkeypatch, 24), 24
+
+
+def picked(scr, i):
+    """What was drawn in the cursor's colours when key i was read."""
+    return " | ".join(scr.cursor_rows[i].values())
+
+
+def row_of(frame, name):
+    """The row of frame that has the game `name` on it."""
+    (row,) = [y for y, line in enumerate(frame.split("\n")) if f"{name:<16}" in line]
+    return row
+
+
+@pytest.mark.parametrize("skin", [False, True], ids=["plain", "code-skin"])
+@pytest.mark.parametrize(
+    "down, up",
+    [
+        (curses.KEY_DOWN, "k"),
+        ("j", curses.KEY_UP),
+        (Mouse(12, 30, WHEEL_DOWN), Mouse(12, 30, WHEEL_UP)),
+    ],
+    ids=["arrows", "letters", "wheel"],
+)
+@pytest.mark.parametrize("screen, start_key, keys, fixed", LONG_LISTS)
+def test_a_long_list_reaches_every_game(
+    tui, crowd, keyfile, skin, down, up, screen, start_key, keys, fixed
+):
+    keyfile("")
+    if skin:
+        code_skin_on()
+    order, h = crowd
+    names = [engine.GAMES[key].name for key in order]
+    walk = [down] * (len(names) - 1) + [up] * (len(names) - 1)
+    scr = tui(keys + walk + OUT, start_key=start_key, h=h, w=80)
+    # down to the last game and back up to the first, each in view and
+    # picked out in turn, and the rest of the screen staying put
+    for i, name in enumerate(names + names[-2::-1]):
+        at = len(keys) + i
+        frame = scr.frames[at]
+        assert screen in frame and "Terminal too small" not in frame
+        assert all(line in frame for line in fixed), (at, frame)
+        assert name in picked(scr, at), (name, frame)
+        rows = frame.split("\n")
+        assert len(rows) == h
+        if skin:
+            # the list is inside the comment with the rest of the screen
+            listed = [row for row in rows if "more" in row or any(n in row for n in names)]
+            assert listed and all(re.match(r" *\d+  # ", row) for row in listed)
+
+
+@pytest.mark.parametrize("screen, start_key, keys, fixed", LONG_LISTS)
+def test_the_wheel_stops_at_the_ends_of_a_list(tui, crowd, screen, start_key, keys, fixed):
+    order, h = crowd
+    first, last = engine.GAMES[order[0]].name, engine.GAMES[order[-1]].name
+    rows = len(order)
+    if screen == "choose a game":
+        # the pick goes on past the games to Quit
+        last, rows = "Quit", rows + 4
+    # a notch more each way than it takes to get to the other end
+    down, up = Mouse(9, 30, WHEEL_DOWN), Mouse(9, 30, WHEEL_UP)
+    scr = tui(keys + [down] * rows + [up] * rows + OUT, start_key=start_key, h=h, w=80)
+    at = len(keys)
+    assert first in picked(scr, at)
+    assert last in picked(scr, at + rows - 1) and last in picked(scr, at + rows)
+    assert first in picked(scr, at + 2 * rows - 1) and first in picked(scr, at + 2 * rows)
+
+
+@pytest.mark.parametrize("screen, start_key, keys, fixed", LONG_LISTS)
+def test_the_page_keys_turn_a_long_list_a_page_at_a_time(
+    tui, crowd, screen, start_key, keys, fixed
+):
+    order, h = crowd
+    names = [engine.GAMES[key].name for key in order]
+    last = "Quit" if screen == "choose a game" else names[-1]
+    pages = [curses.KEY_NPAGE] * 6 + [curses.KEY_PPAGE] * 6
+    ends = [curses.KEY_END, curses.KEY_HOME]
+    scr = tui(keys + pages + ends + OUT, start_key=start_key, h=h, w=80)
+    at = len(keys)
+
+    def in_view(i):
+        return [name for name in names if f"{name:<16}" in scr.frames[i]]
+
+    # the pick goes to the first game that was below the ones in view, and
+    # the list turns the page with it, as far as it goes
+    below = names[names.index(in_view(at)[-1]) + 1]
+    assert below in picked(scr, at + 1)
+    turned = in_view(at + 1)
+    assert turned[0] == below or turned[-1] == names[-1]
+    # and so on down to the end, with every game in view on the way, and
+    # back up to the start
+    assert last in picked(scr, at + 6)
+    assert {name for i in range(at, at + 7) for name in in_view(i)} == set(names)
+    assert names[0] in picked(scr, at + 12)
+    # End and Home go straight to the ends
+    assert last in picked(scr, at + 13)
+    assert names[0] in picked(scr, at + 14)
+
+
+@pytest.mark.parametrize("skin", [False, True], ids=["plain", "code-skin"])
+@pytest.mark.parametrize("screen, start_key, keys, fixed", LONG_LISTS)
+def test_a_click_on_a_scrolled_list_takes_the_row_under_the_pointer(
+    tui, crowd, on_the_day, skin, screen, start_key, keys, fixed
+):
+    if skin:
+        code_skin_on()
+    order, h = crowd
+    first, target, end = (engine.GAMES[key].name for key in (order[0], order[-4], order[-1]))
+    # down to the last game, which scrolls the list, then a click on one
+    # a few rows above it
+    downs = [curses.KEY_DOWN] * (len(order) - 1)
+    frame = tui(keys + downs + OUT, start_key=start_key, h=h, w=80).frames[len(keys + downs)]
+    assert f"{end:<16}" in frame and f"{first:<16}" not in frame
+    click = Mouse(row_of(frame, target), 30)
+    scr = tui(keys + downs + [click, *OUT], start_key=start_key, h=h, w=80)
+    if screen == "Statistics":
+        assert target in picked(scr, len(keys + downs) + 1)
+        assert "Statistics" in scr.frames[len(keys + downs) + 1]
+    else:
+        g = scr.uis[-1].game
+        assert g.gamedef.key == order[-4]
+        assert (g.daily == "2026-09-24") == (screen == "Daily deals for")
+
+
+@pytest.mark.parametrize("screen, start_key, keys, fixed", LONG_LISTS)
+def test_a_click_on_more_below_turns_the_page(tui, crowd, screen, start_key, keys, fixed):
+    _, h = crowd
+    frame = tui(keys + OUT, start_key=start_key, h=h, w=80).frames[len(keys)]
+    (row,) = [y for y, line in enumerate(frame.split("\n")) if "more below" in line]
+    clicked = tui(keys + [Mouse(row, 30), *OUT], start_key=start_key, h=h, w=80)
+    paged = tui(keys + [curses.KEY_NPAGE, *OUT], start_key=start_key, h=h, w=80)
+    after = len(keys) + 1
+    assert clicked.frames[after] == paged.frames[after] != frame
+    assert clicked.cursor_rows[after] == paged.cursor_rows[after]
+    assert not clicked.uis or screen == "Statistics"
+
+
+@pytest.mark.parametrize("screen, start_key, keys, fixed", LONG_LISTS)
+def test_the_boss_key_comes_back_to_a_scrolled_list(tui, crowd, screen, start_key, keys, fixed):
+    order, h = crowd
+    downs = [curses.KEY_DOWN] * (len(order) - 4)
+    scr = tui(keys + downs + ["b", "z", *OUT], start_key=start_key, h=h, w=80)
+    before, hidden, back = scr.frames[len(keys + downs) : len(keys + downs) + 3]
+    assert engine.GAMES[order[-4]].name in picked(scr, len(keys + downs))
+    assert screen not in hidden
+    assert back == before
+    assert scr.cursor_rows[len(keys + downs) + 2] == scr.cursor_rows[len(keys + downs)]
+
+
+@pytest.mark.parametrize("screen, start_key, keys, fixed", LONG_LISTS)
+def test_a_resize_keeps_the_game_picked_in_view(tui, screen, start_key, keys, fixed):
+    # to the last game, then a terminal too short for them all, then back
+    downs = [curses.KEY_DOWN] * (len(engine.GAME_ORDER) - 1)
+    resizes = [Resize(16, 80), Resize(24, 80)]
+    scr = tui(keys + downs + resizes + OUT, start_key=start_key, h=24, w=80)
+    before, short, tall = scr.frames[len(keys + downs) : len(keys + downs) + 3]
+    for at, frame in enumerate((before, short, tall), len(keys + downs)):
+        assert "Canfield" in picked(scr, at)
+        assert "Terminal too small" not in frame
+    assert "Klondike" in before and "Klondike" not in short
+    assert tall == before
+
+
+# how to get to the screens EVERY_SCREEN clicks through to on the menu,
+# whose rows move down as the games above them grow
+BY_KEYS = {
+    "A number on its own plays": [*MENU_MOVES[:3], ENTER],
+    "Daily deals for": [*MENU_MOVES, ENTER],
+}
+
+
+@pytest.mark.parametrize("skin", [False, True], ids=["plain", "code-skin"])
+@pytest.mark.parametrize("screen, start_key, game, keys", EVERY_SCREEN)
+def test_every_screen_fits_80x24_with_24_more_games(
+    tui, many_games, skin, screen, start_key, game, keys
+):
+    if skin:
+        code_skin_on()
+    keys = BY_KEYS.get(screen, keys)
+    scr = tui(keys + OUT, start_key=start_key, game=game and game(), h=24, w=80)
+    shown = scr.frames[len(keys)]
+    assert screen in shown and "Terminal too small" not in shown
+
+
+def test_the_wheel_is_asked_for(tui):
+    scr = tui([])
+    assert all(m & WHEEL_UP and m & WHEEL_DOWN for m in scr.masks)
+
+
+# PDCurses' MOUSE_WHEEL_SCROLL, which the curses module doesn't name.
+# Without it windows-curses reports a notch of the wheel with no buttons.
+PDC_WHEEL = 0x2000000
+
+
+@pytest.mark.parametrize("platform", ["win32", "linux", "darwin"])
+def test_pdcurses_is_asked_for_the_wheel_its_own_way(tui, monkeypatch, platform):
+    # and only PDCurses, as ncurses has BUTTON_CTRL there
+    monkeypatch.setattr(sys, "platform", platform)
+    scr = tui([])
+    assert scr.masks and all(bool(m & PDC_WHEEL) == (platform == "win32") for m in scr.masks)
 
 
 def test_a_click_on_a_banner_choice_finds_it_under_the_code_skin(tui):

@@ -52,19 +52,29 @@ only `F2` works there.
 | Keys | What they do |
 | --- | --- |
 | `Up`, `k` / `Down`, `j` | move up and down the list |
+| `PgUp` / `PgDn` | move a page up or down |
+| `Home` / `End` | go to the first game or to Quit |
 | `Enter` | play the game, or open Daily deal, Play a deal or View statistics |
 | `q`, `Q` | quit |
 
 A game with a save waiting says so on its row, and picking it carries on
 where you left off.
 
+In a terminal too short for every game, the games scroll, and a line
+above or below them says how many more there are that way. Daily deal,
+Play a deal, View statistics and Quit stay where they are under them.
+
 ### Daily deals
 
 | Keys | What they do |
 | --- | --- |
 | `Up`, `k` / `Down`, `j` | move up and down the games |
+| `PgUp` / `PgDn` | move a page up or down |
+| `Home` / `End` | go to the first or the last game |
 | `Enter` | play that game's daily deal |
 | `Esc`, `q`, `Q` | back to the menu |
+
+The games scroll here too when the terminal is too short for them all.
 
 ### Play a deal
 
@@ -93,9 +103,24 @@ A board's whole title line, pasted in, works as well.
 | `Enter`, `q`, `Q` | keep the changes and deal again with them |
 | `Esc` | leave everything as it was |
 
-### Statistics and help
+### Statistics
 
-Any key closes them. The mouse doesn't, so the pointer passing over the
+The game in play is picked out, or the first game when they're opened
+from the menu, and the games scroll as they do on the menu.
+
+| Keys | What they do |
+| --- | --- |
+| `Up`, `k` / `Down`, `j` | move up and down the games |
+| `PgUp` / `PgDn` | move a page up or down |
+| `Home` / `End` | go to the first or the last game |
+| any other key | close the statistics |
+
+The mouse doesn't close them, so the pointer passing over the window
+can't.
+
+### Help
+
+Any key closes it. The mouse doesn't, so the pointer passing over the
 window can't.
 
 ### Leaving a game under way
@@ -150,8 +175,8 @@ fit takes only `q` and the boss key.
 
 ## The mouse
 
-Soliterm only listens to the left button, so the wheel and the pointer
-moving over the window do nothing.
+Soliterm listens to the left button and the wheel. The pointer moving
+over the window does nothing, and the wheel does nothing on the board.
 
 - Click a card to pick it up, along with every card below it, then click
   where it should go. Click the same pile again to put it back. In Golf
@@ -166,7 +191,10 @@ moving over the window do nothing.
   Some games do more with a double-click, and each game's page in
   [docs/games](games/README.md) says what.
 - On the menu, the daily deals and the end of a game, click a row to pick
-  it.
+  it. On the statistics, a click picks out a game's row.
+- On the menu, the daily deals and the statistics, the wheel moves up and
+  down the list. Where the games scroll, a click on the line saying how
+  many more there are moves a page that way.
 
 A terminal has to pass mouse clicks on for any of this to work. Most do,
 and in tmux it takes `set -g mouse on`.

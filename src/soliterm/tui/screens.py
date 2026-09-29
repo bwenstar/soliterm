@@ -33,6 +33,14 @@ DEAL_ERROR_ROWS = 3  # the most an error about text that long wraps to
 
 # what counts as clicking a menu or banner choice
 LEFT_CLICK = curses.BUTTON1_PRESSED | curses.BUTTON1_CLICKED
+# The wheel, one notch up or down. Python before 3.10 has no BUTTON5
+# constants; this is where ncurses 6 and PDCurses both put it.
+WHEEL_UP = curses.BUTTON4_PRESSED
+WHEEL_DOWN = getattr(curses, "BUTTON5_PRESSED", 0x200000)
+
+# The fewest rows a list of games scrolls in. With fewer to spare, its
+# screen says the terminal is too small, as one that doesn't scroll does.
+LIST_MIN = 3
 
 
 def skip_mouse_event() -> None:
@@ -53,6 +61,103 @@ def hides_the_board(screen):
             return screen(self, *args, **kwargs)
 
     return show
+
+
+class Scroll:
+    """A list of rows to pick from, drawn in the rows a screen has for it.
+
+    When they are too few for the whole list, a line where the hidden
+    rows would be says how many there are, and the list scrolls to keep
+    the row picked in view. It never starts one row down, as the line
+    saying so would hide just the row it stands for.
+
+    The rows picked from can go on past the list, as the menu's go on
+    to the rows under its games, which don't scroll.
+    """
+
+    def __init__(self, count: int, sel: int, stay: int = 0) -> None:
+        self.count = count  # the rows in the list
+        self.total = count + stay  # and the rows after it to pick from
+        self.sel = sel  # the row picked
+        self.top = 0  # the first row in view
+        self.room = count  # the rows of the screen the list takes
+
+    def fit(self, room: int) -> None:
+        """Give the list `room` rows of the screen, or LIST_MIN if that's
+        fewer, and scroll it so the row picked is in view."""
+        self.room = min(self.count, max(LIST_MIN, room))
+        last = self.count - self.room + 1 if self.count > self.room else 0
+        self.top = min(self.top, last)
+        if self.top == 1:
+            self.top = 0
+        if not 0 <= self.sel < self.count:
+            return
+        if self.sel < self.top:
+            self.top = 0 if self.sel < 2 else self.sel
+        while self.sel not in self.shown():
+            self.top = 2 if self.top == 0 else self.top + 1
+
+    def shown(self) -> range:
+        """The rows in view."""
+        n = self.room - (self.top > 0)
+        if self.top + n < self.count:
+            n -= 1  # for the line saying there are more below
+        return range(self.top, self.top + n)
+
+    def lines(self) -> list[int | str]:
+        """What goes on each of the list's rows of the screen, from the
+        first down: a row of the list, or a line saying how many more
+        there are above or below."""
+        shown = self.shown()
+        below = self.count - shown.stop
+        return [
+            *([f"^ {self.top} more above"] if self.top else []),
+            *shown,
+            *([f"v {below} more below"] if below else []),
+        ]
+
+    def key(self, k: int) -> bool:
+        """Move the pick as key k does, if it's one that moves it: Up and
+        Down go round from one end to the other, PgUp and PgDn go a page
+        and Home and End to the ends."""
+        last = self.total - 1
+        if k in (curses.KEY_UP, ord("k")):
+            self.sel = (self.sel - 1) % self.total
+        elif k in (curses.KEY_DOWN, ord("j")):
+            self.sel = (self.sel + 1) % self.total
+        elif k in (curses.KEY_PPAGE, curses.KEY_NPAGE):
+            page = len(self.shown())
+            step = page if k == curses.KEY_NPAGE else -page
+            if self.sel < self.count:
+                # the list turns the page as well, so the pick stays
+                # where it was among the rows in view
+                self.top = max(0, self.top + step)
+            self.sel = min(last, max(0, self.sel + step))
+        elif k == curses.KEY_HOME:
+            self.sel = 0
+        elif k == curses.KEY_END:
+            self.sel = last
+        else:
+            return False
+        return True
+
+    def mouse(self, bstate: int, dy: int) -> int | None:
+        """Act on a mouse event dy rows below the top of the list: the
+        wheel moves the pick a row, stopping at the ends, and a left click
+        on a line saying there are more turns the page. A left click on a
+        row of the list picks it, and returns it; anything else returns
+        None."""
+        if bstate & WHEEL_UP:
+            self.sel = max(0, self.sel - 1)
+        elif bstate & WHEEL_DOWN:
+            self.sel = min(self.total - 1, self.sel + 1)
+        elif bstate & LEFT_CLICK and 0 <= dy < self.room:
+            at = self.lines()[dy]
+            if isinstance(at, int):
+                self.sel = at
+                return at
+            self.key(curses.KEY_PPAGE if dy == 0 else curses.KEY_NPAGE)
+        return None
 
 
 class Screens:
@@ -164,6 +269,22 @@ class Screens:
             elif k not in (-1, curses.KEY_RESIZE):
                 return k
 
+    def draw_list(
+        self, rows: Scroll, y: int, x: int, row: Callable[[int], str], marked: bool = True
+    ) -> None:
+        """Draw the rows of the list in view from row y down at column x,
+        row(i) giving the text of row i. The row picked is lit up and,
+        unless `marked` is False, has a > before it. The lines saying there
+        are more go under the text of the rows."""
+        CP = self.CP
+        for dy, at in enumerate(rows.lines()):
+            if isinstance(at, str):
+                self.safe_add(y + dy, x + 2, at, CP(CHROME))
+                continue
+            picked = at == rows.sel
+            mark = "> " if picked and marked else "  "
+            self.safe_add(y + dy, x, mark + row(at), (CP(CURSOR) | curses.A_BOLD) if picked else 0)
+
     def boss_key(self, k: int) -> bool:
         """If k is the boss key, go into boss mode until a key is pressed.
 
@@ -184,7 +305,6 @@ class Screens:
         """The menu. Returns the key of the game picked, the Deal asked for
         under Daily deal or Play a deal, one of the other rows, or None for q."""
         CP, safe_add = self.CP, self.safe_add
-        sel = GAME_ORDER.index(self.last_game())
         extra = ["__daily__", "__deal__", "__stats__", "__quit__"]
         labels = {
             "__daily__": "Daily deal",
@@ -193,28 +313,34 @@ class Screens:
             "__quit__": "Quit",
         }
         items = GAME_ORDER + extra
+        # the games scroll, and the rows under them stay where they are
+        rows = Scroll(len(GAME_ORDER), GAME_ORDER.index(self.last_game()), len(extra))
         # every game picked here is a plain start, so each save is offered
         self.waiting = saves.waiting()
+
+        def game_row(i: int) -> str:
+            key = GAME_ORDER[i]
+            cls = GAMES[key]
+            about = cls.short_blurb
+            if key in self.waiting:
+                save = self.waiting[key]
+                which = "daily game" if save.get("daily") else "game"
+                about = f"Resume your {which}: {self.resume_text(save)}"
+            return f"{cls.name:<16} {about}"
+
         while True:
             self.begin_page()
             safe_add(1, 4, f"{APP_NAME}  -  choose a game", CP(CHROME) | curses.A_BOLD)
             safe_add(2, 4, "solitaire for your terminal, AisleRiot-compatible", CP(CHROME))
-            for i, key in enumerate(GAME_ORDER):
-                cls = GAMES[key]
-                marker = "> " if i == sel else "  "
-                attr = (CP(CURSOR) | curses.A_BOLD) if i == sel else 0
-                about = cls.short_blurb
-                if key in self.waiting:
-                    save = self.waiting[key]
-                    which = "daily game" if save.get("daily") else "game"
-                    about = f"Resume your {which}: {self.resume_text(save)}"
-                safe_add(4 + i, 6, f"{marker}{cls.name:<16} {about}", attr)
-            base = 4 + len(GAME_ORDER) + 1
+            # under the games a gap, the other rows, a gap and the footer
+            rows.fit(self.stdscr.getmaxyx()[0] - 4 - (len(extra) + 3))
+            self.draw_list(rows, 4, 6, game_row)
+            base = 4 + rows.room + 1
             for j, key in enumerate(extra):
                 i = len(GAME_ORDER) + j
                 label = labels[key]
-                marker = "> " if i == sel else "  "
-                attr = (CP(CURSOR) | curses.A_BOLD) if i == sel else 0
+                marker = "> " if i == rows.sel else "  "
+                attr = (CP(CURSOR) | curses.A_BOLD) if i == rows.sel else 0
                 safe_add(base + j, 6, f"{marker}{label}", attr)
             safe_add(
                 base + len(extra) + 1,
@@ -224,35 +350,26 @@ class Screens:
             )
             self.end_page()
             k = self.page_key()
-            if self.boss_key(k):
+            if self.boss_key(k) or rows.key(k):
                 continue
             picked = None
-            if k in (curses.KEY_UP, ord("k")):
-                sel = (sel - 1) % len(items)
-            elif k in (curses.KEY_DOWN, ord("j")):
-                sel = (sel + 1) % len(items)
-            elif k in (ord("q"), ord("Q")):
-                return None
+            if k in (curses.KEY_ENTER, 10, 13):
+                picked = items[rows.sel]
             elif k == curses.KEY_MOUSE:
                 try:
                     _, _mx, my, _, bstate = curses.getmouse()
                 except curses.error:
                     continue
-                if not bstate & LEFT_CLICK:
-                    # a release, say of the click on the banner's Back to
-                    # menu, which sits on the row of Quit here
-                    continue
-                idx = my - 4
-                if 0 <= idx < len(GAME_ORDER):
-                    sel = idx
-                    picked = items[sel]
-                else:
-                    bidx = my - base
-                    if 0 <= bidx < len(extra):
-                        sel = len(GAME_ORDER) + bidx
-                        picked = items[sel]
-            elif k in (curses.KEY_ENTER, 10, 13):
-                picked = items[sel]
+                at = rows.mouse(bstate, my - 4)
+                if at is not None:
+                    picked = items[at]
+                elif bstate & LEFT_CLICK and 0 <= my - base < len(extra):
+                    # only a left click: a release, say of the click on the
+                    # banner's Back to menu, sits on the row of Quit here
+                    rows.sel = len(GAME_ORDER) + my - base
+                    picked = items[rows.sel]
+            elif k in (ord("q"), ord("Q")):
+                return None
             if picked == "__daily__":
                 deal = self.daily_screen()
                 if deal is not None:
@@ -272,46 +389,60 @@ class Screens:
         # read once, so a list left open over midnight deals the day it shows
         day = deals.today()
         number = deals.daily_number(day)
-        sel = GAME_ORDER.index(self.last_game())
+        rows = Scroll(len(GAME_ORDER), GAME_ORDER.index(self.last_game()))
+
+        def game_row(i: int) -> str:
+            key = GAME_ORDER[i]
+            return f"{GAMES[key].name:<16} {key}:{number}"
+
         while True:
             self.begin_page()
             safe_add(1, 4, f"Daily deals for {day.isoformat()}", CP(CHROME) | curses.A_BOLD)
-            for i, key in enumerate(GAME_ORDER):
-                marker = "> " if i == sel else "  "
-                attr = (CP(CURSOR) | curses.A_BOLD) if i == sel else 0
-                safe_add(3 + i, 6, f"{marker}{GAMES[key].name:<16} {key}:{number}", attr)
-            safe_add(3 + len(GAME_ORDER) + 1, 6, "Up/Down move - Enter play - Esc back", CP(CHROME))
+            rows.fit(self.stdscr.getmaxyx()[0] - 3 - 2)  # a gap and the footer under it
+            self.draw_list(rows, 3, 6, game_row)
+            safe_add(3 + rows.room + 1, 6, "Up/Down move - Enter play - Esc back", CP(CHROME))
             self.end_page()
             k = self.page_key()
-            if self.boss_key(k):
+            if self.boss_key(k) or rows.key(k):
                 continue
             picked = None
-            if k in (curses.KEY_UP, ord("k")):
-                sel = (sel - 1) % len(GAME_ORDER)
-            elif k in (curses.KEY_DOWN, ord("j")):
-                sel = (sel + 1) % len(GAME_ORDER)
-            elif k in (27, ord("q"), ord("Q")):
-                return None
+            if k in (curses.KEY_ENTER, 10, 13):
+                picked = rows.sel
             elif k == curses.KEY_MOUSE:
                 try:
                     _, _mx, my, _, bstate = curses.getmouse()
                 except curses.error:
                     continue
-                idx = my - 3
-                if bstate & LEFT_CLICK and 0 <= idx < len(GAME_ORDER):
-                    picked = sel = idx
-            elif k in (curses.KEY_ENTER, 10, 13):
-                picked = sel
+                picked = rows.mouse(bstate, my - 3)
+            elif k in (27, ord("q"), ord("Q")):
+                return None
             if picked is not None:
                 return deals.daily(GAME_ORDER[picked], day)
 
     # ---- statistics dialog (AisleRiot fields) ---- #
     @hides_the_board
     def stats_screen(self, focus_key: str | None = None):
+        """The statistics of every game, the row of focus_key picked out,
+        or of the first game if there's none. The keys that move the pick
+        on the menu and the wheel move it here; any other key leaves."""
         streaks = history.streaks()  # read once, not again on each resize
-        self.wait_for_key(lambda: self.draw_stats(focus_key, streaks))
+        start = GAME_ORDER.index(focus_key) if focus_key in GAME_ORDER else 0
+        rows = Scroll(len(GAME_ORDER), start)
+        while True:
+            self.draw_stats(rows, streaks)
+            k = self.page_key()
+            if self.boss_key(k) or rows.key(k):
+                continue
+            if k == curses.KEY_MOUSE:
+                try:
+                    _, _mx, my, _, bstate = curses.getmouse()
+                except curses.error:
+                    continue
+                rows.mouse(bstate, my - 5)
+            elif k not in (-1, curses.KEY_RESIZE):
+                return
 
-    def draw_stats(self, focus_key: str | None, streaks: dict[str, history.Streak]):
+    def draw_stats(self, rows: Scroll, streaks: dict[str, history.Streak]):
         CP, safe_add = self.CP, self.safe_add
         self.begin_page()
         safe_add(1, 4, "Statistics", CP(CHROME) | curses.A_BOLD)
@@ -322,30 +453,28 @@ class Screens:
             else:
                 shared = "(shared with GNOME AisleRiot - sol)"
             safe_add(3, 4, shared, CP(MESSAGE) if self.has_color else 0)
-        y = 4
         header = (
             f"  {'Game':<16}{'Wins':>6}{'Total':>7}{'Win%':>7}{'Best':>8}{'Worst':>8}"
             f"{'Streak':>8}{'Longest':>8}"
         )
-        safe_add(y, 4, header, CP(MESSAGE) | curses.A_BOLD)
-        y += 1
-        for key in GAME_ORDER:
+        safe_add(4, 4, header, CP(MESSAGE) | curses.A_BOLD)
+
+        def game_row(i: int) -> str:
+            key = GAME_ORDER[i]
             s = store.get_stat(key)
             pcts = store.percent_text(s)
             best = "N/A" if s["best"] == 0 else store.fmt_time(s["best"])
             worst = "N/A" if s["worst"] == 0 else store.fmt_time(s["worst"])
             # only the games played here are in the history
             cur, longest = streaks.get(key, ("N/A", "N/A"))
-            attr = (CP(CURSOR) | curses.A_BOLD) if key == focus_key else 0
-            safe_add(
-                y,
-                4,
-                f"  {GAMES[key].name:<16}{s['wins']:>6}{s['total']:>7}{pcts:>7}{best:>8}{worst:>8}"
-                f"{cur:>8}{longest:>8}",
-                attr,
+            return (
+                f"{GAMES[key].name:<16}{s['wins']:>6}{s['total']:>7}{pcts:>7}{best:>8}{worst:>8}"
+                f"{cur:>8}{longest:>8}"
             )
-            y += 1
-        safe_add(y + 1, 4, "Press any key to continue.", CP(CHROME))
+
+        rows.fit(self.stdscr.getmaxyx()[0] - 5 - 2)  # a gap and the footer under it
+        self.draw_list(rows, 5, 4, game_row, marked=False)
+        safe_add(5 + rows.room + 1, 4, "Up/Down move - Press any key to continue.", CP(CHROME))
         self.end_page()
 
     # ---- options dialog ---- #
