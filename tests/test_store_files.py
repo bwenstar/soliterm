@@ -421,7 +421,7 @@ def test_on_windows_ctrl_c_still_stops_a_wait_for_the_lock(windows):
 
 def test_on_windows_a_lock_that_fails_is_no_lock(windows):
     # anything but the lock being busy: go on without it, as with flock
-    windows.fail = OSError(errno.EDEADLOCK, "Resource deadlock avoided")
+    windows.fail = OSError(errno.ENOLCK, "No locks available")
     store.record_result("golf", won=True, seconds=42)
     assert windows.calls == [("lock", 1, 0), ("unlock", 1, 0), "close"]
     assert store.get_stat("golf")["wins"] == 1
