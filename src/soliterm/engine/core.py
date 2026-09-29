@@ -99,6 +99,12 @@ class Solitaire:
         self.symbols = True
         self._undo: list[bytes] = []
         self._redo: list[bytes] = []
+        # The hints asked for and the moves taken back with undo in the deal
+        # in play, or None where they aren't known, as in a game resumed from
+        # a save made before they were counted. They aren't part of the
+        # position, so undo doesn't take them back.
+        self.hints: int | None = 0
+        self.undos: int | None = 0
         self.new_game(seed)
 
     # Score is clamped at 0: AisleRiot never displays a negative score, and
@@ -170,6 +176,8 @@ class Solitaire:
         self.status = ""
         self._undo = []
         self._redo = []
+        self.hints = 0
+        self.undos = 0
         self.gamedef.deal(self)
 
     def restart(self) -> None:
@@ -206,6 +214,8 @@ class Solitaire:
         g.redeals_done = self.redeals_done
         g._undo = []
         g._redo = []
+        g.hints = self.hints
+        g.undos = self.undos
         return g
 
     def legal_moves(self) -> list[tuple[int, int, int]]:
@@ -396,6 +406,8 @@ class Solitaire:
             return False
         self._redo.append(self.serialize().encode())
         self._restore(self._undo.pop().decode())
+        if self.undos is not None:
+            self.undos += 1
         return True
 
     def redo(self) -> bool:
@@ -611,7 +623,13 @@ class Solitaire:
         return best
 
     def hint(self) -> tuple[int, int, str] | None:
-        """What hint_move() suggests, as (src, dst, description) for the UI."""
+        """What hint_move() suggests, as (src, dst, description) for the UI.
+
+        Each call is a hint the player asked for, and counts in hints, so
+        anything else wanting the hint asks hint_move().
+        """
+        if self.hints is not None:
+            self.hints += 1
         mv = self.hint_move()
         if mv is None:
             return None
@@ -787,6 +805,18 @@ class Solitaire:
             "position": self.serialize(),
             "undo": newest(self._undo),
             "redo": newest(self._redo),
+            **self.counts(),
+        }
+
+    def counts(self) -> dict[str, int]:
+        """The hints and undos, as the saves and the history keep them.
+
+        One that isn't known is left out rather than written as null: a save
+        or a line from before they were counted has neither, so missing is
+        the one way to say it, and a reader never takes it for 0.
+        """
+        return {
+            name: n for name, n in (("hints", self.hints), ("undos", self.undos)) if n is not None
         }
 
     def _parse(self, text: str) -> tuple[str, dict[str, int], list[Slot]]:

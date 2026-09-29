@@ -53,6 +53,8 @@ def test_record_appends_one_line():
             "seconds": 142,
             "moves": 3,
             "score": 0,
+            "hints": 0,
+            "undos": 0,
         }
     ]
     history.record(played("golf", deals=1), False, 7.4)
@@ -127,6 +129,50 @@ def test_a_line_a_newer_version_could_write_is_kept(newer):
     e = {"at": AT, "game": "golf", "result": "lost", "seconds": 5, "moves": 2, **newer}
     write(json.dumps(e) + "\n")
     assert history.games() == [e]
+
+
+def test_a_line_has_the_hints_asked_for_and_the_moves_undone():
+    g = played()
+    g.hint()
+    assert g.undo()
+    history.record(g, False, 60)
+    (e,) = history.games()
+    assert (e["hints"], e["undos"]) == (1, 1)
+    assert history.counts(e) == (1, 1)
+
+
+def test_counts_not_known_are_left_out_of_the_line():
+    g = played()
+    g.hints = None  # as for a game resumed from a save older than the counts
+    history.record(g, False, 60)
+    e = json.loads(lines()[0])
+    assert "hints" not in e and e["undos"] == 0
+    assert history.counts(e) == (None, 0)
+
+
+@pytest.mark.parametrize(
+    "counts",
+    [{}, {"hints": None, "undos": -1}, {"hints": "2", "undos": 1.0}, {"hints": True}],
+    ids=["from before them", "null and below 0", "text and a float", "true"],
+)
+def test_a_line_without_counts_to_go_by_is_a_game_with_them_unknown(counts):
+    e = {"at": AT, "game": "golf", "result": "won", "seconds": 5, "moves": 2, **counts}
+    write(json.dumps(e) + "\n")
+    assert history.games() == [e]
+    assert history.counts(e) == (None, None)
+
+
+def test_a_line_with_the_counts_is_one_1_0_reads():
+    # 1.0 takes a line for a game by its time, game, result, seconds and
+    # moves, and reads nothing else but the options, deal, score and daily
+    g = played()
+    g.hint()
+    history.record(g, True, 60)
+    e = json.loads(lines()[0])
+    assert set(e) - {"at", "game", "options", "deal", "result", "seconds", "moves", "score"} == {
+        "hints",
+        "undos",
+    }
 
 
 def test_streaks_count_wins_in_a_row_per_game():

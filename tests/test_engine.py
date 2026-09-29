@@ -814,6 +814,9 @@ def test_every_game_resumes_where_it_was(key):
         lambda s: s.update(daily="20260924"),
         lambda s: s.update(daily=20260924),
         lambda s: s.update(chosen=1),
+        lambda s: s.update(hints=-1),
+        lambda s: s.update(hints="2"),
+        lambda s: s.update(undos=True),
     ],
     ids=[
         "an unknown game",
@@ -830,6 +833,9 @@ def test_every_game_resumes_where_it_was(key):
         "a daily without its dashes",
         "a daily as a number",
         "chosen as a number",
+        "hints below 0",
+        "hints as text",
+        "undos as true",
     ],
 )
 def test_resume_refuses(change):
@@ -884,6 +890,69 @@ def test_a_save_from_before_the_mark_deals_at_random_after():
     snap = deal("klondike", 5).snapshot(500)
     del snap["chosen"]
     assert engine.resume_solitaire(snap).seed is None
+
+
+# -- hints and undos ------------------------------------------------------------------
+
+
+def test_the_hints_asked_for_and_the_moves_undone_are_counted():
+    g = deal("klondike", 4)
+    assert (g.hints, g.undos) == (0, 0)
+    g.hint()
+    for _ in range(3):
+        g.deal()
+    g.hint()
+    assert g.undo()
+    assert g.redo()  # which takes none off
+    assert g.undo_all() == 3  # each move taken back
+    assert not g.undo()  # nothing to take back
+    # back at the deal, and still counted: undo doesn't take them back
+    assert (g.moves, g.hints, g.undos) == (0, 2, 4)
+
+
+@pytest.mark.parametrize("again", ["new_game", "restart"])
+def test_a_new_deal_or_the_same_one_again_counts_from_nothing(again):
+    g = deal("klondike", 4)
+    g.deal()
+    g.hint()
+    assert g.undo()
+    g.hints = None  # as for a game from a save too old to have it
+    getattr(g, again)()
+    assert (g.hints, g.undos) == (0, 0)
+
+
+def test_counts_not_known_stay_unknown():
+    g = deal("klondike", 4)
+    g.hints = g.undos = None
+    g.deal()
+    g.hint()
+    assert g.undo()
+    assert (g.hints, g.undos) == (None, None)
+
+
+def test_the_counts_go_with_the_game_and_carry_on_from_there():
+    g = deal("klondike", 4)
+    g.deal()
+    g.hint()
+    g.hint()
+    assert g.undo()
+    snap = g.snapshot(500)
+    assert (snap["hints"], snap["undos"]) == (2, 1)
+    h = engine.resume_solitaire(snap)
+    assert (h.hints, h.undos) == (2, 1)
+    h.hint()
+    assert (h.hints, h.undos) == (3, 1)
+
+
+def test_a_save_from_before_the_counts_has_them_unknown():
+    snap = deal("klondike", 4).snapshot(500)
+    del snap["hints"], snap["undos"]
+    g = engine.resume_solitaire(snap)
+    assert (g.hints, g.undos) == (None, None)
+    # and a snapshot leaves out what isn't known, as the save did
+    assert not {"hints", "undos"} & set(g.snapshot(500))
+    h = engine.resume_solitaire({**snap, "hints": None, "undos": 2})
+    assert (h.hints, h.undos) == (None, 2)
 
 
 # -- stuck detection ------------------------------------------------------------------

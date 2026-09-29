@@ -36,7 +36,9 @@ from helpers import (
     clear_board,
     crashed,
     deal,
+    from_before_the_counts,
     nothing_in_play,
+    saved,
     signal_as_it_waits,
     signal_once_written,
     stalled_klondike,
@@ -2321,6 +2323,32 @@ def test_a_game_another_copy_has_in_play_isnt_offered_here(tui):
     # the game played here had no room to be kept; the other one did
     assert store.get_stat("klondike")["total"] == 1
     assert saves.waiting()["klondike"]["moves"] == 31
+
+
+# -- hints and undos ---------------------------------------------------------------
+
+
+def test_the_hints_and_undos_of_a_game_go_in_its_history_line(tui):
+    tui(["h", "d", "d", "h", "u", "r", "U", "d", "n", "q"], deal=4)
+    (e,) = history.games()
+    assert (e["result"], e["moves"], e["hints"], e["undos"]) == ("lost", 1, 2, 3)
+
+
+def test_undo_with_no_moves_left_counts_and_the_game_carries_on_counting(tui):
+    g = played_out()
+    g.hints, g.undos = 2, 5
+    assert saves.keep(g, 42)
+    tui(["u", "h", "q"], start_key="golf")
+    assert (saved("golf")["hints"], saved("golf")["undos"]) == (3, 6)
+
+
+def test_a_game_from_a_save_before_the_counts_has_none_in_its_line(tui):
+    keep_one()
+    from_before_the_counts()
+    tui(["h", "d", "n", "q"])
+    (e,) = history.games()
+    assert e["moves"] == 32
+    assert not {"hints", "undos"} & set(e)
 
 
 # -- options -------------------------------------------------------------------------

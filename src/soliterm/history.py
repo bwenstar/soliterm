@@ -43,6 +43,7 @@ def record(g: Solitaire, won: bool, seconds: float) -> dict:
         "seconds": max(1, secs) if won else secs,
         "moves": g.moves,
         "score": g.score,
+        **g.counts(),
     }
     if g.daily:
         entry["daily"] = g.daily
@@ -125,6 +126,18 @@ def _is_game(e: object) -> bool:
         and e.get("result") in ("won", "lost")
         and all(type(e.get(k)) is int and e[k] >= 0 for k in ("seconds", "moves"))
     )
+
+
+def counts(e: dict) -> tuple[int | None, int | None]:
+    """The hints asked for and the moves undone in a game in the history,
+    each None where it isn't known, as for a line from before they were
+    counted, or one of a game resumed from a save that old."""
+
+    def known(name: str) -> int | None:
+        n = e.get(name)
+        return n if type(n) is int and n >= 0 else None
+
+    return known("hints"), known("undos")
 
 
 def streaks() -> dict[str, Streak]:

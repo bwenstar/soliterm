@@ -76,7 +76,12 @@ scoring, so anything a game has to do after every move belongs in
 `post_move`.
 
 Undo and redo swap whole positions, written out by `serialize()`, so no
-game has to know how to take a move back.
+game has to know how to take a move back. The hints asked for and the
+moves taken back are counted on `Solitaire` too, as `hints` and `undos`,
+outside the position, so undo doesn't take them back. A save and the
+game's line in `history.jsonl` keep them, and leave one out when it
+isn't known, as for a game resumed from a save made before they were
+counted.
 
 ## From a key to the screen
 

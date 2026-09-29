@@ -22,7 +22,9 @@ from helpers import (
     board_state,
     clear_board,
     deal,
+    from_before_the_counts,
     nothing_in_play,
+    saved,
     signal_once_written,
     stalled_klondike,
     steps,
@@ -1090,3 +1092,32 @@ def test_a_game_another_copy_has_in_play_isnt_resumed_here(capsys):
     # the game played here had no room to be kept; the other one did
     assert store.get_stat("klondike")["total"] == 1
     assert saves.waiting()["klondike"]["moves"] == 31
+
+
+# -- hints and undos --------------------------------------------------------------------
+
+
+def test_the_hints_and_undos_typed_go_in_the_history():
+    play_text("klondike", "hint\n?\nd\nd\nu\nr\nundo all\nd\n")
+    (e,) = history.games()
+    assert (e["result"], e["moves"], e["hints"], e["undos"]) == ("lost", 1, 2, 3)
+
+
+def test_a_resumed_game_carries_on_counting(monkeypatch):
+    monkeypatch.setattr(textmode, "time", Clock())
+    g = deal("klondike", 4)
+    g.deal()
+    g.hints, g.undos = 2, 5
+    assert saves.keep(g, 42)
+    assert resume_one("hint", "u", "q") == 0
+    assert (saved()["hints"], saved()["undos"]) == (3, 6)
+
+
+def test_a_game_from_a_save_before_the_counts_has_none_in_its_line(monkeypatch):
+    monkeypatch.setattr(textmode, "time", Clock())
+    keep_one()
+    from_before_the_counts()
+    assert resume_one("hint", "d", "n") == 0
+    (e,) = history.games()
+    assert e["moves"] == 32
+    assert not {"hints", "undos"} & set(e)

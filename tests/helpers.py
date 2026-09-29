@@ -2,6 +2,7 @@
 
 import curses
 import glob
+import json
 import os
 import signal
 import subprocess
@@ -124,6 +125,21 @@ def crashed(key="klondike"):
     a crash or a closed window leaves it: nothing tidied, and the lock let
     go of, as the system does."""
     store._let_go(saves._playing.pop(key))
+
+
+def saved(key="klondike"):
+    """The save waiting for `key`, as it is in its file."""
+    with open(saves.save_path(key), encoding="utf-8") as fh:
+        return json.load(fh)
+
+
+def from_before_the_counts(key="klondike"):
+    """Take the hints and undos out of the save waiting for `key`, as a save
+    made before they were kept."""
+    save = saved(key)
+    del save["hints"], save["undos"]
+    with open(saves.save_path(key), "w", encoding="utf-8") as fh:
+        json.dump(save, fh)
 
 
 def nothing_in_play():

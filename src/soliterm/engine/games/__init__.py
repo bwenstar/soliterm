@@ -98,6 +98,11 @@ def resume_solitaire(snap: dict) -> Solitaire:
         and all(isinstance(t, str) for t in undo + redo)
     ):
         raise ValueError("the positions don't fit, as they aren't all text")
+    # missing from saves made before they were counted, so not known
+    counts = {name: snap.get(name) for name in ("hints", "undos")}
+    for name, n in counts.items():
+        if n is not None and (type(n) is not int or n < 0):
+            raise ValueError(f"{name}={n!r} doesn't fit, as it isn't a count")
     g = new_solitaire(key, seed=deal, options=clean)
     for text in (position, *undo, *redo):
         g._check_position(text)
@@ -105,6 +110,7 @@ def resume_solitaire(snap: dict) -> Solitaire:
     g._undo = [t.encode() for t in undo]
     g._redo = [t.encode() for t in redo]
     g.daily = daily
+    g.hints, g.undos = counts["hints"], counts["undos"]
     # n deals as it would have before the save: the number after a chosen
     # deal, and otherwise at random
     g.seed = deal if chosen else None

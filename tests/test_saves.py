@@ -12,7 +12,7 @@ import pytest
 from soliterm import saves, store
 from soliterm.engine import GAMES
 
-from helpers import OtherCopy, crashed, deal, nothing_in_play
+from helpers import OtherCopy, crashed, deal, from_before_the_counts, nothing_in_play, saved
 
 
 def played(key="klondike", seed=4, deals=3):
@@ -181,6 +181,40 @@ def test_unknown_keys_in_a_save_are_ignored():
     assert saves.waiting() == {"klondike": {"seconds": 42, "moves": 3}}
     h, _ = saves.take("klondike")
     assert h.serialize() == g.serialize()
+
+
+# -- hints and undos
+
+
+def test_a_save_carries_the_hints_and_undos_and_gives_them_back():
+    g = played()
+    g.hint()
+    assert g.undo()
+    assert saves.keep(g, 42)
+    assert (saved()["hints"], saved()["undos"]) == (1, 1)
+    h, _ = saves.take("klondike")
+    assert (h.hints, h.undos) == (1, 1)
+
+
+def test_a_save_from_before_the_counts_gives_them_unknown():
+    assert saves.keep(played(), 42)
+    from_before_the_counts()
+    g, _ = saves.take("klondike")
+    assert (g.hints, g.undos) == (None, None)
+    g.hint()
+    assert saves.keep(g, 50)
+    assert not {"hints", "undos"} & set(saved())
+
+
+def test_a_save_with_the_counts_is_one_1_0_resumes():
+    # 1.0 leaves a save alone if its format is past 1, checks its game,
+    # seconds, moves and score, and takes up only the fields it knows
+    assert saves.keep(played(), 42)
+    save = saved()
+    assert save["format"] == 1
+    known = {"format", "version", "saved", "seconds", "game", "options", "deal", "daily"}
+    known |= {"chosen", "moves", "score", "position", "undo", "redo"}
+    assert set(save) - known == {"hints", "undos"}
 
 
 # -- a game in play ------------------------------------------------------------------
