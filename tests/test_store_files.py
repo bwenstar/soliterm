@@ -2,18 +2,20 @@
 aside, and two copies of the game recording at once.
 """
 
+import errno
 import glob
 import json
-import multiprocessing
 import os
 import signal
+import subprocess
+import sys
 import threading
 
 import pytest
 
 from soliterm import store
 
-from helpers import signal_as_it_waits, stats_json_in_use
+from helpers import child_env, signal_as_it_waits, stats_json_in_use
 
 
 def stat(wins, total, best, worst):
@@ -162,21 +164,40 @@ def test_a_reset_stats_json_could_not_take_clears_nothing(monkeypatch):
     )
 
 
-def _record_many(n):
-    for _ in range(n):
-        store.record_result("golf", won=True, seconds=42)
+# A copy of the game that records n wins once it's told to go, and prints
+# what went wrong
+RECORD_MANY = """
+import sys
+from soliterm import store
+print("ready", flush=True)
+sys.stdin.read()
+for _ in range(int(sys.argv[1])):
+    store.record_result("golf", won=True, seconds=42)
+print(store.notices())
+"""
 
 
-@pytest.mark.skipif("fork" not in multiprocessing.get_all_start_methods(), reason="needs fork")
 def test_two_games_recording_at_once_lose_nothing():
-    ctx = multiprocessing.get_context("fork")
-    procs = [ctx.Process(target=_record_many, args=(25,)) for _ in range(4)]
-    for p in procs:
-        p.start()
-    for p in procs:
-        p.join(30)
-    assert [p.exitcode for p in procs] == [0, 0, 0, 0]
-    assert store.get_stat("golf") == stat(100, 100, 42, 42)
+    n = 25
+    env = dict(child_env(), SOLITERM_NO_AISLERIOT="1")
+    copies = [
+        subprocess.Popen(
+            [sys.executable, "-c", RECORD_MANY, str(n)],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            text=True,
+            env=env,
+        )
+        for _ in range(2)
+    ]
+    for p in copies:
+        assert p.stdout.readline() == "ready\n"
+    for p in copies:
+        p.stdin.close()  # go
+    said = [p.stdout.read() for p in copies]
+    assert [p.wait(60) for p in copies] == [0, 0]
+    assert store.get_stat("golf") == stat(2 * n, 2 * n, 42, 42), said
+    assert said == ["[]\n", "[]\n"]
 
 
 needs_flock = pytest.mark.skipif(
@@ -202,16 +223,37 @@ def test_ctrl_c_still_stops_a_wait_for_the_lock(ctrl_c):
     assert store.get_stat("golf")["total"] == 0
 
 
-@needs_flock
+def other_copy_locks(fh):
+    """Take the stats lock on fh, a file of its own, as another copy of the
+    game would: flock, or msvcrt.locking on Windows. BlockingIOError if it
+    has gone."""
+    if store.fcntl is not None:
+        store.fcntl.flock(fh.fileno(), store.fcntl.LOCK_EX | store.fcntl.LOCK_NB)
+        return
+    fh.seek(0)
+    try:
+        store.msvcrt.locking(fh.fileno(), store.msvcrt.LK_NBLCK, 1)
+    except PermissionError:
+        raise BlockingIOError from None
+
+
+def other_copy_lets_go(fh):
+    if store.fcntl is not None:
+        store.fcntl.flock(fh.fileno(), store.fcntl.LOCK_UN)
+        return
+    fh.seek(0)
+    store.msvcrt.locking(fh.fileno(), store.msvcrt.LK_UNLCK, 1)
+
+
 def test_a_wait_for_the_lock_is_told_of_first():
     os.makedirs(store.data_dir())
     told = []
     with open(os.path.join(store.data_dir(), "stats.lock"), "a") as other:
-        store.fcntl.flock(other.fileno(), store.fcntl.LOCK_EX)
+        other_copy_locks(other)
 
         def note():
             told.append(store.LOCK_WAIT)
-            store.fcntl.flock(other.fileno(), store.fcntl.LOCK_UN)  # it lets go
+            other_copy_lets_go(other)
 
         with store.lock_wait_note(note):
             store.record_result("golf", won=True, seconds=42)
@@ -222,21 +264,20 @@ def test_a_wait_for_the_lock_is_told_of_first():
     assert store.get_stat("golf")["wins"] == 2
 
 
-@needs_flock
 @pytest.mark.parametrize("error", [BrokenPipeError, ValueError])
 def test_a_wait_note_that_fails_still_waits_for_the_lock(error):
     os.makedirs(store.data_dir())
     with open(os.path.join(store.data_dir(), "stats.lock"), "a") as other:
-        store.fcntl.flock(other.fileno(), store.fcntl.LOCK_EX)
+        other_copy_locks(other)
 
         def note():
-            store.fcntl.flock(other.fileno(), store.fcntl.LOCK_UN)  # it lets go
+            other_copy_lets_go(other)
             # as print does on a stderr that has closed, or been closed
             raise error
 
         # it has the lock, so another copy can't take it now
         with store.lock_wait_note(note), store._locked(), pytest.raises(BlockingIOError):
-            store.fcntl.flock(other.fileno(), store.fcntl.LOCK_EX | store.fcntl.LOCK_NB)
+            other_copy_locks(other)
 
 
 @pytest.mark.skipif(os.name != "posix", reason="needs POSIX file modes")
@@ -259,6 +300,146 @@ def test_a_lock_file_open_to_others_is_made_the_players_own():
     os.chmod(path, 0o644)
     store.record_result("golf", won=True, seconds=42)
     assert os.stat(path).st_mode & 0o777 == 0o600
+
+
+# -- the lock on Windows ---------------------------------------------------------------
+
+
+# msvcrt.locking's modes, by the names the calls go down under
+LOCKING = {0: "unlock", 1: "lock or wait", 2: "lock"}
+
+
+class FakeMsvcrt:
+    """msvcrt's byte-range locks, as far as the stats lock goes, with another
+    copy of the game holding the lock for the first `busy` tries. Every call,
+    and the lock file's close, goes down in `calls`."""
+
+    LK_UNLCK, LK_LOCK, LK_NBLCK = 0, 1, 2
+
+    def __init__(self):
+        self.busy = 0
+        self.fail = None  # what the next call raises instead
+        self.fds = set()
+        self.calls = []
+
+    def locking(self, fd, mode, nbytes):
+        here = os.path.join(store.data_dir(), "stats.lock")
+        assert os.path.samestat(os.fstat(fd), os.stat(here))
+        self.fds.add(fd)
+        self.calls.append((LOCKING[mode], nbytes, os.lseek(fd, 0, os.SEEK_CUR)))
+        if self.fail is not None:
+            raise self.fail
+        if mode == self.LK_NBLCK and self.busy:
+            self.busy -= 1
+            raise PermissionError(errno.EACCES, "Permission denied")
+
+
+@pytest.fixture
+def windows(monkeypatch):
+    """The stats lock as Windows has it: no fcntl, but msvcrt.locking."""
+    fake = FakeMsvcrt()
+    monkeypatch.setattr(store, "fcntl", None)
+    monkeypatch.setattr(store, "msvcrt", fake, raising=False)
+    real_close = os.close
+
+    def close(fd):
+        if fd in fake.fds:
+            fake.fds.discard(fd)
+            fake.calls.append("close")
+        real_close(fd)
+
+    monkeypatch.setattr(os, "close", close)
+    return fake
+
+
+def test_on_windows_the_lock_is_the_first_byte_of_stats_lock(windows):
+    store.record_result("golf", won=True, seconds=42)
+    # let go before the file closes, as Windows may keep a closed file's
+    # lock a while
+    assert windows.calls == [("lock", 1, 0), ("unlock", 1, 0), "close"]
+    assert store.get_stat("golf")["wins"] == 1
+
+
+def test_on_windows_the_lock_is_taken_once_however_deep(windows):
+    with store._locked():
+        store.record_result("golf", won=True, seconds=42)
+        assert windows.calls == [("lock", 1, 0)]
+    assert windows.calls == [("lock", 1, 0), ("unlock", 1, 0), "close"]
+
+
+def test_on_windows_a_busy_lock_is_told_of_and_asked_for_again(windows):
+    windows.busy = 3
+    seen = []
+
+    def note():
+        seen.append(("told", store.waiting_for_lock()))
+
+    real = windows.locking
+
+    def locking(fd, mode, nbytes):
+        seen.append((LOCKING[mode], store.waiting_for_lock()))
+        real(fd, mode, nbytes)
+
+    windows.locking = locking
+    with store.lock_wait_note(note):
+        store.record_result("golf", won=True, seconds=42)
+    # told once, then waiting till the other copy let go; never LK_LOCK,
+    # which gives up after ten tries and would carry on with no lock
+    assert seen == [
+        ("lock", False),
+        ("told", False),
+        ("lock", True),
+        ("lock", True),
+        ("lock", True),
+        ("unlock", False),
+    ]
+    assert not store.waiting_for_lock()
+    assert store.get_stat("golf")["wins"] == 1
+
+
+def test_on_windows_ctrl_c_still_stops_a_wait_for_the_lock(windows):
+    windows.busy = 10
+    real = windows.locking
+
+    def locking(fd, mode, nbytes):
+        try:
+            real(fd, mode, nbytes)
+        except PermissionError:
+            if len(windows.calls) == 3:
+                raise KeyboardInterrupt from None  # as it waits
+            raise
+
+    windows.locking = locking
+    with pytest.raises(KeyboardInterrupt), store.signals_held():
+        store.record_result("golf", won=True, seconds=42)
+    assert windows.calls == [("lock", 1, 0)] * 3 + [("unlock", 1, 0), "close"]
+    assert not store.waiting_for_lock()
+    assert store._lock_depth == 0
+    windows.busy = 0
+    assert store.get_stat("golf")["total"] == 0
+
+
+def test_on_windows_a_lock_that_fails_is_no_lock(windows):
+    # anything but the lock being busy: go on without it, as with flock
+    windows.fail = OSError(errno.EDEADLOCK, "Resource deadlock avoided")
+    store.record_result("golf", won=True, seconds=42)
+    assert windows.calls == [("lock", 1, 0), ("unlock", 1, 0), "close"]
+    assert store.get_stat("golf")["wins"] == 1
+
+
+def test_on_windows_an_unlock_that_fails_still_closes_the_file(windows):
+    with store._locked():
+        windows.fail = PermissionError(errno.EACCES, "Permission denied")
+    assert windows.calls == [("lock", 1, 0), ("unlock", 1, 0), "close"]
+    windows.fail = None
+    store.record_result("golf", won=True, seconds=42)
+    assert store.get_stat("golf")["wins"] == 1
+
+
+def test_on_windows_an_error_in_the_block_still_lets_go(windows):
+    with pytest.raises(ZeroDivisionError), store._locked():
+        1 / 0  # noqa: B018
+    assert windows.calls == [("lock", 1, 0), ("unlock", 1, 0), "close"]
 
 
 # -- values of the wrong type ----------------------------------------------------------

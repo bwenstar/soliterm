@@ -23,7 +23,7 @@ from soliterm.deals import Deal
 from soliterm.engine import GAME_ORDER, GAMES
 from soliterm.textmode import render_text
 
-from helpers import deal, signal_as_it_waits, stats_json_in_use
+from helpers import child_env, deal, signal_as_it_waits, stats_json_in_use
 
 
 class TtyInput(io.StringIO):
@@ -1337,15 +1337,6 @@ def test_curses_itself_turns_down_an_unknown_terminal_type():
 
 
 # -- entry points ----------------------------------------------------------------------
-
-
-def child_env():
-    """The environment for a child process: this one (with the isolated
-    HOME from conftest), pointed at the checkout's src/."""
-    src = str(Path(__file__).resolve().parents[1] / "src")
-    return dict(
-        os.environ, PYTHONPATH=os.pathsep.join(p for p in (src, os.environ.get("PYTHONPATH")) if p)
-    )
 
 
 def test_python_m_soliterm_runs_the_command_line():

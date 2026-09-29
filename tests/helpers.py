@@ -6,6 +6,7 @@ import signal
 import threading
 import time
 from collections import Counter
+from pathlib import Path
 
 from soliterm import engine, store
 
@@ -38,6 +39,15 @@ PDCURSES_NUMPAD = {
     "KEY_B1": 452,
     "KEY_B3": 454,
 }
+
+
+def child_env():
+    """The environment for a child process: this one (with the isolated
+    HOME from conftest), pointed at the checkout's src/."""
+    src = str(Path(__file__).resolve().parents[1] / "src")
+    return dict(
+        os.environ, PYTHONPATH=os.pathsep.join(p for p in (src, os.environ.get("PYTHONPATH")) if p)
+    )
 
 
 def deal(key, seed=1, **options):

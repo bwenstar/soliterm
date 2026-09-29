@@ -12,16 +12,22 @@ import json
 import os
 import shutil
 import signal
+import sys
 import tempfile
 import time
 from collections.abc import Callable, Iterator
+from typing import Any
 
 from . import aisleriot as ar
 
 try:
     import fcntl
-except ImportError:  # Windows: no advisory locks, the lock is a no-op
+except ImportError:  # Windows, which locks with msvcrt instead
     fcntl = None  # type: ignore[assignment]
+if sys.platform == "win32":
+    import msvcrt
+else:
+    msvcrt: Any = None
 
 # The folder name under the XDG config and data dirs. Under its old name the
 # game used "aisle-cli"; migrate.py copies those files over on the first run.
@@ -237,21 +243,20 @@ def _locked() -> Iterator[None]:
 
     Two copies of the game finishing at once would otherwise both read the
     same stats and the later save would drop the other's result. The lock is
-    advisory (flock on stats.lock beside stats.json) and does nothing where
-    there is no fcntl, or when the lock file can't be made.
+    on stats.lock beside stats.json, flock or on Windows msvcrt.locking,
+    and does nothing when the lock file can't be made.
     """
     global _lock_depth, _waiting  # noqa: PLW0603 (state for this process)
     fd = None
-    if _lock_depth == 0 and fcntl is not None:
+    if _lock_depth == 0 and (fcntl is not None or msvcrt is not None):
         try:
             os.makedirs(data_dir(), exist_ok=True)
             # kept open while we hold the lock; the finally below closes it
             fd = os.open(os.path.join(data_dir(), "stats.lock"), os.O_WRONLY | os.O_CREAT, 0o600)
-            with contextlib.suppress(OSError):
-                os.fchmod(fd, 0o600)  # one an older version left open to others
-            try:
-                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            except BlockingIOError:
+            if fcntl is not None:
+                with contextlib.suppress(OSError):
+                    os.fchmod(fd, 0o600)  # one an older version left open to others
+            if not _lock_now(fd):
                 if _on_wait is not None:
                     # a note that can't be written, to a stderr that has
                     # closed, say, still waits for the lock
@@ -259,12 +264,12 @@ def _locked() -> Iterator[None]:
                         _on_wait()
                 _waiting = True
                 try:
-                    fcntl.flock(fd, fcntl.LOCK_EX)
+                    _lock_later(fd)
                 finally:
                     _waiting = False
         except BaseException as exc:
             if fd is not None:
-                os.close(fd)
+                _let_go(fd)
             fd = None
             if not isinstance(exc, OSError):
                 raise  # Ctrl-C while it waited
@@ -274,7 +279,55 @@ def _locked() -> Iterator[None]:
     finally:
         _lock_depth -= 1
         if fd is not None:
-            os.close(fd)  # which also lets go of the lock
+            _let_go(fd)
+
+
+# How long a wait for the lock on Windows sleeps between tries
+_LOCK_POLL = 0.05
+
+
+def _lock_now(fd: int) -> bool:
+    """Lock the file open on fd, unless another copy of the game has it.
+
+    On Windows the lock is the file's first byte, which needn't be there to
+    be locked. Anything but the lock being taken raises OSError.
+    """
+    if fcntl is not None:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return False
+        return True
+    os.lseek(fd, 0, os.SEEK_SET)
+    try:
+        msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+    except PermissionError:  # EACCES: it's taken
+        return False
+    return True
+
+
+def _lock_later(fd: int) -> None:
+    """Wait for the lock on the file open on fd, and take it."""
+    if fcntl is not None:
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        return
+    # LK_LOCK gives up after ten tries a second apart and would leave the
+    # game to go on with no lock, so this asks for as long as it takes, and
+    # Ctrl-C can still break off the wait
+    while not _lock_now(fd):
+        time.sleep(_LOCK_POLL)
+
+
+def _let_go(fd: int) -> None:
+    """Let go of the lock on the file open on fd, and close it."""
+    try:
+        if fcntl is None:
+            # Windows lets go of a closed file's lock only in its own time
+            with contextlib.suppress(OSError):
+                os.lseek(fd, 0, os.SEEK_SET)
+                msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+    finally:
+        os.close(fd)  # which lets go of a flock
 
 
 DEFAULT_CONFIG = {

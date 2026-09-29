@@ -210,10 +210,11 @@ the old file as it was. A file that isn't valid JSON is moved aside to
 at all is left alone, and a lock beside `stats.json` keeps two copies of
 the game finishing at once from losing one result. While another copy
 has the lock, the game says it's waiting, on the bottom line or on
-stderr, instead of stopping without a word. The lock is `flock`, so there
-is one on Linux and macOS but none on Windows, where `_locked` does
-nothing and two copies finishing at the same moment can still lose one
-result.
+stderr, instead of stopping without a word. The lock is `flock` on
+`stats.lock` on Linux and macOS. On Windows, which has no `flock`, it's
+`msvcrt.locking` on the file's first byte, asked for again every 50 ms
+while another copy has it, since the way Windows waits for one gives up
+after ten seconds.
 
 ## Saves and signals
 
