@@ -625,6 +625,77 @@ def test_a_win_is_timed_from_its_own_deal(again, total, secs, shown, monkeypatch
     assert f"in {store.fmt_time(shown)} " in capsys.readouterr().out
 
 
+class Typed:
+    """What a script yields, typed at a terminal."""
+
+    def __init__(self, lines):
+        self.lines = lines
+
+    def __iter__(self):
+        return iter(self.lines)
+
+    def isatty(self):
+        return True
+
+
+needs_sigtstp = pytest.mark.skipif(not hasattr(signal, "SIGTSTP"), reason="needs POSIX signals")
+
+
+@needs_sigtstp
+def test_the_time_stopped_with_ctrl_z_is_left_out(monkeypatch, capsys):
+    clock = Clock()
+    monkeypatch.setattr(textmode, "time", clock)
+    stops = []
+
+    def kill(pid, signum):
+        # the default is back for the stop itself, which lasts an hour
+        assert (pid, signum) == (os.getpid(), signal.SIGTSTP)
+        stops.append(signal.getsignal(signal.SIGTSTP))
+        clock.now += 3600
+
+    monkeypatch.setattr(os, "kill", kill)
+    g = deal("klondike", 1)
+
+    def ctrl_z():
+        handler = signal.getsignal(signal.SIGTSTP)
+        assert callable(handler), "nothing handles Ctrl-Z"
+        handler(signal.SIGTSTP, None)
+
+    def script():
+        yield "d\n"
+        clock.now += 10
+        ctrl_z()
+        clock.now += 5
+        ctrl_z()  # and once more, as it is handled again after
+        yield f"f {one_card_from_won(g)}\n"
+
+    assert textmode.run_text(g, False, "klondike", stream=Typed(script())) == 0
+    assert stops == [signal.SIG_DFL, signal.SIG_DFL]
+    assert "in 0:15 " in capsys.readouterr().out
+
+
+@needs_sigtstp
+@pytest.mark.parametrize("tty", [True, False])
+@pytest.mark.parametrize("before", [signal.SIG_DFL, signal.SIG_IGN])
+def test_ctrl_z_is_handled_only_at_a_terminal_that_can_stop(tty, before):
+    # a shell with no job control starts its commands with SIGTSTP ignored
+    during = []
+
+    def script():
+        during.append(signal.getsignal(signal.SIGTSTP))
+        yield "q\n"
+
+    old = signal.signal(signal.SIGTSTP, before)
+    try:
+        stream = Typed(script()) if tty else script()
+        assert textmode.run_text(deal("golf", 1), False, "golf", stream=stream) == 0
+        handled = tty and before == signal.SIG_DFL
+        assert callable(during[0]) == handled
+        assert signal.getsignal(signal.SIGTSTP) == before
+    finally:
+        signal.signal(signal.SIGTSTP, old)
+
+
 @pytest.mark.parametrize(
     "n,text", [(0, "0 moves"), (1, "1 move"), (2, "2 moves"), (31, "31 moves")]
 )

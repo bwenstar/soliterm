@@ -252,6 +252,15 @@ before it goes on, since on Linux a closing terminal's read fails with
 EIO before the SIGHUP comes, and a second call to `put_away` does
 nothing.
 
+Ctrl-Z stops the game without leaving it, and the clock leaves out the
+time it was stopped, as AisleRiot's does. In the full-screen game ncurses
+handles SIGTSTP, putting the terminal back before it stops, so all
+Soliterm sees is the SIGCONT once it goes on. `carry_on` then takes off
+the time since `read_key` last woke, which can take up to a second of
+play with it. Text mode has no curses in the way, so `run_text` handles
+SIGTSTP itself: it stops the usual way inside the handler and leaves out
+the time until it's back.
+
 Windows sends no SIGHUP or SIGTERM to turn into anything. Closing the
 console window or pressing Ctrl-Break ends the process there and then
 (status 0xC000013A), so the game in play is neither kept nor counted,

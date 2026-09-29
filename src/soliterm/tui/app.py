@@ -14,6 +14,7 @@ from __future__ import annotations
 import curses
 import functools
 import os
+import signal
 import sys
 import textwrap
 import time
@@ -121,6 +122,15 @@ class GameClock:
             return self.banked
         return self.banked + clock() - self.since
 
+    def leave_out(self, stopped: float) -> None:
+        """Leave out of a running clock the time from `stopped` to now, as
+        when Ctrl-Z stopped the game all that time. A clock that isn't
+        running, or stands still behind another screen, has nothing to
+        leave out, and one that set off since loses only what it has run."""
+        if self.since is not None:
+            now = clock()
+            self.since += now - max(stopped, self.since)
+
     @contextmanager
     def paused(self) -> Iterator[None]:
         """Stop the clock while a with block shows another screen."""
@@ -198,6 +208,27 @@ def hides_the_board(screen):
     return show
 
 
+@contextmanager
+def on_continue(then: Callable[[], object]) -> Iterator[None]:
+    """Call `then` each time the process goes on after being stopped, as
+    by Ctrl-Z and fg, while the with block runs. Where there is no
+    SIGCONT (Windows) it does nothing.
+
+    Ctrl-Z itself is left to ncurses, whose handler puts the terminal back,
+    stops the process and draws the screen again once it goes on. One of
+    Python's own would take its place, with no way to hand on to it.
+    """
+    cont = getattr(signal, "SIGCONT", None)
+    if cont is None:
+        yield
+        return
+    old = signal.signal(cont, lambda signum, frame: then())
+    try:
+        yield
+    finally:
+        signal.signal(cont, signal.SIG_DFL if old is None else old)
+
+
 class App:
     """One curses session: the menu, the dialogs and the game in play."""
 
@@ -262,6 +293,9 @@ class App:
         self.numpad = numpad_keys(curses)
         # the saved games the menu offers, as saves.waiting() gives them
         self.waiting: dict[str, dict] = {}
+        # clock() when read_key last had a key or ran out of time waiting,
+        # the last sign of life before a stop (see carry_on)
+        self.alive = clock()
         # per-game state, reset by start_game()
         self.clock = GameClock()
         self.selected: int | None = None
@@ -454,6 +488,17 @@ class App:
             # Ctrl-C quits like q, with no traceback; play() has already
             # saved or counted the game
             return 130
+
+    def carry_on(self) -> None:
+        """Take the time the game was stopped, by Ctrl-Z say, off its clock,
+        as AisleRiot's clock doesn't run then either.
+
+        Only the going on is seen (SIGCONT), so the stop is taken to run
+        from the last time read_key woke. That is never much more than a
+        second before it, as read_key wakes each second, so up to a second
+        of play can go with it.
+        """
+        self.clock.leave_out(self.alive)
 
     def say_waiting(self) -> None:
         """Say on the bottom line why the game has stopped, while another
@@ -916,6 +961,7 @@ class App:
             k = self.stdscr.getch()
         finally:
             self.stdscr.timeout(-1)  # the other screens wait for a key
+        self.alive = clock()
         k = self.numpad.get(k, k)
         if k != 27:
             return k
@@ -1839,7 +1885,7 @@ def run(stdscr, start: str | Deal | None = None, **options):
     one only has to be added there."""
     app = App(stdscr, start, **options)
     # a wait for another copy of the game is told of on the screen
-    with store.lock_wait_note(app.say_waiting):
+    with store.lock_wait_note(app.say_waiting), on_continue(app.carry_on):
         return app.run()
 
 

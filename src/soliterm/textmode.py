@@ -8,8 +8,10 @@ a terminal, and when curses is not available. The command grammar
 
 from __future__ import annotations
 
+import os
 import re
 import shutil
+import signal
 import sys
 import time
 from typing import Callable
@@ -337,6 +339,34 @@ def _show_escapes(out) -> tuple[bool, Callable[[], object] | None]:
     return True, lambda: kernel32.SetConsoleMode(handle, wintypes.DWORD(old))
 
 
+def _time_ctrl_z(inp, left_out: Callable[[float], object]) -> Callable[[], object] | None:
+    """Have Ctrl-Z stop text mode as it would anyway, and then hand left_out
+    the seconds it was stopped, so the game's clock can leave them out, as
+    AisleRiot's does. Returns what puts the old handler back.
+
+    Only for input from a terminal, where Ctrl-Z is typed, and only where
+    it stops the game at all: a shell with no job control starts it with
+    SIGTSTP ignored, and Windows has none. Then it returns None.
+    """
+    tstp = getattr(signal, "SIGTSTP", None)
+    isatty = getattr(inp, "isatty", None)
+    if tstp is None or not (isatty and isatty()) or signal.getsignal(tstp) == signal.SIG_IGN:
+        return None
+
+    def stop(signum: int, frame: object) -> None:
+        stopped = time.monotonic()
+        # the default stops the process, where this would only come back here
+        signal.signal(tstp, signal.SIG_DFL)
+        try:
+            os.kill(os.getpid(), tstp)  # back from this once fg continues it
+        finally:
+            signal.signal(tstp, stop)
+        left_out(time.monotonic() - stopped)
+
+    old = signal.signal(tstp, stop)
+    return lambda: signal.signal(tstp, signal.SIG_DFL if old is None else old)
+
+
 def run_text(
     g: Solitaire,
     symbols: bool,
@@ -433,10 +463,15 @@ def run_text(
                     return
             give_up()
 
+    def left_out(stopped: float) -> None:
+        nonlocal start
+        start += stopped  # stopped with Ctrl-Z, which is no time played
+
     shown, put_back = _show_escapes(out)
     # colour a terminal can't show is only noise, though into a file or a
     # pipe --color still means it
     color = color and (shown or not out.isatty())
+    tstp_back = _time_ctrl_z(inp, left_out)
     try:
         try:
             if resume:
@@ -529,3 +564,5 @@ def run_text(
     finally:
         if put_back is not None:
             put_back()
+        if tstp_back is not None:
+            tstp_back()

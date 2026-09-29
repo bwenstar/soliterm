@@ -829,6 +829,59 @@ def test_the_clock_on_the_status_line_ticks(tui, game_clock):
     assert times(scr) == ["0:00", "0:00", "0:01", "0:02"]
 
 
+needs_sigcont = pytest.mark.skipif(not hasattr(signal, "SIGCONT"), reason="needs POSIX signals")
+
+
+@needs_sigcont
+def test_the_clock_leaves_out_the_time_stopped_with_ctrl_z(tui, game_clock):
+    # ten seconds of play, then an hour stopped: ncurses stops the game on
+    # Ctrl-Z, and all that is seen here is SIGCONT once it goes on
+    scr = tui(["d", Later(10, -1), Later(3600, Signal("SIGCONT")), Later(1, -1)])
+    assert times(scr) == ["0:00", "0:00", "0:10", "0:10", "0:11"]
+
+
+@needs_sigcont
+def test_ctrl_z_leaves_a_clock_not_yet_running_or_standing_still_alone(tui, game_clock):
+    # an hour stopped before the first move, and another behind the help
+    scr = tui(
+        [Later(3600, Signal("SIGCONT")), "d", Later(10, "?"), Later(3600, Signal("SIGCONT")), "z"]
+        + [Later(1, -1)]
+    )
+    assert times(scr) == ["0:00", "0:00", "0:00", "0:10", "0:11"]
+
+
+@needs_sigcont
+def test_the_handler_for_sigcont_goes_back_after(tui):
+    def before(signum, frame):
+        pass
+
+    old = signal.signal(signal.SIGCONT, before)
+    try:
+        tui(["d", "q"])
+        assert signal.getsignal(signal.SIGCONT) is before
+    finally:
+        signal.signal(signal.SIGCONT, old)
+
+
+def test_the_clock_plays_on_where_there_is_no_sigcont(tui, game_clock, monkeypatch):
+    # Windows
+    monkeypatch.delattr(signal, "SIGCONT", raising=False)
+    scr = tui(["d", Later(10, -1)])
+    assert times(scr) == ["0:00", "0:00", "0:10"]
+
+
+def test_leaving_out_a_stop_takes_off_no_more_than_the_clock_ran(game_clock):
+    clock = soliterm.tui.app.GameClock()
+    alive = game_clock.now
+    game_clock.now += 2  # the move that starts the clock came after the last key
+    clock.start()
+    game_clock.now += 60
+    clock.leave_out(alive)
+    assert clock.elapsed() == 0
+    game_clock.now += 5
+    assert clock.elapsed() == 5
+
+
 def test_the_clock_the_banner_and_the_statistics_agree_on_the_time(tui, game_clock):
     # moving a king to an empty column starts the clock; the win comes 10.6 s on
     keys = [ENTER] + [curses.KEY_RIGHT] * 4 + [ENTER, Later(10.6, -1), "a", "m"]
