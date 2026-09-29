@@ -54,6 +54,13 @@ python -m pytest -k undo
 For a coverage report, `python -m coverage run -m pytest` and then
 `python -m coverage report`.
 
+For packagers: the suite runs from the unpacked sdist, with pytest and
+nothing else. It needs no network, terminal or git, passes under the C
+locale (`LC_ALL=C`) and with SIGINT ignored, as a build started in the
+background has it, and gives each test a home of its own, so the
+builder's is never touched. CI runs it from the sdist that way on every
+push.
+
 ## Lint and type checks
 
 CI runs all of these, so it saves a round trip to run them before you push:

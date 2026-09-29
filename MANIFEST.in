@@ -6,6 +6,8 @@ recursive-include tests *.py
 include tools/build_pyz.py tools/keybindings.py tools/screenshots.py
 # tests/test_keybindings_doc.py checks the key page against the code
 include docs/keybindings.md
+# and tests/test_game_lists.py the games' pages, and their list of them
+include docs/games/*.md
 # the manual page, which tests/test_man_page.py checks against the code
 include man/soliterm.6
 # SECURITY.md, which tests/test_cli.py checks against --reset-stats

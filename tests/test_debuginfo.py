@@ -314,9 +314,10 @@ def test_debug_info_takes_the_size_from_the_first_terminal(
 
 def test_debug_info_prints_what_the_terminal_cant_show_as_escapes(monkeypatch):
     monkeypatch.setattr(cli, "_terminal_problem", lambda: None)
-    # a byte the locale couldn't decode, and a letter ASCII can't hold
+    # a byte the locale couldn't decode, and a letter ASCII can't hold, in a
+    # path, as the C locale has no way to put one in the environment
     monkeypatch.setenv("TERM_PROGRAM", "caf\udce9")
-    monkeypatch.setenv("COLORTERM", "caf\u00e9")
+    monkeypatch.setattr(sys, "executable", "/opt/caf\u00e9/bin/python3")
     raw = io.BytesIO()
     out = io.TextIOWrapper(raw, encoding="ascii")
     monkeypatch.setattr(sys, "stdout", out)
@@ -324,7 +325,7 @@ def test_debug_info_prints_what_the_terminal_cant_show_as_escapes(monkeypatch):
     out.flush()
     text = raw.getvalue().decode("ascii")
     assert "TERM_PROGRAM=caf\\udce9" in text
-    assert "COLORTERM=caf\\xe9" in text
+    assert "(/opt/caf\\xe9/bin/python3)" in text
 
 
 # -- the command line --------------------------------------------------------------------

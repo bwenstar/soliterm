@@ -57,7 +57,7 @@ def test_the_bug_report_offers_every_game_in_menu_order():
     same_list(offered, ["Not game specific", *NAMES], BUG_REPORT)
 
 
-@pytest.mark.skipif(not GAMES_INDEX.exists(), reason="no docs/ in this tree")
+@pytest.mark.skipif(not GAMES_INDEX.exists(), reason="no docs/games/ in this tree")
 def test_the_games_index_links_every_game_in_menu_order():
     rows = ROW.findall(GAMES_INDEX.read_text(encoding="utf-8"))
     same_list(rows, [(GAMES[key].name, key, key) for key in GAME_ORDER], GAMES_INDEX)
@@ -72,7 +72,7 @@ def test_the_readme_links_every_game_in_menu_order():
 
 def test_the_readme_describes_every_game_as_the_games_index_does():
     if not GAMES_INDEX.exists():
-        pytest.skip("no docs/ in this tree")
+        pytest.skip("no docs/games/ in this tree")
     about = re.compile(r"^\| \[.+?\]\(\S+\) \| `(\w+)` \| (.+) \|$", re.MULTILINE)
     index = about.findall(GAMES_INDEX.read_text(encoding="utf-8"))
     assert about.findall(README.read_text(encoding="utf-8")) == index, (
