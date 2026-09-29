@@ -195,6 +195,14 @@ until the next game of that kind is shared, when `_share` sets its record
 from what the keyfile then says. `history.jsonl` still lists the game, so
 it still counts towards the streaks.
 
+Soliterm can't stop that, but on Linux it can see it coming. While
+sharing, the first game to start asks `aisleriot_open_note` in
+`store.py`, and `running` in `aisleriot.py` looks through `/proc`
+(`PROC_ROOT`) for a process called `sol` that is the player's own. If
+there is one, the front end says AisleRiot is open, on the message line
+or on stderr, once a run. It reads the names of the player's own
+processes and nothing of anyone else's, and it runs and signals nothing.
+
 Every file is written whole: to a temporary file in the same folder that
 then replaces the old one in one step, so a crash or a full disk leaves
 the old file as it was. A file that isn't valid JSON is moved aside to
@@ -272,9 +280,10 @@ raises `KeyboardInterrupt` and leaves as `q` does.
 The suite never reads or writes your own files: the autouse fixture in
 [`tests/conftest.py`](../tests/conftest.py) points `HOME`,
 `USERPROFILE`, `XDG_CONFIG_HOME` and `XDG_DATA_HOME` at each test's own
-temporary folder, and tells the store that AisleRiot isn't installed, so
-nothing reaches a real keyfile even on a machine that has one. A test
-that wants AisleRiot writes a fake keyfile with the `keyfile` fixture.
+temporary folder, and tells the store that AisleRiot isn't installed or
+running, so nothing reaches a real keyfile even on a machine that has one.
+A test that wants AisleRiot writes a fake keyfile with the `keyfile`
+fixture.
 [`tests/test_isolation.py`](../tests/test_isolation.py) checks the
 fixture itself.
 

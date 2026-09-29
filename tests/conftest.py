@@ -30,8 +30,11 @@ def isolated_home(tmp_path, monkeypatch):
     monkeypatch.setattr(store, "_notices", [])
     monkeypatch.setattr(store, "_no_sync", False)
     monkeypatch.setattr(saves, "_kept", [])
-    # AisleRiot may be installed here; a test that wants it says so
+    # AisleRiot may be installed here, or even open; a test that wants it
+    # says so
     monkeypatch.setattr(ar, "installed", lambda: False)
+    monkeypatch.setattr(ar, "PROC_ROOT", str(tmp_path / "no-proc"))
+    monkeypatch.setattr(store, "_looked_for_aisleriot", False)
     return home
 
 

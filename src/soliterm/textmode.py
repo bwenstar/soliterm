@@ -14,6 +14,7 @@ import shutil
 import signal
 import sys
 import time
+from contextlib import suppress
 from typing import Callable
 
 from . import APP_NAME, camo, history, saves, store
@@ -490,6 +491,20 @@ def run_text(
                 print(f"Resumed your {name} game ({so_far()}). Type n for a new deal.", file=out)
             elif note := unkept():
                 print(note, file=out)
+            # on stderr, leaving stdout as it always is: with stderr closed,
+            # Python's is None, and print would take that for stdout
+            warning = store.aisleriot_open_note()
+            if warning and sys.stderr is not None:
+                out.flush()  # after the lines above, if both go to one place
+                try:
+                    print(f"soliterm: {warning}", file=sys.stderr, flush=True)
+                except OSError:
+                    # whatever read stderr has gone, which is no reason to
+                    # stop the game. The line stays in stderr's buffer, where
+                    # Python's flush at exit would fail on it again, so
+                    # stderr goes to devnull instead.
+                    with suppress(OSError):
+                        os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stderr.fileno())
             print(file=out)
             print(render_text(g, symbols, color), file=out)
             for raw in inp:

@@ -13,9 +13,11 @@ import sys
 import pytest
 
 from soliterm import aisleriot as ar
-from soliterm import cli, store
+from soliterm import cli, store, textmode
+from soliterm.engine import new_solitaire
+from soliterm.tui.app import START_MESSAGE, App
 
-from helpers import stats_json_in_use
+from helpers import FakeScr, stats_json_in_use
 
 # chmod can take read access away from us, but not from root, and not on
 # Windows
@@ -753,3 +755,165 @@ def test_a_reset_before_aisleriot_has_run_counts_our_games(monkeypatch):
     store.record_result("golf", won=True, seconds=42)
     assert store.reset_stats() == 1
     assert store.get_stat("golf") == stat(0, 0, 0, 0)
+
+
+# -- AisleRiot open while we play ----------------------------------------------------
+
+# a made-up /proc needs user ids to own its processes
+needs_uids = pytest.mark.skipif(not hasattr(os, "getuid"), reason="needs POSIX user ids")
+
+
+def fake_proc(tmp_path, monkeypatch, *names):
+    """Point the scan at a /proc of our own, with a process for each name
+    from pid 100 up, all ours, beside the files that aren't processes."""
+    root = tmp_path / "proc"
+    root.mkdir()
+    (root / "uptime").write_text("12.34 56.78\n")
+    (root / "sys").mkdir()
+    for pid, name in enumerate(names, 100):
+        (root / str(pid)).mkdir()
+        (root / str(pid) / "comm").write_text(f"{name}\n")
+    monkeypatch.setattr(ar, "PROC_ROOT", str(root))
+    return root
+
+
+@needs_uids
+def test_aisleriot_running_is_found(tmp_path, monkeypatch):
+    fake_proc(tmp_path, monkeypatch, "bash", "sol", "gnome-shell")
+    assert ar.running()
+
+
+@needs_uids
+def test_only_a_process_called_sol_is_aisleriot(tmp_path, monkeypatch):
+    fake_proc(tmp_path, monkeypatch, "bash", "solitaire", "consol", "sol-helper")
+    assert not ar.running()
+
+
+@needs_uids
+def test_another_users_aisleriot_is_left_alone(tmp_path, monkeypatch):
+    fake_proc(tmp_path, monkeypatch, "sol")
+    monkeypatch.setattr(os, "getuid", lambda: os.stat(tmp_path).st_uid + 1)
+    opened = []
+
+    def spy(path, *args, **kwargs):
+        opened.append(path)
+        return open(path, *args, **kwargs)
+
+    monkeypatch.setattr(ar, "open", spy, raising=False)
+    assert not ar.running()
+    assert opened == []  # nothing of someone else's is read
+
+
+@needs_uids
+def test_a_process_that_ends_during_the_scan_is_passed_over(tmp_path, monkeypatch):
+    root = fake_proc(tmp_path, monkeypatch, "bash")
+    (root / "100" / "comm").unlink()  # gone after its owner was looked at
+    (root / "101").symlink_to(root / "gone")  # gone before that
+    assert not ar.running()
+    (root / "102").mkdir()
+    (root / "102" / "comm").write_text("sol\n")
+    assert ar.running()
+
+
+def test_no_proc_means_no_aisleriot_and_no_error(tmp_path, monkeypatch):
+    monkeypatch.setattr(ar, "PROC_ROOT", str(tmp_path / "proc"))
+    assert not ar.running()
+    monkeypatch.setattr(ar, "PROC_ROOT", None)  # not Linux
+    assert not ar.running()
+
+
+def test_aisleriot_open_while_sharing_is_said_once(keyfile, monkeypatch):
+    keyfile(KEYFILE)
+    monkeypatch.setattr(ar, "running", lambda: True)
+    assert store.aisleriot_open_note() == store.AISLERIOT_OPEN
+    assert store.aisleriot_open_note() is None
+    # on the message line at 80 columns in either look, and on stderr
+    assert len(store.AISLERIOT_OPEN) <= 72
+
+
+def test_aisleriot_closed_says_nothing(keyfile, monkeypatch):
+    keyfile(KEYFILE)
+    monkeypatch.setattr(ar, "running", lambda: False)
+    assert store.aisleriot_open_note() is None
+
+
+@pytest.mark.parametrize("how", ["env", "call", "config", "waiting"])
+def test_nothing_is_looked_for_while_nothing_is_shared(keyfile, monkeypatch, how):
+    if how == "waiting":
+        # AisleRiot has yet to make its folder, so results wait here
+        on_path(monkeypatch, "sol")
+    else:
+        keyfile(KEYFILE)
+    if how == "env":
+        monkeypatch.setenv("SOLITERM_NO_AISLERIOT", "1")
+    elif how == "call":
+        store.disable_sync()
+    elif how == "config":
+        share(False)
+
+    def refuse():
+        raise AssertionError("looked for AisleRiot")
+
+    monkeypatch.setattr(ar, "running", refuse)
+    assert store.aisleriot_open_note() is None
+
+
+@pytest.mark.parametrize("code_skin", [False, True])
+def test_the_first_game_on_screen_says_aisleriot_is_open(keyfile, monkeypatch, code_skin):
+    keyfile(KEYFILE)
+    monkeypatch.setattr(ar, "running", lambda: True)
+    cfg = store.load_config()
+    cfg["code_skin"] = code_skin
+    store.save_config(cfg)
+    app = App(FakeScr(24, 80))
+    app.start_game("klondike")
+    assert app.message == store.AISLERIOT_OPEN
+    app.draw()
+    assert store.AISLERIOT_OPEN in app.stdscr.text()
+    app.start_game("golf")  # once is enough
+    assert app.message == START_MESSAGE
+
+
+def test_text_mode_says_aisleriot_is_open_on_stderr_before_the_board(keyfile, monkeypatch, capsys):
+    keyfile(KEYFILE)
+    commands = "n\nq\n"
+    textmode.run_text(new_solitaire("klondike", 1), False, "klondike", io.StringIO(commands))
+    closed = capsys.readouterr()
+    assert closed.err == ""
+    monkeypatch.setattr(store, "_looked_for_aisleriot", False)  # the next run
+    monkeypatch.setattr(ar, "running", lambda: True)
+    textmode.run_text(new_solitaire("klondike", 1), False, "klondike", io.StringIO(commands))
+    opened = capsys.readouterr()
+    assert opened.out == closed.out
+    assert opened.err == f"soliterm: {store.AISLERIOT_OPEN}\n"  # and not again for n
+    # between the header and the board, when both go to one place
+    monkeypatch.setattr(store, "_looked_for_aisleriot", False)
+    both = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", both)
+    monkeypatch.setattr(sys, "stderr", both)
+    textmode.run_text(new_solitaire("klondike", 1), False, "klondike", io.StringIO(commands))
+    header, rest = closed.out.split("\n", 1)
+    assert both.getvalue() == f"{header}\nsoliterm: {store.AISLERIOT_OPEN}\n{rest}"
+
+
+def test_text_mode_with_stderr_closed_leaves_stdout_alone(keyfile, monkeypatch, capsys):
+    keyfile(KEYFILE)
+    monkeypatch.setattr(ar, "running", lambda: True)
+    monkeypatch.setattr(sys, "stderr", None)  # what Python makes of 2>&-
+    textmode.run_text(new_solitaire("klondike", 1), False, "klondike", io.StringIO("q\n"))
+    assert store.AISLERIOT_OPEN not in capsys.readouterr().out
+
+
+def test_text_mode_plays_on_when_nothing_reads_stderr(keyfile, monkeypatch, capsys):
+    keyfile(KEYFILE)
+    monkeypatch.setattr(ar, "running", lambda: True)
+    read, write = os.pipe()
+    os.close(read)  # whatever read stderr has gone
+    with open(write, "w") as gone:
+        monkeypatch.setattr(sys, "stderr", gone)
+        g = new_solitaire("klondike", 1)
+        assert textmode.run_text(g, False, "klondike", io.StringIO("q\n")) == 0
+        assert capsys.readouterr().out.endswith("bye\n")
+        # the line left in its buffer would fail again as Python flushes it
+        # at exit, so it goes nowhere instead
+        gone.flush()

@@ -24,6 +24,7 @@ from __future__ import annotations
 import os
 import re
 import shutil
+import sys
 from typing import Callable
 
 # Our game keys -> AisleRiot section names. AisleRiot's config sections use the
@@ -77,6 +78,39 @@ def available() -> bool:
     XDG_CONFIG_HOME at a temp dir never reach the real AisleRiot file.
     """
     return os.path.exists(keyfile_path()) or installed()
+
+
+# Where running() looks for AisleRiot. Only Linux has a /proc that says who
+# is running what; the tests point it at a made-up one of their own.
+PROC_ROOT: str | None = "/proc" if sys.platform.startswith("linux") else None
+
+
+def running() -> bool:
+    """True if AisleRiot (sol) is running as this user.
+
+    It looks through /proc and reads the name of each process that is the
+    user's own, and nothing of anyone else's. It runs nothing and signals
+    nothing. A process that ends while it looks is passed over, and with
+    no /proc to look in, as anywhere but Linux, the answer is no.
+    """
+    if PROC_ROOT is None:
+        return False
+    try:
+        pids = [name for name in os.listdir(PROC_ROOT) if name.isdigit()]
+    except OSError:
+        return False
+    me = os.getuid()
+    for pid in pids:
+        path = os.path.join(PROC_ROOT, pid)
+        try:
+            if os.stat(path).st_uid != me:
+                continue
+            with open(os.path.join(path, "comm"), "rb") as fh:
+                if fh.read().rstrip(b"\n") == b"sol":
+                    return True
+        except OSError:
+            continue  # it ended after the listing
+    return False
 
 
 # --------------------------------------------------------------------------- #

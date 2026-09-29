@@ -1006,6 +1006,8 @@ class App:
             self.message = "Your saved game couldn't be read, so this is a new deal."
         else:
             self.message = self.unkept_note() or START_MESSAGE
+        # before the first game gets going, over anything else it would say
+        self.message = store.aisleriot_open_note() or self.message
 
     def put_in_play(self, deal: Deal, resumed: tuple[Solitaire, int] | None) -> None:
         """Put the resumed game in play, or else a new deal of `deal`, with

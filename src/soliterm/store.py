@@ -452,6 +452,30 @@ def sharing_waits() -> bool:
     return syncing() and not os.path.isdir(ar.gnome_games_dir())
 
 
+# What the front end says, once a run as the first game starts, when
+# AisleRiot is open while we share with it: what it writes back as it quits
+# would lose any game finished here in the meantime (see aisleriot_open_note)
+AISLERIOT_OPEN = "AisleRiot is open - close it, or it may lose the games you finish here"
+_looked_for_aisleriot = False
+
+
+def aisleriot_open_note() -> str | None:
+    """AISLERIOT_OPEN the first time this is asked in a run, if AisleRiot is
+    running then and this run shares with it, and otherwise None, so a
+    front end can ask as each game starts and say it once.
+
+    Nothing is looked for while sharing is off, or while results wait for
+    AisleRiot to make its folder, since then it can't write over them.
+    """
+    global _looked_for_aisleriot  # noqa: PLW0603 (state for this run)
+    if _looked_for_aisleriot:
+        return None
+    _looked_for_aisleriot = True
+    if syncing() and os.path.isdir(ar.gnome_games_dir()) and ar.running():
+        return AISLERIOT_OPEN
+    return None
+
+
 def _unreadable_keyfile() -> None:
     _notice(
         f"can't read {ar.keyfile_path()}, so statistics are not shared "
