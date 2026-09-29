@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import curses
 import locale
+import sys
 from collections.abc import Iterator
 
 from .. import APP_NAME, camo, store
@@ -64,7 +65,15 @@ def can_draw_unicode(stdscr) -> bool:
 
     Under LC_ALL=C curses can't encode them and refuses every string they
     are in, which leaves the board blank, so the cards fall back to ASCII.
+
+    windows-curses gives the console's code page as the encoding, cp850
+    say, which has no suits. It is built wide, though (that's what gives a
+    window get_wch), and hands the console the characters as they are, so
+    there it draws them whatever the code page. Only a curses built narrow
+    encodes each string through the window's encoding.
     """
+    if sys.platform == "win32" and hasattr(stdscr, "get_wch"):
+        return True
     enc = getattr(stdscr, "encoding", None) or locale.getpreferredencoding(False)
     try:
         _UNICODE.encode(enc)

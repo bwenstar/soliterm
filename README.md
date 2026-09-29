@@ -419,11 +419,11 @@ they were. The man page's FILES section has the details.
   says the wrong thing, pick `dark` or `light`, which look the same
   everywhere, or set `COLORFGBG=0;15` for a light background.
 - **Suits and card edges.** The cards are drawn with box-drawing
-  characters and suit symbols, which need a UTF-8 locale and a font that
-  has them. When the full-screen game can't encode them (under
-  `LC_ALL=C`, say), it draws letters and plain ASCII by itself, and text
-  mode does the same when its output can't take them. If they come out
-  as boxes or question marks anyway, use `--ascii`.
+  characters and suit symbols, which need a font that has them and, off
+  Windows, a UTF-8 locale. When the full-screen game can't encode them
+  (under `LC_ALL=C`, say), it draws letters and plain ASCII by itself,
+  and text mode does the same when its output can't take them. If they
+  come out as boxes or question marks anyway, use `--ascii`.
 - **tmux and screen.** Inside them, `TERM` is theirs. `tmux-256color`,
   `screen-256color` and `screen.xterm-256color` all have 256 colours, but
   plain `screen` has 8. `set -g default-terminal tmux-256color` in

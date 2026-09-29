@@ -780,6 +780,67 @@ def test_the_locale_decides_when_the_window_does_not_say(monkeypatch):
     assert not can_draw_unicode(Window())
 
 
+class WideWindow:
+    """A window of a curses built wide, as ncursesw and windows-curses
+    are, which is what gives it get_wch."""
+
+    def __init__(self, encoding):
+        self.encoding = encoding
+
+    def get_wch(self):
+        return -1
+
+
+class NarrowWindow:
+    """A window of a curses built narrow, which encodes every string
+    through its encoding."""
+
+    def __init__(self, encoding):
+        self.encoding = encoding
+
+
+@pytest.mark.parametrize(
+    "platform, window, drawn",
+    [
+        # windows-curses says the console's code page, which has no suits,
+        # but hands the console the characters themselves
+        ("win32", WideWindow("cp850"), True),
+        ("win32", WideWindow("cp1252"), True),
+        # a narrow build would encode them through it, and can't
+        ("win32", NarrowWindow("cp850"), False),
+        ("win32", NarrowWindow("utf-8"), True),
+        # elsewhere the encoding is the locale's, which ncursesw goes by
+        ("linux", WideWindow("ascii"), False),
+        ("linux", WideWindow("cp850"), False),
+        ("linux", WideWindow("utf-8"), True),
+        ("darwin", WideWindow("ascii"), False),
+    ],
+)
+def test_the_suits_are_drawn_where_the_console_takes_them(platform, window, drawn, monkeypatch):
+    from soliterm.tui.board import can_draw_unicode
+
+    monkeypatch.setattr(sys, "platform", platform)
+    assert can_draw_unicode(window) is drawn
+
+
+def test_a_windows_console_gets_the_card_art(tui, monkeypatch):
+    # windows-curses says cp850 and draws the suits all the same, where the
+    # board used to fall back to ASCII for it
+    def addnstr(self, y, x, text, n, attr=0):
+        # built wide, it hands the console the characters as they are
+        for i, ch in enumerate(text[:n]):
+            if 0 <= y < self.h and 0 <= x + i < self.w:
+                self.grid[y][x + i] = ch
+
+    monkeypatch.setattr(sys, "platform", "win32")
+    monkeypatch.setattr(FakeScr, "encoding", "cp850")
+    monkeypatch.setattr(FakeScr, "get_wch", WideWindow.get_wch, raising=False)
+    monkeypatch.setattr(FakeScr, "addnstr", addnstr)
+    scr = tui(["q"], deal=1)
+    assert scr.uis[0].symbols is True
+    assert "┌" in scr.frames[0] and "♠" in scr.frames[0]
+
+
 # -- a terminal too small for the board -----------------------------------------------
 
 
