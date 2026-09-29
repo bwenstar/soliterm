@@ -1575,8 +1575,8 @@ def test_enter_or_a_click_picks_up_a_card_that_does_not_go(tui, key, how):
     [
         ("klondike", "no foundation move for that card"),
         # these three have no foundations; f plays on the waste in two
-        ("golf", "that card doesn't go on the waste"),
-        ("triplepeaks", "that card doesn't go on the waste"),
+        ("golf", "5♥ doesn't go on the waste"),
+        ("triplepeaks", "5♥ doesn't go on the waste"),
         ("scorpion", "Scorpion has no foundations"),
     ],
 )
@@ -1592,6 +1592,34 @@ def test_an_f_that_does_nothing_says_why(tui, key, says, double):
     scr = tui([key_in], start_key=key, game=g)
     assert says in scr.frames[1]
     assert g.serialize() == before
+
+
+@pytest.mark.parametrize("key", ["golf", "triplepeaks"])
+def test_f_plays_a_card_that_goes_on_the_waste(tui, key):
+    g, _card, waste = one_to_play(key)
+    scr = tui(["f"], start_key=key, game=g)
+    assert names(g, waste) == ["5C", "6H"]
+    assert "on the waste" not in scr.frames[1]
+
+
+@pytest.mark.parametrize("symbols, heart", [(True, "♥"), (False, "H")])
+@pytest.mark.parametrize("key", ["golf", "triplepeaks"])
+def test_f_names_the_card_that_does_not_go_on_the_waste(tui, key, symbols, heart):
+    # as text mode's f does, and as the board draws it
+    g, _card, waste = one_to_play(key)
+    g.slots[waste].cards = [up(9, "C")]
+    scr = tui(["f"], start_key=key, game=g, symbols=symbols)
+    assert f"6{heart} doesn't go on the waste" in scr.frames[1]
+    assert names(g, waste) == ["9C"]
+
+
+def test_f_on_a_face_down_card_does_not_give_it_away(tui):
+    g, _card, _waste = one_to_play("triplepeaks")
+    peak = g.ids_of("tableau")[9]  # under the 6H
+    g.slots[peak].cards = [Card(7, "S", False)]
+    scr = tui([Click(peak, 0, curses.BUTTON1_DOUBLE_CLICKED)], start_key="triplepeaks", game=g)
+    assert "that face-down card doesn't go on the waste" in scr.frames[1]
+    assert "7♠" not in scr.frames[1]
 
 
 # an empty peak is off the board, so Triple Peaks has only its waste

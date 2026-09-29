@@ -1214,7 +1214,10 @@ class App:
         if self.game.double_click(sid):
             self.message = ""
         else:
-            reason = self.game.no_foundation_reason(sid)
+            top = self.game.top(sid)
+            # the card as the board names it, unless that would give it away
+            card = top.label(self.symbols) if top and top.face_up else "that face-down card"
+            reason = self.game.no_foundation_reason(sid, card)
             self.message = reason or "no foundation move for that card"
         self.selected = None
         self.hint = None
