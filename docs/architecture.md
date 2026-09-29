@@ -243,9 +243,9 @@ game is in play. The in-play file goes only once the game is kept again,
 with the new save written first, or counted, or dealt again from the
 start with `N` or Replay, which counts nothing; that happens inside
 `store.signals_held`, and then the lock is let go. So a game that goes
-any other way, by a crash, a `kill -9` or a closed console window, is
-still there: the next start that can take the lock finds the in-play
-file and offers it again, as it was when it was taken up. Where no lock
+any other way, by a crash, a `kill -9` or a `taskkill /f`, is still
+there: the next start that can take the lock finds the in-play file
+and offers it again, as it was when it was taken up. Where no lock
 can be had at all, as on a file system without them, the save comes out
 of the folder as it did in 1.0, and a crash loses it. One whose lock
 another copy holds is in play there, and is left alone, not offered, not

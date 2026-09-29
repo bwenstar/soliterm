@@ -79,13 +79,17 @@ can always read what a newer release writes.
 | --- | --- |
 | `config.json` | `last_game`, `options` (each game's, by key), `symbols`, `sync_aisleriot` and `merged_into_aisleriot`, and once they've been set, `color`, `theme`, `four_color`, `code_skin`, `camo_theme`, `view`, `animation` and `migrated_from` |
 | `stats.json` | a record for each game key, with `wins`, `total`, `best` and `worst` (in seconds, 0 for none), and `_meta`, with the marker for the one-time merge into AisleRiot's record and the games still to be shared |
-| `history.jsonl` | a line for each game: `at`, `game`, `options`, `deal`, `result` (`won` or `lost`), `seconds`, `moves` and `score`, and `daily` for a daily |
-| `saves/<game>.json` | `format`, `version`, `saved` and `seconds`, then `game`, `options`, `deal`, `daily`, `chosen`, `moves`, `score`, `position`, `undo` and `redo` |
+| `history.jsonl` | a line for each game: `at`, `game`, `options`, `deal`, `result` (`won` or `lost`), `seconds`, `moves` and `score`, and `daily` for a daily, and from 1.1 on `hints` and `undos` |
+| `saves/<game>.json` | `format`, `version`, `saved` and `seconds`, then `game`, `options`, `deal`, `daily`, `chosen`, `moves`, `score`, `position`, `undo` and `redo`, and from 1.1 on `hints` and `undos` |
+| `saves/<game>.in-play.json` | from 1.1 on, a save taken up while its game is played, the same as a save, with `saves/<game>.lock` beside it |
 
 1.0.0 and 1.0.1 write the same keys, and saves in format 1. They save
 config.json differently, though: 1.0.0 writes every setting it has each
 time it saves one, 1.0.1 only the one that changed, and a setting that
-isn't in the file is its default.
+isn't in the file is its default. 1.1 saves config.json as 1.0.1 does,
+and still saves in format 1. It adds `hints` and `undos` to saves and
+history lines, the hints asked for and the moves undone, and leaves them
+out when it doesn't know them, as for a game resumed from an older save.
 
 ## Going back to an older version
 
@@ -101,17 +105,27 @@ isn't in the file is its default.
   a game it counts is written with the four numbers alone.
 - **history.jsonl** is only ever added to. A line from a newer version is
   a game as long as its `at`, `game`, `result`, `seconds` and `moves` are
-  as above, and the fields it doesn't know are passed over. A game it
-  doesn't have shows in `--stats` by its key. A line that isn't a game,
-  with a `result` other than `won` or `lost`, say, is skipped and stays in
-  the file.
+  as above, and the fields it doesn't know are passed over, as 1.0.1
+  passes over `hints` and `undos`. A game it doesn't have shows in
+  `--stats` by its key. A line that isn't a game, with a `result` other
+  than `won` or `lost`, say, is skipped and stays in the file.
 - **Saves.** A save carries a format, 1 so far, and a version that saves
   something an older one would misread gives it a higher one. A save in
   a format above a version's own is left where it is, with a note saying
   so, and while it waits, a game of that kind left unfinished there
   counts as lost, since there's no room to keep it. A save in its own
   format with fields it doesn't know is picked up as usual, and those
-  fields are gone once the game is saved again.
+  fields are gone once the game is saved again. So 1.0.1 resumes a save
+  from 1.1, and once it has kept that game again, 1.1 doesn't know its
+  hints and undos.
+- **Saves in play.** From 1.1 on, a save stays in the folder while its
+  game is played, as `saves/<game>.in-play.json`, so a crash doesn't lose
+  it. 1.0.0 and 1.0.1 never read that name: they don't offer that game
+  or touch the file, and a new deal of it there can be kept. The next 1.1 start
+  puts a save left in play by a copy that has gone back as
+  `saves/<game>.json`, unless a save of that game was kept since, which
+  is newer and stays. A game 1.1 is still playing can't be kept again
+  while 1.0.1 has kept one of its kind meanwhile, so it counts as lost.
 
 ## What isn't promised
 

@@ -284,6 +284,9 @@ On Windows, closing the console window still ends Soliterm with status
 
 Every game played in text mode counts in your statistics, and in
 AisleRiot's when they're shared, whether a person or a script is typing.
+On Linux, if AisleRiot is open while they're shared, a line on stderr
+says so before the first board, since AisleRiot can write over the games
+finished here as it quits. The output itself is the same either way.
 For experiments, `--no-sync` leaves AisleRiot's alone, and pointing
 `XDG_CONFIG_HOME` and `XDG_DATA_HOME` at a scratch directory keeps
 Soliterm's own files out of it as well.
