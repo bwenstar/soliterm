@@ -90,8 +90,18 @@ install along with Soliterm. To play the `.pyz` there, run
 
 ## Screenshots
 
-These and the recording at the top are all of a terminal
+These and the animation at the top are all of a terminal
 100 columns by 32 rows.
+
+The same game is there as a recording too,
+[hero.cast](https://github.com/bwenstar/soliterm/blob/main/docs/img/hero.cast),
+which holds what the game itself wrote to the terminal and when, from the
+first move to the win, with the moves in between played fast. From a
+checkout, this plays it back in a terminal of that size or bigger:
+
+```sh
+asciinema play docs/img/hero.cast
+```
 
 | FreeCell, with a hint | Spider in two suits |
 | --- | --- |

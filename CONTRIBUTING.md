@@ -222,6 +222,19 @@ every scene's keys on a board the size of the scenes' terminal and checks
 each still gets to its last shot, so a change to the hints or the layout
 that throws them off fails the suite before it spoils a screenshot.
 
+The README also links a recording of the hero, `docs/img/hero.cast`, made
+of what the game writes to its terminal rather than pictures of it.
+Record it again whenever you redraw the GIF:
+
+```sh
+python tools/screenshots.py --cast
+```
+
+That plays the hero's keys to the game on a pseudo-terminal of its own,
+so it works on Linux and macOS and needs neither tmux nor Pillow. It says
+how big the recording is and how long it plays. `asciinema play` on the
+file is a quick way to watch it through before you commit it.
+
 ## Questions
 
 Ask in [GitHub Discussions](https://github.com/bwenstar/soliterm/discussions).

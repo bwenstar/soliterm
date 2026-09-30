@@ -5,6 +5,7 @@ test needs Pillow and skips without it.
 """
 
 import importlib.util
+import json
 import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -144,7 +145,8 @@ def test_only_a_scene_that_moves_is_a_gif(tool):
 
 def test_the_readme_shows_every_picture_the_scenes_draw(tool):
     # one it doesn't show would only sit in docs/img and go stale
-    shown = set(re.findall(r"docs/img/([^)\s]+)", README.read_text(encoding="utf-8")))
+    images = r"!\[[^\]]*\]\([^)]*docs/img/([^)\s]+)\)"
+    shown = set(re.findall(images, README.read_text(encoding="utf-8")))
     assert shown == {tool.file_name(s) for s in tool.SCENES}
 
 
@@ -198,6 +200,79 @@ def test_the_hero_says_so_where_it_skips_ahead(tool):
     assert before.shot and not before.keys
     assert before.caption == "a little later..."
     assert sum(bool(step.caption) for step in steps) == 1
+
+
+def test_a_cast_starts_with_its_header(tool, monkeypatch):
+    monkeypatch.delenv("SOURCE_DATE_EPOCH", raising=False)
+    cast = tool.Cast()
+    cast.take(b"hi", 5.0)
+    header, event = cast.text("soliterm --deal klondike:946").splitlines()
+    assert json.loads(header) == {
+        "version": 2,
+        "width": tool.COLS,
+        "height": tool.ROWS,
+        "idle_time_limit": tool.CAST_IDLE,
+        "title": "soliterm --deal klondike:946",
+        "env": {"TERM": "xterm-256color"},
+    }
+    assert json.loads(event) == [0, "o", "hi"]
+    # a timestamp only when the build asks for one, so a redraw can match
+    monkeypatch.setenv("SOURCE_DATE_EPOCH", "1790000000")
+    header = cast.text("t").splitlines()[0]
+    assert json.loads(header)["timestamp"] == 1790000000
+
+
+def test_a_cast_has_a_line_for_each_read_timed_from_the_first(tool):
+    cast = tool.Cast()
+    cast.take(b"\x1b[?1049h\x1b[1mSoliterm", 10.0)
+    cast.take("\x1b[m ♠".encode(), 10.2504)
+    lines = cast.text("t").splitlines()[1:]
+    assert [json.loads(line) for line in lines] == [
+        [0, "o", "\x1b[?1049h\x1b[1mSoliterm"],
+        [0.25, "o", "\x1b[m ♠"],
+    ]
+    assert "♠" in lines[1]  # as it is, not as \u2660
+
+
+def test_a_character_cut_by_a_read_waits_for_the_rest(tool):
+    cast = tool.Cast()
+    spade = "♠".encode()
+    cast.take(b"x" + spade[:2], 1.0)
+    cast.take(spade[2:], 1.5)
+    assert cast.events == [(0, "x"), (0.5, "♠")]
+
+
+def test_the_end_of_a_cast_puts_the_modes_back_and_keeps_the_screen(tool):
+    game = (
+        "\x1b[?1049h\x1b[22;0;0t\x1b[1;32r\x1b[?1h\x1b="
+        "\x1b[?25l\x1b[?1000h\x1b[?1006;1002h\x1b[?1002l"
+    )
+    end = tool.put_back(game)
+    assert end.startswith("\x1b[m")
+    # the whole screen scrolls again, which matters on a terminal bigger
+    # than the game's, and then the cursor goes to the bottom left
+    assert end.index("\x1b[r") < end.index(f"\x1b[{tool.ROWS};1H")
+    for mode in ("\x1b[?1l", "\x1b>", "\x1b[?25h", "\x1b[?1000l", "\x1b[?1006l"):
+        assert mode in end
+    assert "1049" not in end and "1002" not in end
+    assert tool.put_back("") == f"\x1b[m\x1b[{tool.ROWS};1H"
+
+
+def test_every_key_a_scene_presses_goes_as_a_terminal_sends_it(tool):
+    keys = {key for s in tool.SCENES for step in s.steps for key in step.keys.split()}
+    assert {tool.key_bytes(key) for key in keys}
+    # in keypad mode, which curses turns on, as xterm-256color's kcuu1 and so on
+    assert tool.key_bytes("Up") == b"\x1bOA"
+    assert tool.key_bytes("Left") == b"\x1bOD"
+    assert tool.key_bytes("Enter") == b"\r"
+    assert tool.key_bytes("h") == b"h"
+    with pytest.raises(tool.ShotError):
+        tool.key_bytes("Hyper")
+
+
+def test_the_hero_plays_to_the_finish_fast_in_a_cast(tool):
+    (fast,) = [step for step in scene(tool, "hero").steps if step.keys == tool.TO_THE_FINISH]
+    assert fast.gap < tool.KEY_GAP
 
 
 def test_draws_a_window(tool):

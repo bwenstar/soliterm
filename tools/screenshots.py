@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""Draw the screenshots and the animated GIF in docs/img/.
+"""Draw the screenshots and the animated GIF in docs/img/, and record the
+game as an asciicast.
 
   python3 tools/screenshots.py                    # every scene into docs/img/
   python3 tools/screenshots.py --scene freecell   # only the scenes named
   python3 tools/screenshots.py --list             # the scenes there are
   python3 tools/screenshots.py --svg --out /tmp/shots
+  python3 tools/screenshots.py --cast             # docs/img/hero.cast
 
 Each scene runs the game in a private tmux server with a throwaway home
 directory, types keys at it and grabs the screen with `tmux capture-pane -e`.
@@ -14,6 +16,14 @@ never read or written, and every game shown is a numbered deal, so the
 pictures come out the same each time apart from the clock. It needs tmux
 3.0 or newer, Pillow and the font.
 
+--cast records instead of drawing: the hero, or the scenes --scene names,
+each as an asciinema recording (asciicast version 2) in <out>/<name>.cast.
+The game runs on a pseudo-terminal of its own, the size of the pictures,
+with a throwaway home and --no-sync. The keys go to it as a terminal sends
+them, and everything it writes is kept with the time it came. That needs
+Linux or macOS but neither tmux nor Pillow. A recording has no timestamp
+unless SOURCE_DATE_EPOCH gives one, and it ends on the game's last screen.
+
 This is a development tool. Pillow is only needed here; the game itself
 never imports it.
 """
@@ -21,10 +31,14 @@ never imports it.
 from __future__ import annotations
 
 import argparse
+import codecs
 import html
+import json
 import os
 import re
 import shutil
+import signal
+import struct
 import subprocess
 import sys
 import tempfile
@@ -55,7 +69,9 @@ OUT = ROOT / "docs" / "img"
 # Escape, Tab, F2 and so on. A still scene is saved as <name>.png from its
 # last shot. An animated one becomes <name>.gif, one frame per shot, each
 # shown for its hold time in milliseconds. A caption is a frame of its own,
-# its text alone on an empty screen, to say where a GIF skips ahead.
+# its text alone on an empty screen, to say where a GIF skips ahead. A
+# recording leaves the captions out, and waits for as long as each shot
+# would be held, so the keys it plays fast are how it gets ahead.
 #
 # The keys follow the TUI's bindings in src/soliterm/tui/keys.py: the arrows
 # move the cursor, Enter or Space picks a card up and puts it down, h shows
@@ -71,6 +87,7 @@ OUT = ROOT / "docs" / "img"
 
 COLS, ROWS = 100, 32  # terminal size for every scene
 KEY_GAP = 0.15  # seconds between two keys
+FAST_GAP = 0.03  # the same, for keys played fast to get somewhere
 PAUSE = 0.4  # seconds to let the screen settle after a step
 
 
@@ -80,6 +97,7 @@ class Step(NamedTuple):
     shot: bool = False
     hold: int = 1200
     caption: str = ""  # text to show on an empty screen instead of the game
+    gap: float = KEY_GAP
 
 
 class Scene(NamedTuple):
@@ -204,8 +222,9 @@ SCENES: list[Scene] = [
             # a cut to the end of the game, the cards going up and the
             # win: the finish takes about a second and a half and the
             # cascade after it six at most, shown at twice the speed,
-            # then the banner comes up
-            Step(TO_THE_FINISH),
+            # then the banner comes up. A recording has no caption and
+            # shows the moves to the finish as fast as they are played.
+            Step(TO_THE_FINISH, gap=FAST_GAP),
             shot(hold=1300),
             shot("a", hold=100, wait=0.09),
             *frames(7.2, every=200, speed=2),
@@ -707,6 +726,8 @@ def save_gif(path: Path, images: list, holds: list[int]) -> None:
 # Driving the game
 # --------------------------------------------------------------------------- #
 
+TERM = "xterm-256color"
+
 # The user's own tmux.conf never gets loaded. remain-on-exit keeps the pane
 # around if the game dies, so the error can be shown.
 TMUX_CONF = "set -g status off\nset -g remain-on-exit on\n"
@@ -745,18 +766,7 @@ class Stage:
         """Play a scene and return the screens it shot."""
         home = self.tmp / scene.name
         home.mkdir()
-        env = {
-            "PATH": os.environ.get("PATH", os.defpath),
-            "HOME": str(home),
-            "XDG_CONFIG_HOME": str(home / "c"),
-            "XDG_DATA_HOME": str(home / "d"),
-            "USER": "dev",
-            "LOGNAME": "dev",
-            "TERM": "xterm-256color",
-            "LANG": "C.UTF-8",
-            "PYTHONPATH": str(SRC),
-            "PYTHONDONTWRITEBYTECODE": "1",
-        }
+        env = game_env(home)
         game = [sys.executable, "-m", "soliterm", *scene_args(scene)]
         command = ["env", "-i", *(f"{k}={v}" for k, v in env.items()), *game]
         size = ["-x", str(COLS), "-y", str(ROWS)]
@@ -770,7 +780,7 @@ class Stage:
             for step in scene.steps:
                 for key in step.keys.split():
                     self.tmux("send-keys", "-t", scene.name, key)
-                    time.sleep(KEY_GAP)
+                    time.sleep(step.gap)
                 time.sleep(step.wait)
                 self._check_alive(scene.name)
                 if step.caption:
@@ -807,6 +817,23 @@ class Stage:
             raise ShotError(f"{target}: the game exited early:\n{screen}")
 
 
+def game_env(home: Path) -> dict[str, str]:
+    """All the game is given to run on: a home of its own and nothing of
+    yours, so neither your files nor your settings come into it."""
+    return {
+        "PATH": os.environ.get("PATH", os.defpath),
+        "HOME": str(home),
+        "XDG_CONFIG_HOME": str(home / "c"),
+        "XDG_DATA_HOME": str(home / "d"),
+        "USER": "dev",
+        "LOGNAME": "dev",
+        "TERM": TERM,
+        "LANG": "C.UTF-8",
+        "PYTHONPATH": str(SRC),
+        "PYTHONDONTWRITEBYTECODE": "1",
+    }
+
+
 def scene_args(scene: Scene) -> list[str]:
     return (["--deal", scene.deal] if scene.deal else []) + list(scene.args)
 
@@ -817,6 +844,196 @@ def title_of(scene: Scene) -> str:
 
 def file_name(scene: Scene) -> str:
     return f"{scene.name}.{'gif' if scene.animate else 'png'}"
+
+
+# --------------------------------------------------------------------------- #
+# Recording
+#
+# --cast plays a scene on a pseudo-terminal of its own, with no tmux in
+# between, and keeps every byte the game writes with the time it came, as
+# asciicast version 2: a line of JSON about the recording, then a
+# [seconds, "o", text] line for each read. A player draws that on a
+# terminal of its own, so what it shows is the game drawing itself. Each
+# shot waits as long as it would be held in a GIF. A caption has no place
+# in it, as anything written behind the game's back would put the screen
+# out of step with curses, so a scene cuts ahead by playing the moves fast.
+# --------------------------------------------------------------------------- #
+
+CAST_IDLE = 4.0  # the longest pause a player shows, in seconds
+SETTLE = 0.5  # seconds of quiet that say the first screen is drawn
+
+# What a terminal sends for each key the scenes can name, other than a
+# letter. curses turns keypad mode on, where the arrows go as ESC O A and
+# so on, as kcuu1 and the rest in `infocmp xterm-256color` have them,
+# rather than the ESC [ A of the normal mode.
+KEY_BYTES = {
+    "Enter": "\r",
+    "Space": " ",
+    "Escape": "\x1b",
+    "Tab": "\t",
+    "BSpace": "\x7f",
+    "Up": "\x1bOA",
+    "Down": "\x1bOB",
+    "Right": "\x1bOC",
+    "Left": "\x1bOD",
+    "Home": "\x1bOH",
+    "End": "\x1bOF",
+    "PPage": "\x1b[5~",
+    "NPage": "\x1b[6~",
+    "F1": "\x1bOP",
+    "F2": "\x1bOQ",
+}
+
+# DEC private modes, set with ESC [ ? n h and reset with ESC [ ? n l
+DEC_MODE = re.compile(r"\x1b\[\?([0-9;]+)([hl])")
+MODES_ON = {"7", "25"}  # autowrap and the cursor start on, the rest off
+SCREEN_MODES = {"47", "1047", "1049"}  # the alternate screen
+SCROLL_REGION = re.compile(r"\x1b\[[0-9]*;[0-9]*r")  # the rows that scroll, as csr sets them
+
+
+def key_bytes(key: str) -> bytes:
+    """What a terminal sends for a key, named as tmux names it."""
+    if len(key) == 1:
+        return key.encode()
+    if key not in KEY_BYTES:
+        raise ShotError(f"no bytes to send for the key {key}")
+    return KEY_BYTES[key].encode()
+
+
+def put_back(output: str) -> str:
+    """What a recording of `output` ends with, to leave the terminal playing
+    it much as curses leaves one on its way out: the colours reset, the
+    cursor at the bottom left and shown, the whole screen scrolling again,
+    and the keypad, the mouse and any other mode the game changed put back.
+    It stays on the alternate screen, which has the game's last screen on
+    it."""
+    modes: dict[str, bool] = {}
+    for m in DEC_MODE.finditer(output):
+        for n in m.group(1).split(";"):
+            modes[n] = m.group(2) == "h"
+    back = [
+        f"\x1b[?{n}{'h' if n in MODES_ON else 'l'}"
+        for n, on in modes.items()
+        if n not in SCREEN_MODES and on != (n in MODES_ON)
+    ]
+    keypad = re.findall(r"\x1b([=>])", output)
+    if keypad[-1:] == ["="]:
+        back.append("\x1b>")
+    # a terminal bigger than the game's would scroll only the game's rows
+    margins = "\x1b[r" if SCROLL_REGION.search(output) else ""
+    return f"\x1b[m{margins}\x1b[{ROWS};1H" + "".join(back)
+
+
+class Cast:
+    """What a game wrote and when, as the events of an asciicast."""
+
+    def __init__(self) -> None:
+        self.events: list[tuple[float, str]] = []
+        self.start: float | None = None  # when the first read came
+        # a character cut in two by a read waits for the rest of it
+        self.decoder = codecs.getincrementaldecoder("utf-8")("replace")
+
+    def take(self, data: bytes, now: float) -> None:
+        """Keep what one read gave, `now` being when on the monotonic clock."""
+        if self.start is None:
+            self.start = now
+        text = self.decoder.decode(data)
+        if text:
+            self.events.append((round(now - self.start, 3), text))
+
+    def end(self, now: float) -> None:
+        """Close the recording at `now`, after the last pause."""
+        self.take(put_back("".join(text for _, text in self.events)).encode(), now)
+
+    def text(self, title: str) -> str:
+        """The asciicast file. It has no timestamp unless SOURCE_DATE_EPOCH
+        gives one, so the same recording made again is the same file."""
+        header: dict[str, object] = {
+            "version": 2,
+            "width": COLS,
+            "height": ROWS,
+            "idle_time_limit": CAST_IDLE,
+            "title": title,
+            "env": {"TERM": TERM},
+        }
+        epoch = os.environ.get("SOURCE_DATE_EPOCH", "")
+        if epoch.isdigit():
+            header["timestamp"] = int(epoch)
+        lines = [header, *([t, "o", text] for t, text in self.events)]
+        return "".join(json.dumps(line, ensure_ascii=False) + "\n" for line in lines)
+
+
+def record(scene: Scene, home: Path) -> Cast:
+    """Play a scene on a COLS by ROWS pseudo-terminal, with its home in
+    `home`, typing the keys as a terminal sends them, and keep all the game
+    writes."""
+    try:
+        import fcntl
+        import pty
+        import select
+        import termios
+    except ImportError:
+        raise ShotError("--cast needs the pseudo-terminals of Linux or macOS") from None
+    home.mkdir()
+    game = [sys.executable, "-m", "soliterm", "--no-sync", *scene_args(scene)]
+    env = game_env(home)
+    pid, fd = pty.fork()
+    if pid == 0:  # the game's side, where the pseudo-terminal is stdin
+        try:
+            fcntl.ioctl(0, termios.TIOCSWINSZ, struct.pack("HHHH", ROWS, COLS, 0, 0))
+            os.execve(game[0], game, env)
+        except OSError as exc:  # said on the terminal, so the recording has it
+            os.write(2, f"{exc}\n".encode())
+        finally:
+            os._exit(127)
+    cast = Cast()
+
+    def keep(seconds: float) -> int:
+        """Keep what the game writes for so long, and say how many reads."""
+        reads = 0
+        deadline = time.monotonic() + seconds
+        while (left := deadline - time.monotonic()) > 0:
+            if not select.select([fd], [], [], left)[0]:
+                break
+            try:
+                data = os.read(fd, 65536)
+            except OSError:  # EIO, once the game has gone
+                data = b""
+            if not data:
+                said = ESCAPE.sub("", "".join(text for _, text in cast.events))
+                raise ShotError(f"{scene.name}: the game exited early:\n{said[-400:].strip()}")
+            cast.take(data, time.monotonic())
+            reads += 1
+        return reads
+
+    try:
+        deadline = time.monotonic() + 15
+        while keep(SETTLE) or not cast.events:
+            if time.monotonic() > deadline:
+                raise ShotError(f"{scene.name}: the game didn't settle in 15s")
+        for step in scene.steps:
+            if step.caption:
+                continue
+            for key in step.keys.split():
+                os.write(fd, key_bytes(key))
+                keep(step.gap)
+            keep(max(step.wait, step.hold / 1000) if step.shot else step.wait)
+        cast.end(time.monotonic())
+    finally:
+        os.close(fd)  # which hangs up on the game
+        _reap(pid)
+    return cast
+
+
+def _reap(pid: int) -> None:
+    """Wait for the game to go, and stop it if it hasn't in five seconds."""
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline:
+        if os.waitpid(pid, os.WNOHANG)[0]:
+            return
+        time.sleep(0.05)
+    os.kill(pid, signal.SIGKILL)
+    os.waitpid(pid, 0)
 
 
 # --------------------------------------------------------------------------- #
@@ -837,7 +1054,7 @@ def pick(names: list[str] | None) -> list[Scene]:
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(
         prog="screenshots.py",
-        description="Draw the screenshots and the animated GIF in docs/img/.",
+        description="Draw the screenshots and the animated GIF in docs/img/, or record a scene.",
     )
     p.add_argument(
         "--scene",
@@ -850,6 +1067,11 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--svg", action="store_true", help="also write each scene's last frame as SVG")
     p.add_argument("--font", help=f"a monospace .ttf to use instead of {FONT_FILE}")
     p.add_argument("--no-chrome", action="store_true", help="leave off the title bar")
+    p.add_argument(
+        "--cast",
+        action="store_true",
+        help="record the scenes as asciicasts instead (default: the hero)",
+    )
     p.add_argument("--list", action="store_true", help="list the scenes and exit")
     args = p.parse_args(argv)
 
@@ -859,6 +1081,16 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  {s.name:<18} {kind}  {s.about}")
         return 0
     try:
+        if args.cast:
+            for scene in pick(args.scene or ["hero"]):
+                path = args.out / f"{scene.name}.cast"
+                with tempfile.TemporaryDirectory(prefix="soliterm-cast-") as tmp:
+                    cast = record(scene, Path(tmp) / scene.name)
+                args.out.mkdir(parents=True, exist_ok=True)
+                path.write_text(cast.text(title_of(scene)), encoding="utf-8")
+                played = cast.events[-1][0] if cast.events else 0
+                print(f"wrote {path} ({path.stat().st_size / 1024:.0f} KiB, {played:.1f}s)")
+            return 0
         scenes = pick(args.scene)
         if Image is None:
             raise ShotError("Pillow is needed to draw: python -m pip install pillow")
