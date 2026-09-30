@@ -179,6 +179,22 @@ def test_a_win_of_golf_scores_a_point_for_each_card_the_table_says_it_clears():
     assert g.is_won() and g.score == 2
 
 
+def test_a_win_of_pyramid_can_leave_cards_so_it_scores_what_it_takes_off():
+    # AisleRiot counts it won once the stock, the waste and the second
+    # row's left card have gone, which can leave the right edge standing
+    g = deal("pyramid", 1)
+    clear_board(g)
+    (discard,), row = g.ids_of("foundation"), g.ids_of("tableau")
+    for i in (0, 2, 5, 9, 14, 20):
+        g.slots[row[i]].cards = [Card(4, "C", False)]
+    g.slots[row[27]].cards = [Card(5, "H", True)]
+    g.slots[row[1]].cards = [Card(13, "S", True)]
+    g.slots[discard].cards = [Card(1, "D", True)] * 44
+    assert g.attempt_move(row[1], discard)
+    assert g.is_won() and g.score == 45
+    assert records.WIN_SCORE["pyramid"] is None
+
+
 def test_a_game_not_won_yet_keeps_how_close_it_came():
     draw3 = {"draw": 3, "redeals": "standard"}
     lines = [
@@ -227,7 +243,7 @@ def test_the_longest_streak_is_the_one_the_history_has():
 
 
 def test_a_game_only_a_newer_version_knows_is_left_out():
-    newer = [game(), {**game(), "game": "pyramid"}, {**game(result="lost"), "game": "chess"}]
+    newer = [game(), {**game(), "game": "poker"}, {**game(result="lost"), "game": "chess"}]
     found = records.records(newer)
     assert list(found) == GAME_ORDER
     assert found["klondike"][:2] == (1, 1)
@@ -446,7 +462,7 @@ def test_a_line_whose_day_it_cant_go_by_is_no_daily(bad):
 
 
 def test_a_newer_versions_game_is_left_out_of_the_dailies():
-    lines = [{**daily("2026-09-30"), "game": "pyramid"}]
+    lines = [{**daily("2026-09-30"), "game": "poker"}]
     assert list(records.dailies(lines, TODAY)) == GAME_ORDER
 
 
@@ -514,7 +530,7 @@ def test_a_daily_won_in_any_game_counts_the_day():
         daily("2026-09-29", "klondike", "lost"),
         daily("2026-09-29", "freecell"),
         # a daily won in a game a newer version has is still a day won
-        {**daily("2026-09-30"), "game": "pyramid"},
+        {**daily("2026-09-30"), "game": "poker"},
     ]
     assert records.daily_streak(lines, TODAY) == Streak(4, 4)
 
@@ -632,7 +648,10 @@ def test_the_dailies_and_the_streak_of_20000_games_take_well_under_100_ms():
     found = records.dailies(lines, last)
     streak = records.daily_streak(lines, last)
     took = time.perf_counter() - start
-    assert {key for key, d in found.items() if d.result == "won"} == {"triplepeaks", "yukon"}
+    # the last day's are the last two lines
+    assert {key for key, d in found.items() if d.result == "won"} == {
+        GAME_ORDER[n % len(GAME_ORDER)] for n in (19998, 19999)
+    }
     assert streak == Streak(6667, 6667)
     assert took < 1.0  # generous, for a slow machine
 
@@ -685,10 +704,10 @@ def test_a_clean_win_counts_from_the_history():
 def test_a_win_in_every_game_counts_the_games_won_and_the_ones_left():
     keys = GAME_ORDER[:9]
     lines = [game(key, at=at(n)) for n, key in enumerate(keys)]
-    lines += [game("canfield", "lost"), {**game(), "game": "pyramid"}]
+    lines += [game("canfield", "lost"), {**game(), "game": "poker"}]
     found = records.achievements(lines, TODAY).every_game
     assert found == Achievement(False, None, 9, len(GAME_ORDER), tuple(GAME_ORDER[9:]))
-    assert (found.done, found.goal) == (9, 12)
+    assert (found.done, found.goal) == (9, 13)
 
 
 def test_a_win_in_every_game_is_earned_by_the_last_game_to_be_won():
@@ -697,16 +716,16 @@ def test_a_win_in_every_game_is_earned_by_the_last_game_to_be_won():
     lines.append(game("golf", at=at(99)))
     found = records.achievements(lines, TODAY).every_game
     # klondike, last in, had been won already
-    assert found == Achievement(True, at(10), 12, 12, ())
+    assert found == Achievement(True, at(11), 13, 13, ())
 
 
 def test_a_game_added_later_is_the_one_left_to_win(monkeypatch):
     lines = [game(key, at=at(n), hints=0, undos=0) for n, key in enumerate(GAME_ORDER)]
-    monkeypatch.setattr(records, "GAME_ORDER", [*GAME_ORDER, "pyramid"])
+    monkeypatch.setattr(records, "GAME_ORDER", [*GAME_ORDER, "poker"])
     found = records.achievements(lines, TODAY)
-    assert found.every_game == Achievement(False, None, 12, 13, ("pyramid",))
-    assert found.clean["pyramid"] == NOT_CLEAN
-    assert found.clean["canfield"] == Achievement(True, at(11), 1, 1)
+    assert found.every_game == Achievement(False, None, 13, 14, ("poker",))
+    assert found.clean["poker"] == NOT_CLEAN
+    assert found.clean["pyramid"] == Achievement(True, at(12), 1, 1)
 
 
 def test_seven_dailies_is_a_week_of_days_in_a_row_with_one_won():

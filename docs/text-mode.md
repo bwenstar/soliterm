@@ -88,7 +88,9 @@ doesn't spread, such as a foundation, shows only its top card. In Golf,
 Triple Peaks, Canfield and Forty Thieves the waste fans out to the right
 and shows its last four cards, the rightmost on top. Triple Peaks draws
 its peaks where they sit, each card under its tag, and leaves out a slot
-once it's empty.
+once it's empty. Pyramid draws its pyramid the same way, with the stock,
+the top two cards of the waste and the pile of cards taken off along
+its top row.
 
 The line at the bottom has the score, the number of moves and whatever
 the game counts, such as the cards left in the stock or the free cells
@@ -174,7 +176,9 @@ no slot 99 (slots are 0-12)
   `no foundation move from #12`. Golf and Triple Peaks have no
   foundations, so there it plays the card to the waste as `cc` does, or
   says why not, as in `5♥ doesn't go on the waste`. Scorpion has none
-  either, and says so.
+  either, and says so. In Pyramid, `f` takes off a King, or the top two
+  cards of the waste when they make 13, or says why not, as in
+  `5♥ only goes in a pair making 13`.
 - `a` sends up every card that's safe to send up, and says how many:
   `autoplayed 2`. Once every card left can go up, safe or not, it
   finishes the game instead. Either way it's one move, so one `u` takes

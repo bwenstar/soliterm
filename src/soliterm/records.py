@@ -30,8 +30,10 @@ from .history import Streak
 # AisleRiot's help gives it. None is a game whose wins score differently:
 # Triple Peaks scores each card by the length of the run it's in, with a
 # bonus for each peak and for clearing the lot, and in standard scoring
-# takes 5 off for each card turned from the stock. In every game a higher
-# score is better, and a lost game keeps what it scored up to then.
+# takes 5 off for each card turned from the stock. Pyramid scores a point
+# for each card taken off, and as AisleRiot counts a win, one can leave a
+# line of cards down the right edge. In every game a higher score is
+# better, and a lost game keeps what it scored up to then.
 # tests/test_records.py fails for a game missing from here, so a new game
 # has to say which it is.
 WIN_SCORE: dict[str, int | None] = {
@@ -47,6 +49,7 @@ WIN_SCORE: dict[str, int | None] = {
     "bakersdozen": 52,
     "fortythieves": 1000,
     "canfield": 52,
+    "pyramid": None,
 }
 
 

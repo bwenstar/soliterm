@@ -3,7 +3,7 @@
 
 # Soliterm
 
-Solitaire for your terminal. Twelve games, played by GNOME AisleRiot's
+Solitaire for your terminal. Thirteen games, played by GNOME AisleRiot's
 rules with the keyboard or the mouse, and if you have AisleRiot, one set
 of statistics shared between the two.
 
@@ -67,8 +67,8 @@ install along with Soliterm. To play the `.pyz` there, run
 
 ## What's in it
 
-- **Twelve games:** Klondike, Spider, FreeCell, Golf, Triple Peaks, Yukon
-  and six more, each with AisleRiot's rules and scoring.
+- **Thirteen games:** Klondike, Spider, FreeCell, Golf, Triple Peaks,
+  Yukon and seven more, each with AisleRiot's rules and scoring.
 - **Keyboard or mouse.** The arrow keys and Enter, or click and drag.
   Hints, undo and redo all the way back to the deal, and one key to send
   every card up once the game is as good as won.
@@ -119,6 +119,7 @@ Each game has a page with its rules, its scoring and a few tips.
 | [Bakers Dozen](https://github.com/bwenstar/soliterm/blob/main/docs/games/bakersdozen.md) | `bakersdozen` | One deck, thirteen open columns, no stock; build down by rank in any suit. |
 | [Forty Thieves](https://github.com/bwenstar/soliterm/blob/main/docs/games/fortythieves.md) | `fortythieves` | Two decks, ten columns built down in suit, one pass through the stock. |
 | [Canfield](https://github.com/bwenstar/soliterm/blob/main/docs/games/canfield.md) | `canfield` | Reserve of 13, deal three with unlimited redeals, foundations from a random base rank. |
+| [Pyramid](https://github.com/bwenstar/soliterm/blob/main/docs/games/pyramid.md) | `pyramid` | AisleRiot's Thirteen: clear a pyramid in pairs that make 13, with one pass through the stock. |
 
 `soliterm` on its own opens a menu of them, and `soliterm --game spider`
 goes straight to one.
@@ -142,7 +143,8 @@ These are the keys you need for a first game:
 With the mouse, click a card to pick it up along with the cards on it,
 then click where it goes, or drag it there. A double-click sends a card to
 its foundation. In Golf and Triple Peaks, a click or `Enter` on a card
-that goes on the waste plays it there.
+that goes on the waste plays it there. In Pyramid, put a card down on
+the one it makes 13 with to take both off, and double-click a King.
 
 There's a lot more, from the options and the statistics to the themes and
 the boss key, and
@@ -252,7 +254,7 @@ and played, the percentage won, and the best and worst winning times.
 When GNOME AisleRiot is installed, it reads and writes AisleRiot's own
 record in `~/.config/gnome-games/aisleriot`, so a game finished here shows
 up in AisleRiot's Statistics window and a game won there shows up here.
-It only ever changes the entries for its twelve games and leaves the rest
+It only ever changes the entries for its thirteen games and leaves the rest
 of that file as it was. Until AisleRiot has been run once to make that
 file's folder, results wait in Soliterm's own statistics and go in after.
 AisleRiot reads that file once, when it starts, and can write its own copy
@@ -270,7 +272,7 @@ a game played in AisleRiot doesn't count towards them.
 
 `s` in a game shows the statistics, and `soliterm --stats` prints them
 with the last ten games you played. `soliterm --reset-stats` clears them,
-AisleRiot's record of the twelve games included, along with the history of
+AisleRiot's record of the thirteen games included, along with the history of
 games played here. It asks you to type `yes` first (or takes `--yes` when
 there's no terminal to ask at), keeps a copy of what it clears in
 `aisleriot.soliterm-bak` next to AisleRiot's file and in `stats.json.bak`
@@ -402,7 +404,7 @@ they were. The man page's FILES section has the details.
 
 - **Size.** Every game and every screen fits in 80 by 24. Most boards fit
   in less, down to 40 by 16 for Klondike, but the big ones need more:
-  Bakers Dozen needs 68 columns and Triple Peaks 22 rows. In a window
+  Bakers Dozen needs 68 columns and Pyramid 23 rows. In a window
   that's too small, Soliterm says what size it needs instead of drawing a
   cut-off board, and carries on once you make the window bigger. The
   compact view, `x`, works there too and takes fewer rows.

@@ -516,9 +516,14 @@ class BoardUI:
         return self.game.gamedef.spot(self.game, sid)
 
     def hidden(self, sid: int) -> bool:
-        """An empty slot the game places by hand: a card gone from a peak
-        leaves no frame behind, and nothing there to click."""
-        return self.game.empty(sid) and self._spot(sid) is not None
+        """An empty tableau slot the game places by hand: a card gone from
+        a peak leaves no frame behind, and nothing there to click. A stock,
+        waste or foundation placed so keeps its frame, as it does anywhere."""
+        return (
+            self.game.empty(sid)
+            and self.game.kind(sid) == "tableau"
+            and self._spot(sid) is not None
+        )
 
     def _drop(self, sid: int) -> int:
         """Rows down from the top of its row a slot placed by hand starts."""

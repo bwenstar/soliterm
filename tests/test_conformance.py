@@ -147,9 +147,9 @@ def every_suit_in_its_own_column(key):
 def test_finish_scores_like_the_moves_one_by_one(key):
     g = every_suit_in_its_own_column(key)
     moves = g.finish_moves()
-    if key in ("spider", "spiderette", "golf", "triplepeaks", "scorpion"):
-        # Spider's foundations only take a whole suit, and Golf, Triple
-        # Peaks and Scorpion have none
+    if key in ("spider", "spiderette", "golf", "triplepeaks", "scorpion", "pyramid"):
+        # Spider's foundations only take a whole suit, Golf, Triple Peaks
+        # and Scorpion have none, and Pyramid's takes a King alone
         assert moves is None
         assert g.finish() == 0
         return

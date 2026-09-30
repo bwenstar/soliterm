@@ -594,6 +594,46 @@ def test_the_peaks_fit_80x24_with_six_wide_cards():
     assert ui._cw == 8
 
 
+def card_text(ui, scr, sid, idx):
+    """The screen text, row by row, where card idx of slot sid can be clicked."""
+    lines = scr.text().splitlines()
+    rows = {}
+    for (y, x), hit in sorted(ui.hit.items()):
+        if hit == (sid, idx):
+            rows[y] = rows.get(y, "") + lines[y][x]
+    return list(rows.values())
+
+
+@pytest.mark.parametrize("symbols", [False, True])
+@pytest.mark.parametrize("code_skin", [False, True])
+@pytest.mark.parametrize("view", ["expanded", "legacy"])
+def test_every_free_card_of_the_pyramid_reads_at_80x24(view, code_skin, symbols):
+    g = deal("pyramid", 1)
+    for _ in range(3):
+        g.deal()
+    ui, scr = draw(g, h=24, w=80, symbols=symbols, view=view, code_skin=code_skin)
+    all_on_screen(ui, g, 24, 80)
+    waste = g.ids_of("waste")[0]
+    free = [(sid, 0) for sid in g.ids_of("tableau") if g.top(sid).face_up] + [(waste, 2)]
+    if view == "expanded":  # the card under the waste's top, which it pairs with
+        free.append((waste, 1))
+    for sid, idx in free:
+        label = g.cards(sid)[idx].label(symbols)
+        assert any(label in row for row in card_text(ui, scr, sid, idx)), (sid, label)
+
+
+def test_the_pyramid_keeps_frames_for_its_stock_waste_and_discard():
+    g = deal("pyramid", 1)
+    clear_board(g)
+    tableau = g.ids_of("tableau")
+    g.slots[tableau[-1]].cards = [Card(5, "H", True)]
+    ui, _scr = draw(g, h=24, w=80)
+    for sid in g.ids_of("stock") + g.ids_of("waste") + g.ids_of("foundation"):
+        assert clickable(ui, sid) == {0}
+    # a card gone from the pyramid leaves no frame behind, as in Triple Peaks
+    assert {sid for sid, _ in ui.hit.values()} & set(tableau) == {tableau[-1]}
+
+
 # -- expanded and legacy views -----------------------------------------------------------
 
 

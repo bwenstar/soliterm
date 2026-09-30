@@ -74,6 +74,9 @@ def refused(g, src, dst, n):
 HEARTS = "AH 2H 3H 4H 5H 6H 7H 8H 9H 10H JH QH KH"
 # Columns with cards on them, to fill the rest of the tableau
 FULL = ["KC", "KD", "KS", "KH", "QC", "QD", "QS", "QH", "JC", "JD", "JS"]
+# The pyramid down to its bottom row, empty, so the cards given next are
+# on that row, where nothing covers them
+ABOVE = [""] * 21
 
 CASES = {
     "klondike": [
@@ -410,6 +413,40 @@ CASES = {
             "w0 t0 2",
             "only the top card of the waste can move",
         ),
+    ],
+    "pyramid": [
+        ({"tableau": [*ABOVE, "5S", "7H"]}, "t21 t22", "5S and 7H make 12, not 13"),
+        ({"waste": ["6D"], "tableau": [*ABOVE, "9C"]}, "t21 w0", "9C and 6D make 15, not 13"),
+        ({"waste": ["6D"], "tableau": [*ABOVE, "9C"]}, "w0 t21", "6D and 9C make 15, not 13"),
+        ({"tableau": [*ABOVE, "KS", "AH"]}, "t22 t21", "a King goes off on its own, not in a pair"),
+        ({"tableau": [*ABOVE, "KS", "AH"]}, "t21 t22", "a King goes off on its own, not in a pair"),
+        (
+            {"tableau": ["~8S", *ABOVE[1:], "5H"]},
+            "t0 t21",
+            "a face-down card stays until both cards over it are gone",
+        ),
+        (
+            {"tableau": ["~8S", *ABOVE[1:], "5H"]},
+            "t21 t0",
+            "a face-down card can't pair until both cards over it go",
+        ),
+        ({"tableau": [*ABOVE, "", "5H"]}, "t22 t21", "there's no card there to pair with"),
+        (
+            {"tableau": [*ABOVE, "5H"]},
+            "t21 w0",
+            "the waste is empty - deal from the stock first",
+        ),
+        ({"tableau": [*ABOVE, "5H"]}, "t21 f0", "5H only goes in a pair making 13"),
+        ({"waste": ["5H"]}, "w0 f0", "5H only goes in a pair making 13"),
+        ({"waste": ["3S 5H"]}, "w0 f0", "5H and 3S make 8, not 13"),
+        (
+            {"waste": ["8C 5H"], "tableau": [*ABOVE, "7D"]},
+            "w0 t21 2",
+            "only the top card of the waste can move",
+        ),
+        ({"foundation": ["KS"], "tableau": [*ABOVE, "5H"]}, "f0 t21", "cards taken off stay off"),
+        ({"stock": ["~5C"], "waste": ["6H"]}, "s0 w0", "cards in the stock can only be dealt"),
+        ({"tableau": [*ABOVE, "5H"]}, "t21 s0", "nothing goes on the stock"),
     ],
 }
 

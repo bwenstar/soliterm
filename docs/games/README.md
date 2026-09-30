@@ -16,3 +16,4 @@ How each of the games in Soliterm is played, with its rules, scoring and a few t
 | [Bakers Dozen](bakersdozen.md) | `bakersdozen` | One deck, thirteen open columns, no stock; build down by rank in any suit. |
 | [Forty Thieves](fortythieves.md) | `fortythieves` | Two decks, ten columns built down in suit, one pass through the stock. |
 | [Canfield](canfield.md) | `canfield` | Reserve of 13, deal three with unlimited redeals, foundations from a random base rank. |
+| [Pyramid](pyramid.md) | `pyramid` | AisleRiot's Thirteen: clear a pyramid in pairs that make 13, with one pass through the stock. |

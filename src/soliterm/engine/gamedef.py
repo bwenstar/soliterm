@@ -147,6 +147,18 @@ class GameDef:
         moved, though some still can be. The default never says so."""
         return False
 
+    def describe_move(self, g: Solitaire, src: int, dst: int, n: int) -> str | None:
+        """What the hint says a move does, where the game can say it better
+        than "Move 6H onto 7C" does. None, the default, leaves it to
+        Solitaire.hint."""
+        return None
+
+    def no_foundation_reason(self, g: Solitaire, sid: int, card: str, place: str) -> str | None:
+        """Why sending the top card of sid to a foundation did nothing,
+        where the game can say (see Solitaire.no_foundation_reason). None,
+        the default, leaves it to the generic message."""
+        return None
+
     def no_hint_reason(self, g: Solitaire) -> str | None:
         """Why there is no hint, when the game can say better than the
         generic message does (see Solitaire.no_hint_reason)."""
@@ -204,7 +216,8 @@ class GameDef:
         """Most cards the board fans out to the right in a slot, as
         AisleRiot's partially extended slots do. None shows a "right" slot
         as full as there is room for and any other slot's top card alone.
-        Text mode goes by the slot's expand and ignores this."""
+        Text mode goes by the slot's expand and ignores this, but for a
+        slot placed by hand (see spot), which it fans as the board does."""
         return None
 
     def spot(self, g: Solitaire, sid: int) -> tuple[int, int] | None:
@@ -216,7 +229,7 @@ class GameDef:
         before it.
 
         A row of slots is placed either all by hand or all in turn. An
-        empty slot placed by hand isn't drawn or clickable."""
+        empty tableau slot placed by hand isn't drawn or clickable."""
         return None
 
     # ---- shared helpers ---- #

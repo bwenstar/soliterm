@@ -1671,12 +1671,14 @@ def test_enter_or_a_click_picks_up_a_card_that_does_not_go(tui, key, how):
         ("golf", "5♥ doesn't go on the waste"),
         ("triplepeaks", "5♥ doesn't go on the waste"),
         ("scorpion", "Scorpion has no foundations"),
+        # its discard takes a King alone, and a pair together
+        ("pyramid", "5♥ only goes in a pair making 13"),
     ],
 )
 def test_an_f_that_does_nothing_says_why(tui, key, says, double):
     g = deal(key, 1)
     clear_board(g)
-    first = g.ids_of("tableau")[-1 if key == "triplepeaks" else 0]  # a bottom card
+    first = g.ids_of("tableau")[-1 if key in ("triplepeaks", "pyramid") else 0]  # a bottom card
     g.slots[first].cards = [up(5, "H")]
     for waste in g.ids_of("waste"):
         g.slots[waste].cards = [up(9, "S")]
@@ -1746,6 +1748,70 @@ def test_a_card_dealt_from_the_stock_clears_the_last_message(tui, how):
     assert "doesn't go on the waste" in scr.frames[1]
     assert names(g, waste)[-1] == "3D"
     assert "doesn't go on the waste" not in scr.frames[2]
+
+
+def pyramid(cards, waste=(), stock=((9, "D"),)):
+    """Pyramid with just the pyramid cards given as {index: card}, and a
+    card left on the stock so the game goes on."""
+    g = deal("pyramid", 1)
+    clear_board(g)
+    tableau = g.ids_of("tableau")
+    for i, card in cards.items():
+        g.slots[tableau[i]].cards = [card]
+    g.slots[g.ids_of("waste")[0]].cards = list(waste)
+    g.slots[g.ids_of("stock")[0]].cards = [Card(r, s, False) for r, s in stock]
+    return g, tableau, g.ids_of("foundation")[0]
+
+
+@pytest.mark.parametrize("how", ["keys", "clicks"])
+def test_a_card_dropped_on_its_partner_takes_both_off(tui, how):
+    # the cursor starts on the 8H, the first card that's face up
+    g, tableau, discard = pyramid({26: up(8, "H"), 27: up(5, "C")})
+    if how == "keys":
+        keys = [ENTER, curses.KEY_RIGHT, ENTER]
+    else:
+        keys = [Click(tableau[26], 0), Click(tableau[27], 0)]
+    scr = tui(keys, start_key="pyramid", game=g, h=24, w=80)
+    assert names(g, discard) == ["5C", "8H"]  # the one dropped on top
+    assert not g.cards(tableau[26]) and not g.cards(tableau[27])
+    assert (g.moves, g.score) == (1, 2)
+    assert not {tableau[26], tableau[27]} & {sid for sid, _ in scr.uis[-1].hit.values()}
+
+
+@pytest.mark.parametrize("how", ["f", "double-click", "drop"])
+def test_a_king_is_taken_off_alone(tui, how):
+    g, tableau, discard = pyramid({26: up(13, "S"), 27: up(5, "C")})
+    king = tableau[26]
+    keys = {
+        "f": ["f"],
+        "double-click": [Click(king, 0, curses.BUTTON1_DOUBLE_CLICKED)],
+        "drop": [Click(king, 0), Click(discard, 0)],
+    }[how]
+    tui(keys, start_key="pyramid", game=g, h=24, w=80)
+    assert names(g, discard) == ["KS"]
+    assert not g.cards(king)
+    assert (g.moves, g.score) == (1, 1)
+
+
+@pytest.mark.parametrize("how", ["d", "click"])
+def test_the_stock_turns_a_card_onto_the_waste(tui, how):
+    g, _tableau, _discard = pyramid({27: up(5, "C")}, stock=((2, "C"), (9, "D")))
+    stock, waste = g.ids_of("stock")[0], g.ids_of("waste")[0]
+    tui(["d" if how == "d" else Click(stock, 1)], start_key="pyramid", game=g, h=24, w=80)
+    assert names(g, waste) == ["9D"]
+    assert names(g, stock) == ["2C"]
+
+
+def test_an_emptied_stock_and_waste_are_still_there_to_click(tui):
+    # the 9S and 4H are left to pair, so the game goes on
+    cards = {1: up(9, "S"), 25: up(4, "H"), 27: up(5, "C")}
+    g, tableau, _discard = pyramid(cards, waste=[up(8, "H")], stock=())
+    stock, waste = g.ids_of("stock")[0], g.ids_of("waste")[0]
+    keys = [Click(tableau[27], 0), Click(waste, 0), Click(stock, 0), Click(waste, 0)]
+    scr = tui(keys, start_key="pyramid", game=g)
+    assert not g.cards(waste) and not g.cards(tableau[27])
+    assert "the stock is empty" in scr.frames[3]
+    assert "nothing to pick up there" in scr.frames[4]
 
 
 def test_a_win_after_taking_back_the_dead_end_counts_as_a_win(tui):
@@ -2675,7 +2741,7 @@ def test_the_daily_list_deals_the_chosen_games_daily(tui, on_the_day):
     scr = tui(keys, start_key=None)
     assert "> Daily deal" in scr.frames[4]
     assert "> Klondike" in scr.frames[5]
-    assert "> Canfield" in scr.frames[6]  # k from the top goes round to the bottom
+    assert "> Pyramid" in scr.frames[6]  # k from the top goes round to the bottom
     assert "> Spider" in scr.frames[8]
     g = scr.uis[-1].game
     assert (g.gamedef.key, g.deal_number, g.options) == ("spider", 20260924, {"suits": 4})
@@ -3744,8 +3810,9 @@ def test_a_resize_keeps_the_game_picked_in_view(tui, screen, start_key, keys, fi
     resizes = [Resize(16, 80), Resize(24, 80)]
     scr = tui(keys + downs + resizes + OUT, start_key=start_key, h=24, w=80)
     before, short, tall = scr.frames[len(keys + downs) : len(keys + downs) + 3]
+    last = engine.GAMES[engine.GAME_ORDER[-1]].name
     for at, frame in enumerate((before, short, tall), len(keys + downs)):
-        assert "Canfield" in picked(scr, at)
+        assert last in picked(scr, at)
         assert "Terminal too small" not in frame
     assert "Klondike" in before and "Klondike" not in short
     assert tall == before

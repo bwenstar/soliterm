@@ -29,6 +29,7 @@ from .games.fortythieves import FortyThieves
 from .games.freecell import FreeCell
 from .games.golf import Golf
 from .games.klondike import Klondike
+from .games.pyramid import Pyramid
 from .games.scorpion import Scorpion
 from .games.spider import Spider
 from .games.spiderette import Spiderette
@@ -57,6 +58,7 @@ __all__ = [
     "GameDef",
     "Golf",
     "Klondike",
+    "Pyramid",
     "Scorpion",
     "Slot",
     "Solitaire",

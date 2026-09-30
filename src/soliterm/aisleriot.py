@@ -43,6 +43,7 @@ GAME_TO_SECTION: dict[str, str] = {
     "bakersdozen": "bakers_dozen.scm",
     "fortythieves": "forty_thieves.scm",
     "canfield": "canfield.scm",
+    "pyramid": "thirteen.scm",  # AisleRiot calls it Thirteen
 }
 
 SECTION_TO_GAME: dict[str, str] = {v: k for k, v in GAME_TO_SECTION.items()}

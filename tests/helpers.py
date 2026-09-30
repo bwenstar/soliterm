@@ -29,6 +29,7 @@ EXPECTED_CARDS = {
     "bakersdozen": 52,
     "fortythieves": 104,
     "canfield": 52,
+    "pyramid": 52,
 }
 
 # The codes windows-curses (PDCurses) gives the numpad keys it has codes of

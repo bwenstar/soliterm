@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "soliterm"
 dynamic = ["version"]
-description = "Solitaire for your terminal, AisleRiot-compatible: twelve games in curses or plain text"
+description = "Solitaire for your terminal, AisleRiot-compatible: thirteen games in curses or plain text"
 readme = "README.md"
 requires-python = ">=3.9"
 license = "MIT"

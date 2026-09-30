@@ -36,7 +36,7 @@ soliterm \- solitaire in the terminal, played by AisleRiot's rules
 .ad
 .SH DESCRIPTION
 .B soliterm
-plays twelve solitaire card games in a terminal, with the keyboard or the
+plays thirteen solitaire card games in a terminal, with the keyboard or the
 mouse.
 It plays each one the way GNOME AisleRiot does, scoring and all, and when
 AisleRiot is installed the two keep one record between them of the games
@@ -248,6 +248,10 @@ through the stock.
 .B canfield
 Canfield: a reserve of thirteen, three cards dealt at a time, and
 foundations that start from a rank the deal picks.
+.TP
+.B pyramid
+Pyramid, AisleRiot's Thirteen: take a pyramid apart in pairs that make
+13, a King on its own, with one pass through the stock.
 .SH KEYS
 These are the keys on the board of the full-screen game.
 .B ?
@@ -262,6 +266,8 @@ Move the cursor between the piles.
 Pick up the cards at the cursor, and press again on another pile to put
 them down.
 In Golf and Triple Peaks, a card that goes on the waste is played there.
+In Pyramid, put a card down on the one it makes 13 with to take both
+off.
 .TP
 .BR + ", " \-
 Lift one card more, or one fewer, while holding a run.
@@ -278,6 +284,8 @@ go up, finish the game.
 .TP
 .B f
 Send the card at the cursor to its foundation.
+In Pyramid it takes off a King, or the top two cards of the waste when
+they make 13.
 .TP
 .B h
 Show a hint.
@@ -318,6 +326,7 @@ A double-click sends a card up to its foundation, or deals from the
 stock.
 In Golf and Triple Peaks, a click on a card that goes on the waste plays
 it there.
+In Pyramid, a double-click takes off a King.
 .PP
 In text mode, a slot is named by the number in its tag on the board, and
 .B 12 2

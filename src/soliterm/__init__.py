@@ -1,6 +1,6 @@
 """Soliterm: solitaire for your terminal, AisleRiot-compatible.
 
-Twelve solitaire games with a curses TUI (keyboard and mouse) and a
+Thirteen solitaire games with a curses TUI (keyboard and mouse) and a
 pipe-friendly text mode. The engine follows GNOME AisleRiot's model and
 rules, and statistics are shared with an installed AisleRiot through its
 keyfile. The runtime is standard library only, apart from windows-curses

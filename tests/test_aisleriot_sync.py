@@ -621,6 +621,7 @@ NEW_SECTIONS = {
     "spiderette": "spiderette.scm",
     "scorpion": "scorpion.scm",
     "triplepeaks": "triple_peaks.scm",
+    "pyramid": "thirteen.scm",
 }
 
 

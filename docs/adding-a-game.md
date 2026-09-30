@@ -235,7 +235,9 @@ foundations, such as Golf, gives its own `progress`, and
 `fallback_move`, `is_dead_end` and `no_hint_reason` are there for a game
 whose hint needs more help. Klondike's `fallback_move` takes a card back
 down off a foundation when a card can then build on it and turn up a
-face-down one.
+face-down one. `describe_move` words a hint where "Move 6♥ onto 7♦"
+won't do, as Pyramid's "Match 8♥ with 5♠", and `no_foundation_reason`
+says why `f` did nothing, as in `5♥ only goes in a pair making 13`.
 
 ### Winning, dealing and the status line
 
@@ -280,7 +282,9 @@ deal number deals. That's fine, but it has to be deliberate.
 
 Most games are rows of slots side by side. `fan_limit` sets how many
 cards a slot that spreads to the right shows, and `spot` places slots by
-hand, as Triple Peaks does to overlap its peaks.
+hand, as Triple Peaks does to overlap its peaks and Pyramid its rows.
+An empty tableau slot placed so isn't drawn, and nothing is there to
+click, while an empty stock, waste or foundation keeps its frame.
 
 ## Register it
 
@@ -300,6 +304,7 @@ GAMES: dict[str, type[GameDef]] = {
         Fortress,
         FortyThieves,
         Canfield,
+        Pyramid,
     ]
 }
 
@@ -309,6 +314,7 @@ GAME_ORDER = [
     "fortress",
     "fortythieves",
     "canfield",
+    "pyramid",
 ]
 ```
 
@@ -416,9 +422,10 @@ keep:
 - the finish scores the same as sending the cards up one at a time.
 
 A game with no foundations, or with ones that only take a whole suit as
-Spider's do, can't be finished that way, so add its key to the list in
+Spider's do or a King alone as Pyramid's does, can't be finished that
+way, so add its key to the list in
 `test_finish_scores_like_the_moves_one_by_one`, with Spider, Spiderette,
-Golf, Triple Peaks and Scorpion.
+Golf, Triple Peaks, Scorpion and Pyramid.
 
 When one fails, the test's name says which game and options, as in
 `[fortress]` or `[klondike-draw3-redealsnone]`. The rest of the suite goes

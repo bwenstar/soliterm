@@ -98,19 +98,34 @@ def _column(s: Slot, symbols: bool, color: bool) -> list[str]:
 
 
 def _placed(g: Solitaire, slots: list[Slot], symbols: bool, color: bool) -> list[str]:
-    """Slots the game places by hand (Triple Peaks): a tag line and a card
-    line for each row down, a half card being three columns across. An
-    empty one is left out, as on the board."""
-    spots = {s.sid: spot for s in slots if s.cards and (spot := g.gamedef.spot(g, s.sid))}
+    """Slots the game places by hand (Triple Peaks, Pyramid): a tag line and
+    a card line for each row down, a half card being three columns across.
+    An empty tableau slot is left out, as on the board. A right-fanned one
+    shows as many cards as the board does, its tag over the top one, and a
+    stock has its count under it as in a row of columns."""
+    spots = {
+        s.sid: spot
+        for s in slots
+        if (s.cards or s.kind != "tableau") and (spot := g.gamedef.spot(g, s.sid))
+    }
     lines: list[str] = []
     for down in sorted({d for d, _ in spots.values()}):
-        tags = cells = ""
+        tags = cells = counts = ""
         for sid, (d, across) in spots.items():
             if d == down:
                 x = across * 3
-                tags += " " * (x - len(tags)) + _pad(slot_tag(g, sid), _CELL_W)
-                cells += " " * (x - _width(cells)) + _cell(g.top(sid), symbols, color)
-        lines += [tags, cells, ""]
+                slot = g.slots[sid]
+                shown: list[Card | None] = [slot.top]
+                if slot.expand == "right" and slot.cards:
+                    shown = list(slot.cards[-(g.gamedef.fan_limit(g, sid) or _FAN) :])
+                text = " ".join(_cell(c, symbols, color) for c in shown)
+                tag = slot_tag(g, sid)
+                tags += " " * (x + _width(text) - len(tag) - len(tags)) + tag
+                cells += " " * (x - _width(cells)) + text
+                if slot.kind == "stock":
+                    count = f"({len(slot.cards)})"
+                    counts += " " * (x + _width(text) - len(count) - len(counts)) + count
+        lines += [tags, cells] + ([counts] if counts else []) + [""]
     return lines
 
 

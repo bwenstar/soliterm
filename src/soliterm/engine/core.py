@@ -260,6 +260,9 @@ class Solitaire:
         return self.gamedef.progress(self)
 
     def _describe_move(self, src: int, dst: int, n: int) -> str:
+        said = self.gamedef.describe_move(self, src, dst, n)
+        if said:
+            return said
         pile = self.cards(src)
         landing = pile[len(pile) - n].label(self.symbols)  # lands on dst
         k = self.kind(dst)
@@ -660,12 +663,14 @@ class Solitaire:
     def no_foundation_reason(
         self, sid: int, card: str = "that card", place: str = "there"
     ) -> str | None:
-        """Why sending the top card of sid to a foundation did nothing, in a
-        game with no foundations; None in one that has them, for the caller
-        to say. `card` names the card and `place` the slot, as the player
-        sees them."""
-        if self.ids_of("foundation"):
-            return None
+        """Why sending the top card of sid to a foundation did nothing: the
+        game's own reason (GameDef.no_foundation_reason) if it has one, else
+        one for a game with no foundations, and None in one that has them,
+        for the caller to say. `card` names the card and `place` the slot,
+        as the player sees them."""
+        reason = self.gamedef.no_foundation_reason(self, sid, card, place)
+        if reason or self.ids_of("foundation"):
+            return reason
         if self.ids_of("waste"):  # Golf and Triple Peaks play onto it
             if self.empty(sid) or self.kind(sid) == "waste":
                 return f"nothing {place} goes on the waste"
@@ -771,19 +776,23 @@ class Solitaire:
     def finish(self, on_card: Callable[[int, int], None] | None = None) -> int:
         """Send every card left up to the foundations, as finish_moves()
         plans, as one move and one undo step. on_card(src, dst) is called as
-        each lands, for the TUI to show it. Returns how many cards went up."""
+        each lands, for the TUI to show it. Returns how many cards went up,
+        which is more than the moves where one takes a second card with it,
+        as a pair in Pyramid does."""
         moves = self.finish_moves()
         if not moves:
             return 0
         self._checkpoint()
         self.moves += 1
+        up = self.ids_of("foundation")
+        before = sum(len(self.cards(f)) for f in up)
         for src, dst in moves:
             cards = self._move_cards(src, dst, 1)
             self.gamedef.after_move(self, src, cards, dst)
             self.gamedef.post_move(self)
             if on_card is not None:
                 on_card(src, dst)
-        return len(moves)
+        return sum(len(self.cards(f)) for f in up) - before
 
     def update_status(self) -> None:
         self.status = self.gamedef.status(self)
