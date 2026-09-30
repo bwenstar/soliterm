@@ -195,6 +195,12 @@ def reset_stats(yes: bool) -> int:
             f"This erases the statistics of all {len(GAME_ORDER)} games{where}{also}.",
             file=sys.stderr,
         )
+        if played:
+            # they're worked out from the history, so its backup has them
+            print(
+                "The records and achievements go too, until history.jsonl.bak is put back.",
+                file=sys.stderr,
+            )
         print("Type yes to clear them: ", end="", file=sys.stderr, flush=True)
         came: list[int] = []  # the console events that came
         try:

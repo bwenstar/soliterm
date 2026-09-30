@@ -305,10 +305,12 @@ one of its number.
 `s` in a game shows the statistics, and `soliterm --stats` prints them
 with the last ten games you played. `soliterm --reset-stats` clears them,
 AisleRiot's record of the thirteen games included, along with the history of
-games played here. It asks you to type `yes` first (or takes `--yes` when
-there's no terminal to ask at), keeps a copy of what it clears in
-`aisleriot.soliterm-bak` next to AisleRiot's file and in `stats.json.bak`
-and `history.jsonl.bak` next to Soliterm's, and leaves saved games alone.
+games played here, and so the records and achievements too. It asks you to
+type `yes` first (or takes `--yes` when there's no terminal to ask at),
+keeps a copy of what it clears in `aisleriot.soliterm-bak` next to
+AisleRiot's file and in `stats.json.bak` and `history.jsonl.bak` next to
+Soliterm's, and leaves saved games alone. Putting `history.jsonl.bak` back
+as `history.jsonl` brings the records and achievements back.
 
 To keep AisleRiot's statistics out of it:
 

@@ -19,7 +19,7 @@ import pytest
 import soliterm
 from soliterm import aisleriot as ar
 from soliterm import cli as cli_mod
-from soliterm import deals, history, saves, store, textmode
+from soliterm import deals, history, records, saves, store, textmode
 from soliterm.cli import main
 from soliterm.deals import Deal
 from soliterm.engine import GAME_ORDER, GAMES
@@ -779,6 +779,16 @@ def test_reset_stats_backs_up_and_clears_the_history(cli):
     assert store.get_stat("golf")["total"] == 0
 
 
+def test_the_history_put_back_brings_the_records_and_achievements_back(cli):
+    two_games()
+    found, got = records.records(), records.achievements()
+    assert found["golf"].played == 2 and got.clean["golf"].earned
+    rc, _lines = cli("--reset-stats", "--yes")
+    assert rc == 0 and records.records()["golf"].played == 0
+    os.replace(history.history_path() + ".bak", history.history_path())
+    assert records.records() == found and records.achievements() == got
+
+
 @pytest.mark.parametrize("with_history", [True, False])
 def test_the_reset_prompt_names_the_history(cli, with_history):
     if with_history:
@@ -789,6 +799,11 @@ def test_the_reset_prompt_names_the_history(cli, with_history):
     assert rc == 1
     also = ", and the history of your games" if with_history else ""
     assert f"This erases the statistics of all {len(GAME_ORDER)} games{also}.\n" in cli.err
+    # the records and achievements are worked out from the history, so they
+    # go with it, and its backup brings them back
+    gone = "The records and achievements go too, until history.jsonl.bak is put back.\n"
+    assert (gone in cli.err) == with_history
+    assert all(len(line) <= 80 for line in cli.err.split("\n"))
 
 
 def test_no_stats_and_no_history_means_nothing_to_clear(cli):
