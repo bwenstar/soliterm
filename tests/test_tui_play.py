@@ -4261,6 +4261,17 @@ def test_the_records_and_the_daily_list_agree_on_the_dailies(tui, on_the_day):
     )
 
 
+def test_p_and_y_on_the_statistics_and_the_records_only_go_back(tui, sent):
+    # they're keys of the board, so they neither pause nor copy from here
+    scr = tui(["s", ENTER, "p", "y", "p", "z"])
+    assert "Klondike - records" in scr.frames[2]
+    assert "Statistics" in scr.frames[3] and "Klondike - records" not in scr.frames[3]
+    assert "Score" in scr.frames[4] and "Game paused" not in scr.frames[4]
+    assert "Game paused" in scr.frames[5]
+    assert sent() == b""
+    assert not any("copy" in said for said in scr.uis[0].said if said)
+
+
 def test_a_click_on_the_row_already_picked_opens_its_records(tui):
     # Klondike's row is picked to start with, and Spider's is under it
     scr = tui(["s", Mouse(5, 20), "q", Mouse(6, 20), Mouse(6, 20), "q", "z"])
