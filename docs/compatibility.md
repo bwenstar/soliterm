@@ -68,9 +68,9 @@ keep their meanings too.
 - `Share code: golf:216` on a win.
 
 The rest is for people and can change: the wording of hints and other
-messages, such as the reason after `illegal move:` and the line saying
-no moves are left, the game's words in the status line, and where the
-slots sit on the board.
+messages, such as the reason after `illegal move:`, the line saying no
+moves are left and the one saying how a win stood on its deal, the
+game's words in the status line, and where the slots sit on the board.
 
 ## The files
 
