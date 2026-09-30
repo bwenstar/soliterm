@@ -19,10 +19,10 @@ Soliterm plays in text mode when:
   windows-curses package;
 - off Windows, `TERM` isn't set, is `dumb`, names a terminal type that
   can't move the cursor, or names one this system has no terminfo entry
-  for when it has none for the stand-ins either. The stand-ins are
-  `xterm-256color` and `xterm`, or inside tmux or screen
-  `screen-256color` and `screen`, and the full-screen game plays as the
-  first of them that's known.
+  for when it has none for the stand-ins either, or curses finds no
+  terminfo database at all. The stand-ins are `xterm-256color` and
+  `xterm`, or inside tmux or screen `screen-256color` and `screen`, and
+  the full-screen game plays as the first of them that's known.
 
 In the last two cases it says why on stderr before it starts, for
 example:

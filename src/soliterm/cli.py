@@ -303,10 +303,21 @@ def _check_terminal() -> tuple[str, str]:
     try:
         # fd 1, which curses draws on whatever sys.stdout is
         curses.setupterm(term, 1)
-    except curses.error:
+    except curses.error as exc:
+        if "terminfo database" in str(exc):
+            # a Python built to look in a folder of its own, not the system's
+            return (
+                f"TERM={term} can't be looked up, as curses finds no terminfo "
+                "database, so playing in text mode; point TERMINFO_DIRS at one "
+                "(TERMINFO_DIRS=/usr/share/terminfo:/lib/terminfo, say) for the "
+                "full-screen game"
+            ), ""
         stand_in = _stand_in(term)
         if stand_in is None:
-            return f"TERM={term} isn't a terminal type known here, {rest}", ""
+            return (
+                f"TERM={term} isn't a terminal type known here and no stand-in is, "
+                "so playing in text mode; install its terminfo for the full-screen game"
+            ), ""
         os.environ["TERM"] = stand_in
         return "", f"TERM={term} isn't known here, so playing as {stand_in}"
     if not curses.tigetstr("cup"):

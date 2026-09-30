@@ -452,7 +452,11 @@ they were. The man page's FILES section has the details.
   `screen-256color` or `screen` instead. Installing the terminal's own
   terminfo entry there gets you its full look. When `TERM` isn't set, is
   `dumb`, or none of those is known either, Soliterm plays in text mode
-  and says why. `xterm-256color` suits most terminals.
+  and says why. For the first two, `xterm-256color` suits most
+  terminals. When curses finds no terminfo database at all, as with a
+  Python built to look only in a folder of its own, it says that instead:
+  `TERMINFO_DIRS=/usr/share/terminfo:/lib/terminfo` points it at the
+  system's.
 - **Colours.** The `dark` and `light` themes need a terminal with 256
   colours. With 8 or 16, or direct colour such as `xterm-direct`, they look
   like `classic`. On Windows they have the 256 in Windows Terminal, where

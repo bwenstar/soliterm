@@ -1397,6 +1397,29 @@ def test_an_unknown_terminal_type_with_no_stand_in_means_text_mode(
     err = capsys.readouterr().err
     assert len(err.splitlines()) == 1
     assert "TERM=xterm-kitty isn't a terminal type known here" in err and "text mode" in err
+    # the stand-ins were tried, so there's no saying to set TERM to one
+    assert "xterm-256color" not in err
+
+
+@needs_terminfo
+@pytest.mark.parametrize("term", ["xterm-256color", "xterm-kitty"])
+def test_no_terminfo_database_at_all_says_so(terminal, monkeypatch, capsys, term):
+    # as a Python built to look in a folder of its own that isn't there
+    import curses
+
+    def setupterm(term=None, fd=-1):
+        raise curses.error("setupterm: could not find terminfo database")
+
+    monkeypatch.setattr(curses, "setupterm", setupterm)
+    monkeypatch.setenv("TERM", term)
+    assert terminal("--game", "golf") == 0
+    assert terminal.started == ["text"]
+    assert os.environ["TERM"] == term
+    err = capsys.readouterr().err
+    assert len(err.splitlines()) == 1
+    assert f"TERM={term}" in err and "no terminfo database" in err and "text mode" in err
+    assert "TERMINFO_DIRS=/usr/share/terminfo:/lib/terminfo" in err
+    assert "set TERM" not in err
 
 
 @needs_terminfo
