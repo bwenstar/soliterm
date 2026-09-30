@@ -4071,6 +4071,319 @@ def test_the_stats_screen_says_sharing_waits_for_aisleriot_to_run(tui, monkeypat
     assert "(shared with" not in frame
 
 
+# -- a game's records ---------------------------------------------------------------------
+
+
+def write_history(*lines):
+    """A history of these lines and no others, as history.record writes them."""
+    os.makedirs(store.data_dir(), exist_ok=True)
+    with open(history.history_path(), "w", encoding="utf-8") as fh:
+        fh.writelines(json.dumps(e) + "\n" for e in lines)
+
+
+def played(key="klondike", result="won", day="2026-09-20", **more):
+    """A line of the history, of a game finished in the morning of `day`. A
+    win scores what every win of Klondike does."""
+    return {
+        "at": f"{day}T10:00:00+10:00",
+        "game": key,
+        "options": engine.GAMES[key].default_options(),
+        "deal": 7,
+        "result": result,
+        "seconds": 100,
+        "moves": 50,
+        "score": 52 if result == "won" else 0,
+        "hints": 1,
+        "undos": 0,
+        **more,
+    }
+
+
+def a_full_history():
+    """A history with something in every one of Klondike's records."""
+    draw3 = {"draw": 3, "redeals": "standard"}
+    write_history(
+        played(result="lost", day="2026-09-01", options={"draw": 1, "redeals": "none"}, score=38),
+        played(day="2026-09-02", options=draw3, deal=48213, seconds=141, moves=98, hints=0),
+        played(day="2026-09-03", daily="2026-09-03", deal=20260903, seconds=300, moves=85),
+        played(day="2026-09-04", daily="2026-09-04", deal=20260904, seconds=400, moves=99),
+        played(result="lost", day="2026-09-05", score=20),
+        played(day="2026-09-06", seconds=200, moves=110),
+        *(played(key, day="2026-09-07") for key in ("spider", "golf", "freecell")),
+    )
+
+
+INTRO = [
+    "Only the games played here in Soliterm count, so these can be fewer",
+    "than the Wins and Total, which count AisleRiot's games when shared.",
+]
+FULL_RECORDS = [
+    *INTRO,
+    "",
+    "Played        6 since 2026-09-01, and won 4",
+    "Win streak    1 now, longest 3",
+    "",
+    "                  Time  Moves  Deal                       Date",
+    "Fastest win       2:21     98  klondike:d3:48213          2026-09-02",
+    "                               draw 3, redeals standard",
+    "Fewest moves      5:00     85  daily 2026-09-03           2026-09-03",
+    "",
+    "Best score    52, a win        draw 1, redeals standard   2026-09-03",
+    "              38 of 52         draw 1, redeals none       2026-09-01",
+    "              52, a win        draw 3, redeals standard   2026-09-02",
+    "",
+    "Achievements",
+    "Clean win     2026-09-02  a win with no hint and no undo",
+    "Every game    4 of 13     to win: Spiderette, Eight Off and 7 more",
+    "Seven dailies 2 of 7      the longest run of days with a daily won",
+]
+RECORDS_FOOTER = "Left/Right other games - any other key goes back"
+
+
+def page_of(frame, dx=0):
+    """The lines of a records page under its title, down to the gap above
+    the footer, without the indent they all have. dx is how far the code
+    skin moves the page right."""
+    rows = [row[dx:].rstrip() for row in frame.split("\n")]
+    (title,) = [y for y, row in enumerate(rows) if row.endswith(" - records")]
+    (footer,) = [y for y, row in enumerate(rows) if RECORDS_FOOTER in row]
+    assert rows[footer - 1] in ("", "#")
+    return [row[6:] for row in rows[title + 1 : footer - 1]]
+
+
+def test_enter_on_the_statistics_opens_the_records_of_the_game_picked(tui):
+    a_full_history()
+    scr = tui(["s", ENTER, "z"])
+    frame = scr.frames[2]
+    assert "    Klondike - records" in frame.split("\n")
+    assert page_of(frame) == FULL_RECORDS
+    assert "Statistics" not in frame and "Score" not in frame
+
+
+def test_a_game_not_played_here_says_so_and_still_has_its_achievements(tui):
+    scr = tui(["s", curses.KEY_DOWN, curses.KEY_DOWN, ENTER, "z"])
+    assert "Spiderette - records" in scr.frames[4]
+    assert page_of(scr.frames[4]) == [
+        *INTRO,
+        "",
+        "No games of Spiderette played here yet.",
+        "",
+        "Achievements",
+        "Clean win     not yet     a win with no hint and no undo",
+        "Every game    0 of 13     a win in every game",
+        "Seven dailies 0 of 7      the longest run of days with a daily won",
+    ]
+
+
+def test_a_game_played_but_not_won_has_no_fastest_win_yet(tui):
+    write_history(played("golf", "lost", score=12), played("golf", "lost", day="2026-09-21"))
+    frame = tui(["s", *[curses.KEY_DOWN] * 5, ENTER, "z"]).frames[7]
+    assert page_of(frame)[3:10] == [
+        "Played        2 since 2026-09-20, and won 0",
+        "Win streak    0 now, longest 0",
+        "",
+        "Fastest win   no win yet",
+        "Fewest moves  no win yet",
+        "",
+        "Best score    12 of 35         golf:7                     2026-09-20",
+    ]
+
+
+@pytest.mark.parametrize(
+    "won, row",
+    [
+        (12, "Every game    12 of 13    to win: Pyramid"),
+        (11, "Every game    11 of 13    to win: Canfield and Pyramid"),
+        (1, "Every game    1 of 13     to win: Spider, Spiderette and 10 more"),
+        (13, "Every game    2026-09-20  a win in every game"),
+    ],
+)
+def test_the_games_left_to_win_are_named_as_far_as_they_fit(tui, won, row):
+    write_history(*(played(key) for key in engine.GAME_ORDER[:won]))
+    assert row in page_of(tui(["s", ENTER, "z"]).frames[2])
+
+
+def test_seven_dailies_says_when_it_was_earned(tui):
+    days = [f"2026-09-{d:02}" for d in range(1, 8)]
+    write_history(*(played(day=day, daily=day) for day in days), played(hints=0, undos=0))
+    lines = page_of(tui(["s", ENTER, "z"]).frames[2])
+    assert "Seven dailies 2026-09-07  a daily won seven days in a row" in lines
+    assert "Clean win     2026-09-20  a win with no hint and no undo" in lines
+
+
+@pytest.mark.parametrize(
+    "back",
+    [[ESC, -1], ["q"], [ENTER], ["z"], [curses.KEY_DOWN], [curses.KEY_UP]],
+    ids=["Esc", "q", "Enter", "z", "Down", "Up"],
+)
+def test_any_other_key_goes_back_to_the_statistics_with_the_game_picked(tui, back):
+    # Up and Down too, when the page fits and they have nothing to scroll
+    scr = tui(["s", curses.KEY_DOWN, ENTER, *back, "z"])
+    assert "Spider - records" in scr.frames[3]
+    after = 3 + len(back)
+    assert "Statistics" in scr.frames[after] and "Spider - records" not in scr.frames[after]
+    assert "Spider " in picked(scr, after)
+    assert "Score" in scr.frames[after + 1]
+
+
+def test_left_and_right_go_to_the_records_of_the_games_either_side(tui):
+    keys = [curses.KEY_RIGHT, "l", curses.KEY_LEFT, "h", "h", curses.KEY_LEFT]
+    scr = tui(["s", ENTER, *keys, "q", "z"])
+    titles = [
+        next(row.strip() for row in frame.split("\n") if row.rstrip().endswith(" - records"))
+        for frame in scr.frames[2:9]
+    ]
+    # round from the first game to the last
+    names = ["Klondike", "Spider", "Spiderette", "Spider", "Klondike", "Pyramid", "Canfield"]
+    assert titles == [f"{name} - records" for name in names]
+    # and back to the statistics with the game last shown picked
+    assert "Canfield " in picked(scr, 9)
+
+
+def test_a_click_on_the_row_already_picked_opens_its_records(tui):
+    # Klondike's row is picked to start with, and Spider's is under it
+    scr = tui(["s", Mouse(5, 20), "q", Mouse(6, 20), Mouse(6, 20), "q", "z"])
+    assert "Klondike - records" in scr.frames[2]
+    # a click on another row only picks it
+    assert "Spider " in picked(scr, 4) and "Statistics" in scr.frames[4]
+    assert "Spider - records" in scr.frames[5]
+    assert "Spider " in picked(scr, 6)
+
+
+def test_a_double_click_on_a_row_opens_its_records(tui):
+    # which, with the double-click left to the game, is two presses
+    press = curses.BUTTON1_PRESSED
+    scr = tui(["s", Mouse(7, 20, press), Again(press), "q", "z"])
+    assert "Spiderette - records" in scr.frames[3]
+
+
+def test_the_mouse_leaves_the_records_up(tui):
+    a_full_history()
+    scr = tui(
+        [
+            "s",
+            ENTER,
+            Mouse(9, 9, curses.REPORT_MOUSE_POSITION),
+            Mouse(9, 9, curses.BUTTON1_RELEASED),
+            Mouse(9, 9),
+            Mouse(9, 9, WHEEL_DOWN),
+            Resize(30, 100),
+            "z",
+        ]
+    )
+    assert all(page_of(frame) == FULL_RECORDS for frame in scr.frames[2:8])
+    assert len(scr.frames[7].split("\n")) == 30
+    assert "Statistics" in scr.frames[8]
+
+
+def test_the_statistics_read_the_history_once_for_every_records_page(tui, monkeypatch):
+    a_full_history()
+    real, reads = history.games, []
+
+    def counting():
+        reads.append(1)
+        return real()
+
+    def count_from_here():
+        monkeypatch.setattr(history, "games", counting)
+
+    def stop_counting():
+        monkeypatch.setattr(history, "games", real)
+
+    keys = [ENTER, curses.KEY_RIGHT, Resize(30, 100), curses.KEY_LEFT, "q", curses.KEY_DOWN]
+    scr = tui([Meanwhile(count_from_here, "s"), *keys, ENTER, "q", Meanwhile(stop_counting, "z")])
+    assert "Spider - records" in scr.frames[3] and "Spider - records" in scr.frames[8]
+    assert len(reads) == 1
+
+
+@pytest.mark.parametrize("skin", [False, True], ids=["plain", "code-skin"])
+def test_the_widest_records_fit_their_columns_at_80_columns(tui, skin):
+    if skin:
+        code_skin_on()
+    multiplier = {"scoring": "multiplier"}
+    most = {"seconds": 99999 * 60 + 59, "moves": 99999, "deal": 2147483647}
+    write_history(
+        played("triplepeaks", day="2026-12-31", options=multiplier, score=99999, **most),
+        played("triplepeaks", "lost", day="2026-12-30", score=99998),
+    )
+    frame = tui(["s", ENTER, "z"], start_key="triplepeaks", h=24, w=80).frames[2]
+    lines = page_of(frame, CODE_GUTTER if skin else 0)
+    assert lines[6:13] == [
+        "                  Time  Moves  Deal                       Date",
+        "Fastest win   99999:59  99999  triplepeaks:sm:2147483647  2026-12-31",
+        "                               scoring multiplier",
+        "Fewest moves  99999:59  99999  triplepeaks:sm:2147483647  2026-12-31",
+        "                               scoring multiplier",
+        "",
+        "Best score    99998            scoring standard           2026-12-30",
+    ]
+    assert lines[13] == "              99999            scoring multiplier         2026-12-31"
+    assert max(map(len, lines)) == 68
+
+
+def test_a_long_name_fits_on_its_records_page(tui):
+    code_skin_on()
+    write_history(played("fortythieves", "lost", score=999))
+    scr = tui(["s", curses.KEY_UP, curses.KEY_UP, curses.KEY_UP, ENTER, "z"], h=24, w=80)
+    frame = scr.frames[5]
+    assert "Forty Thieves - records" in frame
+    assert "Best score    999 of 1000      fortythieves:7" in frame
+
+
+def test_the_records_fit_80x24_and_scroll_to_every_line_at_80x16(tui):
+    code_skin_on()
+    a_full_history()
+    frame = tui(["s", ENTER, "z"], h=24, w=80).frames[2]
+    assert "more below" not in frame and RECORDS_FOOTER in frame and "Up/Down" not in frame
+    downs = [curses.KEY_DOWN] * 10
+    scr = tui(["s", ENTER, *downs, curses.KEY_HOME, "z"], h=16, w=80)
+    shown = scr.frames[2:14]
+    assert all(f"Up/Down scroll - {RECORDS_FOOTER}" in frame for frame in shown)
+    assert "more below" in shown[0] and "more above" not in shown[0]
+    assert all(any(line in frame for frame in shown) for line in FULL_RECORDS if line)
+    assert FULL_RECORDS[-1] in shown[-2] and "more below" not in shown[-2]
+    assert shown[-1] == shown[0]
+    # and a key that doesn't scroll it goes back
+    assert "Statistics" in scr.frames[14]
+
+
+def test_the_records_of_the_last_of_many_games_fit_80x24(tui, many_games):
+    code_skin_on()
+    a_full_history()
+    last = engine.GAMES[many_games[-1]].name
+    scr = tui(["s", curses.KEY_END, ENTER, curses.KEY_RIGHT, "q", "z"], h=24, w=80)
+    lines = page_of(scr.frames[3], CODE_GUTTER)
+    assert f"{last} - records" in scr.frames[3] and "Terminal too small" not in scr.frames[3]
+    left = "to win: Spiderette, Eight Off and 31 more"
+    assert f"Every game    4 of {len(many_games)}     {left}" in lines
+    assert max(map(len, lines)) <= 68
+    # and round to the first game
+    assert page_of(scr.frames[4], CODE_GUTTER) == FULL_RECORDS[:-2] + lines[-2:]
+
+
+def test_the_wheel_scrolls_the_records_where_they_are_too_long(tui):
+    a_full_history()
+    wheel = [Mouse(9, 30, WHEEL_DOWN), Mouse(9, 30, WHEEL_UP)]
+    scr = tui(["s", ENTER, *wheel, "z"], h=16, w=80)
+    top, down, up = scr.frames[2:5]
+    assert "more above" not in top and "more above" in down
+    assert up == top
+
+
+def test_the_records_read_without_colour_and_in_plain_characters(tui):
+    a_full_history()
+    for kwargs in ({"color": False}, {"color_capable": False}):
+        frame = tui(["s", ENTER, "z"], **kwargs).frames[2]
+        assert page_of(frame) == FULL_RECORDS
+        assert frame.isascii()
+
+
+def test_the_statistics_say_enter_opens_the_records(tui):
+    code_skin_on()
+    frame = tui(["s", "z"], h=24, w=80).frames[1]
+    assert "Up/Down move - Enter records - Press any other key to continue." in frame
+
+
 def test_the_help_screen_lists_the_toggles(tui):
     scr = tui(["?", "z"])
     assert "toggle colour" in scr.frames[1]
@@ -4105,6 +4418,8 @@ EVERY_SCREEN = [
     ("Play a deal", "klondike", None, ["g"]),
     ("A number on its own plays", None, None, [Mouse(PLAY_A_DEAL, 8)]),
     ("Daily deals for", None, None, [Mouse(DAILY_DEAL, 8)]),
+    ("Fastest win", "klondike", None, [Meanwhile(a_full_history, "s"), ENTER]),
+    ("No games of Klondike played here yet", "klondike", None, ["s", ENTER]),
 ]
 # the screens where b is a letter to type, so only F2 hides them
 TYPED_IN = ("Play a deal", "A number on its own plays")
@@ -4139,7 +4454,7 @@ def test_every_screen_fits_80x24(tui, screen, start_key, game, keys, skin):
         assert "more above" not in shown and "more below" not in shown
     if screen in ("choose a game", "Statistics"):
         # and whatever comes under them fits too
-        assert ("Quit" if start_key is None else "Press any key") in shown
+        assert ("Quit" if start_key is None else "Press any other key") in shown
 
 
 def test_only_a_key_ends_boss_mode_not_the_mouse_or_a_resize(tui):
@@ -4264,7 +4579,11 @@ SCROLLED_MIN = {
     "Daily deals for": 9,
     "Statistics": 10,
     "Soliterm - controls": 7,
+    "Fastest win": 7,
+    "No games of Klondike played here yet": 7,
 }
+# the screens of lines to read, whose footers say when they scroll
+READERS = ("Soliterm - controls", "Fastest win", "No games of Klondike played here yet")
 
 
 @pytest.mark.parametrize("screen, start_key, game, keys", EVERY_SCREEN)
@@ -4285,8 +4604,8 @@ def test_a_screen_too_tall_for_the_terminal_says_so(tui, screen, start_key, game
     shown = roomy.rstrip().split("\n")
     # down to the footer, which on the help says now that it scrolls
     footer = rows[-1]
-    if screen == "Soliterm - controls":
-        footer = footer.replace("Press", "Up/Down scroll - Press")
+    if screen in READERS:
+        footer = f"    Up/Down scroll - {footer.lstrip()}"
     assert len(shown) == need and shown[-1] == footer
 
 
@@ -4331,7 +4650,7 @@ LONG_LISTS = [
         "klondike",
         ["s"],
         ["Wins / Total / Percentage", "(shared with GNOME AisleRiot - sol)", "Streak Longest"]
-        + ["Press any key"],
+        + ["Enter records - Press any other key"],
     ),
 ]
 

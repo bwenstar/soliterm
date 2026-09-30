@@ -1,11 +1,11 @@
 """soliterm.tui.screens - the screens other than the board.
 
-The menu, the daily deals, the statistics, the options, the pick-deal
-box, the yes-or-no question, the help, the pause, boss mode and the end
-banner, and what they share to put a page up, read its keys and copy a
-share code. They are methods of Screens, which App takes in, so that each
-reaches the config, the colours and the game in play just as the play
-screen does.
+The menu, the daily deals, the statistics and each game's records, the
+options, the pick-deal box, the yes-or-no question, the help, the pause,
+boss mode and the end banner, and what they share to put a page up, read
+its keys and copy a share code. They are methods of Screens, which App
+takes in, so that each reaches the config, the colours and the game in
+play just as the play screen does.
 """
 
 from __future__ import annotations
@@ -230,6 +230,50 @@ class Reader(Scroll):
         return None
 
 
+# The widest line of a game's records, which fits 80 columns under the
+# code skin with the page's indent and the room draw_list leaves for a mark
+RECORDS_W = 68
+
+
+def option_words(key: str, options: dict) -> str:
+    """The options a record was set with, as "draw 3, redeals standard", or
+    "" for a game with none."""
+    given = {**GAMES[key].default_options(), **options}
+    return ", ".join(f"{name} {given[name]}" for name, _, _ in GAMES[key].option_spec())
+
+
+def deal_text(key: str, best: records.Best) -> str:
+    """The deal a record was set on: the day of a daily, or the share code
+    that plays it again."""
+    if best.daily:
+        return f"daily {best.daily}"
+    return "" if best.deal is None else deals.share_code(key, best.deal, best.options)
+
+
+def score_text(key: str, best: records.Best) -> str:
+    """A best score, with "a win" or how far short of one it came, as 38 of
+    52, or on its own for a game whose wins score differently."""
+    full = records.WIN_SCORE.get(key)
+    if full is None:
+        return str(best.score)
+    return f"{best.score}, a win" if best.won else f"{best.score} of {full}"
+
+
+def names_in(names: list[str], room: int) -> str:
+    """names as a sentence lists them, "A, B and C", or as many of them as
+    fit in `room` with how many more there are, "A, B and 7 more"."""
+
+    def listed(shown: list[str], more: int) -> str:
+        items = [*shown, f"{more} more"] if more else shown
+        return ", ".join(items[:-1]) + " and " + items[-1] if len(items) > 1 else items[0]
+
+    for n in range(len(names), 0, -1):
+        text = listed(names[:n], len(names) - n)
+        if len(text) <= room:
+            return text
+    return listed([], len(names))
+
+
 class Screens:
     """The screens other than the board, for App to take in."""
 
@@ -325,12 +369,19 @@ class Screens:
         return -1
 
     def draw_list(
-        self, rows: Scroll, y: int, x: int, row: Callable[[int], str], marked: bool = True
+        self,
+        rows: Scroll,
+        y: int,
+        x: int,
+        row: Callable[[int], str],
+        marked: bool = True,
+        look: Callable[[int], int] | None = None,
     ) -> None:
         """Draw the rows of the list in view from row y down at column x,
-        row(i) giving the text of row i. The row picked is lit up and,
-        unless `marked` is False, has a > before it. The lines saying there
-        are more go under the text of the rows."""
+        row(i) giving the text of row i, and look(i), if given, how it looks
+        when it isn't picked. The row picked is lit up and, unless `marked`
+        is False, has a > before it. The lines saying there are more go
+        under the text of the rows."""
         CP = self.CP
         for dy, at in enumerate(rows.lines()):
             if isinstance(at, str):
@@ -338,7 +389,8 @@ class Screens:
                 continue
             picked = at == rows.sel
             mark = "> " if picked and marked else "  "
-            self.safe_add(y + dy, x, mark + row(at), (CP(CURSOR) | curses.A_BOLD) if picked else 0)
+            attr = (CP(CURSOR) | curses.A_BOLD) if picked else look(at) if look else 0
+            self.safe_add(y + dy, x, mark + row(at), attr)
 
     def boss_key(self, k: int) -> bool:
         """If k is the boss key, go into boss mode until a key is pressed.
@@ -499,8 +551,17 @@ class Screens:
     def stats_screen(self, focus_key: str | None = None):
         """The statistics of every game, the row of focus_key picked out,
         or of the first game if there's none. The keys that move the pick
-        on the menu and the wheel move it here; any other key leaves."""
-        streaks = history.streaks()  # read once, not again on each resize
+        on the menu and the wheel move it here, Enter opens the records of
+        the game picked, as a click on its row does once it's picked, and
+        any other key leaves."""
+        # the history, read once for the streaks and every game's records,
+        # not again on each key or resize
+        entries = history.games()
+        found = records.records(entries)
+        got = records.achievements(entries)
+        days = records.daily_streak(entries)
+        # only the games played here are in the history
+        streaks = {key: r.streak for key, r in found.items() if r.played}
         start = GAME_ORDER.index(focus_key) if focus_key in GAME_ORDER else 0
         rows = Scroll(len(GAME_ORDER), start)
         while True:
@@ -508,14 +569,24 @@ class Screens:
             k = self.page_key()
             if self.boss_key(k) or rows.key(k):
                 continue
-            if k == curses.KEY_MOUSE:
+            opened = None
+            if k in (curses.KEY_ENTER, 10, 13):
+                opened = rows.sel
+            elif k == curses.KEY_MOUSE:
                 try:
                     _, _mx, my, _, bstate = curses.getmouse()
                 except curses.error:
                     continue
-                rows.mouse(bstate, my - 5)
+                before = rows.sel
+                at = rows.mouse(bstate, my - 5)
+                # a click picks a row, and one on the row picked opens it,
+                # so a double-click, two presses, does too
+                if at is not None and at == before:
+                    opened = at
             elif k not in (-1, curses.KEY_RESIZE):
                 return
+            if opened is not None:
+                rows.sel = self.records_screen(opened, found, got, days)
 
     def draw_stats(self, rows: Scroll, streaks: dict[str, history.Streak]):
         CP, safe_add = self.CP, self.safe_add
@@ -550,8 +621,134 @@ class Screens:
         rows.fit(self.stdscr.getmaxyx()[0] - 5 - 2)  # a gap and the footer under it
         # lit up, and without colour marked as well, as on the menu
         self.draw_list(rows, 5, 4, game_row, marked=not self.has_color)
-        safe_add(5 + rows.room + 1, 4, "Up/Down move - Press any key to continue.", CP(CHROME))
+        footer = "Up/Down move - Enter records - Press any other key to continue."
+        safe_add(5 + rows.room + 1, 4, footer, CP(CHROME))
         self.end_page()
+
+    # ---- a game's records ---- #
+    @hides_the_board
+    def records_screen(
+        self,
+        at: int,
+        found: dict[str, records.Records],
+        got: records.Achievements,
+        days: history.Streak,
+    ) -> int:
+        """The records and achievements of game `at` of GAME_ORDER, from
+        the history the statistics read. Left and Right, and h and l, go to
+        the game before and after it, and any other key goes back, as the
+        mouse doesn't. Where the page is too long for the terminal, the keys
+        that scroll the help scroll it. Returns the game last shown, for the
+        statistics to pick."""
+        lines = self.records_lines(GAME_ORDER[at], found, got, days)
+        rows = Reader(len(lines))
+        while True:
+            self.draw_records(GAME_ORDER[at], lines, rows)
+            k = self.page_key()
+            if self.boss_key(k) or (rows.scrolls() and rows.key(k)):
+                continue
+            if k in (curses.KEY_LEFT, curses.KEY_RIGHT, ord("h"), ord("l")):
+                step = -1 if k in (curses.KEY_LEFT, ord("h")) else 1
+                at = (at + step) % len(GAME_ORDER)
+                lines = self.records_lines(GAME_ORDER[at], found, got, days)
+                rows = Reader(len(lines))
+            elif k == curses.KEY_MOUSE:
+                try:
+                    _, _mx, my, _, bstate = curses.getmouse()
+                except curses.error:
+                    continue
+                rows.mouse(bstate, my - 2)
+            elif k not in (-1, curses.KEY_RESIZE):
+                return at
+
+    def draw_records(self, key: str, lines: list[tuple[str, int]], rows: Reader) -> None:
+        """Draw the records of `key`, `lines` being what records_lines gives."""
+        CP, safe_add = self.CP, self.safe_add
+        self.begin_page()
+        safe_add(1, 4, f"{GAMES[key].name} - records", CP(CHROME) | curses.A_BOLD)
+        # the lines right under the title, then a gap and the footer
+        rows.fit(self.stdscr.getmaxyx()[0] - 2 - 2)
+        self.draw_list(rows, 2, 4, lambda i: lines[i][0], False, lambda i: lines[i][1])
+        footer = "Left/Right other games - any other key goes back"
+        if rows.scrolls():
+            footer = "Up/Down scroll - " + footer
+        safe_add(2 + rows.room + 1, 4, footer, CP(CHROME))
+        self.end_page()
+
+    def records_lines(
+        self,
+        key: str,
+        found: dict[str, records.Records],
+        got: records.Achievements,
+        days: history.Streak,
+    ) -> list[tuple[str, int]]:
+        """The lines of the records page of `key`, each with how it looks.
+        Each fits in RECORDS_W, at the widest a record can be: a time of
+        99999:59, 99999 moves and the longest share code there is."""
+        note, head = self.CP(CHROME), self.CP(MESSAGE) | curses.A_BOLD
+        r, name = found[key], GAMES[key].name
+        # the history began with Soliterm 1.0, and has none of AisleRiot's games
+        lines = [
+            ("Only the games played here in Soliterm count, so these can be fewer", note),
+            ("than the Wins and Total, which count AisleRiot's games when shared.", note),
+            ("", 0),
+        ]
+        if not r.played:
+            lines += [(f"No games of {name} played here yet.", 0), ("", 0)]
+        else:
+            since = (r.since or "")[:10]
+            lines += [
+                (f"{'Played':<14}{r.played} since {since}, and won {r.won}", 0),
+                (f"{'Win streak':<14}{r.streak.current} now, longest {r.streak.longest}", 0),
+                ("", 0),
+            ]
+            if r.fastest is None or r.fewest is None:
+                lines += [
+                    (f"{'Fastest win':<14}no win yet", 0),
+                    (f"{'Fewest moves':<14}no win yet", 0),
+                ]
+            else:
+                lines.append((f"{'':<14}{'Time':>8}  {'Moves':>5}  {'Deal':<25}  Date", head))
+                plain = option_words(key, {})
+                for label, b in (("Fastest win", r.fastest), ("Fewest moves", r.fewest)):
+                    time_ = store.fmt_time(b.seconds)
+                    deal = deal_text(key, b)
+                    lines.append(
+                        (f"{label:<14}{time_:>8}  {b.moves:>5}  {deal:<25}  {b.at[:10]}", 0)
+                    )
+                    words = option_words(key, b.options)
+                    if words != plain:
+                        lines.append((f"{'':<31}{words}", 0))
+            if r.best_scores:
+                lines.append(("", 0))
+            for n, b in enumerate(r.best_scores):
+                # one for each set of options, or the deal of a game with none
+                label = "Best score" if n == 0 else ""
+                what = option_words(key, b.options) or deal_text(key, b)
+                lines.append((f"{label:<14}{score_text(key, b):<17}{what:<25}  {b.at[:10]}", 0))
+            lines.append(("", 0))
+        clean, every, week = got.clean[key], got.every_game, got.seven_dailies
+
+        def achieved(label: str, a: records.Achievement, so_far: str, what: str) -> tuple[str, int]:
+            return (f"{label:<14}{a.at[:10] if a.at else so_far:<12}{what}", 0)
+
+        if every.earned or not every.done:
+            to_win = "a win in every game"
+        else:
+            left = [GAMES[k].name for k in every.left]
+            to_win = "to win: " + names_in(left, RECORDS_W - 26 - len("to win: "))
+        if week.earned:
+            in_a_row = "a daily won seven days in a row"
+        else:
+            in_a_row = "the longest run of days with a daily won"
+        lines += [
+            ("Achievements", head),
+            # not yet, as a win from before 1.1 counted no hints or undos
+            achieved("Clean win", clean, "not yet", "a win with no hint and no undo"),
+            achieved("Every game", every, f"{every.done} of {every.goal}", to_win),
+            achieved("Seven dailies", week, f"{days.longest} of {week.goal}", in_a_row),
+        ]
+        return lines
 
     # ---- options dialog ---- #
     @hides_the_board

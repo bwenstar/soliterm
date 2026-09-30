@@ -137,10 +137,23 @@ from the menu, and the games scroll as they do on the menu.
 | `Up`, `k` / `Down`, `j` | move up and down the games |
 | `PgUp` / `PgDn` | move a page up or down |
 | `Home` / `End` | go to the first or the last game |
+| `Enter` | open the records of the game picked |
 | any other key | close the statistics |
 
 The mouse doesn't close them, so the pointer passing over the window
 can't.
+
+### A game's records
+
+Enter on the statistics opens the records of the game picked.
+
+| Keys | What they do |
+| --- | --- |
+| `Left`, `h` / `Right`, `l` | the records of the game before or after |
+| any other key | back to the statistics, with the game shown picked |
+
+In a terminal too short for them all, they scroll as the help does. The
+mouse doesn't close them either.
 
 ### Help
 
@@ -219,11 +232,12 @@ over the window does nothing, and the wheel does nothing on the board.
   Some games do more with a double-click, and each game's page in
   [docs/games](games/README.md) says what.
 - On the menu, the daily deals and the end of a game, click a row to pick
-  it. On the statistics, a click picks out a game's row.
+  it. On the statistics, a click picks out a game's row, and a click on
+  the row already picked, or a double-click, opens its records.
 - On the menu, the daily deals and the statistics, the wheel moves up and
-  down the list, and it scrolls the help where the help is too long for
-  the terminal. Where they scroll, a click on the line saying how many
-  more there are moves a page that way.
+  down the list, and it scrolls the help and a game's records where they
+  are too long for the terminal. Where they scroll, a click on the line
+  saying how many more there are moves a page that way.
 
 A terminal has to pass mouse clicks on for any of this to work. Most do,
 and in tmux it takes `set -g mouse on`.

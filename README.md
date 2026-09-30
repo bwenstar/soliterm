@@ -285,6 +285,16 @@ Two columns go beyond AisleRiot's: Streak, the wins in a row you're on,
 and Longest, the most you've had. They come from the games played here, so
 a game played in AisleRiot doesn't count towards them.
 
+Enter on a game's row, or a click on the row already picked, opens that
+game's records: the games played and won, the fastest win and the fewest
+moves with the deal and the date of each, the best score for each set of
+options, and the streaks. Under them are three achievements: a clean win
+of that game, with no hint and no undo; a win in every game; and a daily
+won seven days in a row. Left and Right go to the other games' records,
+and any other key goes back. The records come from the games played
+here, as the streaks do, so they can count fewer games than Wins and
+Total.
+
 The win screen says how a game stood on its deal too, from the same
 games: `On this deal: a new best, was 2:40, 61 moves`, or `your best is
 1:58, 44 moves` when it didn't beat it, and a game that ends with no
@@ -400,7 +410,7 @@ the exit statuses. From a checkout, read it with `man -l man/soliterm.6`.
 | --- | --- |
 | `~/.config/soliterm/config.json` | your settings: each game's options, the colours and theme, the game last played |
 | `~/.local/share/soliterm/stats.json` | the statistics of every game |
-| `~/.local/share/soliterm/history.jsonl` | a line for every game played here, which the streaks, the daily list and the best on each deal come from |
+| `~/.local/share/soliterm/history.jsonl` | a line for every game played here, which the streaks, the records and achievements, the daily list and the best on each deal come from |
 | `~/.local/share/soliterm/saves/` | the games kept for next time, one file for each game, and the ones being played |
 | `~/.config/gnome-games/aisleriot` | AisleRiot's own statistics, shared when AisleRiot is installed |
 
