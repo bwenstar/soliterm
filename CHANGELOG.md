@@ -12,6 +12,152 @@ Soliterm 1.0.0 lists the changes since.
 
 ## [Unreleased]
 
+This release is about the first few games and the reasons to come back
+after them. There's a thirteenth game, Pyramid. A move the rules refuse
+says why, `p` pauses and `y` copies a share code. Each game has a page of
+records and three achievements, the daily list keeps a streak of days,
+and the win banner says how you did on that deal before. All of that is
+worked out from the history Soliterm has kept since 1.0, so the games
+you've played here already count, and no file has changed its format.
+
+### Added
+
+- Pyramid, AisleRiot's Thirteen, for thirteen games in all. You take a
+  pyramid of 28 cards apart in pairs whose ranks make 13, a King going on
+  its own, with only the bottom row dealt face up and one pass through
+  the stock. Put a card down on its partner to take both off, and `f` or
+  a double-click takes off a King, or the top two cards of the waste when
+  they make 13. It shares AisleRiot's record of Thirteen, so any games of
+  it you've played there show up straight away, and its share codes,
+  such as `pyramid:216`, deal the same cards from now on, as the other
+  games' do. [docs/games/pyramid.md](docs/games/pyramid.md) has the
+  rules, and when AisleRiot counts a game of it as won.
+- Each game has a page of records. Enter on its row of the statistics
+  opens it, as does a click on the row already picked, and Left and Right
+  go through the other games. It has the games played and won, the
+  fastest win and the one in the fewest moves, each with its deal and
+  date, the best score for each set of options, which a lost game can
+  hold too, and the win streak. They count only the games played here,
+  so they can come from fewer games than the Wins and Total, and the
+  page says so.
+- Three achievements, on each game's records page: a clean win of that
+  game, with no hint and no undo, a win in every game, and a daily won
+  seven days in a row. Each gives the day it was earned or how far along
+  you are. Like the records they come from `history.jsonl` each time, so
+  they count the games played here and not AisleRiot's, and a win from
+  before 1.1, which didn't count its hints and undos, can't be a clean
+  one.
+- The daily list says how each of today's dailies went: `won in 3:12,
+  87 moves` for your best win of it, `played, not won yet`, or
+  `saved at 0:42, 31 moves` for one waiting to be picked up. Over it is
+  your daily streak, the days in a row with a daily won in any game, and
+  the longest, and until one of today's is won, a reminder that it needs
+  one to keep going. A daily won or lost can still be played again.
+- The win banner says how a win stood against your best win of the same
+  deal, on time and then on moves: `On this deal: a new best, was 2:40,
+  61 moves`, or `your best is 1:58, 44 moves`. The first win of a deal
+  says nothing more, and a game with no moves left gives your best win of
+  its deal, if there is one. The deal is the game, its number and the
+  options, so a daily is the same deal as the plain one of its number
+  with the standard options, as they have the same cards.
+  Text mode prints the same line under a win's share code.
+- A move the rules refuse says why, in the full-screen game and in text
+  mode, as in `illegal move: 8D doesn't go on 10D, which takes a black 9`.
+  Each game gives its own rules' reasons, names the cards the way the
+  board does, and gives nothing away about a face-down card.
+- `p` pauses the full-screen game. A page over the board says how long
+  you've played, and the clock stands still until any key or a left
+  click takes you back. A game left from behind it, as when the terminal
+  closes, keeps the time played up to the pause and none of the pause
+  itself.
+- In the full-screen game `y` copies the share code of the deal in play,
+  and on the banner at the end of a game the share code, or a daily's
+  share line, and the message names what went. On Windows it goes on the
+  clipboard. Anywhere else Soliterm asks the terminal to copy it, with
+  the escape sequence OSC 52, as it never runs another program to reach
+  the clipboard. Not every terminal takes OSC 52 and none says whether it
+  did, so the message only says it was sent. In tmux it needs
+  `set -g set-clipboard on`, and under GNU screen it goes through screen
+  to the terminal outside. [SECURITY.md](SECURITY.md) adds the clipboard
+  to what Soliterm writes.
+- Text mode says when a game has nothing left to do that could still win
+  it, once, under the board: `No moves left - game over. Type u to undo
+  or n for a new deal.` It doesn't count the game yet, so `u` can still
+  go back and try another way, and after an undo it waits for your next
+  move before it says so again. See
+  [docs/text-mode.md](docs/text-mode.md).
+- In text mode a daily that counts as lost, when you leave it with `q`,
+  deal again with `n` or the input runs out, prints the line to share
+  that a won one does, as in `Soliterm daily 2026-09-24, Klondike: stuck
+  after 4:05, 57 moves`.
+- [docs/img/hero.cast](docs/img/hero.cast) is a recording of a game of
+  Klondike, made from what the game itself wrote to the terminal, and
+  `asciinema play docs/img/hero.cast` plays it back.
+
+### Changed
+
+- When `TERM` names a terminal type this system has no terminfo entry
+  for, as over ssh from a terminal newer than the far end, the
+  full-screen game plays as `xterm-256color`, or `xterm`, and inside tmux
+  or screen as `screen-256color` or `screen`, where it used to go to text
+  mode. The first game's message line says so, stderr says it again once
+  the screen is back, and so does `--debug-info`. Installing the
+  terminal's own terminfo entry there gets you its full look. With none
+  of those known either, it's text mode as before.
+- In a terminal too short for them, the menu, the daily list and the
+  statistics scroll their games, with a line above or below saying how
+  many more there are that way, where they used to say the terminal was
+  too small. PgUp, PgDn, Home and End move the pick on all three, the
+  wheel moves it a row, and a click on a "more" line turns the page. The
+  help and a game's records scroll the same way when they don't fit. See
+  [docs/keybindings.md](docs/keybindings.md).
+- The statistics always pick out a game's row now, the one in play as
+  before or else the first, so there's one to scroll by and to open, and
+  a click on a row picks it. Up and Down (or `k` and `j`), PgUp, PgDn,
+  Home, End and Enter no longer close them, and any other key still
+  does. Without colour the row picked is marked with `>`, as on the menu.
+- Text mode says what has gone wrong with Soliterm's files as the game
+  starts, such as one set aside as damaged, on stderr before its first
+  board, where it used to wait until the game was over, and it doesn't
+  say it again on the way out.
+- `--reset-stats` says the records and achievements go with the history,
+  when there's a history to clear, and that putting `history.jsonl.bak`
+  back as `history.jsonl` brings them back.
+- The test suite has grown to about 3,700 tests, from about 2,900, and
+  still needs only pytest. Two of them start a Python of their own to
+  look up `xterm-256color` and `screen-256color` in the system's
+  terminfo, and each skips where that Python's curses has no entry for
+  it.
+
+### Fixed
+
+- When AisleRiot was open, the warning saying so on the first game's
+  message line hid the game's own note, such as `Resumed your game` or
+  that its save couldn't be read. Now the line gives every note in turn,
+  most pressing first, with anything that has gone wrong with the files
+  so far, and each key that leaves the line as it was brings up the next.
+- A message too long for the message line comes in pieces that each fit
+  at 80 columns, code skin and all, and a key with nothing of its own to
+  say brings up the next. The note that a saved game is being played
+  somewhere else was cut off at the edge after `n`, `g`, `o` or a game
+  picked from the menu, and so were the longest things Scorpion and
+  Spider say when there's no hint or no deal.
+- On Windows, Ctrl-Break at the `--reset-stats` prompt ends it at once,
+  where it did nothing until Enter was pressed. It clears nothing, even
+  when a yes comes in with it, and ends with 130 as it did.
+- When curses finds no terminfo database at all, as with a Python built
+  to look only in a folder of its own, the line on stderr says so, and
+  that `TERMINFO_DIRS=/usr/share/terminfo:/lib/terminfo` points it at
+  the system's. It used to say to set `TERM` to your terminal's type,
+  `xterm-256color` for most, even when that was what it was already.
+- A text-mode win in under half a second, as a script can make, prints
+  its time as 0:01, the time the statistics and the history keep, where
+  it printed 0:00. So does a daily's share line.
+- On Windows without windows-curses, the note on how to add it says
+  `py -m pip install windows-curses`, as the README does. It said
+  `pip install windows-curses`, and a python.org install doesn't put
+  `pip` on the PATH unless you ask it to.
+
 ## [1.1.0] - 2026-09-29
 
 ### Added
