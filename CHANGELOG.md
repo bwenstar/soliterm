@@ -30,8 +30,9 @@ you've played here already count, and no file has changed its format.
   they make 13. It shares AisleRiot's record of Thirteen, so any games of
   it you've played there show up straight away, and its share codes,
   such as `pyramid:216`, deal the same cards from now on, as the other
-  games' do. [docs/games/pyramid.md](docs/games/pyramid.md) has the
-  rules, and when AisleRiot counts a game of it as won.
+  games' do.
+  [docs/games/pyramid.md](https://github.com/bwenstar/soliterm/blob/v1.2.0/docs/games/pyramid.md)
+  has the rules, and when AisleRiot counts a game of it as won.
 - Each game has a page of records. Enter on its row of the statistics
   opens it, as does a click on the row already picked, and Left and Right
   go through the other games. It has the games played and won, the
@@ -78,21 +79,23 @@ you've played here already count, and no file has changed its format.
   the clipboard. Not every terminal takes OSC 52 and none says whether it
   did, so the message only says it was sent. In tmux it needs
   `set -g set-clipboard on`, and under GNU screen it goes through screen
-  to the terminal outside. [SECURITY.md](SECURITY.md) adds the clipboard
-  to what Soliterm writes.
+  to the terminal outside.
+  [SECURITY.md](https://github.com/bwenstar/soliterm/blob/v1.2.0/SECURITY.md)
+  adds the clipboard to what Soliterm writes.
 - Text mode says when a game has nothing left to do that could still win
   it, once, under the board: `No moves left - game over. Type u to undo
   or n for a new deal.` It doesn't count the game yet, so `u` can still
   go back and try another way, and after an undo it waits for your next
   move before it says so again. See
-  [docs/text-mode.md](docs/text-mode.md).
+  [docs/text-mode.md](https://github.com/bwenstar/soliterm/blob/v1.2.0/docs/text-mode.md).
 - In text mode a daily that counts as lost, when you leave it with `q`,
   deal again with `n` or the input runs out, prints the line to share
   that a won one does, as in `Soliterm daily 2026-09-24, Klondike: stuck
   after 4:05, 57 moves`.
-- [docs/img/hero.cast](docs/img/hero.cast) is a recording of a game of
-  Klondike, made from what the game itself wrote to the terminal, and
-  `asciinema play docs/img/hero.cast` plays it back.
+- [docs/img/hero.cast](https://github.com/bwenstar/soliterm/blob/v1.2.0/docs/img/hero.cast)
+  is a recording of a game of Klondike, made from what the game itself
+  wrote to the terminal, and `asciinema play docs/img/hero.cast` plays
+  it back.
 
 ### Changed
 
@@ -110,7 +113,7 @@ you've played here already count, and no file has changed its format.
   too small. PgUp, PgDn, Home and End move the pick on all three, the
   wheel moves it a row, and a click on a "more" line turns the page. The
   help and a game's records scroll the same way when they don't fit. See
-  [docs/keybindings.md](docs/keybindings.md).
+  [docs/keybindings.md](https://github.com/bwenstar/soliterm/blob/v1.2.0/docs/keybindings.md).
 - The statistics always pick out a game's row now, the one in play as
   before or else the first, so there's one to scroll by and to open, and
   a click on a row picks it. Up and Down (or `k` and `j`), PgUp, PgDn,
@@ -162,11 +165,11 @@ you've played here already count, and no file has changed its format.
 
 ### Added
 
-- [docs/compatibility.md](docs/compatibility.md) says what stays the same
-  from one release to the next: the deals, share codes and the daily
-  deal, the game keys and slot ids, the command line, what a script can
-  read in text mode, and the files, with what an older version makes of
-  a newer one's. It also says what isn't promised.
+- [docs/compatibility.md](https://github.com/bwenstar/soliterm/blob/v1.1.0/docs/compatibility.md)
+  says what stays the same from one release to the next: the deals,
+  share codes and the daily deal, the game keys and slot ids, the command
+  line, what a script can read in text mode, and the files, with what an
+  older version makes of a newer one's. It also says what isn't promised.
 - On Linux, while statistics are shared, the first game says so when
   AisleRiot is open, on the bottom line or, in text mode, on stderr. A
   game finished here while it's open drops out of both when it quits. It
