@@ -3,33 +3,41 @@
 
 # Soliterm
 
-Solitaire for your terminal. Thirteen games, played by GNOME AisleRiot's
-rules with the keyboard or the mouse, and if you have AisleRiot, one set
-of statistics shared between the two.
-
 [![CI](https://img.shields.io/github/actions/workflow/status/bwenstar/soliterm/ci.yml?branch=main&label=CI)](https://github.com/bwenstar/soliterm/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/soliterm)](https://pypi.org/project/soliterm/)
 [![Python versions](https://img.shields.io/pypi/pyversions/soliterm)](https://pypi.org/project/soliterm/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](https://github.com/bwenstar/soliterm/blob/main/LICENSE)
 
+Solitaire for your terminal: Klondike, Spider, FreeCell and ten more
+games, played by GNOME AisleRiot's rules with the keyboard or the mouse.
+It's standard-library Python and nothing else, all in one file,
+`soliterm.pyz`. Only on Windows, where Python has no curses of its own,
+does it need the windows-curses package, and pip, pipx and uv install
+that along with it. With [uv](https://docs.astral.sh/uv/) or
+[pipx](https://pipx.pypa.io), this plays it now:
+
+```sh
+uvx soliterm               # or: pipx run soliterm
+```
+
+Every deal has a share code, such as `klondike:946`, that deals a friend
+the same cards, and every game has a daily deal, the same for everyone
+that day. And if someone comes past, `b` is the boss key: it hides the
+game behind a screen that looks like work.
+
 ![A game of Klondike, deal 946, in a terminal. A hint picks out the 6♦ and the 7♣ it goes on, and the arrow keys and Enter move it there, turning up a K♥; a second hint moves the 5♠ onto the 6♦ the same way, turning up a 9♦. Then a caption says a little later and the animation skips ahead to where every card can go up. One key sends them all to the foundations, the cards bounce down the screen at twice the speed, and the win screen shows the time, the score, 102 moves and the share code klondike:946.](https://raw.githubusercontent.com/bwenstar/soliterm/main/docs/img/hero.gif)
 
 ## Try it now
 
-With [pipx](https://pipx.pypa.io) or [uv](https://docs.astral.sh/uv/),
-this downloads it into a temporary environment and plays it straight
-away:
+`uvx` and `pipx run` download Soliterm into a temporary environment and
+start it there. To keep it:
 
 ```sh
-pipx run soliterm          # or: uvx soliterm
-```
-
-To keep it:
-
-```sh
-pipx install soliterm      # or: uv tool install soliterm, or pip install soliterm
+pipx install soliterm      # or: uv tool install soliterm
 soliterm
 ```
+
+`pip install soliterm` works too, in an environment of your own.
 
 Or take the single file from the
 [latest release](https://github.com/bwenstar/soliterm/releases/latest)
@@ -60,9 +68,7 @@ cd soliterm
 PYTHONPATH=src python3 -m soliterm
 ```
 
-It needs Python 3.9 or newer, and nothing else on Linux and macOS. On
-Windows, curses comes from the windows-curses package, which pip and pipx
-install along with Soliterm. To play the `.pyz` there, run
+It needs Python 3.9 or newer. To play the `.pyz` on Windows, run
 `py -m pip install windows-curses` first, or it plays in text mode.
 
 ## What's in it
@@ -75,18 +81,16 @@ install along with Soliterm. To play the `.pyz` there, run
 - **Your statistics, shared with AisleRiot.** When GNOME AisleRiot is
   installed the two keep one record, so a game won in either shows up in
   both. Soliterm adds win streaks on top.
-- **Deals you can share.** Every deal has a number, and a share code
-  such as `klondike:d3:48213` (Klondike drawing three, deal 48213) lets a
-  friend play the same cards. Every game has a daily deal, the same for
-  everyone that day, with nothing going online.
+- **Numbered deals.** A number deals the same cards on any computer,
+  and a share code such as `klondike:d3:48213` (Klondike drawing three,
+  deal 48213) carries the options with it. The daily deal comes from the
+  date, with nothing going online.
 - **Leave whenever you like.** Quit in the middle of a game and it's
   waiting on the menu next time, clock and all.
 - **Four themes**, a four-colour deck and a compact view.
-- **A code skin and a boss key**, for playing where you perhaps shouldn't.
+- **A code skin** that draws the game inside what looks like a Python
+  file, for playing where you perhaps shouldn't.
 - **A text mode** for pipes, scripts and terminals curses can't drive.
-- **Nothing to install but Python**, and windows-curses on Windows, which
-  pip adds for you. The game uses the standard library alone and fits in
-  one `.pyz` file.
 
 ## Screenshots
 
