@@ -316,16 +316,18 @@ SIGTSTP itself: it stops the usual way inside the handler and leaves out
 the time until it's back.
 
 Windows sends no SIGHUP or SIGTERM to turn into anything. Instead, while
-a game can be in play, `_leave_on_console_events` in `cli.py` sets a
-console control handler, which Windows calls on a thread of its own when
-the console window closes or Ctrl-Break is pressed. It interrupts the
-main thread the way Ctrl-C does, and breaks off a read of stdin with
-`CancelIoEx`, since the interrupt alone doesn't end the read text mode
-waits in. Windows ends the process as soon as the handler returns from a
-close, and 5 seconds after it in any case, so the handler waits, for up
-to 4 seconds, for the way out to put the game away. The process still
-ends with status 0xC000013A. Ctrl-Break needs no wait, and leaves with
-130 as Ctrl-C does. Ctrl-C is left to Python, which raises
+a game can be in play or `--reset-stats` waits for its yes,
+`_leave_on_console_events` in `cli.py` sets a console control handler,
+which Windows calls on a thread of its own when the console window
+closes or Ctrl-Break is pressed. It interrupts the main thread the way
+Ctrl-C does, and breaks off a read of stdin with `CancelIoEx`, since the
+interrupt alone doesn't end the read text mode waits in. Windows ends
+the process as soon as the handler returns from a close, and 5 seconds
+after it in any case, so the handler waits, for up to 4 seconds, for the
+way out to put the game away. The process still ends with status
+0xC000013A. Ctrl-Break needs no wait, and leaves with 130 as Ctrl-C
+does. At the `--reset-stats` prompt either one clears nothing, even with
+a yes read as it came. Ctrl-C is left to Python, which raises
 `KeyboardInterrupt` as ever. A process ended some other way, as
 `taskkill /f` does, keeps nothing, though a save that was taken up to
 resume it is offered again the next time, as it was when it was taken

@@ -2059,6 +2059,45 @@ def test_no_game_no_handler_for_the_console_closing(monkeypatch, console):
     assert handlers == [[]]
 
 
+class LeftAtThePrompt(ConsoleIn):
+    """A console control event as --reset-stats asks, then the interrupt
+    landing as the read is broken off, or the line typed if there was one."""
+
+    def __init__(self, typed, console, event):
+        super().__init__(typed)
+        self.console, self.event = console, event
+        self.handlers = []  # how many were set as each read waited
+
+    def readline(self):
+        self.handlers.append(len(self.console.kernel32.handlers))
+        for on_event in self.console.kernel32.handlers:
+            assert on_event(self.event)
+        if not self.getvalue():
+            raise KeyboardInterrupt
+        return self.getvalue()
+
+
+@pytest.mark.parametrize("event", [2, 1], ids=["closed", "ctrl-break"])
+@pytest.mark.parametrize("typed", ["", "yes\n"], ids=["waiting", "yes"])
+def test_leaving_at_the_reset_prompt_clears_nothing(monkeypatch, capsys, console, event, typed):
+    store.record_result("golf", True, 50)
+    stdin = LeftAtThePrompt(typed, console, event)
+    monkeypatch.setattr(sys, "stdin", stdin)
+    rc = main(["--reset-stats"])
+    # the handler was there for the read, which it broke off, and was
+    # taken out after
+    assert stdin.handlers == [1]
+    assert console.kernel32.cancelled == [STDIN_HANDLE]
+    assert console.kernel32.handlers == []
+    # as Ctrl-C leaves a game, even with yes typed
+    assert rc == 130
+    out, err = capsys.readouterr()
+    assert out == "Nothing was cleared.\n"
+    assert err.endswith("Type yes to clear them: " + ("" if typed else "\n"))
+    assert store.get_stat("golf")["total"] == 1
+    assert not os.path.exists(store.stats_path() + ".bak")
+
+
 class Unwritable(io.StringIO):
     """stderr on a console that has gone."""
 

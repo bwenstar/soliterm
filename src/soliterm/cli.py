@@ -196,15 +196,21 @@ def reset_stats(yes: bool) -> int:
             file=sys.stderr,
         )
         print("Type yes to clear them: ", end="", file=sys.stderr, flush=True)
+        came: list[int] = []  # the console events that came
         try:
-            answer = sys.stdin.readline()
+            # on Windows, Ctrl-Break or the console closing breaks off the
+            # wait for an answer as Ctrl-C does, where it waited for Enter
+            with _leave_on_console_events() as came:
+                answer = sys.stdin.readline()
         except KeyboardInterrupt:
             answer = ""
         if not answer.endswith("\n"):
-            print(file=sys.stderr)  # Ctrl-D or Ctrl-C left the line open
-        if answer.strip().lower() != "yes":
+            print(file=sys.stderr)  # Ctrl-D, Ctrl-C or Ctrl-Break left the line open
+        if came or answer.strip().lower() != "yes":
             print("Nothing was cleared.")
-            return 1
+            # a yes read after Ctrl-Break doesn't count, and it ends with
+            # 130 as a game left with it does
+            return 130 if came else 1
     try:
         backups = store.backup_stats()
         kept = history.backup()
@@ -397,8 +403,8 @@ def _leave_on_signals() -> Iterator[list[int]]:
     comes while the way out waits for the stats lock: then it breaks off
     the wait, as a second Ctrl-C does. One ignored already, as nohup
     leaves SIGHUP, stays ignored. What it yields lists the signals that
-    came. While a game may be in play on Windows, Ctrl-Break goes to
-    _leave_on_console_events instead.
+    came. While a game may be in play on Windows, or --reset-stats asks,
+    Ctrl-Break goes to _leave_on_console_events instead.
     """
     hup = getattr(signal, "SIGHUP", None)  # not on Windows
     brk = getattr(signal, "SIGBREAK", None)  # only on Windows
@@ -446,9 +452,10 @@ _console_handlers: list[object] = []
 
 
 @contextmanager
-def _leave_on_console_events() -> Iterator[None]:
+def _leave_on_console_events() -> Iterator[list[int]]:
     """On Windows, leave the way Ctrl-C does when the console window closes
-    or Ctrl-Break is pressed, while a game may be in play.
+    or Ctrl-Break is pressed, while a game may be in play or --reset-stats
+    waits for its answer.
 
     Windows sends no signal for the close, but calls a handler on a thread
     of its own and ends the process once it returns. This one interrupts
@@ -464,11 +471,13 @@ def _leave_on_console_events() -> Iterator[None]:
     comes only after this handler, it would be too late to be pending as
     the read is broken off, and a Ctrl-Break that a program sends doesn't
     end the read by itself. After the first event, another does no more
-    than wait. Ctrl-C is left to Python's handler. Off Windows, or where
-    the handler can't be set, it does nothing.
+    than wait. Ctrl-C is left to Python's handler. What it yields lists
+    the events that came. Off Windows, or where the handler can't be set,
+    it does nothing.
     """
+    came: list[int] = []
     if sys.platform != "win32":
-        yield
+        yield came
         return
     import _thread
     import ctypes
@@ -482,7 +491,6 @@ def _leave_on_console_events() -> Iterator[None]:
     except (AttributeError, OSError, ValueError):
         stdin = None  # a stdin with no file behind it has no read to break off
     done = threading.Event()
-    came: list[int] = []
 
     def on_event(event: int) -> bool:
         if event not in _CONSOLE_LEAVING:
@@ -499,11 +507,11 @@ def _leave_on_console_events() -> Iterator[None]:
 
     handler = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.DWORD)(on_event)
     if not kernel32.SetConsoleCtrlHandler(handler, True):
-        yield
+        yield came
         return
     _console_handlers.append(handler)
     try:
-        yield
+        yield came
     finally:
         done.set()
         kernel32.SetConsoleCtrlHandler(handler, False)
