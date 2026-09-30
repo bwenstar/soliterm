@@ -28,6 +28,7 @@ from soliterm.engine import Card, GameDef
 from soliterm.tui import cascade
 from soliterm.tui.app import basic_colours
 from soliterm.tui.board import CODE_GUTTER
+from soliterm.tui.keys import help_lines
 from soliterm.tui.screens import DEAL_TEXT_MAX
 
 from helpers import (
@@ -38,6 +39,7 @@ from helpers import (
     crashed,
     deal,
     from_before_the_counts,
+    more_keys,
     nothing_in_play,
     saved,
     signal_as_it_waits,
@@ -3467,9 +3469,14 @@ def test_the_code_skin_keeps_the_too_small_notice_inside_the_code_file(tui):
     assert len(shown) == 2 and all(re.match(r" *\d+  # ", row) for row in shown)
 
 
-# The rows the screens with a list of games take with three rows of it, the
-# fewest they scroll it in
-SCROLLED_MIN = {"choose a game": 14, "Daily deals for": 8, "Statistics": 10}
+# The rows the screens that scroll take with three rows of what scrolls,
+# the fewest they scroll it in
+SCROLLED_MIN = {
+    "choose a game": 14,
+    "Daily deals for": 8,
+    "Statistics": 10,
+    "Soliterm - controls": 7,
+}
 
 
 @pytest.mark.parametrize("screen, start_key, game, keys", EVERY_SCREEN)
@@ -3488,7 +3495,11 @@ def test_a_screen_too_tall_for_the_terminal_says_so(tui, screen, start_key, game
     assert "Terminal too small" in small and f"needs 40x{need}" in small
     assert screen not in small
     shown = roomy.rstrip().split("\n")
-    assert len(shown) == need and shown[-1] == rows[-1]
+    # down to the footer, which on the help says now that it scrolls
+    footer = rows[-1]
+    if screen == "Soliterm - controls":
+        footer = footer.replace("Press", "Up/Down scroll - Press")
+    assert len(shown) == need and shown[-1] == footer
 
 
 def test_keys_the_player_cannot_see_do_nothing_on_a_small_menu(tui):
@@ -3775,6 +3786,86 @@ def test_pdcurses_is_asked_for_the_wheel_its_own_way(tui, monkeypatch, platform)
     monkeypatch.setattr(sys, "platform", platform)
     scr = tui([])
     assert scr.masks and all(bool(m & PDC_WHEEL) == (platform == "win32") for m in scr.masks)
+
+
+# -- a help longer than the terminal ------------------------------------------------------
+
+
+HELP_TITLE = "Soliterm - controls"
+HELP_SCROLLS = "Up/Down scroll - Press any key to continue."
+
+
+@pytest.mark.parametrize("skin", [False, True], ids=["plain", "code-skin"])
+@pytest.mark.parametrize(
+    "down, up",
+    [
+        (curses.KEY_DOWN, "k"),
+        ("j", curses.KEY_UP),
+        (Mouse(9, 30, WHEEL_DOWN), Mouse(9, 30, WHEEL_UP)),
+        (curses.KEY_NPAGE, curses.KEY_PPAGE),
+    ],
+    ids=["arrows", "letters", "wheel", "pages"],
+)
+def test_a_help_with_ten_keys_more_scrolls_to_every_line(tui, monkeypatch, skin, down, up):
+    lines = more_keys(monkeypatch, 10)
+    if skin:
+        code_skin_on()
+    walk = [down] * len(lines) + [up] * len(lines)
+    scr = tui(["?", *walk, "z"], h=24, w=80)
+    shown = scr.frames[1 : 2 + len(walk)]
+    # the title and the footer stay put, and every line comes into view on
+    # the way down, the last with nothing more below it
+    assert all(HELP_TITLE in frame and HELP_SCROLLS in frame for frame in shown)
+    assert all(any(line in frame for frame in shown) for line in lines)
+    assert "more below" in shown[0] and "more above" not in shown[0]
+    assert lines[-1] in shown[len(lines)] and "more below" not in shown[len(lines)]
+    # back up at the top, and then any other key closes it
+    assert shown[-1] == shown[0]
+    assert HELP_TITLE not in scr.frames[2 + len(walk)]
+
+
+def test_the_help_scrolls_in_a_terminal_too_short_for_it(tui):
+    lines = help_lines()
+    scr = tui(["?", curses.KEY_END, curses.KEY_HOME, Resize(24, 80), "z"], h=18, w=80)
+    top, end, back, tall = scr.frames[1:5]
+    assert "Terminal too small" not in top
+    assert lines[0] in top and lines[-1] not in top and "more below" in top
+    assert lines[-1] in end and lines[0] not in end and "more above" in end
+    assert back == top and HELP_SCROLLS in top
+    # a terminal tall enough for it all shows it all, and says any key
+    # closes it, as z does
+    assert all(line in tall for line in lines)
+    assert "Press any key to continue." in tall and "Up/Down" not in tall
+    assert "Score" in scr.frames[5]
+
+
+def test_a_click_on_more_below_turns_the_help_a_page(tui):
+    frame = tui(["?", "z"], h=18, w=80).frames[1]
+    (row,) = [y for y, line in enumerate(frame.split("\n")) if "more below" in line]
+    clicked = tui(["?", Mouse(row, 30), "z"], h=18, w=80).frames[2]
+    paged = tui(["?", curses.KEY_NPAGE, "z"], h=18, w=80).frames[2]
+    assert clicked == paged != frame
+
+
+@pytest.mark.parametrize(
+    "key", [curses.KEY_DOWN, "j", curses.KEY_NPAGE, curses.KEY_END, Mouse(9, 30, WHEEL_DOWN)]
+)
+def test_the_keys_that_scroll_it_close_a_help_that_fits(tui, key):
+    scr = tui(["?", key, "z"], h=24, w=80)
+    assert HELP_TITLE in scr.frames[1]
+    if isinstance(key, Mouse):
+        # but not the mouse, which leaves it up as ever
+        assert scr.frames[2] == scr.frames[1]
+    else:
+        assert "Score" in scr.frames[2]
+
+
+def test_the_boss_key_comes_back_to_the_help_where_it_was_scrolled(tui):
+    scr = tui(["?", curses.KEY_NPAGE, "b", "z", "z"], h=18, w=80)
+    before, hidden, back = scr.frames[2:5]
+    assert "more above" in before
+    assert HELP_TITLE not in hidden
+    assert back == before
 
 
 def test_a_click_on_a_banner_choice_finds_it_under_the_code_skin(tui):

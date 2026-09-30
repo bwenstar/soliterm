@@ -160,6 +160,56 @@ class Scroll:
         return None
 
 
+class Reader(Scroll):
+    """Lines to read rather than rows to pick from, as on the help. The
+    keys that move the pick on a Scroll, and the wheel, move the lines in
+    view here, and stop at the ends."""
+
+    def __init__(self, count: int) -> None:
+        super().__init__(count, -1)  # no row picked
+
+    def scrolls(self) -> bool:
+        """Whether the lines are too many for their rows of the screen."""
+        return self.count > self.room
+
+    def key(self, k: int) -> bool:
+        """Move the lines in view as key k does, if it's one that moves
+        them: Up and Down a line, PgUp and PgDn a page and Home and End to
+        the ends."""
+        last = self.count - self.room + 1 if self.scrolls() else 0
+        if k in (curses.KEY_UP, ord("k")):
+            top = self.top - 1
+        elif k in (curses.KEY_DOWN, ord("j")):
+            top = self.top + 1
+        elif k in (curses.KEY_PPAGE, curses.KEY_NPAGE):
+            page = len(self.shown())
+            top = self.top + (page if k == curses.KEY_NPAGE else -page)
+        elif k == curses.KEY_HOME:
+            top = 0
+        elif k == curses.KEY_END:
+            top = last
+        else:
+            return False
+        if top == 1:
+            # not one line down, where the line saying so would hide it
+            top = 2 if self.top == 0 else 0
+        self.top = min(last, max(0, top))
+        return True
+
+    def mouse(self, bstate: int, dy: int) -> int | None:
+        """Act on a mouse event dy rows below the top of the lines: the
+        wheel moves them a line, and a left click on a line saying there
+        are more turns the page. There's nothing to pick, so it returns
+        None."""
+        if bstate & WHEEL_UP:
+            self.key(curses.KEY_UP)
+        elif bstate & WHEEL_DOWN:
+            self.key(curses.KEY_DOWN)
+        elif bstate & LEFT_CLICK and 0 <= dy < self.room and isinstance(self.lines()[dy], str):
+            self.key(curses.KEY_PPAGE if dy == 0 else curses.KEY_NPAGE)
+        return None
+
+
 class Screens:
     """The screens other than the board, for App to take in."""
 
@@ -251,23 +301,6 @@ class Screens:
         if k == curses.KEY_MOUSE:
             skip_mouse_event()
         return -1
-
-    def wait_for_key(self, draw: Callable[[], None]) -> int:
-        """Show a screen until a key is pressed, and return that key.
-
-        The mouse doesn't count and a resize draws the screen again, so the
-        pointer passing over it or a retiled window can't dismiss it. The
-        boss key hides it and comes back to it.
-        """
-        while True:
-            draw()
-            k = self.page_key()
-            if k == curses.KEY_MOUSE:
-                skip_mouse_event()
-            elif self.boss_key(k):
-                continue
-            elif k not in (-1, curses.KEY_RESIZE):
-                return k
 
     def draw_list(
         self, rows: Scroll, y: int, x: int, row: Callable[[int], str], marked: bool = True
@@ -601,21 +634,40 @@ class Screens:
     # ---- help overlay ---- #
     @hides_the_board
     def help_screen(self):
-        lines = [
-            f"{APP_NAME} - controls",
-            "",
-            *help_lines(),
-            "",
-            "  Press any key to continue.",
-        ]
+        """The keys, as KEYMAP has them. Any key closes it, but where it's
+        too long for the terminal, the keys that move the pick on the menu
+        scroll it instead, as the wheel does. The mouse doesn't close it and
+        a resize draws it again, so the pointer passing over it or a
+        retiled window can't. The boss key hides it and comes back to it."""
+        lines = help_lines()
+        rows = Reader(len(lines))
+        while True:
+            self.draw_help(lines, rows)
+            k = self.page_key()
+            if self.boss_key(k) or (rows.scrolls() and rows.key(k)):
+                continue
+            if k == curses.KEY_MOUSE:
+                try:
+                    _, _mx, my, _, bstate = curses.getmouse()
+                except curses.error:
+                    continue
+                rows.mouse(bstate, my - 2)
+            elif k not in (-1, curses.KEY_RESIZE):
+                return
 
-        def draw():
-            self.begin_page()
-            for i, ln in enumerate(lines):
-                self.safe_add(1 + i, 2, ln, curses.A_BOLD if i == 0 else 0)
-            self.end_page()
-
-        self.wait_for_key(draw)
+    def draw_help(self, lines: list[str], rows: Reader) -> None:
+        """Draw the help, `lines` being what help_lines() gives."""
+        self.begin_page()
+        self.safe_add(1, 2, f"{APP_NAME} - controls", curses.A_BOLD)
+        # the lines right under the title, then a gap and the footer; each
+        # line's own indent is the one draw_list gives it
+        rows.fit(self.stdscr.getmaxyx()[0] - 2 - 2)
+        self.draw_list(rows, 2, 2, lambda i: lines[i][2:], marked=False)
+        footer = "Press any key to continue."
+        if rows.scrolls():
+            footer = "Up/Down scroll - " + footer
+        self.safe_add(2 + rows.room + 1, 4, footer)
+        self.end_page()
 
     # ---- camouflage / boss mode ---- #
     @hides_the_board

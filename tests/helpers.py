@@ -13,6 +13,7 @@ from collections import Counter
 from pathlib import Path
 
 from soliterm import engine, saves, store
+from soliterm.tui import keys
 
 # Cards in a full deal of each game.
 EXPECTED_CARDS = {
@@ -333,6 +334,14 @@ def legal_walk(g, rng, steps, allow=None):
             elif g.can_deal():
                 g.deal()
         yield
+
+
+def more_keys(monkeypatch, n):
+    """n more entries on the help, a line each, as keys still to come would
+    add. Returns the help's lines with them."""
+    spare = [keys.Binding(f"Spare {i:02}", "stands in for a key to come", {}) for i in range(n)]
+    monkeypatch.setattr(keys, "KEYMAP", (*keys.KEYMAP, *spare))
+    return keys.help_lines()
 
 
 class FakeScr:

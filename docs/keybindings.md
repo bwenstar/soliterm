@@ -14,7 +14,7 @@ This page also has the other screens, the mouse and text mode.
 | `Up`, `k`, `Down`, `j`, `Left`, `Right`, `l` | move between the slots (k up, j down, l right) |
 | `Enter`, `Space` | pick up the cursor's run; press again to drop |
 | `+`, `-` | lift one card more / fewer while holding a run |
-| mouse click | click a card to pick it up, then a target to drop; click one mid-stack to lift it and all below it |
+| mouse click | pick up a card and those on it, then click a slot |
 | mouse double-click | send a card to a foundation; deal on stock |
 | `Esc` | cancel the current selection / clear hint |
 | `d`, `D` | deal from the stock (where applicable) |
@@ -120,7 +120,10 @@ can't.
 
 ### Help
 
-Any key closes it. The mouse doesn't, so the pointer passing over the
+Any key closes it. In a terminal too short for it all, it scrolls
+instead with the keys that move up and down the statistics, and a line
+above or below says how many more there are that way. Any other key
+closes it then. The mouse doesn't, so the pointer passing over the
 window can't.
 
 ### Leaving a game under way
@@ -193,8 +196,9 @@ over the window does nothing, and the wheel does nothing on the board.
 - On the menu, the daily deals and the end of a game, click a row to pick
   it. On the statistics, a click picks out a game's row.
 - On the menu, the daily deals and the statistics, the wheel moves up and
-  down the list. Where the games scroll, a click on the line saying how
-  many more there are moves a page that way.
+  down the list, and it scrolls the help where the help is too long for
+  the terminal. Where they scroll, a click on the line saying how many
+  more there are moves a page that way.
 
 A terminal has to pass mouse clicks on for any of this to work. Most do,
 and in tmux it takes `set -g mouse on`.

@@ -12,7 +12,7 @@ from soliterm.tui import keys
 from soliterm.tui.app import App
 from soliterm.tui.board import CODE_GUTTER
 
-from helpers import PDCURSES_NUMPAD, FakeScr
+from helpers import PDCURSES_NUMPAD, FakeScr, more_keys
 
 # how a label names the keys that are not a plain character
 NAMES = {
@@ -33,7 +33,9 @@ NAMES = {
 
 def help_screen(code_skin=False):
     scr = FakeScr(24, 80)
-    scr.getch = lambda: ord(" ")  # the key that closes it
+    # the key that closes it, and a help too long for the screen as well,
+    # which a space would only scroll or, too long to scroll, not close
+    scr.getch = lambda: ord("q")
     app = App(scr)
     app.cfg["code_skin"] = code_skin
     app.help_screen()
@@ -123,6 +125,16 @@ def test_the_help_screen_fits_an_80x24_terminal():
     assert "Press any key to continue." in help_screen()
     # drawn from column 2, and curses leaves the last column alone
     assert all(2 + len(line) < 79 for line in keys.help_lines())
+
+
+@pytest.mark.parametrize("code_skin", [False, True])
+def test_the_help_has_room_at_80x24_for_two_keys_more(monkeypatch, code_skin):
+    lines = more_keys(monkeypatch, 2)
+    text = help_screen(code_skin)
+    # all of it on the screen at once, with nothing to scroll
+    assert all(line in text for line in lines)
+    assert "Press any key to continue." in text
+    assert "more below" not in text and "Up/Down" not in text
 
 
 def test_every_help_line_fits_inside_the_code_skin():
