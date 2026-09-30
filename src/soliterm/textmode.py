@@ -142,6 +142,10 @@ def render_text(g: Solitaire, symbols: bool = True, color: bool = False) -> str:
 # Text command parser (slots addressed by their engine id)
 # --------------------------------------------------------------------------- #
 
+# said under the board once a game under way is stuck, as the full-screen
+# game's end banner says it
+NO_MOVES_LEFT = "No moves left - game over. Type u to undo or n for a new deal."
+
 TEXT_HELP = """\
 Text-mode commands. A slot is named by the number in its tag on the board,
 so stk#0 is 0, fnd#4 is 4 and #9 is 9:
@@ -397,6 +401,7 @@ def run_text(
     start = time.monotonic()  # one clock per deal
     recorded = False
     resumed = False
+    stuck_said = False  # that no moves are left, since the last move
 
     def seconds() -> int:
         """This deal's time in whole seconds, as it is printed and stored."""
@@ -431,9 +436,16 @@ def run_text(
             history.record(g, won, secs)
             recorded = True
 
-    def give_up() -> None:
-        if under_way():
-            count(False, seconds())
+    def give_up() -> str:
+        """Count a game under way lost. A daily's line to share, as a win
+        has one, or ""."""
+        if not under_way():
+            return ""
+        secs = seconds()
+        count(False, secs)
+        if g.daily:
+            return share_line(g.gamedef.name, g.daily, False, secs, g.moves)
+        return ""
 
     def unkept() -> str:
         # a new deal while a game of its kind is saved, which leaves no room
@@ -445,33 +457,42 @@ def run_text(
             return f"a saved {name} game is being played somewhere else, so this one won't be kept"
         return ""
 
-    def put_away() -> None:
+    def put_away() -> str:
         # on leaving: kept for next time if it may be, and otherwise lost,
         # with saves.keep's notice saying why; a win not counted yet, as
         # when Ctrl-C comes just as it's made, counts as won. Signals wait
         # until it's done, so one can't cut it off halfway. A deal nobody
         # touched has nothing to keep, so it doesn't wait for the lock, and
         # nor does one already put away, so calling it again does nothing.
+        # What give_up has to say of a game lost, or "".
         nonlocal recorded
         won = g.is_won() and not recorded
         if not won and not under_way():
-            return
+            return ""
         with store.signals_held():
             if won:
                 count(True, seconds())
-                return
+                return ""
             if keep and under_way():
                 recorded = saves.keep(g, seconds())
                 if recorded:
                     # two lines, so a long game's still fits 80 columns
                     print(f"Saved your {g.gamedef.name} game ({so_far()}).", file=out)
                     print(f"Run soliterm --text --game {game_key} to pick it up.", file=out)
-                    return
-            give_up()
+                    return ""
+            return give_up()
 
     def left_out(stopped: float) -> None:
         nonlocal start
         start += stopped  # stopped with Ctrl-Z, which is no time played
+
+    def say_if_stuck() -> None:
+        # once, under the board, as the full-screen game's banner comes up
+        # once: after an undo it waits for the next move, as that does
+        nonlocal stuck_said
+        if not stuck_said and under_way() and g.is_stuck():
+            print(NO_MOVES_LEFT, file=out)
+            stuck_said = True
 
     shown, put_back = _show_escapes(out)
     # colour a terminal can't show is only noise, though into a file or a
@@ -512,20 +533,26 @@ def run_text(
                         os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stderr.fileno())
             print(file=out)
             print(render_text(g, symbols, color), file=out)
+            say_if_stuck()
             for raw in inp:
                 line = raw.strip()
                 if not line:
                     continue
+                moves = g.moves
                 _ok, msg = apply_text_command(g, line)
                 if msg == "__quit__":
-                    put_away()
+                    if shared := put_away():
+                        print(shared, file=out)
                     print("bye", file=out)
                     return 0
                 if msg == "__newdeal__":
-                    give_up()
+                    shared = give_up()
                     g.new_game()
                     start, recorded, resumed = time.monotonic(), False, False
+                    stuck_said = False
                     msg = f"new deal {g.deal_number}"
+                    if shared:
+                        msg = f"{shared}\n{msg}"
                     if note := unkept():
                         msg = f"{msg}\n{note}"
                 elif msg == "__restart__":
@@ -534,6 +561,7 @@ def run_text(
                     saves.let_go(game_key)
                     g.restart()
                     start, recorded, resumed = time.monotonic(), False, False
+                    stuck_said = False
                     msg = "restarted this deal"
                 if msg == "__print__":
                     print(render_text(g, symbols, color), file=out)
@@ -547,6 +575,9 @@ def run_text(
                 if msg:
                     print(msg, file=out)
                 print(render_text(g, symbols, color), file=out)
+                if g.moves > moves:
+                    stuck_said = False
+                say_if_stuck()
                 if g.is_won() and not recorded:
                     secs = seconds()
                     count(True, secs)
@@ -562,7 +593,9 @@ def run_text(
                     if streak:
                         print(f"{streak}.", file=out)
                     return 0
-            put_away()  # the input ran out: Ctrl-D, or the end of a script
+            # the input ran out: Ctrl-D, or the end of a script
+            if shared := put_away():
+                print(shared, file=out)
             return 0
         except Exception:
             # the input or the output gone, as when a closing terminal's read

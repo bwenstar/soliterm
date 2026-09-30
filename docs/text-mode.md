@@ -205,6 +205,19 @@ nothing left to do, it says why.
   number, so deal 1 goes on to deal 2, and otherwise it's a random one. A
   game you've made a move in counts as lost.
 
+When a game you're playing has nothing left to do that could still win
+it, text mode says so once, under the board, as the full-screen game's
+end banner does:
+
+```text
+No moves left - game over. Type u to undo or n for a new deal.
+```
+
+It doesn't count the game yet, so `u` can still take moves back to try
+another way. After an undo it waits for your next move before it says
+so again, and `p` or `hint` don't repeat it. A resumed game that's
+already stuck says so under its first board.
+
 ### Everything else
 
 - `p`, `.` or `print` prints the board again.
@@ -240,7 +253,16 @@ Share code: golf:216
 ```
 
 A win of the daily deal also gets the line to share that the full-screen
-game prints, the one that names no cards.
+game prints, the one that names no cards. So does a daily that counts as
+lost, when you leave it with `q`, deal a new game with `n` or the input
+runs out, just before `bye` or the new deal's line:
+
+```text
+Soliterm daily 2026-09-24, Klondike: stuck after 4:05, 57 moves
+```
+
+Starting the deal over with `N` doesn't count it, so it prints nothing,
+and nor does a daily kept for later.
 
 ## Keeping a game for later
 

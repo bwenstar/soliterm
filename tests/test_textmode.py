@@ -742,6 +742,154 @@ def test_text_mode_prints_the_share_line_after_a_daily_win(monkeypatch, capsys):
     ]
 
 
+# what text mode says once a command leaves no moves
+NO_MOVES = textmode.NO_MOVES_LEFT
+
+
+def said_after_each_board(out):
+    """For each board printed, the opening one first, whether it was said
+    right after it that no moves are left."""
+    return [part.startswith(NO_MOVES + "\n") for part in re.split(r"(?m)^score=.*\n", out)[1:]]
+
+
+def one_move_left():
+    """Golf with one move to make, the 6C onto the 5H, and none after it,
+    and the command that makes it."""
+    g = deal("golf", 1)
+    clear_board(g)
+    t = g.ids_of("tableau")
+    waste = g.ids_of("waste")[0]
+    g.slots[waste].cards = [Card(5, "H", True)]
+    g.slots[t[0]].cards = [Card(13, "S", True), Card(6, "C", True)]
+    for sid, rank in zip(t[1:], (9, 10, 11, 12, 9, 10)):
+        g.slots[sid].cards = [Card(rank, "SH"[sid % 2], True)]
+    return g, f"{t[0]} {waste}"
+
+
+def test_text_mode_says_when_no_moves_are_left(capsys):
+    g, move = one_move_left()
+    script = f"{move}\np\nhint\n9 9\nq\n"
+    assert textmode.run_text(g, False, "golf", stream=io.StringIO(script)) == 0
+    out = capsys.readouterr().out
+    # once, right after the board the move leaves, and not again while
+    # nothing changes
+    assert said_after_each_board(out) == [False, True, False, False, False]
+    lines = out.splitlines()
+    at = lines.index(NO_MOVES)
+    assert re.match(r"score=\d+ moves=1 \|", lines[at - 1])
+    assert len(NO_MOVES) <= 80
+
+
+def test_no_moves_left_is_said_again_once_the_move_is_made_again(capsys):
+    g, move = one_move_left()
+    script = f"{move}\nu\n{move}\nu\nr\nq\n"
+    assert textmode.run_text(g, False, "golf", stream=io.StringIO(script)) == 0
+    said = said_after_each_board(capsys.readouterr().out)
+    assert said == [False, True, False, True, False, True]
+
+
+def test_a_dead_end_taken_back_to_is_not_said_again_until_a_move(capsys):
+    # Scorpion with the stock dealt and two Kings that can only slide
+    # between empty columns: a dead end after every move and every undo.
+    # As with the full-screen game's banner, which u takes away until the
+    # next move, it's said again only after a move. The game is under way
+    # from the start, so it's said under the first board too.
+    g = deal("scorpion", 1)
+    clear_board(g)
+    c = g.ids_of("tableau")
+    g.slots[c[0]].cards = [Card(13, "H", True), Card(2, "C", True)]
+    g.slots[c[1]].cards = [Card(13, "S", True), Card(3, "D", True)]
+    g.moves = 5  # a game under way
+    assert g.is_stuck()
+    script = f"{c[0]} {c[2]} 2\nu\np\n{c[0]} {c[3]} 2\nq\n"
+    assert textmode.run_text(g, False, "scorpion", stream=io.StringIO(script)) == 0
+    said = said_after_each_board(capsys.readouterr().out)
+    assert said == [True, True, False, False, True]
+
+
+@pytest.mark.parametrize("again", ["n", "N"])
+def test_a_deal_played_afresh_has_moves_left(capsys, again):
+    g, move = one_move_left()
+    script = f"{move}\n{again}\nq\n"
+    assert textmode.run_text(g, False, "golf", stream=io.StringIO(script)) == 0
+    assert said_after_each_board(capsys.readouterr().out) == [False, True, False]
+
+
+def test_a_resumed_game_with_no_moves_left_says_so_under_its_board(monkeypatch, capsys):
+    # as the full-screen game shows its banner at once. The position isn't
+    # one a deal could come to, so it's handed over as the save would be.
+    g, move = one_move_left()
+    g.attempt_move(*map(int, move.split()))
+    monkeypatch.setattr(saves, "take", lambda key: (g, 30))
+    resumed = textmode.run_text(
+        deal("golf", 1), False, "golf", stream=io.StringIO("q\n"), keep=True, resume=True
+    )
+    assert resumed == 0
+    out = capsys.readouterr().out
+    assert "Resumed your Golf game" in out
+    assert said_after_each_board(out) == [True]
+    assert "Saved your Golf game" in out.split(NO_MOVES)[1]
+
+
+def a_daily(monkeypatch):
+    """Klondike's daily deal of 2026-09-24, and what's typed at it as a
+    script goes, the first line 1:15 in."""
+    clock = Clock()
+    monkeypatch.setattr(textmode, "time", clock)
+
+    def typed(script):
+        clock.now += 75  # at the first read, once the game's clock is going
+        yield from script.splitlines(keepends=True)
+
+    return deals.deal_game(deals.daily("klondike", date(2026, 9, 24)), {}), typed
+
+
+DAILY_LOST = "Soliterm daily 2026-09-24, Klondike: stuck after 1:15, 1 move"
+
+
+@pytest.mark.parametrize(
+    "script, last",
+    [("d\nq\n", ["bye"]), ("d\n", []), ("d\nn\nq\n", None)],
+    ids=["q", "the end of the input", "n"],
+)
+def test_a_daily_counted_lost_prints_its_share_line(monkeypatch, capsys, script, last):
+    g, typed = a_daily(monkeypatch)
+    assert textmode.run_text(g, False, "klondike", stream=typed(script)) == 0
+    lines = capsys.readouterr().out.splitlines()
+    assert store.get_stat("klondike")["total"] == 1
+    at = lines.index(DAILY_LOST)
+    if last is None:
+        # before the new deal's line
+        assert lines[at + 1] == f"new deal {g.deal_number}"
+    else:
+        assert lines[at + 1 :] == last
+    assert lines.count(DAILY_LOST) == 1
+
+
+@pytest.mark.parametrize("script", ["q\n", "d\nN\nq\n", "n\nd\nq\n"])
+def test_a_daily_not_counted_lost_prints_no_share_line(monkeypatch, capsys, script):
+    # never moved, dealt again from the start, or a new deal lost instead
+    g, typed = a_daily(monkeypatch)
+    assert textmode.run_text(g, False, "klondike", stream=typed(script)) == 0
+    assert "Soliterm daily" not in capsys.readouterr().out
+
+
+def test_a_daily_kept_for_later_prints_no_share_line(monkeypatch, capsys):
+    g, typed = a_daily(monkeypatch)
+    assert textmode.run_text(g, False, "klondike", stream=typed("d\nq\n"), keep=True) == 0
+    out = capsys.readouterr().out
+    assert "Saved your Klondike game" in out and "Soliterm daily" not in out
+    assert store.get_stat("klondike")["total"] == 0
+
+
+def test_a_daily_that_cant_be_kept_prints_its_share_line(monkeypatch, capsys):
+    # a saved Klondike game waits, so this one is counted lost instead
+    keep_one()
+    g, typed = a_daily(monkeypatch)
+    assert textmode.run_text(g, False, "klondike", stream=typed("d\nq\n"), keep=True) == 0
+    assert capsys.readouterr().out.splitlines()[-2:] == [DAILY_LOST, "bye"]
+
+
 @pytest.mark.parametrize(
     "before, streak",
     [
