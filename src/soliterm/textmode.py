@@ -605,7 +605,8 @@ def run_text(
                     stuck_said = False
                 say_if_stuck()
                 if g.is_won() and not recorded:
-                    secs = seconds()
+                    # at least a second, as the statistics keep a win's time
+                    secs = max(1, seconds())
                     line = count(True, secs)
                     print("Congratulations - you won!", file=out)
                     print(

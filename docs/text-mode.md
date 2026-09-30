@@ -372,7 +372,7 @@ stk#0                   wst#1
 
 score=35 moves=48 | Stock: 4 left  *** YOU WIN! ***
 Congratulations - you won!
-Score 35 in 0:00 (48 moves).
+Score 35 in 0:01 (48 moves).
 Share code: golf:216
 ```
 

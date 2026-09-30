@@ -1007,6 +1007,23 @@ def test_a_text_daily_stands_on_the_same_deal_played_plainly(monkeypatch, capsys
     ]
 
 
+def test_a_text_win_within_half_a_second_prints_the_time_it_is_kept_as(monkeypatch, capsys):
+    # the statistics keep a win as at least a second, as AisleRiot does
+    clock = Clock()
+    monkeypatch.setattr(textmode, "time", clock)
+    g = deals.deal_game(deals.daily("klondike", date(2026, 9, 24)), {})
+
+    def script():
+        clock.now += 0.4
+        yield f"f {one_card_from_won(g)}\n"
+
+    assert textmode.run_text(g, False, "klondike", stream=script()) == 0
+    lines = capsys.readouterr().out.splitlines()
+    assert f"Score {g.score} in 0:01 (1 move)." in lines
+    assert "Soliterm daily 2026-09-24, Klondike: won in 0:01, 1 move" in lines
+    assert [line["seconds"] for line in history.games()] == [1]
+
+
 def test_a_text_win_played_again_within_the_second_has_the_first_to_beat(monkeypatch, capsys):
     # as the same script piped in twice does: the two lines are the same
     monkeypatch.setattr(history, "now", lambda: "2026-09-24T14:05:11+10:00")
