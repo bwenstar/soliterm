@@ -85,8 +85,8 @@ class GameClock:
     """The time a game has been played, kept the way AisleRiot keeps it.
 
     It sets off at the first move rather than at the deal, and stands still
-    while another screen (help, statistics, boss mode, a dialog) hides the
-    board.
+    while another screen (help, the pause, statistics, boss mode, a dialog)
+    hides the board.
     """
 
     def __init__(self) -> None:
@@ -941,6 +941,9 @@ class App(Screens):
 
     def do_help(self):
         self.help_screen()
+
+    def do_pause(self):
+        self.pause_screen()
 
     def do_boss(self):
         # boss / camouflage mode: hide the game behind fake work output

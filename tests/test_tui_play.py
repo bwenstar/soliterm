@@ -984,6 +984,77 @@ def test_the_clock_the_banner_and_the_statistics_agree_on_the_time(tui, game_clo
     assert store.get_stat("klondike")["best"] == 11
 
 
+# -- the pause ---------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("key", ["p", "P"])
+def test_p_pauses_the_game_with_the_clock_standing_still(tui, game_clock, key):
+    # ten seconds of play, then twenty minutes paused, the page drawn again
+    # after ten of them as it is each second
+    scr = tui(["d", Later(10, key), Later(600, -1), Later(600, "z"), Later(1, -1)])
+    assert times(scr) == ["0:00", "0:00", "0:10", "0:11"]
+    for paused in scr.frames[2:4]:
+        assert "Game paused" in paused and "Score" not in paused
+        assert "Time played so far: 0:10" in paused
+    assert "Press any key or click to go back to the game." in scr.frames[2]
+
+
+def test_the_game_pauses_before_the_first_move_too(tui, game_clock):
+    scr = tui([Later(30, "p"), Later(60, "z"), Later(5, "d"), Later(10, -1)])
+    paused = scr.frames[1]
+    assert "Game paused" in paused and "Time played so far: 0:00" in paused
+    assert "The clock starts at the first move." in paused
+    assert times(scr) == ["0:00", "0:00", "0:00", "0:10"]
+
+
+def test_the_cards_picked_up_are_still_held_after_the_pause(tui):
+    # as after the help
+    scr = tui([ENTER, "p", "z"])
+    assert "Game paused" in scr.frames[2]
+    before, picked, after = scr.uis[0].selections
+    assert before is None and picked is not None and after == picked
+
+
+@pytest.mark.parametrize("click", [curses.BUTTON1_PRESSED, curses.BUTTON1_CLICKED])
+def test_a_click_ends_the_pause_but_not_the_pointer_the_wheel_or_a_resize(tui, click):
+    scr = tui(
+        [
+            "p",
+            Mouse(9, 40, curses.REPORT_MOUSE_POSITION),
+            Mouse(9, 40, curses.BUTTON4_PRESSED),
+            Resize(30, 100),
+            Mouse(9, 40, click),
+            "z",
+        ]
+    )
+    assert all("Game paused" in frame for frame in scr.frames[1:5])
+    # drawn again to the new size
+    assert len(scr.frames[4].split("\n")) == 30
+    assert "Score" in scr.frames[5]
+    # the click went back to the game and did nothing more
+    assert "Moves 0" in scr.frames[5] and scr.uis[0].selections[-1] is None
+
+
+@pytest.mark.parametrize(
+    "leave",
+    [
+        pytest.param(
+            Signal("SIGHUP"),
+            marks=pytest.mark.skipif(not hasattr(signal, "SIGHUP"), reason="needs POSIX signals"),
+        ),
+        KeyboardInterrupt,  # Ctrl-C, and Ctrl-Break on Windows
+    ],
+)
+def test_a_game_saved_from_behind_the_pause_keeps_the_time_without_it(
+    tui, game_clock, monkeypatch, leave
+):
+    monkeypatch.setattr(cli, "_quiet_output", lambda: None)
+    with cli._leave_on_signals():
+        scr = tui(["d", Later(10, "p"), Later(600, leave)])
+    assert scr.rc == 130
+    assert saves.waiting()["klondike"]["seconds"] == 10
+
+
 # -- recording results -------------------------------------------------------------
 
 
@@ -3384,6 +3455,7 @@ EVERY_SCREEN = [
     ("choose a game", None, None, []),
     ("Statistics", "klondike", None, ["s"]),
     ("Soliterm - controls", "klondike", None, ["?"]),
+    ("Game paused", "klondike", None, ["p"]),
     ("Klondike - options", "klondike", None, ["o"]),
     ("count as lost", "klondike", None, ["d", "o", curses.KEY_RIGHT, ENTER]),
     ("YOU WIN", "klondike", near_won, ["a"]),

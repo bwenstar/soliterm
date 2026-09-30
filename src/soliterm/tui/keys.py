@@ -97,6 +97,7 @@ KEYMAP: tuple[Binding, ...] = (
     bind("n", "new_deal", "n", "new deal", compact=True),
     bind("N", "restart", "N", "restart this deal", compact=True),
     bind("gG", "pick_deal", "g", "pick deal", compact=True),
+    bind("pP", "pause", "p", "pause", compact=True),
     bind("oO", "options", "o", "options", compact=True),
     bind("sS", "stats", "s", "statistics", compact=True),
     bind("?", "help", "?", "help", compact=True),

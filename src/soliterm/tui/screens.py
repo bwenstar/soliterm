@@ -1,10 +1,10 @@
 """soliterm.tui.screens - the screens other than the board.
 
 The menu, the daily deals, the statistics, the options, the pick-deal
-box, the yes-or-no question, the help, boss mode and the end banner, and
-what they share to put a page up and read its keys. They are methods of
-Screens, which App takes in, so that each reaches the config, the colours
-and the game in play just as the play screen does.
+box, the yes-or-no question, the help, the pause, boss mode and the end
+banner, and what they share to put a page up and read its keys. They are
+methods of Screens, which App takes in, so that each reaches the config,
+the colours and the game in play just as the play screen does.
 """
 
 from __future__ import annotations
@@ -235,6 +235,8 @@ class Screens:
         def read_key(self, wait_ms: int = 1000) -> int: ...
 
         def keep_setting(self, **changes: object) -> None: ...
+
+        def seconds(self) -> int: ...
 
         @staticmethod
         def resume_text(save: dict) -> str: ...
@@ -668,6 +670,36 @@ class Screens:
             footer = "Up/Down scroll - " + footer
         self.safe_add(2 + rows.room + 1, 4, footer)
         self.end_page()
+
+    # ---- pause ---- #
+    @hides_the_board
+    def pause_screen(self):
+        """Hide the board, with the clock standing still, until a key or a
+        click. The pointer passing over, the wheel and a resize don't count,
+        as on the help, and the boss key hides it and comes back to it."""
+        CP, safe_add = self.CP, self.safe_add
+        while True:
+            self.begin_page()
+            safe_add(2, 6, "Game paused", CP(MESSAGE) | curses.A_BOLD)
+            safe_add(4, 6, f"Time played so far: {store.fmt_time(self.seconds())}")
+            if self.clock.started:
+                safe_add(5, 6, "The clock stands still until you go back.")
+            else:
+                safe_add(5, 6, "The clock starts at the first move.")
+            safe_add(7, 6, "Press any key or click to go back to the game.", CP(CHROME))
+            self.end_page()
+            k = self.page_key()
+            if self.boss_key(k):
+                continue
+            if k == curses.KEY_MOUSE:
+                try:
+                    bstate = curses.getmouse()[4]
+                except curses.error:
+                    continue
+                if bstate & LEFT_CLICK:
+                    return
+            elif k not in (-1, curses.KEY_RESIZE):
+                return
 
     # ---- camouflage / boss mode ---- #
     @hides_the_board

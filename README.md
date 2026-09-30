@@ -137,6 +137,7 @@ These are the keys you need for a first game:
 | `u`, `r` | undo and redo |
 | `a` | send up every card that's safe to, or finish the game once every card can go up |
 | `n` | deal a new game |
+| `p` | pause, with the clock stopped |
 | `?` | show every key |
 | `q` | quit, keeping the game for next time |
 

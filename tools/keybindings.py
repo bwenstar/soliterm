@@ -150,6 +150,14 @@ above or below says how many more there are that way. Any other key
 closes it then. The mouse doesn't, so the pointer passing over the
 window can't.
 
+### The pause
+
+`p` hides the board and stops the clock, and says how long the game has
+been played. Any key or a left click goes back to the game. The pointer
+passing over the window, the wheel and a resize don't. A game left from
+here, as when the terminal is closed, keeps the time played up to the
+pause.
+
 ### Leaving a game under way
 
 When `g` or a change of options would end a game you've started, Soliterm
