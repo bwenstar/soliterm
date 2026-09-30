@@ -548,7 +548,8 @@ class Screens:
             )
 
         rows.fit(self.stdscr.getmaxyx()[0] - 5 - 2)  # a gap and the footer under it
-        self.draw_list(rows, 5, 4, game_row, marked=False)
+        # lit up, and without colour marked as well, as on the menu
+        self.draw_list(rows, 5, 4, game_row, marked=not self.has_color)
         safe_add(5 + rows.room + 1, 4, "Up/Down move - Press any key to continue.", CP(CHROME))
         self.end_page()
 

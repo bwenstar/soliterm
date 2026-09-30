@@ -4039,6 +4039,18 @@ def test_the_stats_screen_shows_streak_columns(tui):
     assert "      Spider               0      0    N/A     N/A     N/A     N/A     N/A" in lines
 
 
+@pytest.mark.parametrize(
+    "kwargs, mark",
+    [({}, "  "), ({"color": False}, "> "), ({"color_capable": False}, "> ")],
+    ids=["colour", "off", "mono"],
+)
+def test_the_picked_statistics_row_can_be_seen_without_colour(tui, kwargs, mark):
+    # lit up in colour, and with the menu's > where there's no colour
+    lines = tui(["s", curses.KEY_DOWN, "z"], **kwargs).frames[2].split("\n")
+    assert any(line.startswith(f"    {mark}Spider  ") for line in lines)
+    assert any(line.startswith("      Klondike  ") for line in lines)
+
+
 def test_the_stats_screen_rounds_a_half_percent_up_as_aisleriot_does(tui):
     store.save_stats({"golf": {"wins": 1, "total": 8, "best": 50, "worst": 50}})
     lines = [line.rstrip() for line in tui(["s", "z"]).frames[1].split("\n")]
