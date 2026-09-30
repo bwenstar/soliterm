@@ -1283,7 +1283,7 @@ def test_without_curses_on_windows_suggests_windows_curses(terminal, monkeypatch
         monkeypatch.setattr(os, "name", real)
     assert terminal.started == ["text"]
     err = capsys.readouterr().err
-    assert "pip install windows-curses" in err and "text mode" in err
+    assert "py -m pip install windows-curses" in err and "text mode" in err
 
 
 def test_a_module_missing_from_the_package_is_named(terminal, monkeypatch, capsys):

@@ -259,7 +259,7 @@ def _load_tui() -> tuple[Any, str]:
     except ImportError as exc:
         why = f"can't load the full-screen game ({exc}), so playing in text mode"
         if os.name == "nt" and exc.name in ("curses", "_curses"):
-            why += "; pip install windows-curses adds curses to Python on Windows"
+            why += "; py -m pip install windows-curses adds curses to Python on Windows"
         return None, why
     problem, note = _check_terminal()
     if problem:
