@@ -2,9 +2,10 @@
 
 The menu, the daily deals, the statistics, the options, the pick-deal
 box, the yes-or-no question, the help, the pause, boss mode and the end
-banner, and what they share to put a page up and read its keys. They are
-methods of Screens, which App takes in, so that each reaches the config,
-the colours and the game in play just as the play screen does.
+banner, and what they share to put a page up, read its keys and copy a
+share code. They are methods of Screens, which App takes in, so that each
+reaches the config, the colours and the game in play just as the play
+screen does.
 """
 
 from __future__ import annotations
@@ -15,7 +16,7 @@ import textwrap
 import time
 from typing import TYPE_CHECKING, Any, Callable
 
-from .. import APP_NAME, camo, deals, history, saves, store
+from .. import APP_NAME, camo, clipboard, deals, history, saves, store
 from ..deals import Code, Deal
 from ..engine import GAME_ORDER, GAMES, Solitaire
 from ..themes import CHROME, CURSOR, MESSAGE
@@ -671,6 +672,13 @@ class Screens:
         self.safe_add(2 + rows.room + 1, 4, footer)
         self.end_page()
 
+    def copy_out(self, text: str, what: str) -> str:
+        """Copy `text` for y, and say what came of it, naming the text as
+        `what`. What's drawn goes out first, so that on a terminal the
+        escape sequence that asks it to copy comes after it, not inside."""
+        self.stdscr.refresh()
+        return clipboard.copy(text, what)
+
     # ---- pause ---- #
     @hides_the_board
     def pause_screen(self):
@@ -807,6 +815,7 @@ class Screens:
         share = ""  # the line a daily leaves to paste to friends
         if game.daily:
             share = deals.share_line(game.gamedef.name, game.daily, won, seconds, game.moves)
+        said = ""  # what came of y
         # each with the key that takes it
         choices = [
             ("same", "Replay this deal (s)"),
@@ -831,13 +840,24 @@ class Screens:
                 attr = (CP(CURSOR) | curses.A_BOLD) if i == sel else 0
                 safe_add(top + i, 6, f"{marker}{label}", attr)
             footer = top + len(choices) + 1
-            safe_add(footer, 6, "Up/Down + Enter, or click to choose.", CP(CHROME))
             h, w = self.stdscr.getmaxyx()
-            # only on a row the terminal has, as the banner fits without it
-            if share and footer + 2 < h:
+            # only on a row the terminal has, as the banner fits without it,
+            # and y copies the share code where it has none
+            shown = share if footer + 2 < h else ""
+            what = "the share line" if shown else "the share code"
+            below = footer + (3 if shown else 2)  # the row for what y did
+            if said and below >= h:
+                # in the footer's place, as there's no row for it under
+                safe_add(footer, 6, said, CP(MESSAGE))
+            else:
+                tip = f"Up/Down + Enter, or click to choose; y copies {what}."
+                safe_add(footer, 6, tip, CP(CHROME))
+                if said:
+                    safe_add(below, 6, said, CP(MESSAGE))
+            if shown:
                 # plain, to copy, and nearer the edge if the margin would clip it
-                x = 6 if self.page_dx + 6 + len(share) <= w - 1 else 2
-                safe_add(footer + 2, x, share)
+                x = 6 if self.page_dx + 6 + len(shown) <= w - 1 else 2
+                safe_add(footer + 2, x, shown)
             self.end_page()
             k = self.page_key()
             if self.boss_key(k):
@@ -854,6 +874,8 @@ class Screens:
                 return "new"
             elif k in (ord("m"), ord("M"), ord("q"), ord("Q")):
                 return "menu"
+            elif k in (ord("y"), ord("Y")):
+                said = self.copy_out(shown or deals.code_of(game), what)
             elif k in (curses.KEY_ENTER, 10, 13, ord(" ")):
                 return choices[sel][0]
             elif k == curses.KEY_MOUSE:

@@ -303,6 +303,14 @@ Deal a new game, or start this one over.
 .B g
 Play a deal by its number or share code.
 .TP
+.B y
+Copy the deal's share code, or at the end of a daily, its share line.
+On Windows it goes on the clipboard.
+Anywhere else
+.B soliterm
+asks the terminal to copy it, with the escape sequence OSC 52, and says
+only that it asked, as not every terminal takes it.
+.TP
 .BR o ", " s ", " ?
 The options of this game, the statistics, and help.
 .TP
@@ -462,6 +470,27 @@ Windows doesn't use it.
 How many milliseconds curses waits after Esc for the rest of a key.
 .B soliterm
 makes it 25 unless it's set.
+.TP
+.B TMUX
+Set inside tmux.
+.B y
+then says it sent the text to tmux, which takes it, into a paste buffer
+and on to the terminal, only with
+.B set\-clipboard
+.BR on ;
+with
+.BR external ,
+the default, or
+.BR off ,
+it drops it.
+.TP
+.B STY
+Set inside GNU screen, which keeps OSC 52 to itself, so
+.B y
+wraps it for screen to pass on to the terminal.
+It goes the same way when
+.B TMUX
+is set too, whichever of the two runs inside the other.
 .TP
 .BR XDG_CONFIG_HOME ", " XDG_DATA_HOME
 Where the files go, as under

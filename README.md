@@ -176,6 +176,13 @@ number. The ones that can appear are:
 | Spider | `s1`, `s2` or `s4`, the number of suits |
 | Triple Peaks | `ss` or `sm`, standard or multiplier scoring |
 
+`y` copies the share code, in a game or at the end of one. On Windows it
+goes on the clipboard. Anywhere else Soliterm asks the terminal to copy it,
+with the escape sequence OSC 52, as it never runs another program to reach
+the clipboard. Not every terminal takes OSC 52, and none says whether it
+did, so the message only says the code was sent. In tmux it takes
+`set -g set-clipboard on`.
+
 FreeCell deals use Microsoft FreeCell's numbers, so deal 617 here is deal
 617 there, and 11982 is the one deal among the first 32,000 that can't be
 won.
@@ -196,7 +203,7 @@ Klondike the first time (add `--game` for another), and Daily deal on the
 menu lists every game's. It's the same cards for everyone that day, with
 the standard options. Today is your computer's date, and nothing goes
 online. When it ends you get a line to paste to friends, which gives no
-cards away:
+cards away, and `y` copies it:
 
 ```text
 Soliterm daily 2026-09-24, Klondike: won in 3:12, 87 moves

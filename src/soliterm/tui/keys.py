@@ -97,6 +97,7 @@ KEYMAP: tuple[Binding, ...] = (
     bind("n", "new_deal", "n", "new deal", compact=True),
     bind("N", "restart", "N", "restart this deal", compact=True),
     bind("gG", "pick_deal", "g", "pick deal", compact=True),
+    bind("yY", "copy", "y", "copy share code", compact=True),
     bind("pP", "pause", "p", "pause", compact=True),
     bind("oO", "options", "o", "options", compact=True),
     bind("sS", "stats", "s", "statistics", compact=True),
@@ -147,7 +148,7 @@ def numpad_keys(mod) -> dict[int, int]:
 
 
 HELP_KEY_W = 20  # the help's key column, gap before the text included
-HELP_PACK_W = 60  # how wide a line of compact entries may get
+HELP_PACK_W = 70  # how wide a line of compact entries may get
 
 
 def help_lines() -> list[str]:

@@ -945,6 +945,11 @@ class App(Screens):
     def do_pause(self):
         self.pause_screen()
 
+    def do_copy(self):
+        # named in what it says, so what went is on the screen
+        code = deals.code_of(self.game)
+        self.message = self.copy_out(code, code)
+
     def do_boss(self):
         # boss / camouflage mode: hide the game behind fake work output
         self.camouflage_screen()

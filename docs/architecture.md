@@ -30,6 +30,7 @@ modules around them keep the files.
 | [`textmode.py`](../src/soliterm/textmode.py) | text mode: the plain board and the command loop |
 | [`cli.py`](../src/soliterm/cli.py) | the command line, and the choice between the two front ends |
 | [`deals.py`](../src/soliterm/deals.py) | deal numbers, share codes and the daily deal |
+| [`clipboard.py`](../src/soliterm/clipboard.py) | copies a share code for `y`: onto the Windows clipboard, or elsewhere by asking the terminal with OSC 52 |
 | [`store.py`](../src/soliterm/store.py) | `config.json` and `stats.json`, and sharing statistics with AisleRiot |
 | [`aisleriot.py`](../src/soliterm/aisleriot.py) | reads and writes AisleRiot's keyfile, a line at a time |
 | [`saves.py`](../src/soliterm/saves.py) | the games kept for next time, one of each kind |

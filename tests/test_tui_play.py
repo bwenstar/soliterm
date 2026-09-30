@@ -5,6 +5,7 @@ a FakeScr that plays back a key script and remembers what was on screen each
 time the game asked for a key.
 """
 
+import base64
 import curses
 import functools
 import glob
@@ -22,7 +23,7 @@ import pytest
 
 import soliterm.tui
 from soliterm import aisleriot as ar
-from soliterm import cli, deals, engine, history, saves, store, themes
+from soliterm import cli, clipboard, deals, engine, history, saves, store, themes
 from soliterm.deals import Deal
 from soliterm.engine import Card, GameDef
 from soliterm.tui import cascade
@@ -34,6 +35,7 @@ from soliterm.tui.screens import DEAL_TEXT_MAX
 from helpers import (
     PDCURSES_NUMPAD,
     FakeScr,
+    FakeWin32,
     OtherCopy,
     clear_board,
     crashed,
@@ -2008,7 +2010,7 @@ def test_every_banner_choice_shows_its_key_at_80x24(tui, skin):
     assert "Terminal too small" not in banner
     for choice in ["Undo move (u)", "Replay this deal (s)", "New deal (n)", "Back to menu (m)"]:
         assert choice in banner
-    assert "Up/Down + Enter, or click to choose." in banner
+    assert "Up/Down + Enter, or click to choose; y copies the share line." in banner
     assert "Soliterm daily 2026-09-24, Golf" in banner
 
 
@@ -2025,6 +2027,204 @@ def test_the_longest_share_line_fits_80_columns(tui, monkeypatch, skin):
     # all of it, at the banner's margin, or nearer the edge under the skin
     assert row.endswith(longest)
     assert row.index(longest) == (CODE_GUTTER + 2 if skin else 6)
+
+
+# -- y: copying what there is to share ------------------------------------------------
+
+
+@pytest.fixture
+def sent(monkeypatch):
+    """Copying as it goes off Windows, outside tmux and screen, with a pipe
+    standing in for the terminal. Call it for what the game sent there."""
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.delenv("TMUX", raising=False)
+    monkeypatch.delenv("STY", raising=False)
+    read, write = os.pipe()
+    monkeypatch.setattr(clipboard, "TERMINAL", write)
+    still_open = [read, write]
+
+    def written():
+        os.close(write)
+        still_open.remove(write)
+        return os.read(read, 4096)
+
+    yield written
+    for fd in still_open:
+        os.close(fd)
+
+
+def changed_rows(before, after):
+    """The rows of frame `after` that aren't as they were in `before`."""
+    pairs = zip(before.split("\n"), after.split("\n"))
+    return [row for row, (was, now) in enumerate(pairs) if was != now]
+
+
+@pytest.mark.parametrize("key", ["y", "Y"])
+def test_y_on_the_board_sends_its_share_code_to_the_terminal_to_copy(tui, sent, key):
+    scr = tui([key, "q"], game=deal("klondike", 48213, draw=3))
+    assert sent() == b"\x1b]52;c;a2xvbmRpa2U6ZDM6NDgyMTM=\x07"
+    # the code it sent is on the message line, and the rest is as it was
+    (row,) = changed_rows(*scr.frames[:2])
+    said = scr.frames[1].split("\n")[row]
+    assert "sent klondike:d3:48213 to the terminal to copy, if it can" in said
+
+
+@pytest.mark.parametrize(
+    "env, wrapped, said",
+    [
+        ("TMUX", False, "sent klondike:1 to tmux to copy, if set-clipboard is on"),
+        ("STY", True, "sent klondike:1 to the terminal to copy, if it can"),
+    ],
+)
+def test_y_under_tmux_or_screen_goes_the_way_each_passes_it_on(
+    tui, sent, monkeypatch, env, wrapped, said
+):
+    monkeypatch.setenv(env, "set by tmux or screen")
+    scr = tui(["y", "q"], deal=1)
+    osc52 = b"\x1b]52;c;" + base64.b64encode(b"klondike:1") + b"\x07"
+    assert sent() == (b"\x1bP" + osc52 + b"\x1b\\" if wrapped else osc52)
+    assert said in scr.frames[1]
+
+
+def test_y_is_not_a_move(tui, sent, game_clock):
+    scr = tui(["y", Later(5, -1), "q"], deal=1)
+    assert "Moves 0 " in scr.frames[2]
+    assert times(scr) == ["0:00"] * 3  # the clock waits for the first move
+    assert saves.waiting() == {}
+
+
+@pytest.fixture
+def on_windows(monkeypatch, sent):
+    """Copying as it goes on Windows, onto a FakeWin32 it hands back. Call
+    it with FakeWin32's arguments."""
+    monkeypatch.setattr(sys, "platform", "win32")
+    monkeypatch.setattr(clipboard.time, "sleep", lambda s: None)
+
+    def make(**kw):
+        fake = FakeWin32(**kw)
+        monkeypatch.setattr(clipboard, "win32", fake)
+        return fake
+
+    return make
+
+
+def test_y_on_windows_puts_the_share_code_on_the_clipboard(tui, on_windows, sent):
+    fake = on_windows()
+    scr = tui(["y", "q"], game=deal("klondike", 48213, draw=3))
+    assert fake.pasted == "klondike:d3:48213\0"
+    assert "copied klondike:d3:48213 to the clipboard" in scr.frames[1]
+    assert sent() == b""  # and nothing for the terminal
+
+
+def test_y_on_windows_says_when_the_clipboard_is_in_use(tui, on_windows):
+    on_windows(busy=100)
+    scr = tui(["y", "q"], deal=1)
+    assert "couldn't copy klondike:1: the clipboard is in use" in scr.frames[1]
+
+
+def rows_of(scr, i):
+    return scr.frames[i].split("\n")
+
+
+@pytest.mark.parametrize("won", [True, False], ids=["won", "stuck"])
+@pytest.mark.parametrize("daily", [True, False], ids=["daily", "deal"])
+def test_y_on_the_banner_copies_the_share_line_or_code(tui, sent, won, daily):
+    key, keys = ("klondike", ["a", "y", -1, "m"]) if won else ("golf", ["f", "y", -1, "m"])
+    start = deals.daily(key, DAY) if daily else None
+    if won:
+        game = near_won(start.number) if daily else near_won(48213, draw=3)
+    else:
+        game = one_move_left()
+    scr = tui(keys, start_key=key, start=start, game=game)
+    banner = rows_of(scr, 1)
+    footer = BANNER_ROW["menu"] + (2 if won else 3)
+    if daily:
+        what, below = "the share line", footer + 3
+        text = banner[footer + 2].strip()
+        assert text.startswith("Soliterm daily 2026-09-24")
+    else:
+        what, below = "the share code", footer + 2
+        text = deals.code_of(game)
+        assert f"share code {text}\n" in scr.frames[1]
+    assert banner[footer] == f"      Up/Down + Enter, or click to choose; y copies {what}."
+    assert banner[below] == ""
+    assert sent() == clipboard.osc52(text, {})
+    # what came of it goes under the rest, and stays
+    for i in (2, 3):
+        assert changed_rows(scr.frames[1], scr.frames[i]) == [below]
+        assert rows_of(scr, i)[below] == f"      sent {what} to the terminal to copy, if it can"
+    assert "choose a game" in scr.frames[4]
+
+
+def test_y_on_a_daily_banner_on_windows_copies_the_share_line(tui, on_windows):
+    fake = on_windows()
+    daily = deals.daily("klondike", DAY)
+    rows = rows_of(tui(["a", "y", "m"], start=daily, game=near_won(daily.number)), 2)
+    line = "Soliterm daily 2026-09-24, Klondike: won in 0:00, 1 move"
+    assert fake.pasted == line + "\0"
+    footer = BANNER_ROW["menu"] + 2
+    assert rows[footer + 2 : footer + 4] == [
+        f"      {line}",
+        "      copied the share line to the clipboard",
+    ]
+
+
+@pytest.mark.parametrize("won", [True, False], ids=["won", "stuck"])
+def test_a_daily_banner_too_short_for_the_share_line_copies_the_code(tui, sent, won):
+    # the banner fits 20 rows, or 21 with Undo move, with no share line and
+    # no row under it, so what came of y goes in place of the footer
+    daily = deals.daily("klondike" if won else "golf", DAY)
+    keys, h = (["a", "y", "m"], 20) if won else (["f", "y", "m"], 21)
+    game = near_won(daily.number) if won else one_move_left()
+    scr = tui(keys, start=daily, game=game, h=h, w=80)
+    code, footer = deals.code_of(game), h - 2
+    assert "Soliterm daily" not in scr.frames[1]
+    assert f"share code {code}\n" in scr.frames[1]
+    assert rows_of(scr, 1)[footer] == (
+        "      Up/Down + Enter, or click to choose; y copies the share code."
+    )
+    assert sent() == clipboard.osc52(code, {})
+    assert "Terminal too small" not in scr.frames[2]
+    assert rows_of(scr, 2)[footer] == "      sent the share code to the terminal to copy, if it can"
+
+
+@pytest.mark.parametrize("skin", [False, True])
+def test_the_most_a_banner_holds_and_what_y_did_fit_80x24(tui, sent, monkeypatch, skin):
+    if skin:
+        code_skin_on()
+    # four choices, the daily's share line and the longest thing y says there
+    monkeypatch.setenv("TMUX", "set by tmux")
+    golf = deals.daily("golf", DAY)
+    banner = tui(["f", "y", "m"], start=golf, game=one_move_left(), h=24, w=80).frames[2]
+    sent()
+    assert "Terminal too small" not in banner
+    for choice in ["Undo move (u)", "Replay this deal (s)", "New deal (n)", "Back to menu (m)"]:
+        assert choice in banner
+    rows = banner.split("\n")
+    at = (CODE_GUTTER if skin else 0) + 6
+    footer = BANNER_ROW["menu"] + 3
+    assert [rows[footer][at:], rows[footer + 2][at:], rows[footer + 3][at:]] == [
+        "Up/Down + Enter, or click to choose; y copies the share line.",
+        "Soliterm daily 2026-09-24, Golf: stuck after 0:00, 1 move",
+        "sent the share line to tmux to copy, if set-clipboard is on",
+    ]
+
+
+def test_what_y_did_stays_through_the_boss_key_and_a_resize(tui, sent):
+    daily = deals.daily("klondike", DAY)
+    keys = ["a", "y", "b", "z", Resize(20, 80), Resize(40, 120), "m"]
+    scr = tui(keys, start=daily, game=near_won(daily.number))
+    sent()
+    said = "      sent the share line to the terminal to copy, if it can"
+    footer = BANNER_ROW["menu"] + 2
+    assert rows_of(scr, 2)[footer + 3] == said
+    assert "YOU WIN" not in scr.frames[3]  # the boss screen
+    assert rows_of(scr, 4)[footer + 3] == said
+    # too short for the share line and a row under it, the share code is
+    # what y would copy now, and what it did copy takes the footer's place
+    assert "Terminal too small" not in scr.frames[5]
+    assert rows_of(scr, 5)[footer] == said
+    assert rows_of(scr, 6)[footer + 3] == said
 
 
 def played_before(key, results):
@@ -2100,7 +2300,7 @@ def test_the_banner_choices_follow_its_lines(tui, monkeypatch):
         "        New deal (n)",
         "        Back to menu (m)",
         "",
-        "      Up/Down + Enter, or click to choose.",
+        "      Up/Down + Enter, or click to choose; y copies the share code.",
     ]
     assert "replaying the same deal" in scr.frames[2]
 

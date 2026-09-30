@@ -1,5 +1,6 @@
 """Helpers shared by the test modules (import them with `from helpers import`)."""
 
+import ctypes
 import curses
 import glob
 import json
@@ -11,6 +12,7 @@ import threading
 import time
 from collections import Counter
 from pathlib import Path
+from types import SimpleNamespace
 
 from soliterm import engine, saves, store
 from soliterm.tui import keys
@@ -335,6 +337,70 @@ def legal_walk(g, rng, steps, allow=None):
             elif g.can_deal():
                 g.deal()
         yield
+
+
+class FakeWin32:
+    """user32 and kernel32 as far as the clipboard goes, and the error the
+    last call left, for clipboard.win32() to hand over off Windows.
+
+    Every call is written down in order. The first `busy` OpenClipboard
+    calls fail as they do while another program has the clipboard open,
+    and the call named `fails` fails with `error`. What SetClipboardData
+    is given ends up in `pasted`, read out of the memory as Windows would.
+    """
+
+    HANDLE = 0x7FFF_1234_5678_9ABC  # wider than a C int, as handles are
+
+    def __init__(self, busy=0, fails=None, error=8):
+        self.busy, self.fails, self.fail_error = busy, fails, error
+        self.calls = []
+        self.error = 0
+        self.memory = None  # what GlobalAlloc gave
+        self.pasted = None
+        results = {
+            "OpenClipboard": 1,
+            "EmptyClipboard": 1,
+            "SetClipboardData": self.HANDLE,
+            "CloseClipboard": 1,
+            "GlobalAlloc": self.HANDLE,
+            "GlobalUnlock": 0,  # as it is once nothing has the memory locked
+            "GlobalFree": None,
+        }
+        # a failed call returns 0 or NULL, but GlobalFree the handle it was given
+        failed = {"GlobalAlloc": None, "GlobalLock": None, "SetClipboardData": None}
+        failed["GlobalFree"] = self.HANDLE
+
+        def stub(name):
+            def call(*args):
+                self.calls.append((name, *args))
+                if name == "OpenClipboard" and self.busy:
+                    self.busy -= 1
+                    self.error = 5  # ERROR_ACCESS_DENIED
+                    return 0
+                if name == self.fails:
+                    self.error = self.fail_error
+                    return failed.get(name, 0)
+                if name == "GlobalAlloc":
+                    self.memory = ctypes.create_string_buffer(args[1])
+                elif name == "GlobalLock":
+                    return ctypes.addressof(self.memory)
+                elif name == "SetClipboardData":
+                    self.pasted = self.memory.raw.decode("utf-16-le")
+                return results[name]
+
+            return call
+
+        user32 = ("OpenClipboard", "EmptyClipboard", "SetClipboardData", "CloseClipboard")
+        kernel32 = ("GlobalAlloc", "GlobalLock", "GlobalUnlock", "GlobalFree")
+        self.user32 = SimpleNamespace(**{name: stub(name) for name in user32})
+        self.kernel32 = SimpleNamespace(**{name: stub(name) for name in kernel32})
+
+    def __call__(self):
+        return self.user32, self.kernel32, lambda: self.error
+
+    def names(self):
+        """The calls made, by name alone."""
+        return [call[0] for call in self.calls]
 
 
 def more_keys(monkeypatch, n):

@@ -19,9 +19,16 @@ reads and writes three things, all in your home directory:
 - the old aisle-cli folders, which it reads once to copy your settings
   and statistics across, and never writes.
 
+Beyond those it writes to the clipboard, only when you press `y`, and only
+the deal's share code or a daily's share line, as the screen shows it. On
+Windows that goes on the clipboard through the Win32 API. Anywhere else
+Soliterm can't reach the clipboard without running another program, so it
+writes the one escape sequence that asks the terminal to copy it, OSC 52.
+
 So the things worth reporting are ones like a crafted settings, stats or
 keyfile making Soliterm write outside those paths, lose data it shouldn't,
-or print escape sequences that take over your terminal.
+or print escape sequences that take over your terminal, an OSC 52 copying
+anything but what `y` says it copies among them.
 
 ## Reporting a vulnerability
 

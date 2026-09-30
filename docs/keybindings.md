@@ -29,6 +29,7 @@ This page also has the other screens, the mouse and text mode.
 | `n` | new deal |
 | `N` | restart this deal |
 | `g`, `G` | pick deal |
+| `y`, `Y` | copy share code |
 | `p`, `P` | pause |
 | `o`, `O` | options |
 | `s`, `S` | statistics |
@@ -135,6 +136,15 @@ passing over the window, the wheel and a resize don't. A game left from
 here, as when the terminal is closed, keeps the time played up to the
 pause.
 
+### Copying
+
+`y` copies the share code of the deal in play, and at the end of a daily
+the share line. On Windows it goes on the clipboard. Anywhere else
+Soliterm asks the terminal to copy it, with the escape sequence OSC 52,
+and the message says only that it asked, as not every terminal takes it.
+In tmux it takes `set -g set-clipboard on`. Under GNU screen it goes
+through screen to the terminal outside.
+
 ### Leaving a game under way
 
 When `g` or a change of options would end a game you've started, Soliterm
@@ -157,6 +167,7 @@ Enter says no, so one Enter too many can't give a game away.
 | `s`, `S` | replay this deal |
 | `n`, `N` | a new deal |
 | `m`, `M`, `q`, `Q` | back to the menu |
+| `y`, `Y` | copy the share code, or on a daily the share line |
 
 A left click on a choice takes it.
 
