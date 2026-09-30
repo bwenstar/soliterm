@@ -612,7 +612,7 @@ class App(Screens):
     @staticmethod
     def resume_text(save: dict) -> str:
         """How far a saved game got, as in 0:42, 31 moves."""
-        return f"{store.fmt_time(save['seconds'])}, {store.moves_text(save['moves'])}"
+        return store.time_and_moves(save["seconds"], save["moves"])
 
     def new_game(self, deal: Deal) -> Solitaire:
         """Deal what `deal` asks for, over the saved options."""

@@ -970,3 +970,8 @@ def fmt_time(seconds: float) -> str:
 def moves_text(n: int) -> str:
     """A count of moves as it reads in a sentence: 1 move, 2 moves."""
     return "1 move" if n == 1 else f"{n} moves"
+
+
+def time_and_moves(seconds: float, moves: int) -> str:
+    """How long a game took and its moves, as in 3:12, 87 moves."""
+    return f"{fmt_time(seconds)}, {moves_text(moves)}"

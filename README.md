@@ -209,6 +209,13 @@ cards away, and `y` copies it:
 Soliterm daily 2026-09-24, Klondike: won in 3:12, 87 moves
 ```
 
+The list says how each of today's went: `won in 3:12, 87 moves` for your
+best go at it, `played, not won yet`, or `saved at 0:42, 31 moves` for
+one waiting to be picked up. Over it is your daily streak, the days in a
+row with a daily won in any game, which lasts until a whole day goes by
+without one. A daily won or lost can still be played again, on the same
+cards.
+
 A daily is deal YYYYMMDD, so `soliterm --deal klondike:20260924` plays that
 day's cards again whenever you like.
 
@@ -386,7 +393,7 @@ the exit statuses. From a checkout, read it with `man -l man/soliterm.6`.
 | --- | --- |
 | `~/.config/soliterm/config.json` | your settings: each game's options, the colours and theme, the game last played |
 | `~/.local/share/soliterm/stats.json` | the statistics of every game |
-| `~/.local/share/soliterm/history.jsonl` | a line for every game played here, which the streaks come from |
+| `~/.local/share/soliterm/history.jsonl` | a line for every game played here, which the streaks and the daily list come from |
 | `~/.local/share/soliterm/saves/` | the games kept for next time, one file for each game, and the ones being played |
 | `~/.config/gnome-games/aisleriot` | AisleRiot's own statistics, shared when AisleRiot is installed |
 

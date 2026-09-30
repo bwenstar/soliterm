@@ -3089,6 +3089,7 @@ def test_the_menu_starts_the_chosen_game_and_remembers_it(tui):
 
 
 DAILY_DEAL = 4 + len(engine.GAME_ORDER) + 1  # the menu's row under the games
+DAILY_TOP = 4  # the daily list's first row
 PLAY_A_DEAL = DAILY_DEAL + 1
 
 
@@ -3133,12 +3134,14 @@ def test_the_daily_list_shows_every_game_and_fits_80x24(tui, on_the_day, skin):
     rows = daily.split("\n")
     x = 6 + (CODE_GUTTER if skin else 0)
     assert rows[1][x - 2 :] == "Daily deals for 2026-09-24"
+    assert rows[2][x - 2 :] == "Daily streak: none yet, win a daily to start one"
     # one row a game, starting on the last one played
-    assert [row[x:] for row in rows[3 : 3 + len(engine.GAME_ORDER)]] == [
+    assert [row[x:] for row in rows[DAILY_TOP : DAILY_TOP + len(engine.GAME_ORDER)]] == [
         f"{'> ' if key == 'klondike' else '  '}{engine.GAMES[key].name:<16} {key}:20260924"
         for key in engine.GAME_ORDER
     ]
-    assert rows[3 + len(engine.GAME_ORDER) + 1][x:] == "Up/Down move - Enter play - Esc back"
+    footer = rows[DAILY_TOP + len(engine.GAME_ORDER) + 1]
+    assert footer[x:] == "Up/Down move - Enter play - Esc back"
     assert "choose a game" in scr.frames[-1]
     assert not scr.uis
 
@@ -3164,7 +3167,7 @@ def test_the_daily_list_deals_the_chosen_games_daily(tui, on_the_day):
 
 
 def test_a_click_on_the_daily_list_plays_that_game(tui, on_the_day):
-    freecell = 3 + engine.GAME_ORDER.index("freecell")
+    freecell = DAILY_TOP + engine.GAME_ORDER.index("freecell")
     keys = [
         Mouse(DAILY_DEAL, 8),
         Mouse(freecell, 8, curses.BUTTON4_PRESSED),  # the wheel does nothing
@@ -3229,6 +3232,170 @@ def test_the_menu_with_the_daily_deal_fits_80x24(tui, skin):
     assert rows[DAILY_DEAL + 5][x:] == "Up/Down move - Enter select - mouse click - q quit"
     assert "Daily deals for" in scr.frames[1]
     assert "Terminal too small" not in scr.frames[1]
+
+
+def played_daily(key, won, seconds=60, moves=40, day=DAY):
+    """A daily deal of `key` on `day` in the history, won or lost."""
+    g = deals.deal_game(deals.daily(key, day), {})
+    g.moves = moves
+    history.record(g, won, seconds)
+
+
+def keep_daily(key, seconds, moves, day=DAY):
+    """A daily deal of `key` on `day` left under way in the saves folder."""
+    g = deals.deal_game(deals.daily(key, day), {})
+    g.moves = moves
+    assert saves.keep(g, seconds)
+
+
+def daily_rows(frame, x=6):
+    """The daily list's rows in frame, by game, without the > of the one
+    picked."""
+    rows = frame.split("\n")[DAILY_TOP:]
+    return {key: row[x + 2 :] for key, row in zip(engine.GAME_ORDER, rows)}
+
+
+def test_the_daily_list_says_how_each_daily_went(tui, on_the_day):
+    # won twice and lost once: the faster win, with its moves
+    played_daily("klondike", True, 192, 87)
+    played_daily("klondike", False)
+    played_daily("klondike", True, 161, 98)
+    played_daily("pyramid", False)
+    # played and left under way, or lost and then left under way
+    keep_daily("yukon", 42, 31)
+    played_daily("golf", False)
+    keep_daily("golf", 75, 1)
+    # none of which is today's daily
+    played_daily("freecell", True, day=date(2026, 9, 23))
+    keep_daily("spider", 42, 31, day=date(2026, 9, 23))
+    history.record(deal("canfield", 20260924), True, 60)
+    scr = tui([Mouse(DAILY_DEAL, 8), ESC, -1], start_key=None)
+    rows = daily_rows(scr.frames[1])
+    assert rows["klondike"] == "Klondike         klondike:20260924      won in 2:41, 98 moves"
+    assert rows["pyramid"] == "Pyramid          pyramid:20260924       played, not won yet"
+    assert rows["yukon"] == "Yukon            yukon:20260924         saved at 0:42, 31 moves"
+    assert rows["golf"] == "Golf             golf:20260924          saved at 1:15, 1 move"
+    for key in ["freecell", "spider", "canfield", "spiderette"]:
+        assert rows[key] == f"{engine.GAMES[key].name:<16} {key}:20260924", key
+
+
+@pytest.mark.parametrize(
+    "won, streak",
+    [
+        ([], "none yet, win a daily to start one"),
+        ([24], "1 day"),
+        ([22, 23, 24], "3 days"),
+        ([23], "1 day, win one today to keep it"),
+        ([19, 20, 21, 23, 24], "2 days (longest 3)"),
+        ([18, 19, 20, 23], "1 day (longest 3), win one today to keep it"),
+        ([19, 20, 21], "none now (longest 3 days), win a daily to start one"),
+        ([22], "none now (longest 1 day), win a daily to start one"),
+    ],
+)
+def test_the_daily_list_shows_the_daily_streak(tui, on_the_day, won, streak):
+    for day in won:
+        played_daily("golf", True, day=date(2026, 9, day))
+    played_daily("klondike", False)  # a daily lost today doesn't count
+    frame = tui([Mouse(DAILY_DEAL, 8), ESC, -1], start_key=None).frames[1]
+    assert frame.split("\n")[2] == f"    Daily streak: {streak}"
+
+
+def test_the_daily_list_reads_the_history_once_each_time_it_opens(
+    tui, on_the_day, game_clock, monkeypatch
+):
+    reads = []
+    games = history.games
+    monkeypatch.setattr(history, "games", lambda: reads.append(1) or games())
+    seen = []
+    keys = [
+        Mouse(DAILY_DEAL, 8),
+        curses.KEY_DOWN,
+        Resize(30, 100),
+        Resize(40, 120),
+        # a daily won in another window while the list is up
+        Meanwhile(lambda: (seen.append(len(reads)), played_daily("golf", True, 75, 30)), ESC),
+        -1,
+        Mouse(DAILY_DEAL, 8),
+        # and one played here and left under way
+        ENTER,
+        "d",
+        "m",
+        Mouse(DAILY_DEAL, 8),
+        ESC,
+        -1,
+    ]
+    scr = tui(keys, start_key=None)
+    assert seen == [1]  # not again on a key or a resize
+    assert all("won in" not in frame for frame in scr.frames[1:6])
+    assert daily_rows(scr.frames[7])["golf"].endswith("won in 1:15, 30 moves")
+    assert "Klondike  -  Daily 2026-09-24" in scr.frames[8]
+    assert daily_rows(scr.frames[11])["klondike"].endswith("saved at 0:00, 1 move")
+    assert len(reads) == 3
+
+
+@pytest.mark.parametrize("won", [True, False], ids=["won", "lost"])
+def test_a_daily_played_today_can_be_played_again(tui, on_the_day, won):
+    played_daily("klondike", won, 192, 87)
+    scr = tui([Mouse(DAILY_DEAL, 8), ENTER, "q"], start_key=None)
+    said = "won in 3:12, 87 moves" if won else "played, not won yet"
+    assert daily_rows(scr.frames[1])["klondike"].endswith(said)
+    g = scr.uis[-1].game
+    assert (g.gamedef.key, g.deal_number, g.daily) == ("klondike", 20260924, "2026-09-24")
+    fresh = deals.deal_game(deals.daily("klondike", DAY), {})
+    assert [s.cards for s in g.slots] == [s.cards for s in fresh.slots]
+    assert "Klondike  -  Daily 2026-09-24" in scr.frames[2]
+
+
+def test_the_daily_list_keeps_its_day_past_midnight(tui, game_clock, monkeypatch):
+    played_daily("klondike", True, 192, 87)
+    # the list opens a minute before midnight and is drawn again after it
+    midnight = game_clock.now + 60
+    monkeypatch.setattr(
+        deals, "today", lambda: DAY if game_clock.now < midnight else date(2026, 9, 25)
+    )
+    keys = [Mouse(DAILY_DEAL, 8), Later(120, Resize(30, 100)), ESC, -1]
+    scr = tui(keys + [Mouse(DAILY_DEAL, 8), ESC, -1], start_key=None)
+    for frame in scr.frames[1:4]:
+        assert "Daily deals for 2026-09-24" in frame
+        assert frame.split("\n")[2] == "    Daily streak: 1 day"
+        assert daily_rows(frame)["klondike"].endswith("won in 3:12, 87 moves")
+    assert len(scr.frames[2].split("\n")) == 30  # drawn again after midnight
+    # opened again, it's the new day's, not won yet
+    frame = scr.frames[5]
+    assert "Daily deals for 2026-09-25" in frame
+    assert frame.split("\n")[2] == "    Daily streak: 1 day, win one today to keep it"
+    assert daily_rows(frame)["klondike"] == "Klondike         klondike:20260925"
+
+
+@pytest.mark.parametrize("skin", [False, True], ids=["plain", "code-skin"])
+@pytest.mark.parametrize("more", [0, 24], ids=["the-games", "24-more"])
+def test_the_widest_daily_row_fits_80x24(tui, on_the_day, monkeypatch, skin, more):
+    monkeypatch.setattr(FakeScr, "encoding", "ascii")  # the C locale
+    if skin:
+        code_skin_on()
+    order = add_games(monkeypatch, more) if more else engine.GAME_ORDER
+    # the longest name and the longest code there are, won in the longest
+    # time the list makes room for, and a save of as long
+    played_daily("fortythieves", True, 5999, 999)
+    keep_daily("triplepeaks", 5999, 999)
+    frame = tui([Mouse(DAILY_DEAL, 8), ESC, -1], start_key=None, h=24, w=80).frames[1]
+    assert "Terminal too small" not in frame
+    x = 6 + (CODE_GUTTER if skin else 0)
+    rows = daily_rows(frame, x)
+    widest = "Forty Thieves    fortythieves:20260924  won in 99:59, 999 moves"
+    assert rows["fortythieves"] == widest
+    assert (
+        rows["triplepeaks"] == "Triple Peaks     triplepeaks:20260924   saved at 99:59, 999 moves"
+    )
+    # with a column to spare, as every screen leaves the last one empty
+    assert x + 2 + len(widest) < 80
+    # the list scrolls, if it has to, under the streak and over the footer
+    lines = frame.split("\n")
+    assert len(lines) == 24
+    assert lines[2][x - 2 :] == "Daily streak: 1 day"
+    shown = min(len(order), 24 - DAILY_TOP - 2)
+    assert ("more below" in frame) == (shown < len(order))
+    assert lines[DAILY_TOP + shown + 1][x:] == "Up/Down move - Enter play - Esc back"
 
 
 @pytest.mark.parametrize("skin", [False, True])
@@ -3960,7 +4127,7 @@ def test_the_code_skin_keeps_the_too_small_notice_inside_the_code_file(tui):
 # the fewest they scroll it in
 SCROLLED_MIN = {
     "choose a game": 14,
-    "Daily deals for": 8,
+    "Daily deals for": 9,
     "Statistics": 10,
     "Soliterm - controls": 7,
 }
@@ -4016,7 +4183,15 @@ LONG_LISTS = [
         ["solitaire for your terminal", "Daily deal", "Play a deal", "View statistics", "Quit"]
         + ["Up/Down move - Enter select - mouse click - q quit"],
     ),
-    ("Daily deals for", None, [*MENU_MOVES, ENTER], ["Up/Down move - Enter play - Esc back"]),
+    (
+        "Daily deals for",
+        None,
+        [*MENU_MOVES, ENTER],
+        [
+            "Daily streak: none yet, win a daily to start one",
+            "Up/Down move - Enter play - Esc back",
+        ],
+    ),
     (
         "Statistics",
         "klondike",

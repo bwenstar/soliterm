@@ -16,7 +16,7 @@ import textwrap
 import time
 from typing import TYPE_CHECKING, Any, Callable
 
-from .. import APP_NAME, camo, clipboard, deals, history, saves, store
+from .. import APP_NAME, camo, clipboard, deals, history, records, saves, store
 from ..deals import Code, Deal
 from ..engine import GAME_ORDER, GAMES, Solitaire
 from ..themes import CHROME, CURSOR, MESSAGE
@@ -51,6 +51,25 @@ def skip_mouse_event() -> None:
         curses.getmouse()
     except curses.error:
         pass
+
+
+def days_text(n: int) -> str:
+    """A count of days as it reads in a sentence: 1 day, 2 days."""
+    return "1 day" if n == 1 else f"{n} days"
+
+
+def daily_streak_text(streak: history.Streak, won_today: bool) -> str:
+    """The daily list's line about the days in a row with a daily won."""
+    if not streak.current:
+        if not streak.longest:
+            return "Daily streak: none yet, win a daily to start one"
+        longest = days_text(streak.longest)
+        return f"Daily streak: none now (longest {longest}), win a daily to start one"
+    text = f"Daily streak: {days_text(streak.current)}"
+    if streak.longest > streak.current:
+        text += f" (longest {streak.longest})"
+    # it runs to yesterday until one of today's is won
+    return text if won_today else text + ", win one today to keep it"
 
 
 def hides_the_board(screen):
@@ -419,24 +438,44 @@ class Screens:
 
     @hides_the_board
     def daily_screen(self) -> Deal | None:
-        """The list of today's daily deals, one a game. Returns the Deal
-        picked, or None if the player went back."""
+        """The list of today's daily deals, one a game, with how each went
+        today and the streak of days with one won. Returns the Deal picked,
+        or None if the player went back. A daily won or lost is dealt again
+        all the same."""
         CP, safe_add = self.CP, self.safe_add
         # read once, so a list left open over midnight deals the day it shows
         day = deals.today()
         number = deals.daily_number(day)
+        # and the history once each time it opens, not on each key or resize
+        entries = history.games()
+        results = records.dailies(entries, day)
+        won_today = any(r.result == "won" for r in results.values())
+        streak = daily_streak_text(records.daily_streak(entries, day), won_today)
+        # the codes line up, and what came of each after them
+        width = max(len(f"{key}:{number}") for key in GAME_ORDER)
         rows = Scroll(len(GAME_ORDER), GAME_ORDER.index(self.last_game()))
+
+        def how_it_went(key: str) -> str:
+            done, save = results[key], self.waiting.get(key)
+            if done.best is not None:
+                return f"won in {store.time_and_moves(done.best.seconds, done.best.moves)}"
+            # which Enter resumes, as the menu does
+            if save is not None and save.get("daily") == day.isoformat():
+                return f"saved at {self.resume_text(save)}"
+            return "played, not won yet" if done.result == "lost" else ""
 
         def game_row(i: int) -> str:
             key = GAME_ORDER[i]
-            return f"{GAMES[key].name:<16} {key}:{number}"
+            code = f"{key}:{number}"
+            return f"{GAMES[key].name:<16} {code:<{width}}  {how_it_went(key)}".rstrip()
 
         while True:
             self.begin_page()
             safe_add(1, 4, f"Daily deals for {day.isoformat()}", CP(CHROME) | curses.A_BOLD)
-            rows.fit(self.stdscr.getmaxyx()[0] - 3 - 2)  # a gap and the footer under it
-            self.draw_list(rows, 3, 6, game_row)
-            safe_add(3 + rows.room + 1, 6, "Up/Down move - Enter play - Esc back", CP(CHROME))
+            safe_add(2, 4, streak)
+            rows.fit(self.stdscr.getmaxyx()[0] - 4 - 2)  # a gap and the footer under it
+            self.draw_list(rows, 4, 6, game_row)
+            safe_add(4 + rows.room + 1, 6, "Up/Down move - Enter play - Esc back", CP(CHROME))
             self.end_page()
             k = self.page_key()
             if self.boss_key(k) or rows.key(k):
@@ -449,7 +488,7 @@ class Screens:
                     _, _mx, my, _, bstate = curses.getmouse()
                 except curses.error:
                     continue
-                picked = rows.mouse(bstate, my - 3)
+                picked = rows.mouse(bstate, my - 4)
             elif k in (27, ord("q"), ord("Q")):
                 return None
             if picked is not None:
