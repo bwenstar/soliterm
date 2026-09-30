@@ -23,8 +23,9 @@ of it holds through every 1.x release.
 - **The daily deal** is deal YYYYMMDD with the standard options, 20260924
   on 2026-09-24, so `klondike:20260924` is that day's daily for good.
 
-The tests pin a hash of deals of every game, as 1.0.0 dealt them, so a
-change that would deal different cards fails straight away.
+The tests pin a hash of deals of every game, as 1.0.0 dealt them, and
+Pyramid's as 1.2 does, so a change that would deal different cards fails
+straight away.
 
 ## Names and numbers
 
@@ -37,7 +38,8 @@ change that would deal different cards fails straight away.
   and saves store. A game keeps its slots, in the order it has them.
 - **AisleRiot's section names**, `GAME_TO_SECTION` in
   [`aisleriot.py`](../src/soliterm/aisleriot.py), as `[eight_off.scm]`
-  for Eight Off, so the statistics stay shared.
+  for Eight Off, or `[thirteen.scm]` for Pyramid, which AisleRiot calls
+  Thirteen, so the statistics stay shared.
 
 ## The command line
 

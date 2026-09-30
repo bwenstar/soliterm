@@ -13,8 +13,8 @@ license-files = ["LICENSE"]
 authors = [{ name = "Brendan Ta" }]
 keywords = [
     "solitaire", "patience", "card-game", "cards", "klondike", "spider",
-    "freecell", "golf", "aisleriot", "gnome", "curses", "tui", "terminal",
-    "console", "game",
+    "freecell", "golf", "pyramid", "aisleriot", "gnome", "curses", "tui",
+    "terminal", "console", "game",
 ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",

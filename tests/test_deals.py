@@ -133,6 +133,8 @@ def test_code_of_the_game_in_play():
     g.new_game()
     assert code_of(g) == "spider:s2:8"
     assert code_of(deal("canfield", 20260924)) == "canfield:20260924"
+    assert code_of(deal("pyramid", 216)) == "pyramid:216"
+    assert parse("pyramid:216") == Code("pyramid", 216, {})
 
 
 @pytest.mark.parametrize("key", GAME_ORDER)

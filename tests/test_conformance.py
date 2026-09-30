@@ -190,6 +190,7 @@ DEALS = {
     "bakersdozen": ("c917882e336c8264", "f5f30c943fcf5229"),
     "fortythieves": ("f7b8545cae6cd14a", "041e69dca419ad85"),
     "canfield": ("8b61e252aaeddb8a", "1491a6d84dc72de4"),
+    "pyramid": ("4509a3fef8971e7a", "55f84151299186bc"),  # from 1.2
 }
 
 
@@ -259,6 +260,11 @@ DEALS_IN_1_0_0 = {
     "canfield:999999": "0f73b1f88abc6330",
     "canfield:20260929": "be23271957ca6deb",
     "canfield:2147483647": "b7648c1f4508f878",
+    # Pyramid came in 1.2, so its pins start there and not at 1.0.0
+    "pyramid:0": "7a8753624c3e1ed9",
+    "pyramid:999999": "cc24b0e1c608cac6",
+    "pyramid:20260929": "df143cfc6b970ed4",
+    "pyramid:2147483647": "c57f071725601e66",
 }
 
 
