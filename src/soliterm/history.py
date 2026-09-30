@@ -32,12 +32,21 @@ def now() -> str:
     return datetime.datetime.now().astimezone().isoformat(timespec="seconds")
 
 
-def record(g: Solitaire, won: bool, seconds: float) -> dict:
+def record(g: Solitaire, won: bool, seconds: float) -> tuple[dict, dict]:
     """Count g in the statistics and add a line for it to the history.
 
-    Returns the game's statistics after, as store.record_result does. Unlike
-    the statistics, the history keeps the time of a loss.
+    Returns the game's statistics after, as store.record_result does, and
+    its line. Unlike the statistics, the history keeps the time of a loss.
     """
+    entry = entry_of(g, won, seconds)
+    with store._locked():
+        stat = store.record_result(g.gamedef.key, won, seconds)
+        _append(entry)
+    return stat, entry
+
+
+def entry_of(g: Solitaire, won: bool, seconds: float) -> dict:
+    """The line record() writes for g, won or lost in `seconds`."""
     secs = round(seconds)
     entry = {
         "at": now(),
@@ -52,10 +61,7 @@ def record(g: Solitaire, won: bool, seconds: float) -> dict:
     }
     if g.daily:
         entry["daily"] = g.daily
-    with store._locked():
-        stat = store.record_result(g.gamedef.key, won, seconds)
-        _append(entry)
-    return stat
+    return entry
 
 
 def _append(entry: dict) -> None:

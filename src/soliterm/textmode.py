@@ -17,7 +17,7 @@ import time
 from contextlib import suppress
 from typing import Callable
 
-from . import APP_NAME, camo, history, saves, store
+from . import APP_NAME, camo, history, records, saves, store
 from .deals import code_of, deal_label, share_line
 from .engine import SUIT_SYMBOL, Card, Slot, Solitaire
 
@@ -444,12 +444,14 @@ def run_text(
         # touched does not count at all
         return not recorded and not g.is_won() and (g.moves > 0 or resumed)
 
-    def count(won: bool, secs: int) -> None:
+    def count(won: bool, secs: int) -> dict:
+        """Count the game, once. Returns its line in the history."""
         nonlocal recorded
         with store.signals_held():
             saves.let_go(game_key)  # a game taken up from a save, done with
-            history.record(g, won, secs)
+            _, line = history.record(g, won, secs)
             recorded = True
+        return line
 
     def give_up() -> str:
         """Count a game under way lost. A daily's line to share, as a win
@@ -604,7 +606,7 @@ def run_text(
                 say_if_stuck()
                 if g.is_won() and not recorded:
                     secs = seconds()
-                    count(True, secs)
+                    line = count(True, secs)
                     print("Congratulations - you won!", file=out)
                     print(
                         f"Score {g.score} in {store.fmt_time(secs)} ({store.moves_text(g.moves)}).",
@@ -613,6 +615,9 @@ def run_text(
                     print(f"Share code: {code_of(g)}", file=out)
                     if g.daily:
                         print(share_line(g.gamedef.name, g.daily, True, secs, g.moves), file=out)
+                    on_deal = records.deal_text(records.on_this_deal(line, history.games()))
+                    if on_deal:
+                        print(f"On this deal: {on_deal}", file=out)
                     streak = history.streak_text(game_key)
                     if streak:
                         print(f"{streak}.", file=out)

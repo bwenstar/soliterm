@@ -815,15 +815,25 @@ class Screens:
         finally:
             stdscr.nodelay(False)
 
-    def banner_lines(self, seconds: int, won: bool, stat: dict, note: str = "") -> list[str]:
+    def banner_lines(
+        self, seconds: int, won: bool, stat: dict, note: str = "", on_deal: str = ""
+    ) -> list[str]:
         """The rows of the end banner from row 4 down, "" for a blank one.
-        The choices go under the last of them. The rows of the best time and
-        the streak are there even when empty, so the choices don't move up.
-        A note from win_note goes after the best time."""
+        The choices go under the last of them. A note from win_note goes
+        after the best time, and on_deal, how the game stood on its deal,
+        under it. The best time, the deal and the streak each have a row
+        only when there's something to say, and the rows they leave are
+        there empty at the end, so the choices don't move up."""
         game = self.game
         pcts = store.percent_text(stat)
         streak = history.streak_text(self.key) if won else ""
         deal = f"daily {game.daily}" if game.daily else game.deal_number
+        rows = [
+            f"Best time   : {store.fmt_time(stat['best'])}{note}" if stat["best"] else "",
+            f"On this deal: {on_deal}" if on_deal else "",
+            f"Streak      : {streak}" if streak else "",
+        ]
+        said = [row for row in rows if row]
         return [
             f"Game        : {game.gamedef.name}",
             f"Deal        : {deal}   share code {deals.code_of(game)}",
@@ -832,16 +842,16 @@ class Screens:
             f"Moves       : {game.moves}",
             "",
             f"Wins/Total  : {stat['wins']}/{stat['total']}  ({pcts})",
-            f"Best time   : {store.fmt_time(stat['best'])}{note}" if stat["best"] else "",
-            f"Streak      : {streak}" if streak else "",
+            *said,
+            *[""] * (len(rows) - len(said)),
         ]
 
     @hides_the_board
-    def end_banner(self, seconds: int, won: bool, note: str = "") -> str:
+    def end_banner(self, seconds: int, won: bool, note: str = "", on_deal: str = "") -> str:
         """Show the end-of-game banner with choices. Returns one of:
         'undo' (take the last move back, when no moves are left), 'same'
         (replay this deal), 'new' (fresh deal), 'menu'. The note goes after
-        the best time."""
+        the best time, and on_deal under it."""
         CP, safe_add = self.CP, self.safe_add
         game = self.game
         s = store.get_stat(self.key)
@@ -849,7 +859,7 @@ class Screens:
             # a loss is recorded on leaving the banner for a new deal or the
             # menu, so count it already, as the statistics will then
             s = {**s, "total": s["total"] + 1}
-        lines = self.banner_lines(seconds, won, s, note)
+        lines = self.banner_lines(seconds, won, s, note, on_deal)
         top = 4 + len(lines) + 1  # the row of the first choice
         share = ""  # the line a daily leaves to paste to friends
         if game.daily:

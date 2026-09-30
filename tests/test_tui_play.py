@@ -1909,8 +1909,8 @@ def test_a_win_after_taking_back_the_dead_end_counts_as_a_win(tui):
     assert store.get_stat("golf")["total"] == 1
 
 
-# the banner's choices sit on rows 14-16 from column 6, marker included
-BANNER_ROW = {"same": 14, "new": 15, "menu": 16}
+# the banner's choices sit on rows 15-17 from column 6, marker included
+BANNER_ROW = {"same": 15, "new": 16, "menu": 17}
 
 
 def test_the_banner_ignores_the_pointer_the_wheel_and_other_buttons(tui):
@@ -1941,7 +1941,7 @@ def test_a_left_click_on_a_banner_choice_takes_it(tui, bstate):
 
 def test_the_banner_keeps_its_rows(tui, game_clock):
     won = tui(["a", "m"], game=near_won()).frames[1].split("\n")
-    assert won[2:15] == [
+    assert won[2:16] == [
         "      *** YOU WIN! ***",
         "",
         "      Game        : Klondike",
@@ -1952,14 +1952,22 @@ def test_the_banner_keeps_its_rows(tui, game_clock):
         "",
         "      Wins/Total  : 1/1  (100%)",
         "      Best time   : 0:01  (your first Klondike win!)",
-        "",  # no streak on a first win
+        "",  # nothing on the deal or a streak on a first win
+        "",
         "",
         "      > Replay this deal (s)",
     ]
-    # with no best time or streak their rows stay empty, so the choices
-    # don't move up
+    # with no best time, deal or streak to show their rows stay empty, so
+    # the choices don't move up
     stuck = tui(["f", "m"], start_key="golf", game=one_move_left()).frames[1].split("\n")
-    assert stuck[10:15] == ["      Wins/Total  : 0/1  (0%)", "", "", "", "      > Undo move (u)"]
+    assert stuck[10:16] == [
+        "      Wins/Total  : 0/1  (0%)",
+        "",
+        "",
+        "",
+        "",
+        "      > Undo move (u)",
+    ]
 
 
 def test_the_banner_shows_the_deal_and_share_code(tui):
@@ -1993,9 +2001,9 @@ def test_the_banner_prints_the_share_line_for_a_daily(tui):
 
 @pytest.mark.parametrize("won", [True, False])
 def test_the_share_line_is_left_off_a_banner_it_would_not_fit_on(tui, won):
-    # the banner fitted 20 rows, or 21 with Undo move, before it had the line
+    # the banner fits 21 rows, or 22 with Undo move, without the line
     daily = deals.daily("klondike" if won else "golf", DAY)
-    keys, rows = (["a", "m"], 20) if won else (["f", "m"], 21)
+    keys, rows = (["a", "m"], 21) if won else (["f", "m"], 22)
     for h, shared in [(rows, False), (rows + 1, True)]:
         game = near_won(daily.number) if won else one_move_left()
         banner = tui(keys, start=daily, game=game, h=h, w=80).frames[1]
@@ -2007,10 +2015,13 @@ def test_the_share_line_is_left_off_a_banner_it_would_not_fit_on(tui, won):
 def test_every_banner_choice_shows_its_key_at_80x24(tui, skin):
     if skin:
         code_skin_on()
-    # the most a banner holds: four choices and a daily's share line
+    # the most a banner holds: a line on the deal, four choices and a
+    # daily's share line
+    history.record(deal("golf", 1), True, 5999)
     golf = deals.daily("golf", DAY)
     banner = tui(["f", "m"], start=golf, game=one_move_left(), h=24, w=80).frames[1]
     assert "Terminal too small" not in banner
+    assert "On this deal: your best is 99:59, 0 moves" in banner
     for choice in ["Undo move (u)", "Replay this deal (s)", "New deal (n)", "Back to menu (m)"]:
         assert choice in banner
     assert "Up/Down + Enter, or click to choose; y copies the share line." in banner
@@ -2174,10 +2185,10 @@ def test_y_on_a_daily_banner_on_windows_copies_the_share_line(tui, on_windows):
 
 @pytest.mark.parametrize("won", [True, False], ids=["won", "stuck"])
 def test_a_daily_banner_too_short_for_the_share_line_copies_the_code(tui, sent, won):
-    # the banner fits 20 rows, or 21 with Undo move, with no share line and
+    # the banner fits 21 rows, or 22 with Undo move, with no share line and
     # no row under it, so what came of y goes in place of the footer
     daily = deals.daily("klondike" if won else "golf", DAY)
-    keys, h = (["a", "y", "m"], 20) if won else (["f", "y", "m"], 21)
+    keys, h = (["a", "y", "m"], 21) if won else (["f", "y", "m"], 22)
     game = near_won(daily.number) if won else one_move_left()
     scr = tui(keys, start=daily, game=game, h=h, w=80)
     code, footer = deals.code_of(game), h - 2
@@ -2250,13 +2261,13 @@ def test_the_banner_shows_a_streak_of_two_or_more(tui, before, streak):
     played_before("klondike", before)
     banner = tui(["a", "m"], game=near_won()).frames[1].split("\n")
     assert banner[12].strip() == streak
-    assert banner[14] == "      > Replay this deal (s)"
+    assert banner[15] == "      > Replay this deal (s)"
 
 
 def test_the_no_moves_banner_shows_no_streak(tui):
     played_before("golf", [True, True, True])
-    stuck = tui(["f", "m"], start_key="golf", game=one_move_left()).frames[1].split("\n")
-    assert stuck[12] == ""
+    stuck = tui(["f", "m"], start_key="golf", game=one_move_left()).frames[1]
+    assert "Streak" not in stuck
 
 
 def banner_after_a_win_in_11_seconds(tui):
@@ -2289,6 +2300,117 @@ def test_a_win_equal_to_the_best_gets_no_note(tui, game_clock, best):
     store.record_result("klondike", won=True, seconds=best)
     banner = banner_after_a_win_in_11_seconds(tui)
     assert f"Best time   : {store.fmt_time(best)}\n" in banner
+
+
+def won_before(seconds, moves, number=1, key="klondike", **options):
+    """A win of deal `number` of `key` in the history, in seconds and moves."""
+    g = deal(key, number, **options)
+    g.moves = moves
+    history.record(g, True, seconds)
+
+
+def deal_row(banner):
+    """The banner's line about the deal, or None."""
+    rows = [row.strip() for row in banner.split("\n") if "On this deal" in row]
+    assert len(rows) <= 1
+    return rows[0] if rows else None
+
+
+@pytest.mark.parametrize(
+    "before, row",
+    [
+        ([], None),
+        ([(300, 150)], "On this deal: a new best, was 5:00, 150 moves"),
+        ([(300, 150), (5, 30), (40, 3)], "On this deal: your best is 0:05, 30 moves"),
+        # the same time, and the moves decide
+        ([(11, 40)], "On this deal: a new best, was 0:11, 40 moves"),
+        ([(11, 1)], "On this deal: your best is 0:11, 1 move"),
+        ([(11, 2)], "On this deal: your best is 0:11, 2 moves"),
+    ],
+    ids=["first", "faster", "slower", "fewer-moves", "more-moves", "the-same"],
+)
+def test_the_banner_says_how_a_win_stood_on_its_deal(tui, game_clock, before, row):
+    won_before(1, 10, number=2)  # the game's best, on another deal
+    for seconds, moves in before:
+        won_before(seconds, moves)
+    history.record(deal("klondike", 3), False, 60)  # and no streak
+    banner = banner_after_a_win_in_11_seconds(tui)
+    assert "Moves       : 2\n" in banner
+    assert deal_row(banner) == row
+    lines = banner.split("\n")
+    assert lines[11].strip() == "Best time   : 0:01"
+    assert lines[12].strip() == (row or "")  # under the best time
+    assert lines[15] == "      > Replay this deal (s)"
+
+
+def test_a_win_on_other_options_is_another_deal(tui, game_clock):
+    won_before(300, 150, draw=3)
+    won_before(300, 150, number=2)
+    assert deal_row(banner_after_a_win_in_11_seconds(tui)) is None
+
+
+@pytest.mark.parametrize(
+    "elsewhere, was, row",
+    [
+        (None, "5:00", None),
+        # when the game's best was on another deal, both are news
+        (120, "2:00", "On this deal: a new best, was 5:00, 150 moves"),
+    ],
+    ids=["the-deal-had-the-games-best", "another-deal-had-it"],
+)
+def test_a_new_best_on_the_deal_is_said_once(tui, game_clock, elsewhere, was, row):
+    won_before(300, 150)
+    if elsewhere:
+        won_before(elsewhere, 60, number=2)
+    banner = banner_after_a_win_in_11_seconds(tui)
+    assert f"Best time   : 0:11  (new best, was {was})\n" in banner
+    assert deal_row(banner) == row
+
+
+def test_the_deal_line_goes_over_the_streak(tui, game_clock):
+    won_before(1, 10, number=2)
+    won_before(300, 150)
+    lines = banner_after_a_win_in_11_seconds(tui).split("\n")
+    assert [line.strip() for line in lines[10:16]] == [
+        "Wins/Total  : 3/3  (100%)",
+        "Best time   : 0:01",
+        "On this deal: a new best, was 5:00, 150 moves",
+        "Streak      : 3 wins in a row, your longest yet",
+        "",
+        "> Replay this deal (s)",
+    ]
+
+
+@pytest.mark.parametrize(
+    "before, row",
+    [
+        ([], None),
+        ([False], None),
+        ([True, False], "On this deal: your best is 1:00, 0 moves"),
+    ],
+    ids=["first", "after-a-loss", "after-a-win"],
+)
+def test_the_no_moves_banner_gives_the_best_win_on_its_deal(tui, before, row):
+    played_before("golf", before)
+    won_before(1, 10, number=2, key="golf")  # not this deal
+    stuck = tui(["f", "m"], start_key="golf", game=one_move_left()).frames[1]
+    assert "No moves left" in stuck
+    assert deal_row(stuck) == row
+    if row:
+        assert stuck.split("\n")[12] == f"      {row}"
+
+
+def test_a_daily_stands_on_the_same_deal_played_plainly(tui, game_clock):
+    won_before(1, 10, number=2)
+    won_before(300, 150, number=20260924)
+    daily = deals.daily("klondike", DAY)
+    scr = tui(KING_TO_EMPTY + [Later(10.6, -1), "a", "m"], start=daily, game=near_won(20260924))
+    banner = next(frame for frame in scr.frames if "YOU WIN" in frame)
+    assert "Deal        : daily 2026-09-24" in banner
+    assert deal_row(banner) == "On this deal: a new best, was 5:00, 150 moves"
+    # and the plain deal after it has the daily to beat
+    banner = tui(["a", "m"], game=near_won(20260924)).frames[1]
+    assert deal_row(banner) == "On this deal: a new best, was 0:11, 2 moves"
 
 
 def test_the_banner_choices_follow_its_lines(tui, monkeypatch):

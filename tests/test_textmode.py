@@ -941,7 +941,96 @@ def test_a_text_win_prints_the_streak(before, streak, capsys):
     assert textmode.run_text(g, False, "klondike", stream=script) == 0
     lines = capsys.readouterr().out.splitlines()
     score = [i for i, line in enumerate(lines) if line.startswith("Score ")]
-    assert lines[score[0] + 1 :] == ["Share code: klondike:1", *streak]
+    # the wins before were on this deal, and slower
+    deal_line = ["On this deal: a new best, was 1:00, 0 moves"] if True in before else []
+    assert lines[score[0] + 1 :] == ["Share code: klondike:1", *deal_line, *streak]
+
+
+def won_before(seconds, moves, number=1, **options):
+    """A win of Klondike's deal `number` in the history, in seconds and moves."""
+    g = deal("klondike", number, **options)
+    g.moves = moves
+    history.record(g, True, seconds)
+
+
+@pytest.mark.parametrize(
+    "before, said",
+    [
+        ([], []),
+        ([(300, 150)], ["On this deal: a new best, was 5:00, 150 moves"]),
+        ([(300, 150), (5, 30), (40, 3)], ["On this deal: your best is 0:05, 30 moves"]),
+        # the same time, and the moves decide
+        ([(192, 40)], ["On this deal: a new best, was 3:12, 40 moves"]),
+        ([(192, 0)], ["On this deal: your best is 3:12, 0 moves"]),
+        ([(192, 1)], ["On this deal: your best is 3:12, 1 move"]),
+        # another deal, or the same one with other options
+        ([(300, 150, 2), (300, 150, 1, 3)], []),
+    ],
+    ids=["first", "faster", "slower", "fewer-moves", "more-moves", "the-same", "other-deals"],
+)
+def test_a_text_win_says_how_it_stood_on_its_deal(before, said, monkeypatch, capsys):
+    for seconds, moves, *deal_draw in before:
+        number, *draw = deal_draw or [1]
+        won_before(seconds, moves, number, **({"draw": draw[0]} if draw else {}))
+    clock = Clock()
+    monkeypatch.setattr(textmode, "time", clock)
+    g = deal("klondike", 1)
+
+    def script():
+        clock.now += 192
+        yield f"f {one_card_from_won(g)}\n"
+
+    assert textmode.run_text(g, False, "klondike", stream=script()) == 0
+    lines = capsys.readouterr().out.splitlines()
+    assert f"Score {g.score} in 3:12 (1 move)." in lines
+    at = lines.index("Share code: klondike:1")
+    assert [line for line in lines[at + 1 :] if "wins in a row" not in line] == said
+
+
+def test_a_text_daily_stands_on_the_same_deal_played_plainly(monkeypatch, capsys):
+    won_before(300, 150, 20260924)
+    clock = Clock()
+    monkeypatch.setattr(textmode, "time", clock)
+    g = deals.deal_game(deals.daily("klondike", date(2026, 9, 24)), {})
+
+    def script():
+        clock.now += 192
+        yield f"f {one_card_from_won(g)}\n"
+
+    assert textmode.run_text(g, False, "klondike", stream=script()) == 0
+    lines = capsys.readouterr().out.splitlines()
+    assert lines[-4:] == [
+        "Share code: klondike:20260924",
+        "Soliterm daily 2026-09-24, Klondike: won in 3:12, 1 move",
+        "On this deal: a new best, was 5:00, 150 moves",
+        "2 wins in a row, your longest yet.",
+    ]
+
+
+def test_a_text_win_played_again_within_the_second_has_the_first_to_beat(monkeypatch, capsys):
+    # as the same script piped in twice does: the two lines are the same
+    monkeypatch.setattr(history, "now", lambda: "2026-09-24T14:05:11+10:00")
+    monkeypatch.setattr(textmode, "time", Clock())
+    for _ in range(2):
+        g = deal("klondike", 1)
+        typed = iter([f"f {one_card_from_won(g)}\n"])
+        assert textmode.run_text(g, False, "klondike", stream=typed) == 0
+    lines = capsys.readouterr().out.splitlines()
+    assert [line for line in lines if line.startswith("On this deal")] == [
+        "On this deal: your best is 0:01, 1 move"
+    ]
+    first, again = history.games()
+    assert first == again
+
+
+@pytest.mark.parametrize("script", ["d\nq\n", "d\nn\nq\n", "d\n"])
+def test_a_text_loss_says_nothing_about_its_deal(monkeypatch, capsys, script):
+    g, typed = a_daily(monkeypatch)
+    won_before(60, 40, g.deal_number)
+    assert textmode.run_text(g, False, "klondike", stream=typed(script)) == 0
+    out = capsys.readouterr().out
+    assert store.get_stat("klondike")["total"] == 2
+    assert DAILY_LOST in out and "On this deal" not in out
 
 
 def test_ctrl_c_as_a_win_is_shown_still_counts_it(monkeypatch):

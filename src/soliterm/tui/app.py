@@ -22,7 +22,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager, suppress
 from typing import Callable
 
-from .. import deals, history, saves, store, themes
+from .. import deals, history, records, saves, store, themes
 from ..deals import Deal
 from ..engine import GAMES, Solitaire
 from .board import BoardUI, can_draw_unicode, color_attr
@@ -195,10 +195,27 @@ def win_note(before: dict, after: dict, seconds: int, name: str) -> str:
     time among them."""
     if after["wins"] == 1:
         return f"  (your first {name} win!)"
-    secs = max(1, seconds)  # as the statistics keep a win's time
-    if before["best"] and after["best"] == secs < before["best"]:
+    if new_best(before, after, seconds):
         return f"  (new best, was {store.fmt_time(before['best'])})"
     return ""
+
+
+def new_best(before: dict, after: dict, seconds: int) -> bool:
+    """Whether a win in `seconds` beat the game's best time, as win_note
+    says it did."""
+    secs = max(1, seconds)  # as the statistics keep a win's time
+    return after["wins"] > 1 and bool(before["best"]) and after["best"] == secs < before["best"]
+
+
+def deal_note(found: records.DealBest | None, before: dict, after: dict, seconds: int) -> str:
+    """What the banner says of how a win stood on its deal, as
+    records.deal_text() puts it. When the deal's best was the game's best
+    time and this win beat it, the note on the best time has said as much,
+    so it says nothing."""
+    was_the_games = found is not None and found.beaten and found.best.seconds == before["best"]
+    if was_the_games and new_best(before, after, seconds):
+        return ""
+    return records.deal_text(found)
 
 
 @contextmanager
@@ -846,14 +863,15 @@ class App(Screens):
             if not self.recorded:
                 self.give_up()
 
-    def count(self, won: bool, seconds: int) -> dict:
+    def count(self, won: bool, seconds: int) -> tuple[dict, dict]:
         """Count the game in play in the statistics, once, and return its
-        statistics after. Every game the TUI counts comes through here."""
+        statistics after and its line in the history. Every game the TUI
+        counts comes through here."""
         with store.signals_held():
             saves.let_go(self.key)  # a game taken up from a save, done with
-            stat = history.record(self.game, won, seconds)
+            counted = history.record(self.game, won, seconds)
             self.recorded = True
-        return stat
+        return counted
 
     def reset_for(self, new_game_fn: Callable[[], object]):
         """Run a (re)deal and reset the per-game UI state."""
@@ -885,16 +903,22 @@ class App(Screens):
         plays on, and replaying the deal counts nothing, as AisleRiot's
         Restart doesn't (see under_way)."""
         seconds = self.seconds()
-        note = ""
+        note = on_deal = ""
         if won and not self.recorded:
             before = store.get_stat(self.key)
-            after = self.count(True, seconds)
+            after, line = self.count(True, seconds)
             note = win_note(before, after, seconds, self.game.gamedef.name)
+            found = records.on_this_deal(line, history.games())
+            on_deal = deal_note(found, before, after, seconds)
             # counted first, so Ctrl-C while the cards fly keeps the win
             self.win_cascade()
+        elif not won:
+            # the best win of the deal, if any, as the loss isn't counted yet
+            line = history.entry_of(self.game, False, seconds)
+            on_deal = records.deal_text(records.on_this_deal(line, history.games()))
         # left set if Ctrl-C comes, for play() to see as it goes
         self.ending = True
-        choice = self.end_banner(seconds, won, note)
+        choice = self.end_banner(seconds, won, note, on_deal)
         self.ending = False
         if choice == "undo":
             self.do_undo()

@@ -18,7 +18,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 from typing import NamedTuple
 
-from . import deals, history
+from . import deals, history, store
 from .engine import GAME_ORDER, GAMES, is_day
 from .history import Streak
 
@@ -212,7 +212,9 @@ def on_this_deal(entry: dict, entries: list[dict] | None = None) -> DealBest | N
 
     The earlier games are the ones before `entry` in `entries`, the history
     by default, or all of them when it isn't there, as when its line
-    couldn't be written. Returns None when none of them won the deal.
+    couldn't be written. The line just written is the last one like it:
+    a deal won again within the second, as a script can, writes the same
+    line twice. Returns None when none of them won the deal.
 
     A win beats the best on time, and on moves when the times are the same.
     Time is what the statistics, AisleRiot's too, rank wins by, and it's
@@ -223,10 +225,12 @@ def on_this_deal(entry: dict, entries: list[dict] | None = None) -> DealBest | N
     this = _deal_of(entry)
     if this is None:
         return None
+    stop = next(
+        (i for i in range(len(entries) - 1, -1, -1) if entries[i] is entry or entries[i] == entry),
+        len(entries),
+    )
     best = None
-    for e in entries:
-        if e is entry or e == entry:
-            break
+    for e in entries[:stop]:
         won = e["result"] == "won" and _deal_of(e) == this
         if won and (best is None or _by_time(e) < _by_time(best)):
             best = e
@@ -234,6 +238,16 @@ def on_this_deal(entry: dict, entries: list[dict] | None = None) -> DealBest | N
         return None
     beaten = entry["result"] == "won" and _by_time(entry) < _by_time(best)
     return DealBest(_best(best), beaten)
+
+
+def deal_text(found: DealBest | None) -> str:
+    """How a game stood on its deal, as on_this_deal() found it, the way
+    the end banner and text mode put it after "On this deal: ". "" when
+    there's no earlier win of the deal, as on the first."""
+    if found is None:
+        return ""
+    best = store.time_and_moves(found.best.seconds, found.best.moves)
+    return f"a new best, was {best}" if found.beaten else f"your best is {best}"
 
 
 class DayResult(NamedTuple):

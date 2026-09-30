@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 
 import soliterm.tui.app
-from soliterm import saves, store
+from soliterm import history, saves, store
 from soliterm.deals import Deal
 from soliterm.engine import Card, Solitaire
 from soliterm.tui import cascade
@@ -478,15 +478,17 @@ def test_play_goes_back_to_the_menu_or_quits():
     assert store.get_stat("golf")["total"] == 0
 
 
-def test_count_records_the_game_once_and_returns_its_stats():
+def test_count_records_the_game_once_and_returns_its_stats_and_line():
     app = App(KeyScr())
     app.start_game("golf")
     press(app, "d")  # the game is under way
-    stat = app.count(True, 42)
+    stat, line = app.count(True, 42)
     assert stat == {"wins": 1, "total": 1, "best": 42, "worst": 42}
+    assert history.games() == [line]
     assert app.recorded
     app.give_up()  # already counted, so nothing more
     assert store.get_stat("golf") == stat
+    assert history.games() == [line]
 
 
 def test_menu_and_quit_hand_back_what_to_do_next():

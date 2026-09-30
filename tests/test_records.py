@@ -357,6 +357,18 @@ def test_games_after_the_one_just_played_are_left_out():
     )
 
 
+def test_a_game_played_again_within_the_second_goes_against_the_first(monkeypatch):
+    # the two lines are the same, and the one just played is the last
+    first, again = game(), game()
+    assert records.on_this_deal(again, [first, again]) == DealBest(best(first), False)
+    monkeypatch.setattr(history, "now", lambda: AT)
+    history.record(deal("golf", 5), True, 0.2)
+    history.record(deal("golf", 5), True, 0.3)
+    first, again = history.games()
+    assert first == again
+    assert records.on_this_deal(again) == DealBest(best(first), False)
+
+
 def test_a_game_whose_line_isnt_there_goes_against_them_all():
     # as when its line couldn't be written
     e = game(seconds=150, at="2026-09-25T09:00:00+10:00")
@@ -374,6 +386,19 @@ def test_the_best_on_a_deal_comes_from_the_history_by_default():
     history.record(deal("golf", 5), True, 50)
     first, last = history.games()
     assert records.on_this_deal(last) == DealBest(best(first), True)
+
+
+@pytest.mark.parametrize(
+    "found, text",
+    [
+        (None, ""),
+        (DealBest(best(game(seconds=190, moves=60)), True), "a new best, was 3:10, 60 moves"),
+        (DealBest(best(game(seconds=161, moves=1)), False), "your best is 2:41, 1 move"),
+    ],
+    ids=["first", "beaten", "not-beaten"],
+)
+def test_how_a_game_stood_on_its_deal_reads(found, text):
+    assert records.deal_text(found) == text
 
 
 # -- the dailies ------------------------------------------------------------------------

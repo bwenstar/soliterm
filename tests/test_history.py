@@ -40,7 +40,7 @@ def played(key="klondike", seed=4, deals=3):
 
 
 def test_record_appends_one_line():
-    stat = history.record(played(), True, 141.6)
+    stat, entry = history.record(played(), True, 141.6)
     assert stat == store.get_stat("klondike")
     assert (stat["wins"], stat["total"], stat["best"]) == (1, 1, 142)
     assert [json.loads(line) for line in lines()] == [
@@ -57,6 +57,8 @@ def test_record_appends_one_line():
             "undos": 0,
         }
     ]
+    # and gives back the line it wrote
+    assert history.games() == [entry]
     history.record(played("golf", deals=1), False, 7.4)
     assert len(lines()) == 2
     assert history.games()[1]["result"] == "lost"

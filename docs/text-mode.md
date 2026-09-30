@@ -268,6 +268,19 @@ Soliterm daily 2026-09-24, Klondike: stuck after 4:05, 57 moves
 Starting the deal over with `N` doesn't count it, so it prints nothing,
 and nor does a daily kept for later.
 
+A win of a deal you've won before says how it stood against your best
+win of it, on time and then on moves, as the full-screen game's win
+banner does:
+
+```text
+On this deal: a new best, was 2:40, 61 moves
+```
+
+or `On this deal: your best is 1:58, 44 moves` when it didn't beat it.
+The deal is the game, the deal number and the options, so a daily is the
+same deal as the plain deal of its number with the standard options. The
+first win of a deal prints nothing more, and nor does a loss.
+
 ## Keeping a game for later
 
 When you're typing at a terminal, text mode keeps a game you've started
@@ -344,8 +357,9 @@ printf '%s\n' d d 2,1 2,1 8,1 2,1 5,1 2,1 4,1 7,1 3,1 3,1 4,1 d 7,1 8,1 \
 ```
 
 With `XDG_CONFIG_HOME` and `XDG_DATA_HOME` pointing at a new, empty
-directory, it prints exactly this. Run it again and it ends with a line
-about your win streak as well, since the first win counted.
+directory, it prints exactly this. Run it again and it ends with two
+lines more, since the first win counted: one with your best on this
+deal, which is that first win, and one with your win streak.
 
 ```text
 === Golf ===
