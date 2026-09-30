@@ -28,6 +28,7 @@ def isolated_home(tmp_path, monkeypatch):
     monkeypatch.delenv("SOLITERM_NO_AISLERIOT", raising=False)
     # the store's notices and --no-sync are per run; start each test afresh
     monkeypatch.setattr(store, "_notices", [])
+    monkeypatch.setattr(store, "_told", 0)
     monkeypatch.setattr(store, "_no_sync", False)
     monkeypatch.setattr(saves, "_kept", [])
     playing = {}

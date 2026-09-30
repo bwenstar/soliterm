@@ -16,6 +16,7 @@ import curses
 import os
 import signal
 import sys
+import textwrap
 import time
 from collections.abc import Iterator
 from contextlib import contextmanager, suppress
@@ -45,6 +46,10 @@ UNDONE_ALL = "back at the deal: r redoes a move, R all of them"
 # a save keeps only the newest undo steps, so U on a long resumed game stops
 # short of the deal
 UNDONE_KEPT = "back to the oldest move saved: r redoes a move, R all of them"
+# the most of a note the message line takes at once, so it fits at 80
+# columns with the code skin on, and what ends a piece with more to come
+NOTE_WIDTH = 72
+NOTE_MORE = " ..."
 # the longest a finish takes to watch, and the longest one card of it takes
 FINISH_S = 1.5
 FINISH_STEP_MS = 80
@@ -304,6 +309,10 @@ class App(Screens):
         # a line from the command line for the first game to start with,
         # as on the terminal type it plays as
         self.note = note
+        # what the message line has yet to say from the start of the run, a
+        # line for each key that has nothing to say of its own (see
+        # handle_key); None until the first game starts
+        self.notes: list[str] | None = None
         self.recorded = False  # counted, or put away in the saves folder
         # the end banner is up, so leaving now gives the game up
         self.ending = False
@@ -540,9 +549,17 @@ class App(Screens):
             self.message = "Your saved game couldn't be read, so this is a new deal."
         else:
             self.message = self.unkept_note() or START_MESSAGE
-        # before the first game gets going, over anything else it would say
-        note, self.note = self.note, ""
-        self.message = store.aisleriot_open_note() or note or self.message
+        if self.notes is None:
+            # The first game says all the run has to, most pressing first:
+            # AisleRiot open, which can still lose games, then this game's
+            # own note, what has gone wrong with the files (said again on
+            # the way out, once the screen has gone), and last the terminal
+            # type it plays as.
+            own = "" if self.message == START_MESSAGE else self.message
+            said = [store.aisleriot_open_note(), own, *store.notices(), self.note]
+            self.notes = [line for note in said if note for line in note_pages(note)]
+            if self.notes:
+                self.message = self.notes.pop(0)
 
     def put_in_play(self, deal: Deal, resumed: tuple[Solitaire, int] | None) -> None:
         """Put the resumed game in play, or else a new deal of `deal`, with
@@ -893,6 +910,7 @@ class App(Screens):
         if action not in SMALL_SCREEN_ACTIONS and not self.ui.fits():
             return None
         moves = self.game.moves
+        message = self.message
         outcome = getattr(self, "do_" + action)()
         if self.game.moves > 0:
             self.clock.start()  # the game is under way
@@ -902,6 +920,9 @@ class App(Screens):
             self.message = FINISH_OFFER
         elif action in LOOK_ACTIONS and self.game.finish_moves():
             self.message += FINISH_REMINDER
+        if self.notes and outcome is None and self.message in ("", message):
+            # the key had nothing to say, so the next note has the line
+            self.message = self.notes.pop(0)
         return outcome
 
     def do_redraw(self):
@@ -1360,6 +1381,15 @@ def main(start: str | Deal | None = None, **options) -> int:
                 # goes to devnull instead.
                 with suppress(OSError):
                     os.dup2(os.open(os.devnull, os.O_WRONLY), 2)
+
+
+def note_pages(note: str) -> list[str]:
+    """A note as the message line says it: whole if it fits NOTE_WIDTH, or
+    else in pieces that do, each but the last ending in NOTE_MORE."""
+    if len(note) <= NOTE_WIDTH:
+        return [note]
+    pieces = textwrap.wrap(note, NOTE_WIDTH - len(NOTE_MORE))
+    return [piece + NOTE_MORE for piece in pieces[:-1]] + pieces[-1:]
 
 
 def _saved_line(names: list[str]) -> str:

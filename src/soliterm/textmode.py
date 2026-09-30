@@ -482,6 +482,23 @@ def run_text(
                     return ""
             return give_up()
 
+    def tell(lines: list[str]) -> None:
+        # on stderr, leaving stdout as it always is: with stderr closed,
+        # Python's is None, and print would take that for stdout
+        if not lines or sys.stderr is None:
+            return
+        out.flush()  # after the lines above, if both go to one place
+        try:
+            for line in lines:
+                print(f"soliterm: {line}", file=sys.stderr, flush=True)
+        except OSError:
+            # whatever read stderr has gone, which is no reason to stop the
+            # game. The line stays in stderr's buffer, where Python's flush
+            # at exit would fail on it again, so stderr goes to devnull
+            # instead.
+            with suppress(OSError):
+                os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stderr.fileno())
+
     def left_out(stopped: float) -> None:
         nonlocal start
         start += stopped  # stopped with Ctrl-Z, which is no time played
@@ -513,24 +530,16 @@ def run_text(
             g.symbols = symbols  # hints name cards as the board does
             name = g.gamedef.name
             print(f"{APP_NAME} - {name} - {deal_label(g)} (text mode). Type h for help.", file=out)
+            # AisleRiot open, which can still lose games, then this game's
+            # own note, then what has gone wrong with the files so far
+            warning = store.aisleriot_open_note()
+            tell([warning] if warning else [])
             if resumed:
                 print(f"Resumed your {name} game ({so_far()}). Type n for a new deal.", file=out)
             elif note := unkept():
                 print(note, file=out)
-            # on stderr, leaving stdout as it always is: with stderr closed,
-            # Python's is None, and print would take that for stdout
-            warning = store.aisleriot_open_note()
-            if warning and sys.stderr is not None:
-                out.flush()  # after the lines above, if both go to one place
-                try:
-                    print(f"soliterm: {warning}", file=sys.stderr, flush=True)
-                except OSError:
-                    # whatever read stderr has gone, which is no reason to
-                    # stop the game. The line stays in stderr's buffer, where
-                    # Python's flush at exit would fail on it again, so
-                    # stderr goes to devnull instead.
-                    with suppress(OSError):
-                        os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stderr.fileno())
+            if sys.stderr is not None:
+                tell(store.tell_notices())  # with none, they wait for the way out
             print(file=out)
             print(render_text(g, symbols, color), file=out)
             say_if_stuck()

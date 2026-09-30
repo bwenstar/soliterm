@@ -2407,7 +2407,9 @@ def test_a_game_another_copy_has_in_play_isnt_offered_here(tui):
         scr = tui([ENTER, "d", "q"], start_key=None)
         assert other.quits() == 0
     assert "Resume your game" not in scr.frames[0]
-    assert ELSEWHERE in scr.frames[1]
+    # at the start, too long for the line at 80 columns, it goes over two
+    assert ELSEWHERE[: -len(" won't be kept")] + " ..." in scr.frames[1]
+    assert "\n  won't be kept\n" in scr.frames[2]
     # the game played here had no room to be kept; the other one did
     assert store.get_stat("klondike")["total"] == 1
     assert saves.waiting()["klondike"]["moves"] == 31

@@ -1544,6 +1544,25 @@ def test_the_saved_game_line_to_a_reader_that_went_away_ends_quietly():
     assert p.returncode == 0
 
 
+def test_text_mode_says_what_went_wrong_with_the_files_once_before_the_board(monkeypatch):
+    # a damaged config, set aside as the game starts, is told of then, and
+    # not again on the way out
+    config = Path(store.config_path())
+    config.parent.mkdir(parents=True)
+    config.write_text("{not json")
+    both = io.StringIO()
+    monkeypatch.setattr(sys, "stdin", io.StringIO("q\n"))
+    monkeypatch.setattr(sys, "stdout", both)
+    monkeypatch.setattr(sys, "stderr", both)
+    assert main(["--text", "--no-sync", "--game", "golf", "--deal", "1"]) == 0
+    lines = both.getvalue().splitlines()
+    damaged = [i for i, line in enumerate(lines) if "config.json was damaged" in line]
+    assert damaged == [1]
+    assert lines[1].startswith(f"soliterm: {config} was damaged; it is kept as {config}.corrupt-")
+    assert lines[3] == "=== Golf ==="
+    assert lines[-1] == "bye"
+
+
 def test_a_notice_to_a_reader_that_went_away_ends_quietly():
     # the same for the notes on the way out, here about a damaged stats.json
     stats = Path(store.stats_path())

@@ -34,13 +34,24 @@ else:
 APP_DIR_NAME = "soliterm"
 
 # Things the player should hear about (say, a keyfile we could not read),
-# collected here for the command line to print when the game is over.
+# collected here for the command line to print when the game is over, and
+# how many of them have been told of already (see tell_notices)
 _notices: list[str] = []
+_told = 0
 
 
 def notices() -> list[str]:
     """What went wrong with the stats files so far in this run, in order."""
     return list(_notices)
+
+
+def tell_notices() -> list[str]:
+    """The notices not told of yet, in order, which from now on have been:
+    for text mode to say as it starts, and the command line as it ends."""
+    global _told  # noqa: PLW0603 (state for this run)
+    untold = _notices[_told:]
+    _told = len(_notices)
+    return untold
 
 
 def _notice(msg: str) -> None:

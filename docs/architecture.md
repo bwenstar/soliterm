@@ -110,7 +110,9 @@ moves left, and read a key.
    that follows the last hint, from its pile to its place with the run
    Enter lifted, puts down the cards the hint names first.
 4. Back in `handle_key`, the first move starts the clock, and when every
-   card left can go up, the message line offers the finish.
+   card left can go up, the message line offers the finish. While the
+   first game still has notes to give (see below), a key that leaves
+   the message line as it was, or blank, brings up the next.
 5. The next time round, `App.draw` hands the game, the cursor, what's in
    hand and the hint to `BoardUI.draw` in
    [`tui/board.py`](../src/soliterm/tui/board.py), which draws the board
@@ -209,6 +211,19 @@ sharing, the first game to start asks `aisleriot_open_note` in
 there is one, the front end says AisleRiot is open, on the message line
 or on stderr, once a run. It reads the names of the player's own
 processes and nothing of anyone else's, and it runs and signals nothing.
+
+Anything else that goes wrong with a file, as when one is set aside, is a
+notice collected by `_notice` in `store.py`. The first game to start says
+all it has to, most pressing first: AisleRiot open, then the game's own
+note, as when a saved game is waiting, then the notices so far, and last
+the terminal type the full-screen game plays as, if it isn't `TERM`'s
+own. The full-screen game puts them on the message line one at a time,
+from `App.notes`, cutting one too long for 72 columns into pieces with
+`note_pages`, so each fits at 80 columns with the code skin on, and the
+command line prints the notices in full on stderr once the screen is
+back. Text mode says them on stderr before its first board, and
+`tell_notices` keeps the command line from saying them twice as it
+prints the rest on the way out.
 
 Every file is written whole: to a temporary file in the same folder that
 then replaces the old one in one step, so a crash or a full disk leaves

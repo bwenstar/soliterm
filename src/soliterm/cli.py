@@ -548,9 +548,10 @@ def main(argv: list[str] | None = None) -> int:
         # that had hung up
         return 130 if came else rc
     finally:
-        # anything that kept the stats from being shared or saved as usual
+        # anything that kept the stats from being shared or saved as usual,
+        # bar what text mode told of as it started
         try:
-            for msg in store.notices():
+            for msg in store.tell_notices():
                 print(f"soliterm: {msg}", file=sys.stderr)
         except OSError:
             # whatever read stderr has gone (EPIPE, or EINVAL on Windows),

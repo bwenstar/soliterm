@@ -6,6 +6,8 @@ at a time and look at the board, the selection and the message in between.
 """
 
 import curses
+import json
+from pathlib import Path
 
 import pytest
 
@@ -16,7 +18,7 @@ from soliterm.engine import Card, Solitaire
 from soliterm.tui import cascade
 from soliterm.tui.app import MENU, QUIT, START_MESSAGE, App
 
-from helpers import FakeScr, clear_board, steps
+from helpers import FakeScr, clear_board, deal, steps
 
 ENTER = 10
 
@@ -618,3 +620,119 @@ def test_the_first_game_starts_with_the_note_it_was_handed(code_skin):
     assert note in app.stdscr.text()
     app.start_game("golf")  # once is enough
     assert app.message == START_MESSAGE
+
+
+# -- all a first game has to say -------------------------------------------------------
+
+TERM_NOTE = "TERM=xterm-kitty isn't known here, so playing as xterm-256color"
+UNREADABLE = "Your saved game couldn't be read, so this is a new deal."
+
+
+def with_everything_to_say(monkeypatch, code_skin=False):
+    """An App about to start its first game with all there can be to say:
+    AisleRiot open, a damaged config set aside as the command line read it,
+    a saved Klondike game the menu offered that turns out unreadable, and a
+    terminal type played as another."""
+    told = [store.AISLERIOT_OPEN]
+    monkeypatch.setattr(store, "aisleriot_open_note", lambda: told.pop() if told else None)
+    config = Path(store.config_path())
+    config.parent.mkdir(parents=True, exist_ok=True)
+    config.write_text("{not json")
+    store.save_config(dict(store.load_config(), code_skin=code_skin))
+    g = deal("klondike", 4)
+    g.deal()
+    assert saves.keep(g, 42)
+    path = Path(saves.save_path("klondike"))
+    save = json.loads(path.read_text())
+    # a card too many in the waste, which only taking it up finds
+    save["position"] = save["position"].replace("\ns1|waste|none|0|", "\ns1|waste|none|0|1SU,")
+    path.write_text(json.dumps(save))
+    app = App(FakeScr(24, 80), note=TERM_NOTE)
+    app.waiting = saves.waiting()
+    return app
+
+
+def message_lines(app, key=curses.KEY_RIGHT):
+    """What the message line says as the game starts, then after each key
+    until it stops changing, each checked to be on the screen in full."""
+    said = [app.message]
+    for _ in range(20):
+        app.draw()
+        assert said[-1] in app.stdscr.text()
+        press(app, key)
+        if app.message == said[-1]:
+            return said
+        said.append(app.message)
+    raise AssertionError(f"the message line never settles: {said}")
+
+
+def unspaced(notes):
+    """Notes without their spaces, to hold up against what the message line
+    said, where a word too long for a line is split without one."""
+    return [note.replace(" ", "") for note in notes]
+
+
+def put_together(said):
+    """The notes the message line said, with the ones too long for a line
+    in one piece again, unspaced."""
+    notes = [said[0]]
+    for line in said[1:]:
+        if notes[-1].endswith(" ..."):
+            notes[-1] = notes[-1][: -len(" ...")] + line
+        else:
+            notes.append(line)
+    return unspaced(notes)
+
+
+@pytest.mark.parametrize("code_skin", [False, True])
+def test_the_first_game_says_all_it_has_to_a_key_at_a_time(monkeypatch, code_skin):
+    app = with_everything_to_say(monkeypatch, code_skin)
+    app.start_game("klondike")
+    config_notice, save_notice = store.notices()
+    assert "config.json was damaged" in config_notice
+    assert "klondike.json was damaged" in save_notice
+    said = message_lines(app)
+    # each fits the message line at 80 columns, code skin and all
+    assert all(len(line) <= 72 for line in said)
+    # AisleRiot, which can still lose games, first, then this game, then
+    # what went wrong with the files, and last how the terminal plays
+    assert put_together(said) == unspaced(
+        [store.AISLERIOT_OPEN, UNREADABLE, config_notice, save_notice, TERM_NOTE]
+    )
+    app.start_game("golf")  # the next game has only its own to say
+    assert message_lines(app) == [START_MESSAGE]
+
+
+def test_a_key_with_something_to_say_holds_the_next_note_back(monkeypatch):
+    app = with_everything_to_say(monkeypatch)
+    app.start_game("klondike")
+    first = app.message
+    press(app, "u")
+    assert app.message == "nothing to undo"
+    said = message_lines(app)
+    assert said[0] == "nothing to undo"
+    notes = put_together([first, *said[1:]])
+    assert notes == unspaced([store.AISLERIOT_OPEN, UNREADABLE, *store.notices(), TERM_NOTE])
+    assert said[-1] == TERM_NOTE
+
+
+def test_notes_not_seen_before_the_menu_come_with_the_next_game(monkeypatch):
+    app = with_everything_to_say(monkeypatch)
+    app.start_game("klondike")
+    assert app.message == store.AISLERIOT_OPEN
+    assert press(app, "m") == MENU
+    app.start_game("golf")
+    said = message_lines(app)
+    assert said[0] == START_MESSAGE
+    assert put_together(said[1:]) == unspaced([UNREADABLE, *store.notices(), TERM_NOTE])
+
+
+def test_a_note_too_long_for_a_line_goes_over_more_than_one():
+    note = "can't read " + "/very/long" * 12 + "/stats.json (Permission denied), so it is left"
+    pages = soliterm.tui.app.note_pages(note)
+    assert len(pages) > 1
+    assert all(len(page) <= 72 for page in pages)
+    assert all(page.endswith(" ...") for page in pages[:-1])
+    assert not pages[-1].endswith(" ...")
+    assert put_together(pages) == unspaced([note])
+    assert soliterm.tui.app.note_pages(store.AISLERIOT_OPEN) == [store.AISLERIOT_OPEN]

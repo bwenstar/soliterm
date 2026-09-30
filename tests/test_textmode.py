@@ -890,6 +890,39 @@ def test_a_daily_that_cant_be_kept_prints_its_share_line(monkeypatch, capsys):
     assert capsys.readouterr().out.splitlines()[-2:] == [DAILY_LOST, "bye"]
 
 
+def a_damaged_config():
+    """A config.json that isn't JSON, set aside as the command line reads
+    it. What that says."""
+    os.makedirs(store.config_dir(), exist_ok=True)
+    with open(store.config_path(), "w", encoding="utf-8") as fh:
+        fh.write("{not json")
+    store.load_config()
+    (notice,) = store.notices()
+    return notice
+
+
+def test_text_mode_says_all_it_starts_with_before_the_board(monkeypatch):
+    # AisleRiot open, which can still lose games, then this game's note,
+    # then what went wrong with the files
+    told = [store.AISLERIOT_OPEN]
+    monkeypatch.setattr(store, "aisleriot_open_note", lambda: told.pop() if told else None)
+    notice = a_damaged_config()
+    keep_one()
+    both = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", both)
+    monkeypatch.setattr(sys, "stderr", both)
+    g = deal("klondike", 1)
+    assert textmode.run_text(g, False, "klondike", stream=Typed(["q\n"]), keep=True) == 0
+    assert both.getvalue().splitlines()[:6] == [
+        "Soliterm - Klondike - Deal 1 (text mode). Type h for help.",
+        f"soliterm: {store.AISLERIOT_OPEN}",
+        "a saved Klondike game is waiting, so this one won't be kept",
+        f"soliterm: {notice}",
+        "",
+        "=== Klondike ===",
+    ]
+
+
 @pytest.mark.parametrize(
     "before, streak",
     [
