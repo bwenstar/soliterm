@@ -5080,6 +5080,7 @@ SCENE_MOVES = {
     "code-skin": (1, False),
     "triple-peaks": (8, True),
     "contrast": (2, True),
+    "social-preview": (1, True),
 }
 # the scenes that play their game out and end on the win banner
 SCENES_WON = ("hero", "win")
@@ -5090,13 +5091,14 @@ def test_screenshot_scenes_still_reach_their_shots(tui):
     # the keys were worked out by hand for each deal, so they go stale the
     # moment a deal number deals another hand
     shots = screenshot_tool()
-    scenes = [s for s in shots.SCENES if s.deal]
+    scenes = [s for s in (*shots.SCENES, shots.SOCIAL) if s.deal]
     assert sorted(s.name for s in scenes) == sorted([*SCENE_MOVES, *SCENES_WON])
     for scene in scenes:
         keys = [TMUX_KEYS.get(k, k) for step in scene.steps for k in step.keys.split()]
         # b and c would hide the board this test reads
         keys = [k for k in keys if k not in ("b", "c")]
-        scr = tui(keys, start=scene_start(scene), h=shots.ROWS, w=shots.COLS)
+        cols, rows = scene.size
+        scr = tui(keys, start=scene_start(scene), h=rows, w=cols)
         frames = scr.frames[: len(keys) + 1]
         assert not any("illegal move" in frame for frame in frames), scene.name
         if scene.name in SCENES_WON:

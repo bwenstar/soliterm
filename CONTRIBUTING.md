@@ -218,7 +218,7 @@ change before you overwrite the real ones.
 
 Two scenes play a whole game: the hero GIF plays Klondike to the finish,
 and `win` plays Golf to the end banner. `tests/test_tui_play.py` presses
-every scene's keys on a board the size of the scenes' terminal and checks
+every scene's keys on a board the size of the scene's terminal and checks
 each still gets to its last shot, so a change to the hints or the layout
 that throws them off fails the suite before it spoils a screenshot.
 
@@ -234,6 +234,10 @@ That plays the hero's keys to the game on a pseudo-terminal of its own,
 so it works on Linux and macOS and needs neither tmux nor Pillow. It says
 how big the recording is and how long it plays. `asciinema play` on the
 file is a quick way to watch it through before you commit it.
+
+`--social` draws `docs/img/social-preview.png`, the picture GitHub shows
+with a link to the repository. The README doesn't show it, so after
+redrawing it, upload it by hand in the repository's settings.
 
 ## Questions
 

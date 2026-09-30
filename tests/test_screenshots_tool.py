@@ -275,6 +275,35 @@ def test_the_hero_plays_to_the_finish_fast_in_a_cast(tool):
     assert fast.gap < tool.KEY_GAP
 
 
+def test_the_social_preview_is_a_board_the_readme_does_not_show(tool):
+    social = tool.SOCIAL
+    assert social not in tool.SCENES
+    assert deals.parse(social.deal).key in GAME_ORDER
+    build_parser().parse_args(tool.scene_args(social))
+    # the commands on it are ones the README gives
+    blocks = re.findall(r"```sh\n(.*?)```", README.read_text(encoding="utf-8"), re.DOTALL)
+    for command in tool.SOCIAL_COMMANDS:
+        assert any(command in block for block in blocks), command
+
+
+def test_the_social_preview_keeps_to_its_margin(tool):
+    pytest.importorskip("PIL")
+    try:
+        painter = tool.Painter(size=tool.SOCIAL.size)
+    except tool.ShotError as exc:
+        pytest.skip(str(exc))
+    cols, rows = tool.SOCIAL.size
+    board = tool.parse(("\x1b[1;36m" + "Soliterm " * (cols // 9) + "\x1b[0m\n") * rows)
+    img = painter.social(board, tool.title_of(tool.SOCIAL))
+    assert img.size == (1280, 640)
+    # nothing but the background within the margin, where a site may crop
+    w, h, m = *img.size, tool.SOCIAL_MARGIN
+    background = tool._hex(tool.SOCIAL_BACKGROUND)
+    for band in [(0, 0, w, m), (0, h - m, w, h), (0, 0, m, h), (w - m, 0, w, h)]:
+        assert [colour for _, colour in img.crop(band).getcolors()] == [background]
+    assert len(img.crop((m, m, w - m, h - m)).getcolors(1 << 16)) > 100
+
+
 def test_draws_a_window(tool):
     pytest.importorskip("PIL")
     try:

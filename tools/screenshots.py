@@ -7,6 +7,7 @@ game as an asciicast.
   python3 tools/screenshots.py --list             # the scenes there are
   python3 tools/screenshots.py --svg --out /tmp/shots
   python3 tools/screenshots.py --cast             # docs/img/hero.cast
+  python3 tools/screenshots.py --social           # docs/img/social-preview.png
 
 Each scene runs the game in a private tmux server with a throwaway home
 directory, types keys at it and grabs the screen with `tmux capture-pane -e`.
@@ -23,6 +24,14 @@ with a throwaway home and --no-sync. The keys go to it as a terminal sends
 them, and everything it writes is kept with the time it came. That needs
 Linux or macOS but neither tmux nor Pillow. A recording has no timestamp
 unless SOURCE_DATE_EPOCH gives one, and it ends on the game's last screen.
+
+--social draws docs/img/social-preview.png: the name, a line about it and
+the command to play it, beside a board captured in a terminal just big
+enough for it. That is the picture a site shows with a link to the
+repository. GitHub takes it from the repository's settings (Social
+preview, under General), where it is uploaded by hand, so the README
+doesn't show it. It is 1280 by 640, as GitHub asks, with nothing in the
+40 pixels round the edge, which a site may crop.
 
 This is a development tool. Pillow is only needed here; the game itself
 never imports it.
@@ -107,6 +116,7 @@ class Scene(NamedTuple):
     steps: Sequence[Step]
     animate: bool = False
     args: Sequence[str] = ()  # any other options, such as --theme dark
+    size: tuple[int, int] = (COLS, ROWS)  # the terminal, in columns and rows
 
 
 def shot(keys: str = "", hold: int = 1200, wait: float = PAUSE) -> Step:
@@ -254,6 +264,16 @@ SCENES: list[Scene] = [
     ),
 ]
 
+# The board on the social preview, which the README doesn't show: the hero's
+# first move and its next hint, in a terminal just big enough for them.
+SOCIAL = Scene(
+    "social-preview",
+    "the picture for a link to the repository: the name and a Klondike board",
+    "klondike:946",
+    [shot("h Enter Left Left Left Enter h")],
+    size=(72, 26),
+)
+
 
 # --------------------------------------------------------------------------- #
 # Look
@@ -308,6 +328,16 @@ BAR_COLOUR = "#2b2f37"
 TITLE_COLOUR = "#9aa1ad"
 DOTS = ["#ff5f57", "#febc2e", "#28c840"]
 GIF_COLOURS = 64
+
+# The social preview is 1280 by 640, as GitHub asks, with a margin kept
+# clear because a site showing it may crop the edges or round the corners.
+SOCIAL_SIZE = (1280, 640)
+SOCIAL_MARGIN = 40
+SOCIAL_WINDOW = 600  # the width of the board's window on it, at most
+SOCIAL_BACKGROUND = "#101217"
+SOCIAL_NAME = "Soliterm"
+SOCIAL_ABOUT = "Solitaire for your terminal"
+SOCIAL_COMMANDS = ("uvx soliterm", "pipx run soliterm")
 
 
 # --------------------------------------------------------------------------- #
@@ -529,8 +559,10 @@ def load_font(path: Path, size: int):
 class Painter:
     """Draws a grid of cells as a terminal window, in PNG, GIF or SVG."""
 
-    def __init__(self, font: str | None = None, chrome: bool = True):
-        regular, bold = find_fonts(font)
+    def __init__(
+        self, font: str | None = None, chrome: bool = True, size: tuple[int, int] = (COLS, ROWS)
+    ):
+        self.files = regular, bold = find_fonts(font)
         self.font = load_font(regular, FONT_SIZE)
         self.bold = load_font(bold, FONT_SIZE) if bold else self.font
         self.title_font = load_font(regular, FONT_SIZE - 4)
@@ -541,18 +573,19 @@ class Painter:
         self.ch = self.ascent + descent
         self.bar = BAR if chrome else 0
         self.top = self.bar + PAD
-        self.size = (COLS * self.cw + 2 * PAD, self.top + ROWS * self.ch + PAD)
+        self.cols, self.rows = size
+        self.size = (self.cols * self.cw + 2 * PAD, self.top + self.rows * self.ch + PAD)
 
     def image(self, grid: list[list[Cell]], title: str = ""):
         img = Image.new("RGB", self.size, BACKGROUND)
         draw = ImageDraw.Draw(img)
-        for y, row in enumerate(grid[:ROWS]):
+        for y, row in enumerate(grid[: self.rows]):
             top = self.top + y * self.ch
             bottom = top + self.ch - 1
             for start, end, bg in background_runs(row):
                 left, right = PAD + start * self.cw, PAD + end * self.cw - 1
                 draw.rectangle((left, top, right, bottom), fill=bg)
-            for x, cell in enumerate(row[:COLS]):
+            for x, cell in enumerate(row[: self.cols]):
                 left = PAD + x * self.cw
                 fg = colours(cell)[0]
                 if cell.char.strip():
@@ -596,6 +629,57 @@ class Painter:
         img.putalpha(mask.resize((width, height), lanczos))
         return img
 
+    def social(self, grid: list[list[Cell]], title: str = ""):
+        """The social preview: the name, what it is and how to play it down
+        the left, and the board in its window on the right, all of it inside
+        the margin."""
+        width, height = SOCIAL_SIZE
+        margin = SOCIAL_MARGIN
+        img = Image.new("RGB", SOCIAL_SIZE, SOCIAL_BACKGROUND)
+        window = self.image(grid, title).convert("RGBA")
+        lanczos = getattr(Image, "Resampling", Image).LANCZOS
+        scale = min(SOCIAL_WINDOW / window.width, (height - 2 * margin) / window.height)
+        window = window.resize((round(window.width * scale), round(window.height * scale)), lanczos)
+        left = width - margin - window.width
+        img.paste(window, (left, (height - window.height) // 2), window)
+
+        regular, bold = self.files
+        bold = bold or regular
+        command, other = SOCIAL_COMMANDS
+        lines = [  # text, font file, size, colour, space above it, boxed
+            (SOCIAL_NAME, bold, 104, PALETTE[6], 0, False),
+            (SOCIAL_ABOUT, regular, 30, FOREGROUND, 26, False),
+            (command, bold, 38, PALETTE[3], 54, True),
+            (f"or {other}", regular, 28, TITLE_COLOUR, 28, False),
+        ]
+        pad_x, pad_y = 20, 16  # round the command, as if typed at a prompt
+        prompt = "$ "
+        room = left - 48 - margin  # as wide as the text goes, short of the window
+        drawn = []
+        for text, file, size, colour, above, boxed in lines:
+            font = load_font(file, size)
+            box = font.getbbox(prompt + text if boxed else text, anchor="ls")
+            if box[2] + 2 * pad_x * boxed > room:
+                raise ShotError(f"{text!r} is too wide for the social preview in {file.name}")
+            drawn.append((text, font, colour, above, boxed, box))
+        tall = sum(above + box[3] - box[1] + 2 * pad_y * boxed for *_, above, boxed, box in drawn)
+        y = (height - tall) // 2
+        draw = ImageDraw.Draw(img)
+        for text, font, colour, above, boxed, box in drawn:
+            pad = pad_y * boxed
+            y += above + pad
+            baseline = y - box[1]
+            x = margin
+            if boxed:
+                back = (x, y - pad, x + box[2] + 2 * pad_x, baseline + box[3] + pad)
+                draw.rounded_rectangle(back, RADIUS, fill=BAR_COLOUR)
+                x += pad_x
+                draw.text((x, baseline), prompt, font=font, fill=TITLE_COLOUR, anchor="ls")
+                x += draw.textlength(prompt, font=font)
+            draw.text((x, baseline), text, font=font, fill=colour, anchor="ls")
+            y = baseline + box[3] + pad
+        return img
+
     def svg(self, grid: list[list[Cell]], title: str = "") -> str:
         width, height = self.size
         size = f'width="{width}" height="{height}"'
@@ -624,7 +708,7 @@ class Painter:
                     f'font-size="{FONT_SIZE - 4}px" text-anchor="middle" '
                     f'dominant-baseline="central">{html.escape(title)}</text>'
                 )
-        for y, row in enumerate(grid[:ROWS]):
+        for y, row in enumerate(grid[: self.rows]):
             top = self.top + y * self.ch
             for start, end, bg in background_runs(row):
                 out.append(
@@ -632,7 +716,7 @@ class Painter:
                     f'width="{(end - start) * self.cw}" height="{self.ch}" '
                     f'fill="#{bg[0]:02x}{bg[1]:02x}{bg[2]:02x}"/>'
                 )
-            spans = [self._tspan(*run) for run in _text_runs(row[:COLS])]
+            spans = [self._tspan(*run) for run in _text_runs(row[: self.cols])]
             if spans:
                 out.append(f'<text y="{top + self.ascent}">{"".join(spans)}</text>')
         out.append("</g></svg>")
@@ -769,7 +853,8 @@ class Stage:
         env = game_env(home)
         game = [sys.executable, "-m", "soliterm", *scene_args(scene)]
         command = ["env", "-i", *(f"{k}={v}" for k, v in env.items()), *game]
-        size = ["-x", str(COLS), "-y", str(ROWS)]
+        cols, rows = scene.size
+        size = ["-x", str(cols), "-y", str(rows)]
         self.tmux("new-session", "-d", "-s", scene.name, *size, *command)
         try:
             if self.socket_path is None:
@@ -900,7 +985,7 @@ def key_bytes(key: str) -> bytes:
     return KEY_BYTES[key].encode()
 
 
-def put_back(output: str) -> str:
+def put_back(output: str, rows: int = ROWS) -> str:
     """What a recording of `output` ends with, to leave the terminal playing
     it much as curses leaves one on its way out: the colours reset, the
     cursor at the bottom left and shown, the whole screen scrolling again,
@@ -921,13 +1006,14 @@ def put_back(output: str) -> str:
         back.append("\x1b>")
     # a terminal bigger than the game's would scroll only the game's rows
     margins = "\x1b[r" if SCROLL_REGION.search(output) else ""
-    return f"\x1b[m{margins}\x1b[{ROWS};1H" + "".join(back)
+    return f"\x1b[m{margins}\x1b[{rows};1H" + "".join(back)
 
 
 class Cast:
     """What a game wrote and when, as the events of an asciicast."""
 
-    def __init__(self) -> None:
+    def __init__(self, size: tuple[int, int] = (COLS, ROWS)) -> None:
+        self.cols, self.rows = size
         self.events: list[tuple[float, str]] = []
         self.start: float | None = None  # when the first read came
         # a character cut in two by a read waits for the rest of it
@@ -943,15 +1029,15 @@ class Cast:
 
     def end(self, now: float) -> None:
         """Close the recording at `now`, after the last pause."""
-        self.take(put_back("".join(text for _, text in self.events)).encode(), now)
+        self.take(put_back("".join(text for _, text in self.events), self.rows).encode(), now)
 
     def text(self, title: str) -> str:
         """The asciicast file. It has no timestamp unless SOURCE_DATE_EPOCH
         gives one, so the same recording made again is the same file."""
         header: dict[str, object] = {
             "version": 2,
-            "width": COLS,
-            "height": ROWS,
+            "width": self.cols,
+            "height": self.rows,
             "idle_time_limit": CAST_IDLE,
             "title": title,
             "env": {"TERM": TERM},
@@ -964,7 +1050,7 @@ class Cast:
 
 
 def record(scene: Scene, home: Path) -> Cast:
-    """Play a scene on a COLS by ROWS pseudo-terminal, with its home in
+    """Play a scene on a pseudo-terminal of the scene's size, with its home in
     `home`, typing the keys as a terminal sends them, and keep all the game
     writes."""
     try:
@@ -980,13 +1066,14 @@ def record(scene: Scene, home: Path) -> Cast:
     pid, fd = pty.fork()
     if pid == 0:  # the game's side, where the pseudo-terminal is stdin
         try:
-            fcntl.ioctl(0, termios.TIOCSWINSZ, struct.pack("HHHH", ROWS, COLS, 0, 0))
+            cols, rows = scene.size
+            fcntl.ioctl(0, termios.TIOCSWINSZ, struct.pack("HHHH", rows, cols, 0, 0))
             os.execve(game[0], game, env)
         except OSError as exc:  # said on the terminal, so the recording has it
             os.write(2, f"{exc}\n".encode())
         finally:
             os._exit(127)
-    cast = Cast()
+    cast = Cast(scene.size)
 
     def keep(seconds: float) -> int:
         """Keep what the game writes for so long, and say how many reads."""
@@ -1054,7 +1141,7 @@ def pick(names: list[str] | None) -> list[Scene]:
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(
         prog="screenshots.py",
-        description="Draw the screenshots and the animated GIF in docs/img/, or record a scene.",
+        description="Draw the screenshots and the animated GIF in docs/img/.",
     )
     p.add_argument(
         "--scene",
@@ -1071,6 +1158,11 @@ def main(argv: list[str] | None = None) -> int:
         "--cast",
         action="store_true",
         help="record the scenes as asciicasts instead (default: the hero)",
+    )
+    p.add_argument(
+        "--social",
+        action="store_true",
+        help=f"draw {file_name(SOCIAL)}, the picture for a link to the repository, instead",
     )
     p.add_argument("--list", action="store_true", help="list the scenes and exit")
     args = p.parse_args(argv)
@@ -1091,18 +1183,22 @@ def main(argv: list[str] | None = None) -> int:
                 played = cast.events[-1][0] if cast.events else 0
                 print(f"wrote {path} ({path.stat().st_size / 1024:.0f} KiB, {played:.1f}s)")
             return 0
-        scenes = pick(args.scene)
+        scenes = [SOCIAL] if args.social else pick(args.scene)
         if Image is None:
             raise ShotError("Pillow is needed to draw: python -m pip install pillow")
         if shutil.which("tmux") is None:
             raise ShotError("tmux is needed to run the game; install it first")
-        painter = Painter(args.font, chrome=not args.no_chrome)
         args.out.mkdir(parents=True, exist_ok=True)
         with closing(Stage()) as stage:
             for scene in scenes:
+                painter = Painter(args.font, chrome=not args.no_chrome, size=scene.size)
                 frames = stage.run(scene)
                 title = title_of(scene)
-                images = [painter.image(parse(f.text), title) for f in frames]
+                if scene is SOCIAL:
+                    frames = frames[-1:]
+                    images = [painter.social(parse(frames[0].text), title)]
+                else:
+                    images = [painter.image(parse(f.text), title) for f in frames]
                 written = [args.out / file_name(scene)]
                 if scene.animate:
                     save_gif(written[0], images, [f.hold for f in frames])
