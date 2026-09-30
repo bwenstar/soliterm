@@ -736,3 +736,48 @@ def test_a_note_too_long_for_a_line_goes_over_more_than_one():
     assert not pages[-1].endswith(" ...")
     assert put_together(pages) == unspaced([note])
     assert soliterm.tui.app.note_pages(store.AISLERIOT_OPEN) == [store.AISLERIOT_OPEN]
+
+
+# three lines' worth, for the hint to say when it has nothing to suggest
+LONG = "no move clearly helps from here, " * 5 + "so undo"
+
+
+@pytest.fixture
+def long_no_hint(monkeypatch):
+    monkeypatch.setattr(Solitaire, "hint", lambda self: None)
+    monkeypatch.setattr(Solitaire, "no_hint_reason", lambda self: LONG)
+    pages = soliterm.tui.app.note_pages(LONG)
+    assert len(pages) == 3
+    return pages
+
+
+def test_a_message_too_long_for_the_line_goes_a_piece_a_key_ahead_of_the_notes(
+    monkeypatch, long_no_hint
+):
+    app = with_everything_to_say(monkeypatch)
+    app.start_game("klondike")
+    first = app.message
+    press(app, "h")
+    app.draw()
+    said = message_lines(app)
+    assert said[:3] == long_no_hint
+    # the notes the hint came in front of follow it
+    assert put_together([first, *said[3:]]) == unspaced(
+        [store.AISLERIOT_OPEN, UNREADABLE, *store.notices(), TERM_NOTE]
+    )
+
+
+def test_the_rest_of_a_long_message_goes_once_a_key_says_something_else(long_no_hint):
+    app = App(FakeScr(24, 80))
+    app.start_game("klondike")
+    press(app, "h")
+    app.draw()
+    assert app.message == long_no_hint[0]
+    press(app, "u", curses.KEY_RIGHT)
+    assert app.message == "nothing to undo"
+    # and h again says it from the start
+    press(app, "h")
+    app.draw()
+    assert app.message == long_no_hint[0]
+    press(app, curses.KEY_RIGHT)
+    assert app.message == long_no_hint[1]

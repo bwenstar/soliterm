@@ -11,6 +11,7 @@ import sys
 import threading
 import time
 from collections import Counter
+from contextlib import contextmanager
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -129,6 +130,18 @@ def crashed(key="klondike"):
     a crash or a closed window leaves it: nothing tidied, and the lock let
     go of, as the system does."""
     store._let_go(saves._playing.pop(key))
+
+
+@contextmanager
+def in_play_elsewhere(key="klondike"):
+    """The game saved for `key` taken up by another copy of the game, which
+    has it in play until the with block is over."""
+    assert saves.take(key)
+    fd = saves._playing.pop(key)
+    try:
+        yield
+    finally:
+        store._let_go(fd)
 
 
 def saved(key="klondike"):

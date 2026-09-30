@@ -313,6 +313,9 @@ class App(Screens):
         # line for each key that has nothing to say of its own (see
         # handle_key); None until the first game starts
         self.notes: list[str] | None = None
+        # the pieces still to come of a message too long for the message
+        # line, and the piece on the line they follow (see page_message)
+        self.rest: tuple[str, list[str]] = ("", [])
         self.recorded = False  # counted, or put away in the saves folder
         # the end banner is up, so leaving now gives the game up
         self.ending = False
@@ -643,6 +646,7 @@ class App(Screens):
 
     def draw(self) -> None:
         self.keep_cursor_on_a_card()
+        self.page_message()
         self.ui.draw(
             self.selected,
             self.selected_n,
@@ -652,6 +656,15 @@ class App(Screens):
             self.message,
             self.hint_n,
         )
+
+    def page_message(self) -> None:
+        """Put a message too long for the message line on it a piece at a
+        time, as a long note goes: the first piece now, and each of the
+        rest for a key after it with nothing to say of its own, while the
+        piece before is still on the line (see handle_key)."""
+        if len(self.message) > NOTE_WIDTH:
+            first, *rest = note_pages(self.message)
+            self.message, self.rest = first, (first, rest)
 
     def keep_cursor_on_a_card(self) -> None:
         """Move the cursor off a slot the board no longer draws, as a card
@@ -920,9 +933,15 @@ class App(Screens):
             self.message = FINISH_OFFER
         elif action in LOOK_ACTIONS and self.game.finish_moves():
             self.message += FINISH_REMINDER
-        if self.notes and outcome is None and self.message in ("", message):
-            # the key had nothing to say, so the next note has the line
-            self.message = self.notes.pop(0)
+        if outcome is None and self.message in ("", message):
+            # the key had nothing to say, so the line goes to the rest of a
+            # message too long for it, or else to the next note
+            after, rest = self.rest
+            if rest and message == after:
+                self.message = rest[0]
+                self.rest = (rest[0], rest[1:])
+            elif self.notes:
+                self.message = self.notes.pop(0)
         return outcome
 
     def do_redraw(self):

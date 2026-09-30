@@ -117,11 +117,15 @@ moves left, and read a key.
    that follows the last hint, from its pile to its place with the run
    Enter lifted, puts down the cards the hint names first.
 4. Back in `handle_key`, the first move starts the clock, and when every
-   card left can go up, the message line offers the finish. While the
-   first game still has notes to give (see below), a key that leaves
-   the message line as it was, or blank, brings up the next.
-5. The next time round, `App.draw` hands the game, the cursor, what's in
-   hand and the hint to `BoardUI.draw` in
+   card left can go up, the message line offers the finish. A key that
+   leaves the message line as it was, or blank, brings up what is still
+   to say: the rest of a message too long for the line, while the piece
+   before it is still there, or else, while the first game still has
+   notes to give (see below), the next note.
+5. The next time round, `App.draw` cuts a message too long for 72
+   columns into pieces with `note_pages`, as it does the notes, and puts
+   the first on the line (`page_message`). Then it hands the game, the
+   cursor, what's in hand and the hint to `BoardUI.draw` in
    [`tui/board.py`](../src/soliterm/tui/board.py), which draws the board
    again from scratch.
 

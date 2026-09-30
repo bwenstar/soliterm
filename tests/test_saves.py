@@ -5,14 +5,21 @@ import errno
 import glob
 import json
 import os
-from contextlib import contextmanager
 
 import pytest
 
 from soliterm import saves, store
 from soliterm.engine import GAMES
 
-from helpers import OtherCopy, crashed, deal, from_before_the_counts, nothing_in_play, saved
+from helpers import (
+    OtherCopy,
+    crashed,
+    deal,
+    from_before_the_counts,
+    in_play_elsewhere,
+    nothing_in_play,
+    saved,
+)
 
 
 def played(key="klondike", seed=4, deals=3):
@@ -228,18 +235,6 @@ def lock_free(key="klondike"):
         return False
     store._let_go(fd)
     return True
-
-
-@contextmanager
-def in_play_elsewhere(key="klondike"):
-    """The game saved for `key` taken up by another copy of the game, which
-    has it in play until the with block is over."""
-    assert saves.take(key)
-    fd = saves._playing.pop(key)
-    try:
-        yield
-    finally:
-        store._let_go(fd)
 
 
 def folder():

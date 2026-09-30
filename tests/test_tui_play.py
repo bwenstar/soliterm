@@ -27,7 +27,7 @@ from soliterm import cli, clipboard, deals, engine, history, saves, store, theme
 from soliterm.deals import Deal
 from soliterm.engine import Card, GameDef
 from soliterm.tui import cascade
-from soliterm.tui.app import basic_colours
+from soliterm.tui.app import basic_colours, note_pages
 from soliterm.tui.board import CODE_GUTTER
 from soliterm.tui.keys import help_lines
 from soliterm.tui.screens import DEAL_TEXT_MAX
@@ -41,6 +41,7 @@ from helpers import (
     crashed,
     deal,
     from_before_the_counts,
+    in_play_elsewhere,
     more_keys,
     nothing_in_play,
     saved,
@@ -179,9 +180,9 @@ def tui(monkeypatch):
     It starts on a game of start_key (None for the menu), deal number deal=
     if given, or on start=, a Deal. Pass game= to start play on a board
     built by hand, and via_main=True to go through main(). The returned screen
-    has .frames, .rc, .uis (every BoardUI made, each with .selections),
-    .pairs (init_pair calls), .masks (mousemask calls) and .intervals
-    (mouseinterval calls).
+    has .frames, .rc, .uis (every BoardUI made, each with .selections and
+    .said), .pairs (init_pair calls), .masks (mousemask calls) and
+    .intervals (mouseinterval calls).
     """
     uis, pairs, masks, intervals = [], [], [], []
 
@@ -190,11 +191,13 @@ def tui(monkeypatch):
             super().__init__(*args, **kwargs)
             self.initial_has_color = self.has_color
             self.selections = []  # the selected slot at every draw
+            self.said = []  # and what the message line said
             uis.append(self)
 
-        def draw(self, selected_slot, *args):
+        def draw(self, selected_slot, selected_n, cursor, hint, elapsed, message, *args):
             self.selections.append(selected_slot)
-            return super().draw(selected_slot, *args)
+            self.said.append(message)
+            return super().draw(selected_slot, selected_n, cursor, hint, elapsed, message, *args)
 
     monkeypatch.setattr(soliterm.tui.app, "BoardUI", RecordingBoardUI)
     # set here rather than in run() so a test can put its own in first
@@ -2750,6 +2753,144 @@ def test_a_game_another_copy_has_in_play_isnt_offered_here(tui):
     # the game played here had no room to be kept; the other one did
     assert store.get_stat("klondike")["total"] == 1
     assert saves.waiting()["klondike"]["moves"] == 31
+
+
+# -- a message too long for the line ------------------------------------------------
+
+
+def message_line(frame):
+    """What the message line says in a frame of the board, drawn with the
+    code skin off: the row above the last."""
+    return frame.split("\n")[-2].strip()
+
+
+def elsewhere_note(key):
+    """What a new deal of `key` says with a saved game of its kind in play
+    in another copy of the game."""
+    name = engine.GAMES[key].name
+    return f"a saved {name} game is being played somewhere else, so this one won't be kept"
+
+
+def one_up(key):
+    """`key` with its first game kept in the saves folder, one move in."""
+    g = deal(key, 4)
+    g.moves = 1
+    assert saves.keep(g, 42)
+
+
+def all_but_a_king_up():
+    """Klondike with every card home but the King of Clubs, in the first
+    column."""
+    g = near_won()
+    fids, tids = g.ids_of("foundation"), g.ids_of("tableau")
+    for i, suit in enumerate("SHD"):
+        g.slots[fids[i]].cards.append(up(13, suit))
+        g.slots[tids[i]].cards = []
+    g.slots[tids[0]].cards = [up(13, "C")]
+    return g
+
+
+@pytest.mark.parametrize(
+    "start, key, keys, game",
+    [
+        ("fortythieves", "fortythieves", ["n"], None),
+        ("fortythieves", "fortythieves", ["g", "5", ENTER], None),
+        ("golf", "fortythieves", ["g", *"fortythieves:5", ENTER], None),
+        ("golf", "fortythieves", ["m", *"jjjjj", ENTER], None),
+        ("triplepeaks", "triplepeaks", ["o", curses.KEY_RIGHT, ENTER], None),
+        ("klondike", "klondike", ["a", "n"], near_won),
+    ],
+    ids=["n", "g", "g-other-game", "menu", "o", "banner"],
+)
+def test_a_game_played_elsewhere_is_said_in_full_whenever_a_deal_comes(tui, start, key, keys, game):
+    # each, too long for the line at 80 columns, goes over two, as it does
+    # when the run starts
+    note = elsewhere_note(key)
+    assert len(note) > 72
+    one_up(key)
+    with in_play_elsewhere(key):
+        scr = tui(
+            [curses.KEY_RIGHT, *keys, curses.KEY_RIGHT, "q"],
+            start_key=start,
+            game=game and game(),
+            h=24,
+            w=80,
+        )
+    at = 1 + len(keys)  # the frame after the keys that bring the deal
+    assert [message_line(frame) for frame in scr.frames[at : at + 2]] == note_pages(note)
+
+
+def test_the_longest_game_played_elsewhere_goes_over_two_lines():
+    notes = [elsewhere_note(key) for key in engine.GAME_ORDER]
+    assert max(notes, key=len) == elsewhere_note("fortythieves")
+    assert len(note_pages(elsewhere_note("fortythieves"))) == 2
+
+
+def scorpion_with_only_kings_to_slide():
+    g = deal("scorpion", 1)
+    clear_board(g)
+    t = g.ids_of("tableau")
+    g.slots[t[0]].cards = [up(13, "H"), up(2, "C")]
+    g.slots[t[1]].cards = [up(13, "S"), up(3, "D")]
+    return g
+
+
+def spider_with_nothing_to_score():
+    # a column empty and the stock not, and every card below another in its suit
+    g = deal("spider", 1, suits=4)
+    t = g.ids_of("tableau")
+    g.slots[t[0]].cards = []
+    for sid in t[1:]:
+        g.slots[sid].cards = [up(6, "S"), up(5, "S")]
+    return g
+
+
+def spider_with_too_few_cards_to_deal():
+    g = deal("spider", 1, suits=4)
+    for sid in g.ids_of("tableau")[1:]:
+        g.slots[sid].cards = []
+    return g
+
+
+def spiderette_with_two_empty_columns():
+    g = deal("spiderette", 1)
+    for sid in g.ids_of("tableau")[:2]:
+        g.slots[sid].cards = []
+    return g
+
+
+@pytest.mark.parametrize(
+    "key, make, k",
+    [
+        ("scorpion", scorpion_with_only_kings_to_slide, "h"),
+        ("spider", spider_with_nothing_to_score, "h"),
+        ("spider", spider_with_too_few_cards_to_deal, "d"),
+        ("spiderette", spiderette_with_two_empty_columns, "d"),
+    ],
+    ids=["scorpion-hint", "spider-hint", "spider-deal", "spiderette-deal"],
+)
+def test_a_reason_too_long_for_the_line_goes_over_two(tui, key, make, k):
+    g = make()
+    why = g.no_hint_reason() if k == "h" else g.deal_blocked_reason()
+    assert len(why) > 72
+    scr = tui([k, curses.KEY_RIGHT, "q"], start_key=key, game=g, h=24, w=80)
+    assert [message_line(frame) for frame in scr.frames[1:3]] == note_pages(why)
+
+
+def test_the_rest_of_a_long_message_goes_once_the_line_says_something_else(tui, monkeypatch):
+    long = "no move clearly helps from here, " * 5 + "so undo"
+    monkeypatch.setattr(engine.Solitaire, "hint", lambda self: None)
+    monkeypatch.setattr(engine.Solitaire, "no_hint_reason", lambda self: long)
+    first, second, third = note_pages(long)
+    # the King going up says nothing, so the second piece follows, and the
+    # win comes; after the banner's new deal the third has gone with it
+    scr = tui(["h", "f", "n", curses.KEY_RIGHT, "q"], game=all_but_a_king_up(), h=24, w=80)
+    assert message_line(scr.frames[1]) == first
+    assert "YOU WIN" in scr.frames[2]
+    assert [message_line(frame) for frame in scr.frames[3:5]] == ["new deal", "new deal"]
+    # the second piece was on the line as the win came, and the third never
+    said = scr.uis[0].said
+    assert second in said and third not in said
 
 
 # -- hints and undos ---------------------------------------------------------------
