@@ -80,7 +80,7 @@ can always read what a newer release writes.
 
 | File | What's in it |
 | --- | --- |
-| `config.json` | `last_game`, `options` (each game's, by key), `symbols`, `sync_aisleriot` and `merged_into_aisleriot`, and once they've been set, `color`, `theme`, `four_color`, `code_skin`, `camo_theme`, `view`, `animation` and `migrated_from` |
+| `config.json` | only the settings that have been saved: `last_game` once the full-screen game has started one, `options` (each game's, by key) once a game's are changed, `color`, `theme`, `four_color`, `code_skin`, `camo_theme` and `view` once they're changed, `merged_into_aisleriot` once the one-time merge into AisleRiot's record has run, and `migrated_from` if the first run copied aisle-cli's files over. The game reads `symbols`, `sync_aisleriot` and `animation` but never writes them, so they're there only if you added them, the first run copied them from aisle-cli, or 1.0.0 saved the file, as it wrote `symbols` and `sync_aisleriot` every time |
 | `stats.json` | a record for each game key, with `wins`, `total`, `best` and `worst` (in seconds, 0 for none), and `_meta`, with the marker for the one-time merge into AisleRiot's record and the games still to be shared |
 | `history.jsonl` | a line for each game: `at`, `game`, `options`, `deal`, `result` (`won` or `lost`), `seconds`, `moves` and `score`, and `daily` for a daily, and from 1.1 on `hints` and `undos` |
 | `saves/<game>.json` | `format`, `version`, `saved` and `seconds`, then `game`, `options`, `deal`, `daily`, `chosen`, `moves`, `score`, `position`, `undo` and `redo`, and from 1.1 on `hints` and `undos` |
