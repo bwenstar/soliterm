@@ -78,6 +78,20 @@ def test_games_played_and_won_count_each_game_on_its_own():
     assert found["spider"] == NOTHING
 
 
+def test_the_records_say_when_each_game_was_first_played_here():
+    lines = [
+        game("golf", "lost", at="2026-09-20T10:00:00+10:00"),
+        game(at="2026-09-21T10:00:00+10:00"),
+        game("golf", at="2026-09-22T10:00:00+10:00"),
+        {**game(at="2026-09-19T10:00:00+10:00"), "game": "poker"},
+    ]
+    found = records.records(lines)
+    # lost or won, as the history only began with Soliterm 1.0
+    assert found["golf"].since == "2026-09-20T10:00:00+10:00"
+    assert found["klondike"].since == "2026-09-21T10:00:00+10:00"
+    assert found["spider"].since is None
+
+
 def test_the_fastest_win_is_the_shortest_time_with_fewer_moves_breaking_a_tie():
     lines = [
         game(seconds=90, moves=80, at="2026-09-20T10:00:00+10:00"),

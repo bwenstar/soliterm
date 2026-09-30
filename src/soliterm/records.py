@@ -79,6 +79,10 @@ class Records(NamedTuple):
     # list them, lost games too
     best_scores: tuple[Best, ...]
     streak: Streak  # the win streak now and the longest
+    # the "at" of the first game played here, won or lost, or None if none
+    # has been: the history began with Soliterm 1.0, so the rest can come
+    # from fewer games than the statistics count
+    since: str | None = None
 
 
 def _best(e: dict) -> Best:
@@ -158,12 +162,14 @@ def records(entries: list[dict] | None = None) -> dict[str, Records]:
     fewest: dict[str, dict] = {}
     scores: dict[str, dict[tuple, dict]] = {key: {} for key in GAME_ORDER}
     streaks = dict.fromkeys(GAME_ORDER, Streak(0, 0))
+    since: dict[str, str] = {}
     for e in entries:
         key = e["game"]
         if key not in played:
             continue  # a game from a newer version
         win = e["result"] == "won"
         played[key] += 1
+        since.setdefault(key, e["at"])
         streaks[key] = streaks[key].after(win)
         if win:
             won[key] += 1
@@ -180,6 +186,7 @@ def records(entries: list[dict] | None = None) -> dict[str, Records]:
             _best(fewest[key]) if key in fewest else None,
             _in_options_order(key, scores[key]),
             streaks[key],
+            since.get(key),
         )
         for key in GAME_ORDER
     }
