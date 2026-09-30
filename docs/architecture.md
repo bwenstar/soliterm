@@ -77,6 +77,12 @@ up one at a time and calls `after_move` and `post_move` for each.
 scoring, so anything a game has to do after every move belongs in
 `post_move`.
 
+A move `attempt_move` refuses changes nothing, and `Solitaire.why_not`
+asks the game's `why_not` for the reason, which both front ends print
+after `illegal move:`. It asks about the cards the move would have
+taken, and the reason names them the way the board does and never
+depends on a card face down, so it gives nothing away.
+
 Undo and redo swap whole positions, written out by `serialize()`, so no
 game has to know how to take a move back. The hints asked for and the
 moves taken back are counted on `Solitaire` too, as `hints` and `undos`,

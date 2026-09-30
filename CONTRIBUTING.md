@@ -155,7 +155,8 @@ separate commits. That keeps review easy and makes `git bisect` useful.
 with a worked example. In short:
 
 1. Write `src/soliterm/engine/games/<key>.py`, a subclass of `GameDef`
-   that plays the game by AisleRiot's rules.
+   that plays the game by AisleRiot's rules, with a `why_not` that says
+   why a move is refused by them.
 2. Add it to `GAMES` and `GAME_ORDER` in
    `src/soliterm/engine/games/__init__.py`, and import it in
    `src/soliterm/engine/__init__.py` and add it to `__all__` there.
@@ -171,7 +172,9 @@ with a worked example. In short:
    the rules every game keeps.
 6. Once the deal is final, pin deals 1 and 2 in `DEALS` in
    `tests/test_conformance.py`.
-7. Write `tests/test_<key>.py` for the rules that are the game's own.
+7. Write `tests/test_<key>.py` for the rules that are the game's own,
+   and add the reasons its moves are refused for to `CASES` in
+   `tests/test_why_not.py`.
 8. Write `docs/games/<key>.md`, add a row to the tables in
    `docs/games/README.md` and `README.md`, give it an entry under GAMES in
    `man/soliterm.6` and a place in the Game list of

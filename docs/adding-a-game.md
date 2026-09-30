@@ -55,7 +55,7 @@ Save this as `src/soliterm/engine/games/fortress.py`:
 
 from __future__ import annotations
 
-from ..cards import ACE
+from ..cards import ACE, KING, Card
 from ..gamedef import GameDef
 
 
@@ -93,6 +93,18 @@ class Fortress(GameDef):
         if g.kind(dst) == "tableau":
             return top is None or self.tableau_adjacent(top, card)
         return False
+
+    def why_not(self, g, src, cards, dst):
+        if len(cards) > 1:
+            return "cards move one at a time in Fortress"
+        if g.kind(src) == "foundation":
+            return "cards on the foundations stay there"
+        if g.kind(dst) == "foundation":
+            return self.foundation_refusal(g, cards, dst)
+        top = g.top(dst)
+        ranks = [r for r in (top.rank - 1, top.rank + 1) if ACE <= r <= KING]
+        near = " or ".join(Card(r, top.suit, True).label(g.symbols) for r in ranks)
+        return self.column_refusal(g, cards[0], top, near)
 
     def send_up(self, g, sid):
         """Move the top card of sid to its foundation, if it can go."""
@@ -185,6 +197,27 @@ calls `g.update_status()` itself.
 
 The score never goes below 0, so a game that takes a point back when a
 card comes down off a foundation can just subtract one.
+
+### Saying why a move is refused
+
+When the engine refuses a move, it asks `why_not(g, src, cards, dst)`
+what to say after `illegal move: `, in the full-screen game and in text
+mode alike. The default knows Klondike's rules, so every other game says
+why by its own. `GameDef` has the pieces most games share:
+`lift_refusal` for cards that can't leave their slot, `run_refusal` for
+cards that aren't one run, `slot_refusal` for a slot that takes nothing,
+`foundation_refusal` for a card that doesn't go up, and `column_refusal`
+for one that doesn't build on a column, which Fortress gives the two
+cards that would. So moving the 8 of Spades onto the 7 of Hearts says
+`illegal move: 8S doesn't go on 7H, which takes 6H or 8H`.
+
+A reason names cards the way the board does, with `g.symbols`, never
+hangs on a card that's face down, and keeps to 58 characters so the
+whole message fits an 80-column screen. Add the game's key to `CASES` in
+`tests/test_why_not.py`, with a few positions and the reason each should
+give. The tests there fail for a game with no cases, give each case to
+both front ends, and check the reason for every move random play gets
+refused against the width and the cards face down.
 
 ### Clicks
 
@@ -388,7 +421,8 @@ of it scores, when every win scores the same:
 
 Fortress scores a point for each card on the foundations, so every win
 scores 52, and a lost game with 38 cards up scores 38. A game whose wins
-score differently, as Triple Peaks' runs do, goes in with `None`.
+score differently, as Triple Peaks' runs do, goes in with `None`, and so
+does Pyramid, where a win can leave cards standing.
 `tests/test_records.py` fails for a game that isn't there.
 
 ## Run the conformance suite

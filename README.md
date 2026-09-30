@@ -407,7 +407,9 @@ they were. The man page's FILES section has the details.
   Bakers Dozen needs 68 columns and Pyramid 23 rows. In a window
   that's too small, Soliterm says what size it needs instead of drawing a
   cut-off board, and carries on once you make the window bigger. The
-  compact view, `x`, works there too and takes fewer rows.
+  compact view, `x`, works there too and takes fewer rows. In a shorter
+  window, the menu, the statistics and the help scroll with the arrow
+  keys.
 - **TERM.** The full-screen game goes by `TERM`, as curses does. When it
   names a terminal this system has no entry for, as over ssh from a
   terminal newer than the far end, Soliterm plays as `xterm-256color`, or
