@@ -2206,12 +2206,17 @@ def test_a_daily_banner_too_short_for_the_share_line_copies_the_code(tui, sent, 
 def test_the_most_a_banner_holds_and_what_y_did_fit_80x24(tui, sent, monkeypatch, skin):
     if skin:
         code_skin_on()
-    # four choices, the daily's share line and the longest thing y says there
+    # four choices, the best on this deal, the daily's share line and the
+    # longest thing y says there
     monkeypatch.setenv("TMUX", "set by tmux")
+    won = deal("golf", 1)
+    won.moves = 40
+    history.record(won, True, 60)
     golf = deals.daily("golf", DAY)
     banner = tui(["f", "y", "m"], start=golf, game=one_move_left(), h=24, w=80).frames[2]
     sent()
     assert "Terminal too small" not in banner
+    assert "On this deal: your best is 1:00, 40 moves" in banner
     for choice in ["Undo move (u)", "Replay this deal (s)", "New deal (n)", "Back to menu (m)"]:
         assert choice in banner
     rows = banner.split("\n")
