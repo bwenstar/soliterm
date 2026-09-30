@@ -3411,14 +3411,20 @@ def test_the_boss_key_works_on_every_screen_and_comes_back_to_it(
     assert screen in back
 
 
+@pytest.mark.parametrize("skin", [False, True], ids=["plain", "code-skin"])
 @pytest.mark.parametrize("screen, start_key, game, keys", EVERY_SCREEN)
-def test_every_screen_fits_80x24(tui, screen, start_key, game, keys):
+def test_every_screen_fits_80x24(tui, screen, start_key, game, keys, skin):
+    if skin:
+        code_skin_on()
     scr = tui(keys + OUT, start_key=start_key, game=game and game(), h=24, w=80)
     shown = scr.frames[len(keys)]
     assert screen in shown and "Terminal too small" not in shown
-    if screen in ("choose a game", "Statistics"):
-        # every game has its row, and whatever comes under them fits too
+    if screen in ("choose a game", "Statistics", "Daily deals for"):
+        # every game has its row, with none of them scrolled out of view
         assert all(cls.name in shown for cls in engine.GAMES.values())
+        assert "more above" not in shown and "more below" not in shown
+    if screen in ("choose a game", "Statistics"):
+        # and whatever comes under them fits too
         assert ("Quit" if start_key is None else "Press any key") in shown
 
 
