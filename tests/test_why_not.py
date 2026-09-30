@@ -10,8 +10,9 @@ from soliterm import textmode
 from soliterm.engine import GAMES, Card, GameDef
 from soliterm.engine.core import REFUSED
 from soliterm.textmode import apply_text_command
+from soliterm.tui.app import App
 
-from helpers import clear_board, deal
+from helpers import FakeScr, clear_board, deal
 
 # The message line at 80 columns with the code skin on
 WIDTH = 72
@@ -620,3 +621,26 @@ def test_text_mode_says_why_with_the_letters_ascii_gives(capsys):
     g = deal("klondike", 1)
     textmode.run_text(g, False, "klondike", stream=io.StringIO("7 8\nq\n"))
     assert "illegal move: 8D doesn't go on 10D, which takes a black 9" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("key", list(GAMES))
+def test_both_front_ends_say_why_in_every_game(key):
+    # each case a bare move makes from a slot the board can pick up from,
+    # typed in text mode, and picked up and dropped in the full-screen game
+    seen = 0
+    for piles, move, want in CASES[key]:
+        g = board(key, base=12 if key == "canfield" else None, **piles)
+        src, dst, n = where(g, move)
+        if n is not None or g.default_pickup(src) <= 0:
+            continue
+        assert apply_text_command(g.clone(), f"{src} {dst}") == (False, PREFIX + want)
+        app = App(FakeScr(40, 120), symbols=False)
+        app.start_game(key)
+        for slot in g.slots:
+            app.game.slots[slot.sid].cards = list(slot.cards)
+        app.game.base_val = g.base_val
+        app.select_here(src)
+        app.drop_on(dst)
+        assert app.message == PREFIX + want
+        seen += 1
+    assert seen
