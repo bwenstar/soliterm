@@ -4240,6 +4240,27 @@ def test_left_and_right_go_to_the_records_of_the_games_either_side(tui):
     assert "Canfield " in picked(scr, 9)
 
 
+def test_the_records_and_the_daily_list_agree_on_the_dailies(tui, on_the_day):
+    for day in [19, 20, 21, 23, 24]:
+        played_daily("golf", True, day=date(2026, 9, day))
+    played_daily("klondike", False)
+    listed = tui([Mouse(DAILY_DEAL, 8), ESC, -1], start_key=None).frames[1]
+    assert listed.split("\n")[2] == "    Daily streak: 2 days (longest 3)"
+    rows = daily_rows(listed)
+    assert rows["golf"].endswith("won in 1:00, 40 moves")
+    assert rows["klondike"].endswith("played, not won yet")
+    golf, klondike = (
+        page_of(tui(["s", ENTER, "q", "z"], start_key=key).frames[2])
+        for key in ("golf", "klondike")
+    )
+    seven = "Seven dailies 3 of 7      the longest run of days with a daily won"
+    assert seven in golf and seven in klondike
+    assert any(line.startswith("Played        5 since") and line.endswith("won 5") for line in golf)
+    assert any(
+        line.startswith("Played        1 since") and line.endswith("won 0") for line in klondike
+    )
+
+
 def test_a_click_on_the_row_already_picked_opens_its_records(tui):
     # Klondike's row is picked to start with, and Spider's is under it
     scr = tui(["s", Mouse(5, 20), "q", Mouse(6, 20), Mouse(6, 20), "q", "z"])
