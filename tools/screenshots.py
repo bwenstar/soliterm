@@ -121,11 +121,12 @@ def golf(plays: str) -> str:
     return " ".join(keys)
 
 
-def frames(seconds: float, every: int = 100) -> list[Step]:
+def frames(seconds: float, every: int = 100, speed: float = 1) -> list[Step]:
     """Shots every `every` milliseconds for `seconds`, for something that
-    moves on its own. Taking a shot costs about 10 milliseconds, so each
-    one waits that much less."""
-    return [shot(hold=every, wait=(every - 10) / 1000) for _ in range(int(seconds * 1000 / every))]
+    moves on its own, played `speed` times as fast as it ran. Taking a shot
+    costs about 10 milliseconds, so each one waits that much less."""
+    hold = round(every / speed)
+    return [shot(hold=hold, wait=(every - 10) / 1000) for _ in range(int(seconds * 1000 / every))]
 
 
 # Klondike, deal 946: the first three hints are 6D onto 7C (column 7 to 4),
@@ -133,10 +134,12 @@ def frames(seconds: float, every: int = 100) -> list[Step]:
 # card it suggests.
 SIX_ON_SEVEN = "h Enter Left Left Left Enter"
 
-# Then on to where every card can go up, 98 moves later, by following the
-# hints: d when the hint is to deal, h f when it sends a card up, and
-# otherwise h Enter, the arrows to the column it names, and Enter.
+# Then, after the second, on to where every card can go up, 99 moves later,
+# by following the hints: d when the hint is to deal, h f when it sends a
+# card up, and otherwise h Enter, the arrows to the column it names, and
+# Enter.
 TO_THE_FINISH = """
+    h Enter Left Left Left Left Enter
     h f h Enter Right Enter h Enter Left Left Left Left Left Left Enter
     h Enter Right Right Enter d d h Enter Right Right Right Right Down Enter d d d d d d
     d d h Enter Left Down Enter d h f h f h f h Enter Left Down Enter d h f h f h f h f
@@ -182,37 +185,31 @@ SCENES: list[Scene] = [
     ),
     Scene(
         "hero",
-        "animated: a few Klondike moves, then the finish and the win",
+        "animated: two Klondike moves, then the finish and the win",
         "klondike:946",
         [
-            shot(hold=1600),
-            shot("h", hold=1800),
-            shot("Enter", hold=800),
-            shot("Left", hold=300),
-            shot("Left", hold=300),
-            shot("Left", hold=600),
-            shot("Enter", hold=1400),
-            shot("h", hold=1800),
-            shot("Enter", hold=800),
-            shot("Right", hold=300),
-            shot("Right", hold=600),
-            shot("Enter", hold=1400),
-            shot("h", hold=1800),
-            shot("Enter", hold=800),
-            shot("Left", hold=300),
-            shot("Left", hold=300),
-            shot("Left", hold=300),
-            shot("Left", hold=600),
-            shot("Enter", hold=1400),
-            caption("a little later...", hold=1200),
+            shot(hold=900),
+            shot("h", hold=1100),
+            shot("Enter", hold=350),
+            shot("Left", hold=150),
+            shot("Left", hold=150),
+            shot("Left", hold=250),
+            shot("Enter", hold=700),
+            shot("h", hold=700),
+            shot("Enter", hold=300),
+            shot("Right", hold=150),
+            shot("Right", hold=250),
+            shot("Enter", hold=700),
+            caption("a little later...", hold=900),
             # a cut to the end of the game, the cards going up and the
             # win: the finish takes about a second and a half and the
-            # cascade after it six at most, then the banner comes up
+            # cascade after it six at most, shown at twice the speed,
+            # then the banner comes up
             Step(TO_THE_FINISH),
-            shot(hold=2600),
+            shot(hold=1300),
             shot("a", hold=100, wait=0.09),
-            *frames(8.5),
-            shot(hold=5000),
+            *frames(7.2, every=200, speed=2),
+            shot(hold=3200),
         ],
         animate=True,
     ),

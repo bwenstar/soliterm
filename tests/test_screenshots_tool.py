@@ -169,6 +169,17 @@ def test_frames_last_as_long_as_asked(tool):
     assert all(step.shot and step.hold == 100 and step.wait < 0.1 for step in steps)
 
 
+def test_frames_can_play_faster_than_they_ran(tool):
+    steps = tool.frames(2, every=200, speed=2)
+    assert len(steps) == 10
+    assert all(step.hold == 100 and 0.1 < step.wait < 0.2 for step in steps)
+
+
+def test_the_hero_is_short_enough_to_watch_through(tool):
+    seconds = sum(step.hold for step in scene(tool, "hero").steps if step.shot) / 1000
+    assert 12 <= seconds <= 15
+
+
 def test_a_caption_is_its_text_alone_in_the_middle_of_the_screen(tool):
     rows = tool.parse(tool.caption_screen("a little later..."))
     assert len(rows) == tool.ROWS
