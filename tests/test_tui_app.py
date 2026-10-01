@@ -771,6 +771,30 @@ def test_only_a_left_click_moves_the_notes_on_and_once_a_click(monkeypatch):
     assert app.message == UNREADABLE
 
 
+def test_a_click_with_nothing_to_say_moves_the_notes_on_once(monkeypatch):
+    app = with_everything_to_say(monkeypatch)
+    app.start_game("klondike")
+    notes = [app.message, *app.notes]
+    app.draw()
+    assert app.ui.hit_test(0, 0) is None  # no card there to pick up
+    # a press and its release, then the clicks ncurses and PDCurses can
+    # give as one event
+    mouse(app, monkeypatch, (0, 0, curses.BUTTON1_PRESSED), (0, 0, curses.BUTTON1_RELEASED))
+    assert app.message == notes[1]
+    mouse(app, monkeypatch, (0, 0, curses.BUTTON1_CLICKED))
+    assert app.message == notes[2]
+    mouse(app, monkeypatch, (0, 0, curses.BUTTON1_DOUBLE_CLICKED))
+    assert app.message == notes[3]
+
+    # and one curses couldn't read is no click, whatever came before it
+    def unreadable():
+        raise curses.error("getmouse() returned ERR")
+
+    monkeypatch.setattr(curses, "getmouse", unreadable)
+    press(app, curses.KEY_MOUSE)
+    assert app.message == notes[3]
+
+
 def test_a_drag_that_moves_cards_moves_the_notes_on_as_keys_would(monkeypatch):
     app = with_everything_to_say(monkeypatch)
     app.start_game("klondike")
