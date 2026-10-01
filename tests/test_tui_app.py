@@ -790,6 +790,23 @@ def test_a_drag_that_moves_cards_moves_the_notes_on_as_keys_would(monkeypatch):
     assert app.message == soliterm.tui.app.note_pages(store.notices()[0])[0]
 
 
+def test_a_click_on_a_terminal_too_small_for_the_board_leaves_the_note(monkeypatch):
+    # with no room for the board there's no message line either, so the
+    # note on it hasn't been read yet
+    app = with_everything_to_say(monkeypatch)
+    app.stdscr.h, app.stdscr.w = 10, 30
+    app.start_game("klondike")
+    app.draw()
+    assert "Terminal too small" in app.stdscr.text()
+    mouse(app, monkeypatch, (3, 3, curses.BUTTON1_PRESSED), (3, 3, curses.BUTTON1_RELEASED))
+    app.stdscr.h, app.stdscr.w = 24, 80
+    app.stdscr.erase()
+    press(app, curses.KEY_RESIZE)
+    app.draw()
+    assert app.message == store.AISLERIOT_OPEN
+    assert store.AISLERIOT_OPEN in app.stdscr.text()
+
+
 def test_a_note_too_long_for_a_line_goes_over_more_than_one():
     note = "can't read " + "/very/long" * 12 + "/stats.json (Permission denied), so it is left"
     pages = soliterm.tui.app.note_pages(note)

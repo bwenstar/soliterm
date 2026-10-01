@@ -964,7 +964,9 @@ class App(Screens):
         # A resize, or a mouse event other than a click, isn't the player
         # saying they're done with the line, so the line moves on only if
         # the event emptied it, as letting go of a drag that moves cards does.
-        theirs = action != "redraw" and (action != "mouse" or self.clicked)
+        # Nor is anything while the board doesn't fit, as the line isn't
+        # drawn then.
+        theirs = self.ui.fits() and action != "redraw" and (action != "mouse" or self.clicked)
         if outcome is None and (self.message == "" or (theirs and self.message == message)):
             # the key had nothing to say, so the line goes to the rest of a
             # message too long for it, or else to the next note

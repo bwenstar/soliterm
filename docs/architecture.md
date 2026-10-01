@@ -124,7 +124,8 @@ moves left, and read a key.
    first game still has notes to give (see below), the next note. A
    resize, the wheel or letting go of the button only does when it
    leaves the line blank, as letting go of a drag that moves cards does,
-   so a click moves the line on once.
+   so a click moves the line on once. While the board doesn't fit, the
+   line isn't drawn, and only what blanks it moves it on.
 5. The next time round, `App.draw` cuts a message too long for 72
    columns into pieces with `note_pages`, as it does the notes, and puts
    the first on the line (`page_message`). Then it hands the game, the
