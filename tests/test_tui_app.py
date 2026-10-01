@@ -659,7 +659,9 @@ def message_lines(app, key=curses.KEY_RIGHT):
     """What the message line says as the game starts, then after each key
     until it stops changing, each checked to be on the screen in full."""
     said = [app.message]
-    for _ in range(20):
+    # A note that names a file takes as many pieces as its path needs, and
+    # the tests' files are under a temporary folder that's deep on macOS.
+    for _ in range(100):
         app.draw()
         assert said[-1] in app.stdscr.text()
         press(app, key)
@@ -866,6 +868,38 @@ def test_a_message_too_long_for_the_line_goes_a_piece_a_key_ahead_of_the_notes(
     said = message_lines(app)
     assert said[:3] == long_no_hint
     # the notes the hint came in front of follow it
+    assert put_together([first, *said[3:]]) == unspaced(
+        [store.AISLERIOT_OPEN, UNREADABLE, *store.notices(), TERM_NOTE]
+    )
+
+
+@pytest.fixture
+def deep_home(isolated_home, monkeypatch):
+    """A home deeper than the one the tests get on macOS, whose temporary
+    folder is twice as long as Linux's, so the notices that name a file in
+    it take more pieces of the message line than they do there, wherever
+    the tests run."""
+    home = isolated_home / "deeper"
+    while len(str(home)) < 160:
+        home = home / "deeper"
+    home.mkdir(parents=True)
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(home / ".config"))
+    monkeypatch.setenv("XDG_DATA_HOME", str(home / ".local" / "share"))
+    return home
+
+
+def test_notes_naming_files_in_a_deep_home_all_come_through(monkeypatch, long_no_hint, deep_home):
+    app = with_everything_to_say(monkeypatch)
+    app.start_game("klondike")
+    assert all(str(deep_home) in notice for notice in store.notices())
+    first = app.message
+    press(app, "h")
+    app.draw()
+    said = message_lines(app)
+    assert said[:3] == long_no_hint
+    assert all(len(line) <= 72 for line in said)
     assert put_together([first, *said[3:]]) == unspaced(
         [store.AISLERIOT_OPEN, UNREADABLE, *store.notices(), TERM_NOTE]
     )
