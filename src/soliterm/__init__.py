@@ -18,7 +18,7 @@ Modules:
   camo       boss-mode and code-skin text
 """
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 
 # The product name as players see it (titles, banners, --help).
 APP_NAME = "Soliterm"

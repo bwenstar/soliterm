@@ -12,6 +12,8 @@ Soliterm 1.0.0 lists the changes since.
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-01
+
 This release is about the first few games and the reasons to come back
 after them. There's a thirteenth game, Pyramid. A move the rules refuse
 says why, `p` pauses and `y` copies a share code. Each game has a page of
@@ -552,7 +554,8 @@ at the bottom of CHANGELOG.md.
 - 17 test files covering the engine, all nine games' rules, scoring, undo/redo,
   hints, statistics persistence, and the rendering modes.
 
-[Unreleased]: https://github.com/bwenstar/soliterm/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/bwenstar/soliterm/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/bwenstar/soliterm/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/bwenstar/soliterm/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/bwenstar/soliterm/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/bwenstar/soliterm/releases/tag/v1.0.0
