@@ -312,7 +312,9 @@ Total.
 The win screen says how a game stood on its deal too, from the same
 games: `On this deal: a new best, was 2:40, 61 moves`, or `your best is
 1:58, 44 moves` when it didn't beat it, and a game that ends with no
-moves left gives your best win of its deal. The deal is the game, the
+moves left gives your best win of its deal. When a win is a new best
+time on a deal whose best was the game's best, the line on the best time
+has said so already, and this one is left out. The deal is the game, the
 deal number and the options, so a daily is the same deal as the plain
 one of its number.
 

@@ -57,11 +57,14 @@ you've played here already count, and no file has changed its format.
 - The win banner says how a win stood against your best win of the same
   deal, on time and then on moves: `On this deal: a new best, was 2:40,
   61 moves`, or `your best is 1:58, 44 moves`. The first win of a deal
-  says nothing more, and a game with no moves left gives your best win of
-  its deal, if there is one. The deal is the game, its number and the
-  options, so a daily is the same deal as the plain one of its number
-  with the standard options, as they have the same cards.
-  Text mode prints the same line under a win's share code.
+  says nothing more, and nor does a new best time on a deal whose best
+  was the game's best, as the line on the best time has just said so. A
+  game with no moves left gives your best win of its deal, if there is
+  one. The deal is the game, its number and the options, so a daily is
+  the same deal as the plain one of its number with the standard
+  options, as they have the same cards. Text mode prints the same line
+  under a win's share code, and as it gives no best time, it prints it
+  for such a new best too.
 - A move the rules refuse says why, in the full-screen game and in text
   mode, as in `illegal move: 8D doesn't go on 10D, which takes a black 9`.
   Each game gives its own rules' reasons, names the cards the way the

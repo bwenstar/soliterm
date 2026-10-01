@@ -279,7 +279,10 @@ On this deal: a new best, was 2:40, 61 moves
 or `On this deal: your best is 1:58, 44 moves` when it didn't beat it.
 The deal is the game, the deal number and the options, so a daily is the
 same deal as the plain deal of its number with the standard options. The
-first win of a deal prints nothing more, and nor does a loss.
+first win of a deal prints nothing more, and nor does a loss. Text mode
+gives no best time, so it prints the line for a new best time on a deal
+whose best was the game's best too, where the full-screen game's banner
+leaves that to its line on the best time.
 
 ## Keeping a game for later
 
