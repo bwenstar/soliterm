@@ -17,6 +17,7 @@ from soliterm.deals import Deal
 from soliterm.engine import Card, Solitaire
 from soliterm.tui import cascade
 from soliterm.tui.app import MENU, QUIT, START_MESSAGE, App
+from soliterm.tui.screens import WHEEL_DOWN
 
 from helpers import FakeScr, clear_board, deal, steps
 
@@ -727,6 +728,66 @@ def test_notes_not_seen_before_the_menu_come_with_the_next_game(monkeypatch):
     said = message_lines(app)
     assert said[0] == START_MESSAGE
     assert put_together(said[1:]) == unspaced([UNREADABLE, *store.notices(), TERM_NOTE])
+
+
+def test_a_resize_leaves_the_note_on_the_line(monkeypatch):
+    # the terminal changing size is none of the player's doing, and that
+    # AisleRiot is open is said only once a run
+    app = with_everything_to_say(monkeypatch)
+    app.start_game("klondike")
+    press(app, curses.KEY_RESIZE, curses.KEY_RESIZE, curses.KEY_RESIZE)
+    assert app.message == store.AISLERIOT_OPEN
+
+
+def mouse(app, monkeypatch, *events):
+    """Have the mouse do each (y, x, bstate) of events in turn, with a
+    frame drawn before each."""
+    events = list(events)
+
+    def getmouse():
+        y, x, bstate = events.pop(0)
+        return 0, x, y, 0, bstate
+
+    monkeypatch.setattr(curses, "getmouse", getmouse)
+    press(app, *[curses.KEY_MOUSE] * len(events))
+
+
+def test_only_a_left_click_moves_the_notes_on_and_once_a_click(monkeypatch):
+    app = with_everything_to_say(monkeypatch)
+    app.start_game("klondike")
+    app.draw()
+    y, x = cell_of(app, app.game.ids_of("tableau")[0], 0)
+    others = [
+        curses.REPORT_MOUSE_POSITION,
+        curses.BUTTON4_PRESSED,
+        WHEEL_DOWN,
+        curses.BUTTON3_PRESSED,
+        curses.BUTTON3_RELEASED,
+    ]
+    mouse(app, monkeypatch, *[(y, x, bstate) for bstate in others])
+    assert app.message == store.AISLERIOT_OPEN
+    # waiting for no clicks, ncurses gives one as a press and a release
+    mouse(app, monkeypatch, (y, x, curses.BUTTON1_PRESSED), (y, x, curses.BUTTON1_RELEASED))
+    assert app.message == UNREADABLE
+
+
+def test_a_drag_that_moves_cards_moves_the_notes_on_as_keys_would(monkeypatch):
+    app = with_everything_to_say(monkeypatch)
+    app.start_game("klondike")
+    t = app.game.ids_of("tableau")
+    app.game.slots[t[0]].cards = [up(5, "H")]
+    app.game.slots[t[1]].cards = [up(6, "S")]
+    app.draw()
+    mouse(
+        app,
+        monkeypatch,
+        (*cell_of(app, t[0], 0), curses.BUTTON1_PRESSED),
+        (*cell_of(app, t[1], 0), curses.BUTTON1_RELEASED),
+    )
+    assert names(app, t[1]) == ["6S", "5H"]
+    # the press picked the card up and letting go put it down, as two
+    # presses of Enter would, with no word on either
+    assert app.message == soliterm.tui.app.note_pages(store.notices()[0])[0]
 
 
 def test_a_note_too_long_for_a_line_goes_over_more_than_one():

@@ -316,6 +316,10 @@ class App(Screens):
         self.last_click: tuple[int, float] | None = None  # (slot, clock())
         # (y, x, clock()) of the last click that played a card
         self.played: tuple[int, int, float] | None = None
+        # the last mouse event on the board was the left button going down,
+        # which is meant, where a move of the pointer, the wheel or letting
+        # go may not be
+        self.clicked = False
         self.cursor = 0
         self.hint: tuple[int, int, str] | None = None
         self.hint_n = 1  # how many cards the hint would move
@@ -957,7 +961,11 @@ class App(Screens):
             self.message = FINISH_OFFER
         elif action in LOOK_ACTIONS and self.game.finish_moves():
             self.message += FINISH_REMINDER
-        if outcome is None and self.message in ("", message):
+        # A resize, or a mouse event other than a click, isn't the player
+        # saying they're done with the line, so the line moves on only if
+        # the event emptied it, as letting go of a drag that moves cards does.
+        theirs = action != "redraw" and (action != "mouse" or self.clicked)
+        if outcome is None and (self.message == "" or (theirs and self.message == message)):
             # the key had nothing to say, so the line goes to the rest of a
             # message too long for it, or else to the next note
             after, rest = self.rest
@@ -1295,10 +1303,12 @@ class App(Screens):
 
     # ---- play-screen mouse ---- #
     def do_mouse(self):
+        self.clicked = False
         try:
             _, mx, my, _, bstate = curses.getmouse()
         except curses.error:
             return None
+        self.clicked = bool(bstate & (LEFT_CLICK | curses.BUTTON1_DOUBLE_CLICKED))
         return self.mouse_at(my, mx, bstate)
 
     def mouse_at(self, y: int, x: int, bstate: int):
