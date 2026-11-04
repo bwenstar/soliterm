@@ -68,8 +68,16 @@ jobs:
           # yet, so Soliterm can't be installed there. Put it back once
           # it has.
           - { os: windows-latest, python: "3.15" }
+          # ubuntu-latest is Ubuntu 26.04 now, and setup-python has no
+          # 3.9 for it, as 3.9 was past its end of life before 26.04
+          # came out. Linux 3.9 runs on 24.04 instead, from the include
+          # below. Take both out when 3.9 goes.
+          - { os: ubuntu-latest, python: "3.9" }
         include:
           - { os: ubuntu-latest, python: "3.13", coverage: true }
+          # Linux 3.9, left out above. A cell made here only gets the
+          # values on its line, so it sets utf8 too.
+          - { os: ubuntu-24.04, python: "3.9", utf8: "1" }
           # Windows as players have it: without UTF-8 mode, which only
           # 3.15 turns on by default, files and pipes go through the ANSI
           # code page.
